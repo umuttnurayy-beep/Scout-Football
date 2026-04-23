@@ -1,0 +1,395 @@
+const BASE_URL = 'https://scoutfootball-backend-production.up.railway.app';
+
+const LEAGUE_MAP: Record<number, number> = {
+  39: 2021,
+  140: 2014,
+  78: 2002,
+  135: 2019,
+  61: 2015,
+  2: 2001,
+};
+
+const ODDS_LEAGUE_MAP: Record<number, string> = {
+  2021: 'soccer_epl',
+  2014: 'soccer_spain_la_liga',
+  2002: 'soccer_germany_bundesliga',
+  2019: 'soccer_italy_serie_a',
+  2015: 'soccer_france_ligue_one',
+  2001: 'soccer_uefa_champs_league',
+};
+
+export const TEAM_CITIES: Record<string, string> = {
+  // Premier League
+  'Arsenal': 'London', 'Chelsea': 'London', 'Tottenham': 'London',
+  'West Ham': 'London', 'Crystal Palace': 'London', 'Fulham': 'London',
+  'Brentford': 'London', 'Charlton': 'London', 'Millwall': 'London',
+  'Manchester City': 'Manchester', 'Manchester United': 'Manchester',
+  'Liverpool': 'Liverpool', 'Everton': 'Liverpool',
+  'Newcastle': 'Newcastle upon Tyne',
+  'Aston Villa': 'Birmingham', 'Birmingham': 'Birmingham',
+  'Brighton': 'Brighton', 'Southampton': 'Southampton',
+  'Nottingham': 'Nottingham', 'Burnley': 'Burnley', 'Bournemouth': 'Bournemouth',
+  'Ipswich': 'Ipswich', 'Leicester': 'Leicester', 'Sunderland': 'Sunderland',
+  'Wolves': 'Wolverhampton', 'Wolverhampton': 'Wolverhampton',
+  'Sheffield': 'Sheffield', 'Leeds': 'Leeds', 'Luton': 'Luton',
+  'Watford': 'Watford', 'Norwich': 'Norwich', 'Swansea': 'Swansea',
+  'Stoke': 'Stoke-on-Trent', 'Derby': 'Derby', 'Blackburn': 'Blackburn',
+  // La Liga
+  'Real Madrid': 'Madrid', 'Barcelona': 'Barcelona', 'Atletico Madrid': 'Madrid',
+  'Sevilla': 'Seville', 'Betis': 'Seville', 'Real Betis': 'Seville',
+  'Villarreal': 'Villarreal', 'Valencia': 'Valencia',
+  'Girona': 'Girona', 'Athletic Club': 'Bilbao', 'Real Sociedad': 'San Sebastian',
+  'Mallorca': 'Palma', 'RCD Mallorca': 'Palma',
+  'Celta Vigo': 'Vigo', 'Celta': 'Vigo',
+  'Osasuna': 'Pamplona',
+  'Rayo Vallecano': 'Madrid', 'Rayo': 'Madrid',
+  'Getafe': 'Getafe',
+  'Alaves': 'Vitoria', 'Deportivo Alaves': 'Vitoria',
+  'Leganes': 'Madrid',
+  'Espanyol': 'Barcelona',
+  'Las Palmas': 'Las Palmas',
+  'Valladolid': 'Valladolid',
+  'Almeria': 'Almeria', 'Cadiz': 'Cadiz', 'Granada': 'Granada',
+  'Elche': 'Elche', 'Levante': 'Valencia', 'Eibar': 'Eibar',
+  // Bundesliga
+  'Bayern': 'Munich', 'Bayern München': 'Munich',
+  'Borussia Dortmund': 'Dortmund',
+  'Bayer Leverkusen': 'Leverkusen', 'RB Leipzig': 'Leipzig',
+  'Eintracht Frankfurt': 'Frankfurt', 'Freiburg': 'Freiburg',
+  'Wolfsburg': 'Wolfsburg', 'Stuttgart': 'Stuttgart', 'Heidenheim': 'Heidenheim',
+  'Augsburg': 'Augsburg', 'Mainz': 'Mainz', 'Bochum': 'Bochum',
+  'Hoffenheim': 'Hoffenheim', 'Werder': 'Bremen', 'Bremen': 'Bremen',
+  'Union Berlin': 'Berlin', 'Hertha': 'Berlin',
+  'Gladbach': 'Monchengladbach', 'Monchengladbach': 'Monchengladbach',
+  'Köln': 'Cologne', 'Koln': 'Cologne', '1. FC Köln': 'Cologne',
+  'Schalke': 'Gelsenkirchen', 'Hannover': 'Hannover',
+  'Hamburg': 'Hamburg', 'Nürnberg': 'Nuremberg', 'Nuremberg': 'Nuremberg',
+  'Darmstadt': 'Darmstadt', 'St. Pauli': 'Hamburg', 'Holstein Kiel': 'Kiel',
+  // Serie A
+  'Inter Milan': 'Milan', 'Inter': 'Milan', 'AC Milan': 'Milan',
+  'Juventus': 'Turin', 'Torino': 'Turin',
+  'Napoli': 'Naples', 'Roma': 'Rome', 'Lazio': 'Rome', 'Atalanta': 'Bergamo',
+  'Fiorentina': 'Florence', 'Bologna': 'Bologna',
+  'Monza': 'Monza', 'Como': 'Como', 'Parma': 'Parma',
+  'Cagliari': 'Cagliari', 'Udinese': 'Udine', 'Empoli': 'Empoli',
+  'Lecce': 'Lecce', 'Genoa': 'Genoa',
+  'Salernitana': 'Salerno', 'Frosinone': 'Frosinone', 'Sassuolo': 'Sassuolo',
+  'Cremonese': 'Cremona', 'Hellas Verona': 'Verona', 'Venezia': 'Venice',
+  'Spezia': 'La Spezia', 'Sampdoria': 'Genoa',
+  // Ligue 1
+  'Paris Saint-Germain': 'Paris', 'PSG': 'Paris', 'Monaco': 'Monaco',
+  'Lyon': 'Lyon', 'Marseille': 'Marseille', 'Lille': 'Lille',
+  'Nice': 'Nice', 'Rennes': 'Rennes', 'Nantes': 'Nantes',
+  'Strasbourg': 'Strasbourg', 'Brest': 'Brest', 'Auxerre': 'Auxerre',
+  'Saint-Etienne': 'Saint-Etienne', 'Toulouse': 'Toulouse',
+  'Reims': 'Reims', 'Le Havre': 'Le Havre', 'Lens': 'Lens',
+  'Metz': 'Metz', 'Lorient': 'Lorient', 'Clermont': 'Clermont-Ferrand',
+  'Montpellier': 'Montpellier', 'Angers': 'Angers', 'Troyes': 'Troyes',
+  'Bordeaux': 'Bordeaux', 'Stade Brestois': 'Brest',
+  // UCL / Diğer
+  'Porto': 'Porto', 'Benfica': 'Lisbon', 'Sporting': 'Lisbon',
+  'Celtic': 'Glasgow', 'Rangers': 'Glasgow',
+  'Ajax': 'Amsterdam', 'Feyenoord': 'Rotterdam', 'PSV': 'Eindhoven',
+  'Club Brugge': 'Bruges', 'Anderlecht': 'Brussels',
+  'Red Bull Salzburg': 'Salzburg', 'Salzburg': 'Salzburg',
+  'Dinamo Zagreb': 'Zagreb',
+  'Copenhagen': 'Copenhagen', 'FC Copenhagen': 'Copenhagen',
+  'Galatasaray': 'Istanbul', 'Fenerbahçe': 'Istanbul', 'Beşiktaş': 'Istanbul',
+  'Shakhtar': 'Kharkiv', 'Dynamo Kyiv': 'Kyiv',
+  'Legia': 'Warsaw',
+};
+
+export function getCityForTeam(teamName: string): string {
+  if (!teamName) return 'London';
+  for (const key of Object.keys(TEAM_CITIES)) {
+    if (teamName.toLowerCase().includes(key.toLowerCase()) ||
+        key.toLowerCase().includes(teamName.toLowerCase())) {
+      return TEAM_CITIES[key];
+    }
+  }
+  return 'London';
+}
+
+export type Standing = {
+  pos: number;
+  team: string;
+  teamId: number;
+  played: number;
+  win: number;
+  draw: number;
+  loss: number;
+  gf: number;
+  ga: number;
+  pts: number;
+};
+
+export async function getStandings(leagueId: number): Promise<Standing[]> {
+  try {
+    const fdId = LEAGUE_MAP[leagueId];
+    if (!fdId) return [];
+    const res = await fetch(`${BASE_URL}/standings/${fdId}`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.log('getStandings hata:', e);
+    return [];
+  }
+}
+
+export async function getTodayMatches(date?: string): Promise<any[]> {
+  try {
+    const url = date ? `${BASE_URL}/matches?date=${date}` : `${BASE_URL}/matches`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.log('getTodayMatches hata:', e);
+    return [];
+  }
+}
+
+export async function getLiveMatches(): Promise<any[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/live`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.log('getLiveMatches hata:', e);
+    return [];
+  }
+}
+
+export async function getMatchStats(matchId: string): Promise<any> {
+  try {
+    const res = await fetch(`${BASE_URL}/match/${matchId}`);
+    const data = await res.json();
+    return data || null;
+  } catch (e) {
+    console.log('getMatchStats hata:', e);
+    return null;
+  }
+}
+
+export async function getH2H(matchId: string): Promise<any[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/h2h/${matchId}`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.log('getH2H hata:', e);
+    return [];
+  }
+}
+
+export async function getTeamForm(teamId: number): Promise<any[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/team/${teamId}/matches`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.log('getTeamForm hata:', e);
+    return [];
+  }
+}
+
+export async function getWeather(city: string): Promise<any> {
+  try {
+    const res = await fetch(`${BASE_URL}/weather?city=${encodeURIComponent(city)}`);
+    const data = await res.json();
+    return data || null;
+  } catch (e) {
+    console.log('getWeather hata:', e);
+    return null;
+  }
+}
+
+export async function getOdds(homeTeam: string, awayTeam: string, leagueApiId: number): Promise<any> {
+  try {
+    const sport = ODDS_LEAGUE_MAP[leagueApiId];
+    if (!sport) return null;
+    const res = await fetch(`${BASE_URL}/odds?sport=${sport}`);
+    const data = await res.json();
+    if (!Array.isArray(data)) return null;
+
+    function normalize(s: string) {
+      return s.toLowerCase()
+        .replace(/fc|afc|cf|sc|ac|as|rc|ss|us |ud |cd |real |atletico |olympique |borussia /gi, '')
+        .replace(/[^a-z0-9]/g, '').trim();
+    }
+
+    const match = data.find((game: any) => {
+      const h = normalize(game.home_team || '');
+      const a = normalize(game.away_team || '');
+      const home = normalize(homeTeam);
+      const away = normalize(awayTeam);
+      return (h.includes(home) || home.includes(h)) && (a.includes(away) || away.includes(a));
+    });
+
+    if (!match) return null;
+
+    let bestHome = 0, bestDraw = 0, bestAway = 0;
+    for (const bookmaker of match.bookmakers || []) {
+      const market = bookmaker.markets?.find((m: any) => m.key === 'h2h');
+      if (!market) continue;
+      const outcomes = market.outcomes || [];
+      const h = outcomes.find((o: any) => o.name === match.home_team)?.price || 0;
+      const d = outcomes.find((o: any) => o.name === 'Draw')?.price || 0;
+      const a = outcomes.find((o: any) => o.name === match.away_team)?.price || 0;
+      if (h > bestHome) bestHome = h;
+      if (d > bestDraw) bestDraw = d;
+      if (a > bestAway) bestAway = a;
+    }
+
+    if (!bestHome) return null;
+    return {
+      home: bestHome.toFixed(2),
+      draw: bestDraw.toFixed(2),
+      away: bestAway.toFixed(2),
+    };
+  } catch (e) {
+    console.log('getOdds hata:', e);
+    return null;
+  }
+}export async function getTopScorers(leagueId: number): Promise<any[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/scorers/${leagueId}`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.log('getTopScorers hata:', e);
+    return [];
+  }
+}
+
+// --- API-Football fonksiyonları ---
+
+export async function getAfLeagueTeams(leagueId: number, season = 2025): Promise<any[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/af/league-teams/${leagueId}?season=${season}`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getAfTeamStats(leagueId: number, afTeamId: number, season = 2025): Promise<any> {
+  try {
+    const res = await fetch(`${BASE_URL}/af/team-stats/${leagueId}/${afTeamId}?season=${season}`);
+    return await res.json() || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getAfTopScorers(leagueId: number, season = 2025): Promise<any[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/af/topscorers/${leagueId}?season=${season}`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getAfTopAssists(leagueId: number, season = 2025): Promise<any[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/af/topassists/${leagueId}?season=${season}`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getAfSquad(afTeamId: number): Promise<any[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/af/squad/${afTeamId}`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getFdTeamData(teamId: number): Promise<any> {
+  try {
+    const res = await fetch(`${BASE_URL}/team/${teamId}`);
+    const data = await res.json();
+    return data || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getUclKnockouts(season = 2025): Promise<any> {
+  try {
+    const res = await fetch(`${BASE_URL}/ucl/knockouts?season=${season}`);
+    return await res.json() || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getAllSportsTeamStats(teamName: string): Promise<any> {
+  try {
+    const res = await fetch(`${BASE_URL}/allsports/team-stats/${encodeURIComponent(teamName)}`);
+    const data = await res.json();
+    return data || null;
+  } catch {
+    return null;
+  }
+}
+
+// --- Süper Lig (TheSportsDB) ---
+
+export async function getSuperLigStandings(): Promise<Standing[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/superlig/standings`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getSuperLigMatches(date?: string): Promise<any[]> {
+  try {
+    const url = date ? `${BASE_URL}/superlig/matches?date=${date}` : `${BASE_URL}/superlig/matches`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getSuperLigTeamForm(teamId: number): Promise<any[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/superlig/team-form/${teamId}`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getSuperLigPlayers(teamId: number): Promise<any[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/superlig/players/${teamId}`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getSuperLigScorers(): Promise<any[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/superlig/scorers`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}

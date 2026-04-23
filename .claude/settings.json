@@ -1,0 +1,44 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -H \"authorization: apikey 4Qz6E0Mb5mJUakOahviGOd:6MUZGgkLt8yLXwzbGPV9si\" -H \"content-type: application/json\" \"https://api.collectapi.com/football/fixtures?league=super-lig\")",
+      "Bash(curl -s -H \"authorization: apikey 4Qz6E0Mb5mJUakOahviGOd:6MUZGgkLt8yLXwzbGPV9si\" -H \"content-type: application/json\" \"https://api.collectapi.com/football/live?league=super-lig\")",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); [print\\(f'{d[\\\\\"rank\\\\\"]:2}. key={d[\\\\\"key\\\\\"]!r:40} team={d[\\\\\"team\\\\\"]!r}'\\) for d in data]\")",
+      "WebFetch(domain:cdn.api.espn.com)",
+      "WebFetch(domain:site.api.espn.com)",
+      "WebFetch(domain:www.thesportsdb.com)",
+      "Read(//c/Users/umutn/Desktop/ScoutFootball-Backend/**)",
+      "Bash(curl -s -X GET https://free-api-live-football-data.p.rapidapi.com/football-popular-leagues -H 'x-rapidapi-key: 40a61bc1c0mshc5ab72f675b8a09p1e57f8jsne6bf8f51381f' -H 'x-rapidapi-host: free-api-live-football-data.p.rapidapi.com')",
+      "Bash(curl -s \"https://www.thesportsdb.com/api/v1/json/123/lookuptable.php?l=4339&s=2025-2026\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); t=d.get\\('table',[]\\); print\\(f'Toplam takım sayısı: {len\\(t\\)}'\\); [print\\(i['intRank'], i['strTeam']\\) for i in t]\")",
+      "Bash(curl -s -X GET https://free-api-live-football-data.p.rapidapi.com/football-get-all-leagues -H 'x-rapidapi-key: 40a61bc1c0mshc5ab72f675b8a09p1e57f8jsne6bf8f51381f' -H 'x-rapidapi-host: free-api-live-football-data.p.rapidapi.com')",
+      "Bash(curl -s -X GET https://free-api-live-football-data.p.rapidapi.com/football-leagues -H 'x-rapidapi-key: 40a61bc1c0mshc5ab72f675b8a09p1e57f8jsne6bf8f51381f' -H 'x-rapidapi-host: free-api-live-football-data.p.rapidapi.com')",
+      "Bash(python3 -c \" import json,sys d=json.load\\(sys.stdin\\) leagues = d.get\\('response',{}\\).get\\('leagues',[]\\) print\\(f'Toplam {len\\(leagues\\)} lig:'\\) for l in leagues: name = l.get\\('name',''\\) ccode = l.get\\('ccode',''\\) if ccode == 'TUR' or 'Turk' in name or 'Super' in name or 'Süper' in name: print\\(f' *** TUR: id={l[\\\\\"id\\\\\"]} name={name}'\\) elif ccode in ['ENG','ESP','GER','ITA','FRA']: print\\(f' id={l[\\\\\"id\\\\\"]} name={name} ccode={ccode}'\\) \")",
+      "Bash(curl -s \"https://site.api.espn.com/apis/v2/sports/soccer/tur.1/standings\")",
+      "Bash(python3 -c \" import json,sys d=json.load\\(sys.stdin\\) children = d.get\\('children',[]\\) if children: entries = children[0].get\\('standings',{}\\).get\\('entries',[]\\) print\\(f'Toplam takım: {len\\(entries\\)}'\\) for e in entries[:5]: team = e.get\\('team',{}\\).get\\('displayName','?'\\) stats = {s['name']: s['value'] for s in e.get\\('stats',[]\\)} print\\(f' {team}: {stats}'\\) else: print\\('No children, keys:', list\\(d.keys\\(\\)\\)\\) \")",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s \"https://www.thesportsdb.com/api/v1/json/123/lookup_all_teams.php?id=4339\")",
+      "Bash(curl -s \"https://www.thesportsdb.com/api/v1/json/123/search_all_teams.php?l=Super+Lig\")",
+      "Bash(curl -s \"https://www.thesportsdb.com/api/v1/json/123/search_all_teams.php?l=Turkish+Super+Lig\")",
+      "Bash(curl -s \"https://www.thesportsdb.com/api/v1/json/123/eventspastleague.php?l=4339&s=2025-2026\")",
+      "Bash(python3 -c \" import json,sys d=json.load\\(sys.stdin\\) events = d.get\\('events',[]\\) or [] print\\('Toplam mac:', len\\(events\\)\\) teams = {} for e in events: teams[e.get\\('strHomeTeam'\\)] = e.get\\('idHomeTeam'\\) teams[e.get\\('strAwayTeam'\\)] = e.get\\('idAwayTeam'\\) print\\('Toplam benzersiz takim:', len\\(teams\\)\\) for name, tid in sorted\\(teams.items\\(\\)\\): print\\(f' {name}: {tid}'\\) \")",
+      "Bash(python3 -c \" import json,sys d=json.load\\(sys.stdin\\) events = d.get\\('events',[]\\) or [] print\\(f'Toplam mac: {len\\(events\\)}'\\) teams = {} for e in events: if e.get\\('strHomeTeam'\\) and e.get\\('idHomeTeam'\\): teams[e['strHomeTeam']] = e['idHomeTeam'] if e.get\\('strAwayTeam'\\) and e.get\\('idAwayTeam'\\): teams[e['strAwayTeam']] = e['idAwayTeam'] print\\(f'Toplam takim ID: {len\\(teams\\)}'\\) for name, tid in sorted\\(teams.items\\(\\)\\): print\\(f' \\\\\"{name}\\\\\": {tid}'\\) \")",
+      "Bash(curl -s 'https://www.thesportsdb.com/api/v1/json/123/searchteams.php?t=__TRACKED_VAR__')",
+      "Bash(curl -s \"https://www.thesportsdb.com/api/v1/json/123/searchteams.php?t=Kasimpasa\")",
+      "Bash(curl -s \"https://www.thesportsdb.com/api/v1/json/123/searchteams.php?t=Kasim\")",
+      "Bash(python3 -c \" import json,sys,io sys.stdin = io.TextIOWrapper\\(sys.stdin.buffer, encoding='utf-8', errors='replace'\\) d=json.load\\(sys.stdin\\) teams = d.get\\('teams'\\) or [] for t in teams: print\\(t.get\\('idTeam'\\), t.get\\('strTeam'\\), t.get\\('strCountry'\\)\\) \" echo \"---\")",
+      "Bash(python3 -c \" import json,sys,io sys.stdin = io.TextIOWrapper\\(sys.stdin.buffer, encoding='utf-8', errors='replace'\\) d=json.load\\(sys.stdin\\) teams = d.get\\('teams'\\) or [] for t in teams: if 'Turkey' in \\(t.get\\('strCountry',''\\) or ''\\): print\\(t.get\\('idTeam'\\), t.get\\('strTeam'\\), t.get\\('strCountry'\\)\\) \")",
+      "Bash(curl -s \"https://www.thesportsdb.com/api/v1/json/123/searchteams.php?t=Kasim+Pasa\")",
+      "Bash(curl -s \"https://www.thesportsdb.com/api/v1/json/123/eventslast.php?id=133804\")",
+      "Bash(curl -s \"https://www.thesportsdb.com/api/v1/json/123/eventsround.php?id=4339&r=30&s=2025-2026\")",
+      "Bash(python3 -c \" import json,sys,io sys.stdin = io.TextIOWrapper\\(sys.stdin.buffer, encoding='utf-8', errors='replace'\\) d=json.load\\(sys.stdin\\) events = d.get\\('events'\\) or [] print\\('Round 30 mac sayisi:', len\\(events\\)\\) for e in events[:3]: if isinstance\\(e, dict\\): print\\(e.get\\('dateEvent'\\), e.get\\('strHomeTeam'\\), e.get\\('intHomeScore'\\), '-', e.get\\('intAwayScore'\\), e.get\\('strAwayTeam'\\)\\) \" echo \"---round29---\" curl -s \"https://www.thesportsdb.com/api/v1/json/123/eventsround.php?id=4339&r=29&s=2025-2026\")",
+      "Bash(python3 -c \" import json,sys,io sys.stdin = io.TextIOWrapper\\(sys.stdin.buffer, encoding='utf-8', errors='replace'\\) d=json.load\\(sys.stdin\\) events = d.get\\('events'\\) or [] print\\('Round 29 mac sayisi:', len\\(events\\)\\) for e in events[:3]: if isinstance\\(e, dict\\): print\\(e.get\\('dateEvent'\\), e.get\\('strHomeTeam'\\), e.get\\('intHomeScore'\\), '-', e.get\\('intAwayScore'\\), e.get\\('strAwayTeam'\\)\\) \")",
+      "Bash(curl -s \"https://www.thesportsdb.com/api/v1/json/123/lookup_all_players.php?id=133804\")",
+      "Bash(python3 -c \" import json,sys,io sys.stdin = io.TextIOWrapper\\(sys.stdin.buffer, encoding='utf-8', errors='replace'\\) d=json.load\\(sys.stdin\\) players = d.get\\('player'\\) or [] print\\('Oyuncu sayisi:', len\\(players\\)\\) for p in players[:5]: print\\(p.get\\('idPlayer'\\), p.get\\('strPlayer'\\), p.get\\('strPosition'\\)\\) \")",
+      "Bash(python3 -c \" import json,sys,io sys.stdin = io.TextIOWrapper\\(sys.stdin.buffer, encoding='utf-8', errors='replace'\\) d=json.load\\(sys.stdin\\) events = d.get\\('events'\\) or [] if events: e = events[0] print\\('Home team:', e.get\\('strHomeTeam'\\)\\) print\\('Away team:', e.get\\('strAwayTeam'\\)\\) print\\('Home goals:', e.get\\('strHomeGoalDetails','YOOK'\\)[:100] if e.get\\('strHomeGoalDetails'\\) else 'None'\\) print\\('Away goals:', e.get\\('strAwayGoalDetails','YOOK'\\)[:100] if e.get\\('strAwayGoalDetails'\\) else 'None'\\) print\\('Home ID:', e.get\\('idHomeTeam'\\)\\) print\\('Away ID:', e.get\\('idAwayTeam'\\)\\) \")"
+    ],
+    "additionalDirectories": [
+      "C:\\tmp"
+    ]
+  }
+}
