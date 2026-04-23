@@ -9,13 +9,14 @@ Türkçe konuşan bir geliştirici tarafından inşa edilen, futbol maç takibi 
 ```
 ScoutFootball/                    ← React Native + Expo (frontend)
 ├── app/
-│   ├── _layout.tsx               ← Expo Router kök layout
-│   ├── index.tsx                 ← Ana ekran (günlük maçlar)
-│   ├── match_detail.tsx          ← Maç detay (5 sekme)
-│   ├── leagues.tsx               ← Puan tablosu + UCL eşleşmeleri
+│   ├── _layout.tsx               ← Expo Router kök layout (Stack)
+│   ├── index.tsx                 ← Ana ekran — günlük maçlar + Scout modu
+│   ├── match_detail.tsx          ← Maç detay (tek-scroll analiz sayfası)
+│   ├── leagues.tsx               ← Lig paneli (4 alt sekme) + UCL bracket
 │   ├── stats.tsx                 ← İstatistik lig seçim ekranı
-│   ├── team_detail.tsx           ← Lig takım listesi
-│   └── team_stats.tsx            ← Takım istatistik detayı
+│   ├── team_detail.tsx           ← Lig takım listesi (A–Z)
+│   ├── team_stats.tsx            ← Takım istatistik detayı (2 sekme)
+│   └── profile.tsx               ← Scout rozeti: favori + takip listesi + ayarlar
 ├── services/
 │   └── api.ts                    ← Tüm backend çağrıları burada
 └── CLAUDE.md
@@ -55,12 +56,14 @@ Railway, `master` branch'e her push'ta otomatik deploy eder. Deploy ~1-2 dakika 
 | `FOOTBALL_DATA_KEY` | football-data.org |
 | `WEATHER_API_KEY` | WeatherAPI.com |
 | `ODDS_API_KEY` | The Odds API |
-| `COLLECT_API_KEY` | CollectAPI (`4Qz6E0Mb5mJUakOahviGOd:6MUZGgkLt8yLXwzbGPV9si`) |
+| `THESPORTSDB_KEY` | TheSportsDB (Süper Lig — ücretsiz plan için `3` veya premium key) |
 | `MONGODB_URI` | Railway MongoDB eklentisi |
 | `RAPID_API_KEY` | API-Football / RapidAPI (ayarlanmamış — boş string) |
-| `ALLSPORTS_KEY` | AllSports API (ayarlanmamış — boş string) |
+| `ALLSPORTS_KEY` | AllSports API (korner + possession için) |
 
 > `RAPID_API_KEY` boş olduğunda `apifootball()` fonksiyonu hata fırlatır. Bu yüzden tüm `/af/` endpoint'leri şu an boş array/null döner.
+>
+> Eski `COLLECT_API_KEY` artık kullanılmıyor — Süper Lig entegrasyonu TheSportsDB'ye taşındı.
 
 ### Önbellekleme
 
@@ -104,21 +107,30 @@ Stat isimleri: `gamesPlayed`, `wins`, `ties`, `losses`, `pointsFor`, `pointsAgai
 
 > ESPN'den gelen takımlarda `teamId: 0` olur (ESPN ID'leri football-data.org ile eşleşmez).
 
-### CollectAPI (Süper Lig)
-Yalnızca Türkiye Süper Ligi için. Diğer liglerde abonelik gerekir.
+### TheSportsDB (Süper Lig)
+Süper Lig verisi **TheSportsDB** üzerinden çekiliyor (eski CollectAPI tabanlı entegrasyon terk edildi).
+TheSportsDB takım ID'leri frontend'de hard-coded (bkz. `profile.tsx` → `LEAGUES_TEAMS`).
 
 | Endpoint | Backend Rotası | Açıklama |
 |---|---|---|
-| `/football/league?league=super-lig` | `GET /superlig/standings` | Puan tablosu |
-| `/football/results?league=super-lig` | `GET /superlig/results` | Son ~1 hafta sonuçları |
-| `/football/goalKings?league=super-lig` | `GET /superlig/scorers` | Gol krallığı |
+| League standings | `GET /superlig/standings` | Puan tablosu |
+| League events (by date) | `GET /superlig/matches?date=YYYY-MM-DD` | Tarihe göre maç listesi |
+| Team last events | `GET /superlig/team-form/:teamId` | Takımın son maçları (form hesabı için) |
+| Team players | `GET /superlig/players/:teamId` | Takım kadrosu |
+| League scorers | `GET /superlig/scorers` | Gol krallığı (lig geneli) |
 
-CollectAPI sonuçları `{ home, away, score, date }` formatında gelir. Gol krallığı `{ name, goals }` — takım bilgisi yok.
+Süper Lig maç verileri `{ id, home, away, homeScore, awayScore, date, time, status, homeTeamId, awayTeamId }` formatında gelir. Gol krallığı `{ name, goals, team }` — artık takım bilgisi **var**, isim bazlı filtreleme yapılabiliyor.
 
 **Sponsor temizleme:** Takım adlarındaki sponsor önekleri (`cleanSLName()` ile) kaldırılır.
 Örnek: `"Hesap.com Antalyaspor"` → `"Antalyaspor"`, `"ikas Eyüpspor"` → `"Eyüpspor"`
 
 `SL_BASE_NAMES` listesine yeni bir Süper Lig takımı eklendiğinde buraya da eklenmeli.
+
+**Hard-coded TheSportsDB takım ID'leri** (`profile.tsx` içinde):
+Galatasaray 133804, Fenerbahçe 133807, Beşiktaş 133794, Trabzonspor 133796, Başakşehir 134589,
+Samsunspor 133797, Göztepe 135891, Çaykur Rizespor 133885, Konyaspor 133835, Gaziantep FK 138092,
+Kocaelispor 133870, Alanyaspor 135676, Antalyaspor 133799, Gençlerbirliği 133798,
+Eyüpspor 138977, Kayserispor 133802, Fatih Karagümrük 138983, Kasımpaşa (henüz yok → 0).
 
 ### API-Football (RapidAPI) — Kısmen Aktif
 `RAPID_API_KEY` ayarlanmadığından tüm `/af/` endpoint'leri boş döner. Ancak frontend kodu bu endpoint'lere çağrı yapar; sessizce fallback yapar.
@@ -129,18 +141,18 @@ CollectAPI sonuçları `{ home, away, score, date }` formatında gelir. Gol kral
 - `getAfSquad(afTeamId)` — kadro
 
 ### The Odds API
-Bahis oranları için. Maç detay ekranındaki "Oranlar" sekmesi kullanır.
+Bahis oranları için. `match_detail.tsx` içindeki `getOddsComment()` yorumu bu veriyi tüketir (sekme yok — analiz metnine gömülür).
 `ODDS_LEAGUE_MAP` ile fdId → spor kodu eşleşmesi yapılır.
 
 ### WeatherAPI
-Maç detay ekranındaki "Hava" sekmesi kullanır.
+`match_detail.tsx` → **HAVA ETKİSİ** bölümünde gösterilir.
 `getCityForTeam(teamName)` fonksiyonu takım adından şehir çıkarır.
 
 ---
 
 ## Lig ID Eşleştirme
 
-| Lig | `apiId` (football-data.org) | `fdId` | ESPN Slug | CollectAPI |
+| Lig | `apiId` (football-data.org) | `fdId` | ESPN Slug | Süper Lig kaynağı |
 |---|---|---|---|---|
 | Premier Lig | 39 | 2021 | — | — |
 | La Liga | 140 | 2014 | — | — |
@@ -148,11 +160,11 @@ Maç detay ekranındaki "Hava" sekmesi kullanır.
 | Serie A | 135 | 2019 | `ita.1` | — |
 | Ligue 1 | 61 | 2015 | `fra.1` | — |
 | UCL | 2 | 2001 | `uefa.champions` | — |
-| Süper Lig | 203 | 0 | — | `super-lig` |
+| Süper Lig | 203 | 0 | — | TheSportsDB (takım başına ID) |
 
 > `apiId`, football-data.org'un **competition ID**'sidir. `fdId` aynı değerin frontend'deki takma adıdır. `services/api.ts` içindeki `LEAGUE_MAP`, `apiId → fdId` dönüşümünü yapar.
 >
-> Süper Lig için `teamId: 0` — football-data.org veya API-Football'a bağlı özellikler (form geçmişi, oyuncu kadrosu) bu ligde **çalışmaz**.
+> Süper Lig için `teamId` artık TheSportsDB takım ID'sidir (ör. Galatasaray 133804). Form geçmişi ve oyuncu kadrosu Süper Lig için de çalışır. football-data.org / API-Football'a bağlı özellikler (`/team/:teamId`, `/af/*`) bu ligde yine devre dışıdır.
 
 ---
 
@@ -191,13 +203,21 @@ Maç detay ekranındaki "Hava" sekmesi kullanır.
 | GET | `/af/fixture-players/:fixtureId` | Maç oyuncu performansları |
 | GET | `/af/fixture/:fixtureId` | Maç detayı (lineup + events) |
 
-### Süper Lig (CollectAPI)
+### Süper Lig (TheSportsDB)
 
 | Method | Path | Açıklama |
 |---|---|---|
 | GET | `/superlig/standings` | Puan tablosu |
-| GET | `/superlig/results` | Son ~1 hafta maç sonuçları |
-| GET | `/superlig/scorers` | Gol krallığı |
+| GET | `/superlig/matches?date=YYYY-MM-DD` | Tarihe göre Süper Lig maçları (ana ekranda kullanılır) |
+| GET | `/superlig/team-form/:teamId` | Takımın son maçları (form + sezon analizi için) |
+| GET | `/superlig/players/:teamId` | Takım kadrosu |
+| GET | `/superlig/scorers` | Gol krallığı (lig geneli) |
+
+### AllSports (korner + possession)
+
+| Method | Path | Açıklama |
+|---|---|---|
+| GET | `/allsports/team-stats/:teamName` | Takım adına göre korner ve top hakimiyeti verileri |
 
 ### Diğer
 
@@ -211,51 +231,93 @@ Maç detay ekranındaki "Hava" sekmesi kullanır.
 ## Frontend Ekranları
 
 ### `app/index.tsx` — Ana Ekran
-- Günlük maç listesi, tarih seçici (±3 gün), lig filtreleri
-- `useFocusEffect` ile ekrana her dönüşte sessiz yenileme
-- Canlı maçlar için 30 saniyede bir polling (`setInterval`)
-- `loadMatches(date, silent)`: `silent=true` ise spinner göstermez
-- `initialFocusDone` ref'i ile çift fetch engellenir
-- Süper Lig maçları `getSuperLigResults()` ile çekilip tarih filtresiyle birleştirilir
-- Süper Lig maçlarına tıklamak (leagueApiId: 203) maç detayına **gitmez** (API desteği yok)
+- Tarih şeridi (±3 gün), lig filtreleri + **"🔍 Scout"** varsayılan filtresi.
+- `loadMatches(date, silent)`: `getTodayMatches(dateStr)` ve `getSuperLigMatches(dateStr)` paralel çağrılır → birleştirilir.
+- `loadStandings()`: ekran açılışında 6 FD ligi + Süper Lig için standings paralel çekilir (`STANDINGS_LEAGUES` tablosu). Backend 1 saat cache'li, maliyet düşük.
+- `useFocusEffect` ile ekrana her dönüşte sessiz yenileme; `initialFocusDone` ref ile ilk çift-fetch engellenir.
+- **Metrik motoru — gerçek standings verisine dayanır** (`computeMetrics`, `findStanding`, `buildMatchSummary`):
+  - Her maç için iki takımın standings satırı eşleşir (önce `teamId`, yoksa normalize edilmiş ad fallback'i ile — ESPN/TheSportsDB kaynaklı satırlarda `teamId=0` olabilir).
+  - Beklenen gol (xG proxy) = `(homeAtk + awayDef)/2 + (awayAtk + homeDef)/2` (maç başı hücum/savunma ortalamasından).
+  - Favori = puan/maç farkı; `|diff| < 0.3` → dengeli, `> 1.0` → yüksek güven.
+  - Tempo = toplam gol ortalaması. Sezon başı (`played < 3`) → "Erken sezon — yeterli veri yok" etiketi.
+  - Hiçbir deterministik hash veya uydurma etiket yok; kullanıcıya gösterilen her rakam gerçek sezon verisinden türetilir.
+- **Scout modu** (yalnızca `activeFilter === 'Scout' && isToday(selectedDate)`):
+  1. **GÜNÜN MAÇI** — `scoutScore()` ile en yüksek skorlu maç. Lig ağırlığı + zamansal bonus + metrik bonusu (yüksek xG, dengeli güçlü ekip eşleşmesi). Koyu mavi hero kart; tek satırda "Beklenen ~X.Y gol · Takım belirgin favori / Dengeli eşleşme" gösterir ve altına küçük "Tahmin: Ev A.B — C.D Dep" dağılımı.
+  2. **GÜNÜN ÖNE ÇIKANLARI** — sonraki 3 maç (⭐ Öne Çıkan / 🎯 İzlenecek / 📌 Dikkat etiketleriyle); kartlarda "Beklenen ~X.Y gol · Favori" tek satırı + açıklama cümlesi.
+  3. **BUGÜN NE BEKLENİYOR?** — `buildDaySummary()` ortalama xG + yüksek gol profili sayısı + dengeli/favori dağılımı üzerinden konuşur.
+  4. **TÜM MAÇLAR** — scout skoruna göre sıralı liste. Her satırda "Beklenen ~X.Y gol · Takım favori" veya "Dengeli eşleşme" bilgi satırı.
+- **Favori dili** (`favoriteText`): confidence tabanlı insan diline çevrilir — `high` → "belirgin favori", `medium` → "favori", `low` → "hafif önde", `balanced` → "Dengeli eşleşme". Kriptik "+0.4 p/m" gibi sayısal fark arayüzde gösterilmez (arka planda `metrics.diff` mevcut, yalnızca dilsel eşik için kullanılır).
+- Lig filtresi veya başka bir gün seçilince sade liste görünümü aktif olur.
+- Süper Lig maçlarına tıklamak (leagueApiId: 203) maç detayına **gitmez** (`goToMatch` erken return).
+- Veri eksik durumlarda etiket gizlenir, yerine `metrics.reason` ("Sezon verisi bulunamadı", "Takım tablo satırı eşleşmedi", "Erken sezon — yeterli veri yok") gösterilir. Sahte değer üretilmez.
 
 ### `app/match_detail.tsx` — Maç Detayı
-- 5 sekme: İstatistik, H2H, Hava, Oranlar, Hakem
-- SVG radar grafiği ve çubuk grafikleri ile istatistik görselleştirme
-- H2H: son 10 karşılaşma, iç saha/deplasman formu
-- Hava: `getCityForTeam()` ile şehir tespiti, WeatherAPI
-- Oranlar: The Odds API, en iyi bahisçi oranları
+- **Tek-scroll analiz sayfası** (sekme yok). Tepede skorboard/durum şeridi, sonra sıralı bölümler:
+  - **MAÇ İSTATİSTİKLERİ** — iki takımın form kaynaklı avg. gol, W/D/L, over 2.5%, BTTS% vb. karşılaştırması.
+  - **Radar grafiği** — `react-native-svg` ile 5 eksen: Hücum, Savunma, Form, Galibiyet, 2.5 Üst.
+  - **HAVA ETKİSİ** — `getCityForTeam()` ile şehir, WeatherAPI sonucu + etki yorumu.
+  - **HAKEM** — `matchData.referees[0].name` + lig bazlı `getRefereeProfile()` yorumu.
+  - **H2H — GEÇMİŞ KARŞILAŞMALAR** — son 10 karşılaşma kart listesi.
+- **Oranlar** ayrı bir bölüm değildir; `getOdds()` sonucu `getOddsComment()` içinde analiz metnine gömülür.
+- `useEffect` içinde 6 paralel çağrı: `getMatchStats`, `getH2H`, `getWeather`, `getOdds`, iki `getTeamForm` (home/away).
+- `buildMatchAnalysis()` form + H2H + hava sinyallerinden birleşik bir profil (stil, gol, tempo, risk, güven) üretir; kısa/orta cümleler ve "Neden?" gerekçe havuzundan seçer.
 
-### `app/leagues.tsx` — Puan Tablosu
-- 7 lig desteklenir (Premier Lig, La Liga, Bundesliga, Serie A, Ligue 1, UCL, Süper Lig)
-- UCL için "Puan Tablosu / Eşleşmeler" toggle
-- UCL eşleşmeleri: `groupTies()` ile çift bacaklı turu tek kart olarak gösterir
-- Puan tablosu pozisyon badge renkleri:
+### `app/leagues.tsx` — Lig Paneli
+- 7 lig desteklenir (Premier Lig, La Liga, Bundesliga, Serie A, Ligue 1, UCL, Süper Lig).
+- **4 alt sekme:** Genel · Puan Tablosu · Takımlar · Trendler.
+  - **Genel:** lig özeti (stil/gol/tempo/risk etiketli pill'ler), lig karakteri kartı, lider anlatımı (Hücum/Savunma Gücü 0-10 skoru dahil), "Gol Verimliliği" özeti.
+  - **Puan Tablosu:** pozisyon badge'leri + renk kodları (aşağıda). AG kolonu gerçek averajı gösterir (`gf - ga`; pozitifse `+N` önekiyle).
+  - **Takımlar:** alfabetik takım kartları. Her kartta profil etiketi + "Hücum X.XX/10 · Savunma Y.YY/10" satırı + Gol/M, Yenilen/M, Galibiyet%, Puan. `team_stats`'a gider.
+  - **Trendler:** lig geneli metrikler (gol skoru, tempo skoru, rekabet skoru, sürpriz oranı; güçlü hücum / sağlam savunma / tempolu / yüksek galibiyet oranlı öne çıkanlar).
+- **Hücum/Savunma Gücü skoru:** lig içi **min-max normalizasyon**, 1.00-10.00 aralığında. `attackScore(team) = 1 + (gfPer(team) - minGfPer) / (maxGfPer - minGfPer) * 9` (en çok atan = 10.00, en az atan = 1.00). `defenseScore(team)` benzer ama `ga/maç` için ters yön (en az yiyen = 10.00). Eski rank-based + Math.round formülü (her ara değeri 10'a yuvarlayan) kaldırıldı — kullanıcı artık "10/10 savunma" gördüğünde bu ligin gerçekten en iyisi olduğundan emin olabilir.
+- **UCL özel:** "Puan Tablosu / Eşleşmeler" (`uclView: 'standings' | 'bracket'`) toggle; bracket modunda stage sekmeleri (Play-off, Son 16, Çeyrek Final, Yarı Final, Final). `groupTies()` iki bacaklı turu tek karta indirir, `tieResult()` agregat skoru hesaplar.
+- Puan tablosu pozisyon badge renkleri (`getBadgeStyle`):
   - Mavi `#185FA5` → UCL
   - Sarı `#E6A817` → Avrupa Ligi
   - Yeşil `#27AE60` → Konferans Ligi
   - Kırmızı `#C0392B` → Küme düşme (yalnızca Süper Lig)
-- "Gol Verimliliği" bölümü: tüm ligler
-- "Gol Krallığı" bölümü: yalnızca Süper Lig (`slScorers`)
+- Süper Lig'de 1. sıra UCL rengi, 2-3. Avrupa, 4-6. Konferans, son 3 küme düşme.
 
 ### `app/stats.tsx` — İstatistik Lig Seçimi
-- 7 lig listelenir (Süper Lig dahil)
-- Her lig `team_detail` ekranına `{ leagueName, leagueFlag, fdId, apiId }` parametresiyle yönlendirir
+- 7 lig listelenir (Süper Lig dahil).
+- Her lig `team_detail` ekranına `{ leagueName, leagueFlag, fdId, apiId }` parametresiyle yönlendirir.
 
 ### `app/team_detail.tsx` — Takım Listesi
-- Seçilen ligin takımlarını alfabetik listeler
-- `apiId === 203` ise `getSuperLigStandings()`, diğerleri `getStandings(apiId)` kullanır
-- Takıma tıklamak `team_stats` ekranına `teamId`, `fdId`, `apiId` ve tüm standings verisini geçirir
+- Seçilen ligin takımlarını alfabetik listeler (`localeCompare('tr')`).
+- `apiId === 203` ise `getSuperLigStandings()`, diğerleri `getStandings(apiId)` kullanır.
+- Takıma tıklamak `team_stats` ekranına `teamId` (`(team as any).teamId || team.id || 0` fallback), `fdId`, `apiId` ve tüm standings verisini geçirir.
 
 ### `app/team_stats.tsx` — Takım İstatistikleri
-- 2 sekme: Takım İstatistikleri, Oyuncular
-- **Takım İstatistikleri:** Genel (oynanan/puan/galibiyet), Gol, Sezon Analizi (over%, BTTS%, kale sıfır%), İç saha/Deplasman, Korner & Pozisyon (AllSports), Geçen Sezon Detay (AF 2024/25), Son Form
-- **Oyuncular:** Gol/asist sıralama (fdScorers), Tüm kadro görünümü (fdSquad)
+- 2 sekme: Takım İstatistikleri, Oyuncular.
+- Ekrana girerken `scout_recent` AsyncStorage anahtarına (`recordRecentlyViewed`) takım kaydı düşer — profile'daki "SON BAKILANLAR" bölümünü besler.
+- **Takım profil kartı** (`getTeamProfile`, üstte): avg GF/GA ve galibiyet yüzdesine göre otomatik etiket — Dominant 👑, Tempolu ⚡, Hücumcu ⚽, Katı Savunmacı 🛡️, Savunmacı 🛡️, Kırılgan Savunma 🚨, Kontrollü 📈, Dengeli ⚖️. Profil kartı 3 makro metriği (Gol/Maç, Yenilen/Maç, Galibiyet %) taşır.
+- **Takım İstatistikleri bölümleri** (yukarıdan aşağıya):
+  1. **Son Form** (en üstte) — G/B/M rozetleri (tek ton yeşil/gri/kırmızı; iç saha/deplasman ayrımı renkle değil etikette).
+  2. **Maç Özeti** — kompakt kart: Maç/Galibiyet/Beraberlik/Mağlubiyet/Puan + altında W-D-L bar (renkli segment oranı).
+  3. **Gol** — 3 makro rakam yan yana: Atılan (yeşil), Yenilen (kırmızı), Averaj (+/−).
+  4. **Gol Beklentileri** — 1.5/2.5/3.5 Üst yüzdeleri yatay progress bar formatında.
+  5. **Özel Durumlar** — KG Var, Kale Sıfır, Gol Atamadı (3'lü kart satırı).
+  6. **İç Saha vs Deplasman** — karşılaştırma kartı: her saha için G-B-M kaydı + görsel W-D-L barı.
+  7. **Korner & Pozisyon** (AllSports) — aktifse.
+  8. **Geçen Sezon Detay** (AF 2024/25) — `RAPID_API_KEY` aktifse: kalesini sıfır, gol atamadı, sarı/kırmızı kart toplamları.
+- **Tasarım notu:** Profil kartında zaten görülen "Gol/Maç" ve "Yenilen/Maç" değerleri aşağıdaki GOL bölümünde tekrar edilmez (eski ekranda üç kez aynı rakam görünüyordu, temizlendi).
+- **Son Form davranışı:** `displayForm = apiId === 203 ? slForm : recentForm`. Form yalnızca **mevcut sezon** verisinden gelir (`getTeamForm(teamId)` → FD current season). AF 2024/25 verisindeki `form` alanı artık **kullanılmaz** (önceden current form'u ezip geçen sezonun son 5 maçını gösteren bir bug vardı — kaldırıldı). ESPN fallback liglerinde (`teamId = 0`) form yüklenemediği için dürüstçe "Form verisi bulunamadı" gösterilir.
+- **Oyuncular:** FD gol/asist sıralaması (`fdScorers`), pozisyona göre gruplanmış kadro görünümü (`fdSquad`, G/D/M/F).
 - **Süper Lig özel davranışı** (`apiId === 203`):
-  - `teamId = 0` olduğundan `loadForm()` ve `loadPlayers()` çalışmaz
-  - `loadSLData()` çalışır: sonuçlardan form hesaplar, lig gol krallığını çeker
-  - Sezon Analizi: "Bu lig için maç bazlı sezon analizi mevcut değil." mesajı gösterir
-  - Oyuncular sekmesi: Lig geneli gol krallığı listesi gösterir (takıma özgü filtreleme mümkün değil — CollectAPI'de takım bilgisi yok)
+  - `loadSLData()` çalışır: `getSuperLigTeamForm(teamId)` ile son maçlar, `getSuperLigPlayers(teamId)` ile kadro, `getSuperLigScorers()` ile lig gol krallığı.
+  - Form ve sezon analizi takım özelinde hesaplanır (`calcSLSeasonStats`).
+  - Gol krallığı `transliterate()` ile takım bazlı filtrelenir (Türkçe diakritiklere dayanıklı).
+
+### `app/profile.tsx` — Scout Rozeti
+- AsyncStorage tabanlı tamamen yerel profil ekranı. Backend bağımlılığı yok.
+- Anahtarlar: `scout_name`, `scout_avatar`, `scout_fav_team`, `scout_watchlist`, `scout_recent`, `scout_notifications`.
+- **Bölümler:**
+  - **Scout Kimlik Kartı:** düzenlenebilir isim, 8 renkli avatar picker (modal).
+  - **Favori Takım:** takım seçim modalı (lig gruplamalı, aranabilir); seçilen takım takım renkleriyle (`TEAM_COLORS`) kartta gösterilir. Puan durumu, liderden fark, son 5 maç formu çekilir (standings + team-form). Karta tıklayınca `team_stats`'a gider.
+  - **Takip Listesi:** çoklu takım; her satırda son 3 maç form noktaları ve standings'ten çekilmiş kısa istatistik.
+  - **Son Bakılanlar:** `team_stats` ziyaretlerinden beslenir (max 10 kayıt, 8'i gösterilir, "Temizle" butonu ile sıfırlanır).
+  - **Ayarlar:** Maç Bildirimleri toggle (yalnızca AsyncStorage flag'i — henüz gerçek push yok), Twitter/Instagram linkleri, versiyon etiketi.
+- `TEAM_COLORS`: takım adına göre primary/secondary renk eşlemesi (Galatasaray `#C8102E`/`#F5A623`, Fenerbahçe `#1B3D7F`/`#FFD700` vb.). Eşleşme bulunamazsa varsayılan mavi tonları.
 
 ---
 
@@ -273,7 +335,7 @@ getTopScorers(fdId: number)
 getWeather(city: string)
 getOdds(homeTeam, awayTeam, leagueApiId)
 
-// API-Football
+// API-Football (RAPID_API_KEY gerekli; aksi halde boş döner)
 getAfLeagueTeams(leagueId, season?)
 getAfTeamStats(leagueId, afTeamId, season?)
 getAfTopScorers(leagueId, season?)
@@ -284,10 +346,15 @@ getFdTeamData(teamId)                     // football-data.org takım + kadro
 // UCL
 getUclKnockouts(season?)                  // default: 2025
 
-// Süper Lig (CollectAPI)
+// Süper Lig (TheSportsDB)
 getSuperLigStandings()
-getSuperLigResults()
-getSuperLigScorers()
+getSuperLigMatches(date?: string)         // tarihe göre maç listesi
+getSuperLigTeamForm(teamId: number)       // takımın son maçları
+getSuperLigPlayers(teamId: number)        // takım kadrosu
+getSuperLigScorers()                      // gol krallığı (lig geneli, takım bilgili)
+
+// AllSports (korner + possession)
+getAllSportsTeamStats(teamName: string)
 
 // Yardımcılar
 getCityForTeam(teamName: string): string  // TEAM_CITIES map'inden şehir döner
@@ -323,7 +390,7 @@ Mevcut sürümler:
 - `standings_v3_{leagueId}`
 - `af_topscorers_v2_{leagueId}_{season}`
 - `af_leagueteams_v2_{leagueId}_{season}`
-- `superlig_standings_v1`, `superlig_results_v1`, `superlig_scorers_v1`
+- `superlig_standings_v1`, `superlig_matches_v1_{date}`, `superlig_scorers_v1`, `superlig_team_form_v1_{teamId}`, `superlig_players_v1_{teamId}`
 
 ### Backend'e Yeni Endpoint Ekleme
 1. `server.js`'e endpoint ekle
@@ -357,21 +424,19 @@ FINAL                    → Final
 
 | Durum | Açıklama |
 |---|---|
-| Süper Lig `teamId = 0` | CollectAPI takım ID'si sağlamıyor. Form/kadro/oyuncu istatistikleri bu ligde çalışmaz. |
-| Süper Lig sonuçları (~1 hafta) | CollectAPI yalnızca son haftanın maç sonuçlarını verir. Form hesabı en fazla 1-2 maç gösterebilir. |
-| Süper Lig gol krallığı — takım filtresi yok | CollectAPI gol krallığı verisinde takım bilgisi bulunmuyor. Oyuncular sekmesinde lig geneli liste gösterilir. |
-| Serie A / Ligue 1 / UCL puan tablosu — ESPN'den | ESPN team ID'leri football-data.org ile örtüşmez. Bu liglerin takımlarında `teamId = 0`; form geçmişi ve oyuncu kadrosu çalışmaz. |
+| Süper Lig takımları TheSportsDB ID bağımlı | Takım ID'leri `profile.tsx` içinde hard-coded. Listede olmayan takımlar (yeni çıkan / yükselen) eklenene kadar favori/form/kadro çalışmaz. Kasımpaşa şu an `teamId = 0`. |
+| Süper Lig maç detayı yok | `index.tsx`'te `leagueApiId === 203` olan maçlara tıklamak detay sayfasına **gitmez** (`match_detail` football-data.org veri şemasına bağlı). |
+| Serie A / Ligue 1 / UCL standings — ESPN'den, takım satırlarında `teamId = 0` | ESPN ID'leri football-data.org ile örtüşmez. **Ancak `/matches` endpoint'i doğrudan FD'den geldiği için** bu liglerin maç objelerinde gerçek FD team ID'leri bulunur — `match_detail` üzerinden form + kadro çalışır. Yalnızca `leagues` → `team_stats` yolunda (standings tabanlı) form yüklenmez. Ana ekrandaki metrik motoru name-fallback ile standings satırını yine de bulur. |
 | API-Football kapalı | `RAPID_API_KEY` ayarlanmamış. `/af/` endpoint'leri boş döner. Önceki sezon takım detayları (kart, kale sıfır vb.) görünmez. |
-| Süper Lig maç detayı yok | `index.tsx`'te `leagueApiId === 203` olan maçlara tıklamak detay sayfasına **gitmez**. |
-| UCL puan tablosu — lig fazı bitti | Nisan 2026 itibarıyla UCL lig fazı bitti; puan tablosu son durumu gösterir, güncellenmez. |
+| Maç bildirimleri placeholder | `profile.tsx`'teki "Maç Bildirimleri" toggle yalnızca AsyncStorage flag'i yazar — gerçek push notification altyapısı (expo-notifications) henüz kurulmamış. |
+| UCL puan tablosu — lig fazı bitti | Nisan 2026 itibarıyla UCL lig fazı bitti; puan tablosu son durumu gösterir, güncellenmez. Artık UCL için bracket görünümü daha anlamlı. |
 
 ---
 
 ## Geliştirme Ortamı
 
 ```bash
-# Frontend başlat
-cd C:\Users\umutn\Desktop\ScoutFootball
+# Frontend başlat (proje kök dizininde — repo adı: ScoutFootball)
 npx expo start
 
 # TypeScript kontrolü
@@ -386,15 +451,17 @@ git push
 
 Test: Expo Go uygulamasıyla QR kod taranır.
 
+> Not: Bu repo iki ortamda paralel çalışılıyor olabilir — Windows (`C:\Users\umutn\Desktop\ScoutFootball`) ve macOS (`~/Desktop/scout-football/Scout-Football`). Mutlak path'e bağlanma; relatif çalış.
+
 ---
 
 ## Gelecekte Yapılabilecekler
 
-- Oyuncu detay sayfası (profil + istatistikler)
-- Favori takım/oyuncu sistemi
-- Maç öncesi bildirimler
-- Google Play yayını
-- Hava sekmesi: o hava koşullarındaki takım performans geçmişi
-- Profil ekranı (kullanıcı tercihleri)
-- Süper Lig için daha kapsamlı bir API entegrasyonu (tam sezon maç geçmişi)
-- API-Football (`RAPID_API_KEY`) aktifleştirilirse: takım detayları çok daha zengin hale gelir
+- Oyuncu detay sayfası (profil + istatistikler) — kadro satırlarından tıklanabilir hale getir
+- Gerçek push bildirim altyapısı (`expo-notifications`): şu anda profile'daki toggle yalnızca flag.
+- Google Play yayını (build + store listing)
+- Hava sekmesi genişletmesi: o hava koşullarındaki takım performans geçmişi
+- Süper Lig takım listesinin dinamik çekilmesi (TheSportsDB `search_all_teams.php?l=Turkish Super Lig`) — böylece yeni sezon takımları otomatik gelir
+- API-Football (`RAPID_API_KEY`) aktifleştirilirse: takım detayları (kart, kale sıfır, sarı-kırmızı vb.) çok daha zengin hale gelir
+- Canlı maç polling: eski `/live` endpoint'i artık frontend'de kullanılmıyor; dakikalık maç dakikası / skor güncellemesi için canlı izleme eklenebilir
+- Profile → "Son Bakılanlar" için takım başına hızlı kıyaslama grafikleri

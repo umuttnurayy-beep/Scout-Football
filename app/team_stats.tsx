@@ -221,12 +221,7 @@ export default function TeamStatsScreen() {
   const winPct = played > 0 ? Math.round((win / played) * 100) : 0;
   const initials = teamName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
 
-  const afFormArr: string[] = afTeamStats?.form
-    ? afTeamStats.form.slice(-5).split('').map((c: string) => c === 'W' ? 'G' : c === 'D' ? 'B' : 'M')
-    : [];
-  const displayForm = apiId === 203
-    ? slForm
-    : afFormArr.length > 0 ? afFormArr : recentForm;
+  const displayForm = apiId === 203 ? slForm : recentForm;
   const activeSeasonStats = apiId === 203 ? slSeasonStats : seasonStats;
 
   useEffect(() => {
@@ -441,91 +436,149 @@ export default function TeamStatsScreen() {
               );
             })()}
 
-            {/* GENEL */}
-            <Text style={styles.sectionLabel}>GENEL</Text>
-            <View style={styles.statGrid}>
-              <View style={styles.statBox}><Text style={styles.statVal}>{played}</Text><Text style={styles.statLbl}>Oynanan maç</Text></View>
-              <View style={styles.statBox}><Text style={styles.statVal}>{pts}</Text><Text style={styles.statLbl}>Puan</Text></View>
-              <View style={styles.statBox}><Text style={styles.statVal}>{win}</Text><Text style={styles.statLbl}>Galibiyet</Text></View>
-              <View style={styles.statBox}><Text style={styles.statVal}>{draw}</Text><Text style={styles.statLbl}>Beraberlik</Text></View>
-              <View style={styles.statBox}><Text style={styles.statVal}>{loss}</Text><Text style={styles.statLbl}>Mağlubiyet</Text></View>
-              <View style={styles.statBox}><Text style={styles.statVal}>{winPct}%</Text><Text style={styles.statLbl}>Galibiyet %</Text></View>
+            {/* SON FORM — üste taşındı */}
+            <Text style={styles.sectionLabel}>SON FORM</Text>
+            <View style={styles.formRow}>
+              {(loadingForm || loadingAf) && displayForm.length === 0 ? (
+                <ActivityIndicator color="#185FA5" />
+              ) : displayForm.length === 0 ? (
+                <Text style={styles.formNote}>Form verisi bulunamadı</Text>
+              ) : (
+                <>
+                  {displayForm.map((r, i) => (
+                    <View key={i} style={[styles.formBadge,
+                      r === 'G' ? styles.formG : r === 'B' ? styles.formB : styles.formM]}>
+                      <Text style={styles.formBadgeText}>{r}</Text>
+                    </View>
+                  ))}
+                  <Text style={styles.formNote}>Son {displayForm.length} maç</Text>
+                </>
+              )}
             </View>
 
-            {/* GOL */}
+            {/* MAÇ ÖZETİ — eski GENEL'in kompakt hali */}
+            <Text style={styles.sectionLabel}>MAÇ ÖZETİ</Text>
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryRow}>
+                <View style={styles.summaryStat}>
+                  <Text style={styles.summaryV}>{played}</Text>
+                  <Text style={styles.summaryL}>Maç</Text>
+                </View>
+                <View style={styles.summaryStat}>
+                  <Text style={[styles.summaryV, { color: '#27500A' }]}>{win}</Text>
+                  <Text style={styles.summaryL}>Galibiyet</Text>
+                </View>
+                <View style={styles.summaryStat}>
+                  <Text style={[styles.summaryV, { color: '#888' }]}>{draw}</Text>
+                  <Text style={styles.summaryL}>Beraberlik</Text>
+                </View>
+                <View style={styles.summaryStat}>
+                  <Text style={[styles.summaryV, { color: '#A32D2D' }]}>{loss}</Text>
+                  <Text style={styles.summaryL}>Mağlubiyet</Text>
+                </View>
+                <View style={styles.summaryStat}>
+                  <Text style={[styles.summaryV, { color: '#185FA5' }]}>{pts}</Text>
+                  <Text style={styles.summaryL}>Puan</Text>
+                </View>
+              </View>
+              {played > 0 && (
+                <View style={styles.wdlBar}>
+                  {win > 0 && <View style={[styles.wdlSeg, styles.wdlW, { flex: win }]} />}
+                  {draw > 0 && <View style={[styles.wdlSeg, styles.wdlD, { flex: draw }]} />}
+                  {loss > 0 && <View style={[styles.wdlSeg, styles.wdlL, { flex: loss }]} />}
+                </View>
+              )}
+            </View>
+
+            {/* GOL — sadece 3 makro rakam (gol/maç profil kartında zaten var) */}
             <Text style={styles.sectionLabel}>GOL</Text>
-            <View style={styles.statGrid}>
-              <View style={styles.statBox}><Text style={styles.statVal}>{gf}</Text><Text style={styles.statLbl}>Atılan gol</Text></View>
-              <View style={styles.statBox}><Text style={styles.statVal}>{ga}</Text><Text style={styles.statLbl}>Yenilen gol</Text></View>
-              <View style={styles.statBox}>
-                <Text style={[styles.statVal, { color: averaj >= 0 ? '#27500A' : '#A32D2D' }]}>
+            <View style={styles.goalCard}>
+              <View style={styles.goalStat}>
+                <Text style={[styles.goalV, { color: '#27500A' }]}>{gf}</Text>
+                <Text style={styles.goalL}>Atılan</Text>
+              </View>
+              <View style={styles.goalDivider} />
+              <View style={styles.goalStat}>
+                <Text style={[styles.goalV, { color: '#A32D2D' }]}>{ga}</Text>
+                <Text style={styles.goalL}>Yenilen</Text>
+              </View>
+              <View style={styles.goalDivider} />
+              <View style={styles.goalStat}>
+                <Text style={[styles.goalV, { color: averaj >= 0 ? '#27500A' : '#A32D2D' }]}>
                   {averaj >= 0 ? '+' : ''}{averaj}
                 </Text>
-                <Text style={styles.statLbl}>Averaj</Text>
+                <Text style={styles.goalL}>Averaj</Text>
               </View>
-              <View style={styles.statBox}><Text style={styles.statVal}>{avg_gf}</Text><Text style={styles.statLbl}>Gol / maç</Text></View>
-              <View style={styles.statBox}><Text style={styles.statVal}>{avg_ga}</Text><Text style={styles.statLbl}>Yenilen / maç</Text></View>
             </View>
 
-            {/* SEZON ANALİZİ — gerçek maç verilerinden */}
-            <Text style={styles.sectionLabel}>
-              SEZON ANALİZİ{activeSeasonStats ? ` (${activeSeasonStats.total} maç)` : ''}
-            </Text>
+            {/* SEZON ANALİZİ — Gol beklentileri görsel bar + özel durumlar */}
             {loadingForm && !activeSeasonStats ? (
               <ActivityIndicator color="#185FA5" style={{ margin: 14 }} />
             ) : activeSeasonStats ? (
-              <View style={styles.statGrid}>
-                <View style={styles.statBox}>
-                  <Text style={[styles.statVal, { color: '#185FA5' }]}>{activeSeasonStats.over15Pct}%</Text>
-                  <Text style={styles.statLbl}>1.5 Üst</Text>
-                </View>
-                <View style={styles.statBox}>
-                  <Text style={[styles.statVal, { color: '#185FA5' }]}>{activeSeasonStats.over25Pct}%</Text>
-                  <Text style={styles.statLbl}>2.5 Üst</Text>
-                </View>
-                <View style={styles.statBox}>
-                  <Text style={[styles.statVal, { color: '#185FA5' }]}>{activeSeasonStats.over35Pct}%</Text>
-                  <Text style={styles.statLbl}>3.5 Üst</Text>
-                </View>
-                <View style={styles.statBox}>
-                  <Text style={[styles.statVal, { color: '#185FA5' }]}>{activeSeasonStats.bttsPct}%</Text>
-                  <Text style={styles.statLbl}>KG Var</Text>
-                </View>
-                <View style={styles.statBox}>
-                  <Text style={[styles.statVal, { color: '#27500A' }]}>{activeSeasonStats.cleanSheetPct}%</Text>
-                  <Text style={styles.statLbl}>Kale sıfır</Text>
-                </View>
-                <View style={styles.statBox}>
-                  <Text style={[styles.statVal, { color: '#A32D2D' }]}>{activeSeasonStats.failedToScorePct}%</Text>
-                  <Text style={styles.statLbl}>Gol atamadı</Text>
-                </View>
-              </View>
-            ) : (
-              <Text style={styles.noDataSmall}>Veri yükleniyor...</Text>
-            )}
-
-            {/* İÇ SAHA / DEPLASMAN */}
-            {activeSeasonStats && (
               <>
-                <Text style={styles.sectionLabel}>İÇ SAHA / DEPLASMAN</Text>
-                <View style={styles.splitRow}>
-                  <View style={styles.splitBox}>
-                    <Text style={styles.splitTitle}>İç Saha</Text>
-                    <Text style={styles.splitRecord}>
-                      {activeSeasonStats.home.win}G {activeSeasonStats.home.draw}B {activeSeasonStats.home.loss}M
-                    </Text>
-                    <Text style={styles.splitSub}>{activeSeasonStats.home.played} maç</Text>
+                <Text style={styles.sectionLabel}>
+                  GOL BEKLENTİLERİ ({activeSeasonStats.total} maç)
+                </Text>
+                <View style={styles.expectCard}>
+                  {[
+                    { label: '1.5 Üst', value: activeSeasonStats.over15Pct },
+                    { label: '2.5 Üst', value: activeSeasonStats.over25Pct },
+                    { label: '3.5 Üst', value: activeSeasonStats.over35Pct },
+                  ].map(row => (
+                    <View key={row.label} style={styles.pbRow}>
+                      <Text style={styles.pbLabel}>{row.label}</Text>
+                      <View style={styles.pbTrack}>
+                        <View style={[styles.pbFill, { width: `${Math.min(100, row.value)}%` }]} />
+                      </View>
+                      <Text style={styles.pbValue}>{row.value}%</Text>
+                    </View>
+                  ))}
+                </View>
+
+                <Text style={styles.sectionLabel}>ÖZEL DURUMLAR</Text>
+                <View style={styles.specialRow}>
+                  <View style={styles.specialBox}>
+                    <Text style={[styles.specialV, { color: '#185FA5' }]}>{activeSeasonStats.bttsPct}%</Text>
+                    <Text style={styles.specialL}>KG Var</Text>
                   </View>
-                  <View style={styles.splitDivider} />
-                  <View style={styles.splitBox}>
-                    <Text style={styles.splitTitle}>Deplasman</Text>
-                    <Text style={styles.splitRecord}>
-                      {activeSeasonStats.away.win}G {activeSeasonStats.away.draw}B {activeSeasonStats.away.loss}M
-                    </Text>
-                    <Text style={styles.splitSub}>{activeSeasonStats.away.played} maç</Text>
+                  <View style={styles.specialBox}>
+                    <Text style={[styles.specialV, { color: '#27500A' }]}>{activeSeasonStats.cleanSheetPct}%</Text>
+                    <Text style={styles.specialL}>Kale sıfır</Text>
                   </View>
+                  <View style={styles.specialBox}>
+                    <Text style={[styles.specialV, { color: '#A32D2D' }]}>{activeSeasonStats.failedToScorePct}%</Text>
+                    <Text style={styles.specialL}>Gol atamadı</Text>
+                  </View>
+                </View>
+
+                {/* İÇ SAHA vs DEPLASMAN — görsel karşılaştırma */}
+                <Text style={styles.sectionLabel}>İÇ SAHA vs DEPLASMAN</Text>
+                <View style={styles.splitCompareCard}>
+                  {[
+                    { label: 'İç Saha',   data: activeSeasonStats.home },
+                    { label: 'Deplasman', data: activeSeasonStats.away },
+                  ].map(s => (
+                    <View key={s.label} style={styles.splitCompareRow}>
+                      <View style={styles.splitCompareHeader}>
+                        <Text style={styles.splitCompareLabel}>{s.label}</Text>
+                        <Text style={styles.splitCompareRecord}>
+                          {s.data.win}G {s.data.draw}B {s.data.loss}M
+                        </Text>
+                        <Text style={styles.splitCompareMeta}>{s.data.played} maç</Text>
+                      </View>
+                      {s.data.played > 0 && (
+                        <View style={styles.splitCompareBar}>
+                          {s.data.win  > 0 && <View style={[styles.splitSeg, styles.wdlW, { flex: s.data.win  }]} />}
+                          {s.data.draw > 0 && <View style={[styles.splitSeg, styles.wdlD, { flex: s.data.draw }]} />}
+                          {s.data.loss > 0 && <View style={[styles.splitSeg, styles.wdlL, { flex: s.data.loss }]} />}
+                        </View>
+                      )}
+                    </View>
+                  ))}
                 </View>
               </>
+            ) : (
+              <Text style={styles.noDataSmall}>Veri yükleniyor...</Text>
             )}
 
             {/* KORNER & POSSESSION — AllSports */}
@@ -590,25 +643,6 @@ export default function TeamStatsScreen() {
               </>
             )}
 
-            {/* SON FORM */}
-            <Text style={styles.sectionLabel}>SON FORM</Text>
-            <View style={styles.formRow}>
-              {(loadingForm || loadingAf) && displayForm.length === 0 ? (
-                <ActivityIndicator color="#185FA5" />
-              ) : displayForm.length === 0 ? (
-                <Text style={styles.formNote}>Form verisi bulunamadı</Text>
-              ) : (
-                <>
-                  {displayForm.map((r, i) => (
-                    <View key={i} style={[styles.formBadge,
-                      r === 'G' ? styles.formG : r === 'B' ? styles.formB : styles.formM]}>
-                      <Text style={styles.formBadgeText}>{r}</Text>
-                    </View>
-                  ))}
-                  <Text style={styles.formNote}>Son {displayForm.length} maç</Text>
-                </>
-              )}
-            </View>
           </>
         )}
 
@@ -862,12 +896,50 @@ const styles = StyleSheet.create({
   statVal:             { fontSize: 22, fontWeight: '500', color: '#111' },
   statLbl:             { fontSize: 10, color: '#888', marginTop: 2 },
   noDataSmall:         { fontSize: 12, color: '#aaa', paddingHorizontal: 14, paddingBottom: 10 },
-  splitRow:            { flexDirection: 'row', marginHorizontal: 14, marginBottom: 4, backgroundColor: '#f8f8f8', borderRadius: 10, borderWidth: 0.5, borderColor: '#eee', overflow: 'hidden' },
-  splitBox:            { flex: 1, padding: 14, alignItems: 'center' },
-  splitDivider:        { width: 0.5, backgroundColor: '#eee' },
-  splitTitle:          { fontSize: 12, color: '#888', marginBottom: 6 },
-  splitRecord:         { fontSize: 16, fontWeight: '500', color: '#111' },
-  splitSub:            { fontSize: 11, color: '#888', marginTop: 2 },
+
+  // Maç Özeti (W-D-L bar dahil)
+  summaryCard:         { marginHorizontal: 14, marginBottom: 8, backgroundColor: '#f8f8f8', borderRadius: 10, borderWidth: 0.5, borderColor: '#eee', padding: 12 },
+  summaryRow:          { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  summaryStat:         { alignItems: 'center' },
+  summaryV:            { fontSize: 20, fontWeight: '600', color: '#111' },
+  summaryL:            { fontSize: 10, color: '#888', marginTop: 2 },
+  wdlBar:              { flexDirection: 'row', height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: '#eee' },
+  wdlSeg:              { height: '100%' },
+  wdlW:                { backgroundColor: '#27500A' },
+  wdlD:                { backgroundColor: '#888' },
+  wdlL:                { backgroundColor: '#A32D2D' },
+
+  // Gol kartı
+  goalCard:            { flexDirection: 'row', marginHorizontal: 14, marginBottom: 8, backgroundColor: '#f8f8f8', borderRadius: 10, borderWidth: 0.5, borderColor: '#eee', padding: 14 },
+  goalStat:            { flex: 1, alignItems: 'center' },
+  goalDivider:         { width: 0.5, backgroundColor: '#eee' },
+  goalV:               { fontSize: 26, fontWeight: '600', color: '#111' },
+  goalL:               { fontSize: 11, color: '#888', marginTop: 3 },
+
+  // Gol Beklentileri — yatay bar
+  expectCard:          { marginHorizontal: 14, marginBottom: 8, backgroundColor: '#f8f8f8', borderRadius: 10, borderWidth: 0.5, borderColor: '#eee', padding: 14 },
+  pbRow:               { flexDirection: 'row', alignItems: 'center', marginVertical: 5, gap: 8 },
+  pbLabel:             { fontSize: 12, color: '#555', width: 54 },
+  pbTrack:             { flex: 1, height: 8, backgroundColor: '#eaeaea', borderRadius: 4, overflow: 'hidden' },
+  pbFill:              { height: '100%', borderRadius: 4, backgroundColor: '#185FA5' },
+  pbValue:             { fontSize: 13, fontWeight: '600', color: '#185FA5', width: 44, textAlign: 'right' },
+
+  // Özel durumlar
+  specialRow:          { flexDirection: 'row', marginHorizontal: 10, gap: 8, marginBottom: 8 },
+  specialBox:          { flex: 1, backgroundColor: '#f8f8f8', borderRadius: 10, padding: 12, borderWidth: 0.5, borderColor: '#eee', alignItems: 'center' },
+  specialV:            { fontSize: 20, fontWeight: '600' },
+  specialL:            { fontSize: 10, color: '#888', marginTop: 3, textAlign: 'center' },
+
+  // İç Saha vs Deplasman — karşılaştırma barı
+  splitCompareCard:    { marginHorizontal: 14, marginBottom: 8, backgroundColor: '#f8f8f8', borderRadius: 10, borderWidth: 0.5, borderColor: '#eee', padding: 12 },
+  splitCompareRow:     { marginVertical: 6 },
+  splitCompareHeader:  { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
+  splitCompareLabel:   { flex: 1, fontSize: 12, color: '#555', fontWeight: '500' },
+  splitCompareRecord:  { fontSize: 13, color: '#111', fontWeight: '600', marginRight: 8 },
+  splitCompareMeta:    { fontSize: 11, color: '#888' },
+  splitCompareBar:     { flexDirection: 'row', height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: '#eee' },
+  splitSeg:            { height: '100%' },
+
   formRow:             { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingBottom: 16, gap: 6 },
   formBadge:           { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   formG:               { backgroundColor: '#27500A' },

@@ -320,10 +320,23 @@ export default function LeaguesScreen() {
   const avgLeagueGaPer = standings.length > 0 ? standings.reduce((s, r) => s + r.ga / Math.max(r.played, 1), 0) / standings.length : 0;
   const sortedByGfR    = [...standings].sort((a, b) => b.gf / Math.max(b.played, 1) - a.gf / Math.max(a.played, 1));
   const sortedByGaR    = [...standings].sort((a, b) => a.ga / Math.max(a.played, 1) - b.ga / Math.max(b.played, 1));
-  const leaderAtkRank  = leader ? sortedByGfR.findIndex(r => r.team === leader.team) : 0;
-  const leaderDefRank  = leader ? sortedByGaR.findIndex(r => r.team === leader.team) : 0;
-  const attackPower    = standings.length > 0 ? Math.round(10 - (leaderAtkRank / standings.length) * 9) : 0;
-  const defPower       = standings.length > 0 ? Math.round(10 - (leaderDefRank / standings.length) * 9) : 0;
+
+  // Hücum/Savunma Gücü — lig içi min-max normalizasyon, 1.00-10.00
+  const gfPer = (r: Standing) => r.played > 0 ? r.gf / r.played : 0;
+  const gaPer = (r: Standing) => r.played > 0 ? r.ga / r.played : 0;
+  const maxGfPer = sortedByGfR.length > 0 ? gfPer(sortedByGfR[0]) : 0;
+  const minGfPer = sortedByGfR.length > 0 ? gfPer(sortedByGfR[sortedByGfR.length - 1]) : 0;
+  const minGaPer = sortedByGaR.length > 0 ? gaPer(sortedByGaR[0]) : 0;
+  const maxGaPer = sortedByGaR.length > 0 ? gaPer(sortedByGaR[sortedByGaR.length - 1]) : 0;
+  const attackScore = (team: Standing) => maxGfPer === minGfPer
+    ? 10
+    : 1 + ((gfPer(team) - minGfPer) / (maxGfPer - minGfPer)) * 9;
+  const defenseScore = (team: Standing) => maxGaPer === minGaPer
+    ? 10
+    : 1 + (1 - (gaPer(team) - minGaPer) / (maxGaPer - minGaPer)) * 9;
+
+  const attackPower = leader ? attackScore(leader) : 1;
+  const defPower    = leader ? defenseScore(leader) : 1;
   const goalScore      = Math.min(100, Math.round((avgGoals / 3.5) * 100));
   const tempoScore     = Math.min(100, Math.round(avgGoals * 28));
   const compScore      = Math.max(0, Math.min(100, 100 - leaderGap * 5));
@@ -496,12 +509,12 @@ export default function LeaguesScreen() {
                       <View style={stStyles.leaderPowerRow}>
                         <View style={stStyles.leaderPower}>
                           <Text style={stStyles.leaderPowerLbl}>Hücum Gücü</Text>
-                          <Text style={stStyles.leaderPowerVal}>{attackPower}/10</Text>
+                          <Text style={stStyles.leaderPowerVal}>{attackPower.toFixed(2)}/10</Text>
                         </View>
                         <View style={stStyles.leaderPowerDiv} />
                         <View style={stStyles.leaderPower}>
                           <Text style={stStyles.leaderPowerLbl}>Savunma Gücü</Text>
-                          <Text style={stStyles.leaderPowerVal}>{defPower}/10</Text>
+                          <Text style={stStyles.leaderPowerVal}>{defPower.toFixed(2)}/10</Text>
                         </View>
                       </View>
                     </View>
@@ -663,7 +676,7 @@ export default function LeaguesScreen() {
                           <Text style={styles.dataCell}>{row.win}</Text>
                           <Text style={styles.dataCell}>{row.draw}</Text>
                           <Text style={styles.dataCell}>{row.loss}</Text>
-                          <Text style={styles.dataCell}>{row.gf}-{row.ga}</Text>
+                          <Text style={styles.dataCell}>{row.gf - row.ga > 0 ? `+${row.gf - row.ga}` : row.gf - row.ga}</Text>
                           <Text style={[styles.dataCell, { color: '#185FA5', fontWeight: '600' }]}>{row.pts}</Text>
                         </View>
                       ))}
@@ -696,6 +709,8 @@ export default function LeaguesScreen() {
                     const winPct     = Math.round(winRate * 100);
                     const lbl        = getTeamLabel(avgGf, avgGa, winRate, row.pos, standings.length, avgLeagueGfPer, avgLeagueGaPer);
                     const personality = getTeamPersonality(lbl.label, avgGf, avgGa, winRate);
+                    const atkS       = attackScore(row);
+                    const defS       = defenseScore(row);
                     return (
                       <View key={i} style={stStyles.tkCard}>
                         <View style={stStyles.tkCardTop}>
@@ -708,6 +723,11 @@ export default function LeaguesScreen() {
                           </View>
                         </View>
                         <Text style={stStyles.tkPersonality}>{personality}</Text>
+                        <View style={stStyles.tkPowerRow}>
+                          <Text style={stStyles.tkPowerText}>Hücum <Text style={stStyles.tkPowerVal}>{atkS.toFixed(2)}</Text>/10</Text>
+                          <Text style={stStyles.tkPowerDot}>·</Text>
+                          <Text style={stStyles.tkPowerText}>Savunma <Text style={stStyles.tkPowerVal}>{defS.toFixed(2)}</Text>/10</Text>
+                        </View>
                         <View style={stStyles.tkStats}>
                           <View style={stStyles.tkStat}><Text style={stStyles.tkStatV}>{avgGf.toFixed(1)}</Text><Text style={stStyles.tkStatL}>Gol/M</Text></View>
                           <View style={stStyles.tkStat}><Text style={stStyles.tkStatV}>{avgGa.toFixed(1)}</Text><Text style={stStyles.tkStatL}>Yenilen/M</Text></View>
@@ -997,6 +1017,10 @@ const stStyles = StyleSheet.create({
   tkLabel:          { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
   tkLabelText:      { fontSize: 11, fontWeight: '600' },
   tkPersonality:    { fontSize: 11, color: '#666', fontStyle: 'italic', marginBottom: 8, lineHeight: 16 },
+  tkPowerRow:       { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  tkPowerText:      { fontSize: 11, color: '#555', fontWeight: '500' },
+  tkPowerVal:       { color: '#0C447C', fontWeight: '700' },
+  tkPowerDot:       { color: '#ccc', paddingHorizontal: 6 },
   tkStats:          { flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: '#eee', paddingTop: 8 },
   tkStat:           { flex: 1, alignItems: 'center' },
   tkStatV:          { fontSize: 14, fontWeight: '600', color: '#111' },

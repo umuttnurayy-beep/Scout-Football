@@ -577,7 +577,7 @@ function FormHeatRow({matches,teamId,label}:{matches:any[];teamId:number;label:s
           const gf=isHome?m.score.fullTime.home:m.score.fullTime.away;
           const ga=isHome?m.score.fullTime.away:m.score.fullTime.home;
           const result=gf>ga?'G':gf===ga?'B':'M';
-          const bg=result==='G'?(isHome?'#1B5E20':'#43A047'):result==='B'?(isHome?'#555':'#9E9E9E'):(isHome?'#B71C1C':'#E53935');
+          const bg=result==='G'?'#2E7D32':result==='B'?'#888':'#C62828';
           return(
             <View key={i} style={[fStyles.badge,{backgroundColor:bg}]}>
               <Text style={fStyles.badgeText}>{result}</Text>

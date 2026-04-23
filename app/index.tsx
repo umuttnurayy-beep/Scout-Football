@@ -4,7 +4,10 @@ import {
   ActivityIndicator, ScrollView, StatusBar, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
-import { getCityForTeam, getSuperLigMatches, getTodayMatches } from '../services/api';
+import {
+  getCityForTeam, getStandings, getSuperLigMatches, getSuperLigStandings,
+  getTodayMatches, Standing,
+} from '../services/api';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -19,15 +22,15 @@ const LEAGUE_WEIGHT: Record<number, number> = {
   2001: 10, 2021: 9, 2014: 8, 2002: 7, 2019: 7, 2015: 6, 203: 5,
 };
 
-const LEAGUE_BASE: Record<number, { stil: Stil; gol: Level; tempo: Level; risk: Level }> = {
-  2021: { stil: 'Dengeli',    gol: 'Orta',   tempo: 'Yüksek', risk: 'Düşük'  },
-  2014: { stil: 'Savunmacı', gol: 'Orta',   tempo: 'Orta',   risk: 'Düşük'  },
-  2002: { stil: 'Hücumcu',   gol: 'Yüksek', tempo: 'Yüksek', risk: 'Orta'   },
-  2019: { stil: 'Savunmacı', gol: 'Düşük',  tempo: 'Düşük',  risk: 'Orta'   },
-  2015: { stil: 'Dengeli',   gol: 'Orta',   tempo: 'Orta',   risk: 'Yüksek' },
-  2001: { stil: 'Dengeli',   gol: 'Orta',   tempo: 'Orta',   risk: 'Düşük'  },
-  203:  { stil: 'Dengeli',   gol: 'Orta',   tempo: 'Yüksek', risk: 'Yüksek' },
-};
+// standings yüklerken leagueApiId (Match'in kullandığı) → backend apiId eşlemesi
+const STANDINGS_LEAGUES: { leagueApiId: number; apiId: number }[] = [
+  { leagueApiId: 2021, apiId: 39 },
+  { leagueApiId: 2014, apiId: 140 },
+  { leagueApiId: 2002, apiId: 78 },
+  { leagueApiId: 2019, apiId: 135 },
+  { leagueApiId: 2015, apiId: 61 },
+  { leagueApiId: 2001, apiId: 2 },
+];
 
 const LIG_FILTERS = [
   { label: 'Premier Lig', id: 2021 },
@@ -39,21 +42,13 @@ const LIG_FILTERS = [
   { label: 'Süper Lig',   id: 203  },
 ];
 
-const CATEGORIES: { icon: string; label: string; filter: (a: Analysis) => boolean }[] = [
-  { icon: '⚽', label: 'Gol Beklentisi\nYüksek', filter: a => a.gol === 'Yüksek' },
-  { icon: '⚖️', label: 'En Dengeli',              filter: a => a.stil === 'Dengeli' && a.risk !== 'Yüksek' },
-  { icon: '⚠️', label: 'Sürpriz Riski',           filter: a => a.risk === 'Yüksek' },
-  { icon: '🧱', label: 'Düşük Tempo',             filter: a => a.tempo === 'Düşük' },
-  { icon: '⭐', label: 'Favoriler',               filter: a => a.risk === 'Düşük' },
-];
-
 const DAYS   = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 const MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 
-// ─── types ───────────────────────────────────────────────────────────────────
+// standings'ten anlamlı metrik üretmek için minimum oynanmış maç sayısı
+const MIN_PLAYED = 3;
 
-type Level = 'Düşük' | 'Orta' | 'Yüksek';
-type Stil  = 'Hücumcu' | 'Savunmacı' | 'Dengeli';
+// ─── types ───────────────────────────────────────────────────────────────────
 
 type Match = {
   id: number; leagueApiId: number; league: string;
@@ -63,55 +58,136 @@ type Match = {
   homeTeamId: number; awayTeamId: number;
 };
 
-type Analysis = { stil: Stil; gol: Level; tempo: Level; risk: Level; summary: string; };
+type Metrics = {
+  hasData: boolean;
+  expectedGoals: number;   // toplam beklenen gol (xG proxy)
+  homePpg: number;         // puan / maç
+  awayPpg: number;
+  diff: number;            // homePpg - awayPpg
+  favorite: 'home' | 'away' | 'balanced';
+  confidence: 'low' | 'medium' | 'high';
+  tempo: number;           // toplam gol ortalaması (iki takım birleşik)
+  reason?: string;         // hasData=false ise neden
+  summary: string;         // kart altındaki açıklama cümlesi
+};
 
-// ─── analysis engine ─────────────────────────────────────────────────────────
+// ─── metrics engine ──────────────────────────────────────────────────────────
 
-const LEVELS: Level[] = ['Düşük', 'Orta', 'Yüksek'];
-const DELTA = [0, 0, 1, -1, 0, 0, 1, -1, 0, 0, 0];
-
-function shiftLevel(base: Level, delta: number): Level {
-  return LEVELS[Math.max(0, Math.min(2, LEVELS.indexOf(base) + delta))];
+function normalizeTeam(name: string): string {
+  if (!name) return '';
+  return name.toLowerCase()
+    .replace(/[çÇ]/g, 'c').replace(/[şŞ]/g, 's').replace(/[ğĞ]/g, 'g')
+    .replace(/[üÜ]/g, 'u').replace(/[öÖ]/g, 'o').replace(/[ıİ]/g, 'i')
+    .replace(/\s+/g, ' ').trim();
 }
 
-function buildSummary(stil: Stil, gol: Level, tempo: Level, risk: Level): string {
-  if (stil === 'Hücumcu'   && gol === 'Yüksek')  return 'İki hücumcu ekip arasında gollü ve tempolu bir maç bekleniyor.';
-  if (stil === 'Savunmacı' && gol === 'Düşük')    return 'Savunma odaklı bir karşılaşma — ilk gol belirleyici olacak.';
-  if (stil === 'Savunmacı' && tempo === 'Düşük')  return 'Düşük tempolu ve sıkışık bir mücadele — alt 2.5 güçlü sinyal.';
-  if (gol === 'Yüksek'     && risk === 'Düşük')   return 'Favori belirgin, gol beklentisi yüksek — güçlü over sinyali.';
-  if (risk === 'Yüksek'    && gol === 'Düşük')    return 'Sonuç belirsiz ve az gollü — sürpriz ihtimali yüksek.';
-  if (risk === 'Yüksek')                          return 'Sonuç tahmini güç; sürpriz ihtimali göz ardı edilmemeli.';
-  if (tempo === 'Yüksek'   && gol === 'Yüksek')   return 'Yüksek tempo ve gol beklentisi — heyecanlı bir maç sinyali.';
-  if (tempo === 'Düşük')                          return 'Kontrollü ve düşük tempolu bir maç öngörülüyor.';
-  return 'Dengeli iki takım karşı karşıya — maç akışına göre şekillenecek.';
+function findStanding(standings: Standing[] | undefined, teamName: string, teamId: number): Standing | null {
+  if (!standings || standings.length === 0) return null;
+  if (teamId > 0) {
+    const byId = standings.find(s => s.teamId === teamId);
+    if (byId) return byId;
+  }
+  const target = normalizeTeam(teamName);
+  if (!target) return null;
+  const exact = standings.find(s => normalizeTeam(s.team) === target);
+  if (exact) return exact;
+  return standings.find(s => {
+    const norm = normalizeTeam(s.team);
+    return norm.includes(target) || target.includes(norm);
+  }) || null;
 }
 
-function analyzeMatch(m: Match): Analysis {
-  const base = LEAGUE_BASE[m.leagueApiId] ?? { stil: 'Dengeli' as Stil, gol: 'Orta' as Level, tempo: 'Orta' as Level, risk: 'Orta' as Level };
-  const h    = strHash(m.home + m.away);
-  const gol   = shiftLevel(base.gol,   DELTA[h % 11]);
-  const tempo = shiftLevel(base.tempo, DELTA[(h + 3) % 11]);
-  const risk  = shiftLevel(base.risk,  DELTA[(h + 7) % 11]);
-  return { stil: base.stil, gol, tempo, risk, summary: buildSummary(base.stil, gol, tempo, risk) };
+const NO_DATA: Metrics = {
+  hasData: false, expectedGoals: 0,
+  homePpg: 0, awayPpg: 0, diff: 0, favorite: 'balanced',
+  confidence: 'low', tempo: 0,
+  reason: 'Sezon verisi bulunamadı',
+  summary: 'Analiz için sezon verisi henüz mevcut değil.',
+};
+
+function computeMetrics(home: Standing | null, away: Standing | null): Metrics {
+  if (!home || !away) return { ...NO_DATA, reason: 'Takım tablo satırı eşleşmedi' };
+  if (home.played < MIN_PLAYED || away.played < MIN_PLAYED) {
+    return {
+      ...NO_DATA,
+      reason: 'Erken sezon — yeterli veri yok',
+      summary: 'Sezon erken; takım ortalamaları henüz güvenilir değil.',
+    };
+  }
+
+  const homeAtk = home.gf / home.played;
+  const homeDef = home.ga / home.played;
+  const awayAtk = away.gf / away.played;
+  const awayDef = away.ga / away.played;
+
+  const expectedGoals = (homeAtk + awayDef) / 2 + (awayAtk + homeDef) / 2;
+
+  const homePpg = home.pts / home.played;
+  const awayPpg = away.pts / away.played;
+  const diff = homePpg - awayPpg;
+  const absDiff = Math.abs(diff);
+
+  const favorite: Metrics['favorite'] = diff > 0.3 ? 'home' : diff < -0.3 ? 'away' : 'balanced';
+  const confidence: Metrics['confidence'] = absDiff > 1.0 ? 'high' : absDiff > 0.5 ? 'medium' : 'low';
+  const tempo = (home.gf + home.ga + away.gf + away.ga) / (home.played + away.played);
+
+  const round1 = (n: number) => Math.round(n * 10) / 10;
+
+  return {
+    hasData: true,
+    expectedGoals: round1(expectedGoals),
+    homePpg: round1(homePpg),
+    awayPpg: round1(awayPpg),
+    diff: round1(diff),
+    favorite, confidence,
+    tempo: round1(tempo),
+    summary: buildMatchSummary({ expectedGoals, favorite, confidence, tempo, homePpg, awayPpg }),
+  };
 }
 
-function buildDaySummary(matches: Match[], analysisMap: Map<number, Analysis>): string {
-  const all      = matches.map(m => analysisMap.get(m.id)).filter(Boolean) as Analysis[];
-  const total    = all.length;
-  if (!total) return 'Bugün maç analizi için yeterli veri yok.';
-  const highGol  = all.filter(a => a.gol   === 'Yüksek').length;
-  const highRisk = all.filter(a => a.risk  === 'Yüksek').length;
-  const lowTempo = all.filter(a => a.tempo === 'Düşük').length;
-  if (highGol  > total * 0.45) return `${highGol} maçta yüksek gol beklentisi var — over için aktif bir gün.`;
-  if (highRisk > total * 0.40) return `Sonuç belirsizliği yüksek — sürpriz gün, tahminlerde dikkatli ol.`;
-  if (lowTempo > total * 0.40) return `Düşük tempolu maçlar ağırlıkta — alt 2.5 için elverişli bir gün.`;
-  return 'Dengeli ve orta tempolu maçlar öne çıkıyor. Analiz için her kartı incele.';
+function buildMatchSummary(m: {
+  expectedGoals: number; favorite: 'home' | 'away' | 'balanced';
+  confidence: 'low' | 'medium' | 'high'; tempo: number; homePpg: number; awayPpg: number;
+}): string {
+  const bits: string[] = [];
+  if (m.expectedGoals >= 3.2)      bits.push('gol beklentisi yüksek');
+  else if (m.expectedGoals >= 2.5) bits.push('orta düzey gol beklentisi');
+  else if (m.expectedGoals < 2.0)  bits.push('az gollü bir akış bekleniyor');
+
+  if (m.confidence === 'high') bits.push('belirgin bir favori var');
+  else if (m.favorite === 'balanced' && m.homePpg >= 1.8 && m.awayPpg >= 1.8)
+    bits.push('iki güçlü ekip dengeli profilde');
+  else if (m.favorite === 'balanced')
+    bits.push('iki takım dengeli profilde');
+
+  if (m.tempo >= 3.0) bits.push('tempolu bir maç profili');
+
+  if (bits.length === 0) return 'Takım verilerine göre standart bir maç profili.';
+  const sentence = bits.join(', ');
+  return sentence.charAt(0).toUpperCase() + sentence.slice(1) + '.';
+}
+
+function buildDaySummary(metricsList: Metrics[]): string {
+  const withData = metricsList.filter(m => m.hasData);
+  if (withData.length === 0) return 'Bugünün maçları için yeterli sezon verisi yok.';
+  const avgXG      = withData.reduce((s, m) => s + m.expectedGoals, 0) / withData.length;
+  const highScore  = withData.filter(m => m.expectedGoals > 3.0).length;
+  const balanced   = withData.filter(m => m.favorite === 'balanced').length;
+  const highConf   = withData.filter(m => m.confidence === 'high').length;
+  const half       = Math.ceil(withData.length / 2);
+
+  const parts: string[] = [];
+  parts.push(`Maç başına ortalama ~${avgXG.toFixed(1)} gol bekleniyor.`);
+  if (highScore >= 3)        parts.push(`${highScore} maçta 3+ gol profili var.`);
+  if (balanced >= half)      parts.push('Çoğu maç dengeli profilde.');
+  else if (highConf >= half) parts.push('Çoğu maçta belirgin bir favori öne çıkıyor.');
+  return parts.join(' ');
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 function getDateList() {
-  const dates = [];
+  const dates: Date[] = [];
   for (let i = -3; i <= 3; i++) {
     const d = new Date(); d.setDate(d.getDate() + i); dates.push(d);
   }
@@ -138,29 +214,20 @@ function timeToMins(t: string): number {
   return p.length === 2 ? parseInt(p[0]) * 60 + parseInt(p[1]) : 0;
 }
 
-function scoutScore(m: Match): number {
+function scoutScore(m: Match, metrics: Metrics): number {
   let s = LEAGUE_WEIGHT[m.leagueApiId] ?? 4;
   const mins = timeToMins(m.time);
-  if (mins >= 20 * 60) s += 2;
+  if (mins >= 20 * 60)      s += 2;
   else if (mins >= 18 * 60) s += 1;
   if (!m.finished) s += 1;
-  return s;
-}
 
-function getTagColor(type: 'stil' | 'gol' | 'risk', value: string): { bg: string; text: string } {
-  if (type === 'gol') {
-    if (value.startsWith('Yüksek')) return { bg: '#E8F5E9', text: '#2E7D32' };
-    if (value.startsWith('Düşük'))  return { bg: '#F5F5F5', text: '#888' };
-    return { bg: '#FFF8E1', text: '#E65100' };
+  if (metrics.hasData) {
+    if (metrics.expectedGoals > 3.0)                                          s += 2;
+    else if (metrics.expectedGoals > 2.5)                                     s += 1;
+    if (metrics.favorite === 'balanced' && metrics.homePpg >= 1.8 && metrics.awayPpg >= 1.8) s += 2;
+    if (metrics.confidence === 'high' && metrics.tempo < 2.3)                 s -= 1;
   }
-  if (type === 'risk') {
-    if (value.startsWith('Yüksek')) return { bg: '#FFEBEE', text: '#C62828' };
-    if (value.startsWith('Düşük'))  return { bg: '#E8F5E9', text: '#2E7D32' };
-    return { bg: '#FFF8E1', text: '#E65100' };
-  }
-  if (value === 'Hücumcu')   return { bg: '#FFEBEE', text: '#C62828' };
-  if (value === 'Savunmacı') return { bg: '#E8F5E9', text: '#2E7D32' };
-  return { bg: '#E6F1FB', text: '#185FA5' };
+  return s;
 }
 
 // ─── data mapping ────────────────────────────────────────────────────────────
@@ -205,25 +272,20 @@ function mapMatch(m: any): Match {
 
 // ─── components ──────────────────────────────────────────────────────────────
 
-function AnalysisTag({ type, value, onDark = false }: {
-  type: 'stil' | 'gol' | 'risk'; value: string; onDark?: boolean;
-}) {
-  if (onDark) {
-    return (
-      <View style={[sc.tag, { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
-        <Text style={[sc.tagText, { color: '#fff' }]}>{value}</Text>
-      </View>
-    );
-  }
-  const c = getTagColor(type, value);
-  return (
-    <View style={[sc.tag, { backgroundColor: c.bg }]}>
-      <Text style={[sc.tagText, { color: c.text }]}>{value}</Text>
-    </View>
-  );
+function favoriteText(m: Match, metrics: Metrics): string {
+  if (!metrics.hasData) return '';
+  if (metrics.favorite === 'balanced') return 'Dengeli eşleşme';
+  const favName = metrics.favorite === 'home' ? m.home : m.away;
+  if (metrics.confidence === 'high')   return `${favName} belirgin favori`;
+  if (metrics.confidence === 'medium') return `${favName} favori`;
+  return `${favName} hafif önde`;
 }
 
-function HeroCard({ m, analysis, onPress }: { m: Match; analysis: Analysis; onPress: () => void }) {
+function expectedLine(metrics: Metrics): string {
+  return `Beklenen ~${metrics.expectedGoals.toFixed(1)} gol`;
+}
+
+function HeroCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress: () => void }) {
   return (
     <TouchableOpacity style={sc.heroCard} onPress={onPress} activeOpacity={0.85}>
       <View style={sc.heroTop}>
@@ -247,36 +309,25 @@ function HeroCard({ m, analysis, onPress }: { m: Match; analysis: Analysis; onPr
         </View>
         <Text style={[sc.heroTeam, { textAlign: 'right' }]} numberOfLines={1}>{m.away}</Text>
       </View>
-      <View style={sc.tagRow}>
-        <AnalysisTag type="stil" value={analysis.stil}                onDark />
-        <AnalysisTag type="gol"  value={`${analysis.gol} Gol`}       onDark />
-        <AnalysisTag type="risk" value={`${analysis.risk} Risk`}      onDark />
-      </View>
-      <Text style={sc.heroSummary}>{analysis.summary}</Text>
+
+      {metrics.hasData ? (
+        <>
+          <View style={sc.heroMetricRow}>
+            <Text style={sc.heroMetricPrimary}>{expectedLine(metrics)}</Text>
+            <Text style={sc.heroMetricDot}>·</Text>
+            <Text style={sc.heroMetricPrimary} numberOfLines={1}>{favoriteText(m, metrics)}</Text>
+          </View>
+          <Text style={sc.heroSummary}>{metrics.summary}</Text>
+        </>
+      ) : (
+        <Text style={sc.heroSummary}>{metrics.summary}</Text>
+      )}
     </TouchableOpacity>
   );
 }
 
-function CategoryCard({ icon, label, matches, onBestPress }: {
-  icon: string; label: string; matches: Match[]; onBestPress: (m: Match) => void;
-}) {
-  const best = matches[0];
-  if (!best) return null;
-  return (
-    <TouchableOpacity style={sc.catCard} onPress={() => onBestPress(best)} activeOpacity={0.85}>
-      <Text style={sc.catIcon}>{icon}</Text>
-      <Text style={sc.catLabel}>{label}</Text>
-      <Text style={sc.catCount}>{matches.length} maç</Text>
-      <Text style={sc.catTeam} numberOfLines={1}>{best.home}</Text>
-      <Text style={sc.catVs}>vs</Text>
-      <Text style={sc.catTeam} numberOfLines={1}>{best.away}</Text>
-      <Text style={sc.catTime}>{best.finished && best.score ? best.score : best.time}</Text>
-    </TouchableOpacity>
-  );
-}
-
-function HighlightCard({ m, rank, analysis, onPress }: {
-  m: Match; rank: number; analysis: Analysis; onPress: () => void;
+function HighlightCard({ m, rank, metrics, onPress }: {
+  m: Match; rank: number; metrics: Metrics; onPress: () => void;
 }) {
   const label = rank === 0 ? '⭐ Öne Çıkan' : rank === 1 ? '🎯 İzlenecek' : '📌 Dikkat';
   const borderColor = rank === 0 ? '#185FA5' : rank === 1 ? '#E6A817' : '#aaa';
@@ -291,12 +342,14 @@ function HighlightCard({ m, rank, analysis, onPress }: {
         <Text style={sc.hlTime}>{m.finished && m.score ? m.score : m.time}</Text>
         <Text style={[sc.hlTeam, { textAlign: 'right' }]} numberOfLines={1}>{m.away}</Text>
       </View>
-      <Text style={sc.hlSummary}>{analysis.summary}</Text>
-      <View style={sc.tagRow}>
-        <AnalysisTag type="stil" value={analysis.stil} />
-        <AnalysisTag type="gol"  value={`${analysis.gol} Gol`} />
-        <AnalysisTag type="risk" value={`${analysis.risk} Risk`} />
-      </View>
+      {metrics.hasData ? (
+        <>
+          <Text style={sc.hlMetric}>{expectedLine(metrics)} · {favoriteText(m, metrics)}</Text>
+          <Text style={sc.hlSummary}>{metrics.summary}</Text>
+        </>
+      ) : (
+        <Text style={sc.hlSummary}>{metrics.summary}</Text>
+      )}
     </TouchableOpacity>
   );
 }
@@ -304,13 +357,13 @@ function HighlightCard({ m, rank, analysis, onPress }: {
 function DaySummaryCard({ summary }: { summary: string }) {
   return (
     <View style={sc.daySummary}>
-      <Text style={sc.daySummaryTitle}>🧠 BUGÜN NE BEKLENİYOR?</Text>
+      <Text style={sc.daySummaryTitle}>📊 BUGÜN NE BEKLENİYOR?</Text>
       <Text style={sc.daySummaryText}>{summary}</Text>
     </View>
   );
 }
 
-function MatchRow({ m, analysis, onPress }: { m: Match; analysis: Analysis; onPress: () => void }) {
+function MatchRow({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress: () => void }) {
   return (
     <TouchableOpacity style={sc.matchCard} onPress={onPress} activeOpacity={0.8}>
       <View style={sc.matchTop}>
@@ -329,12 +382,13 @@ function MatchRow({ m, analysis, onPress }: { m: Match; analysis: Analysis; onPr
         <Text style={sc.matchSep}>—</Text>
         <Text style={[sc.matchTeam, { textAlign: 'right' }]} numberOfLines={1}>{m.away}</Text>
       </View>
-      <View style={sc.tagRow}>
-        <AnalysisTag type="stil" value={analysis.stil} />
-        <AnalysisTag type="gol"  value={`${analysis.gol} Gol`} />
-        <AnalysisTag type="risk" value={`${analysis.risk} Risk`} />
-      </View>
-      <Text style={sc.matchSummary}>{analysis.summary}</Text>
+      {metrics.hasData ? (
+        <Text style={sc.matchMetricLine}>
+          {expectedLine(metrics)} · {favoriteText(m, metrics)}
+        </Text>
+      ) : (
+        <Text style={sc.matchMetricLineMuted}>{metrics.reason}</Text>
+      )}
     </TouchableOpacity>
   );
 }
@@ -345,22 +399,36 @@ export default function HomeScreen() {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<string>('Scout');
   const [matches, setMatches]           = useState<Match[]>([]);
+  const [standingsMap, setStandingsMap] = useState<Record<number, Standing[]>>({});
   const [loading, setLoading]           = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const dateList          = getDateList();
   const initialFocusDone  = useRef(false);
 
   useEffect(() => { loadMatches(selectedDate); }, [selectedDate]);
+  useEffect(() => { loadStandings(); }, []);
 
   useFocusEffect(
     useCallback(() => {
-      if (!initialFocusDone.current) {
-        initialFocusDone.current = true;
-      } else {
-        loadMatches(selectedDate, true);
-      }
+      if (!initialFocusDone.current) initialFocusDone.current = true;
+      else loadMatches(selectedDate, true);
     }, [selectedDate])
   );
+
+  async function loadStandings() {
+    try {
+      const [fdResults, slResult] = await Promise.all([
+        Promise.all(STANDINGS_LEAGUES.map(({ apiId }) => getStandings(apiId))),
+        getSuperLigStandings(),
+      ]);
+      const map: Record<number, Standing[]> = {};
+      STANDINGS_LEAGUES.forEach((x, i) => { map[x.leagueApiId] = fdResults[i] || []; });
+      map[203] = slResult || [];
+      setStandingsMap(map);
+    } catch (e) {
+      console.log('loadStandings hata:', e);
+    }
+  }
 
   async function loadMatches(date: Date, silent = false) {
     if (!silent) setLoading(true);
@@ -379,11 +447,16 @@ export default function HomeScreen() {
     setLoading(false);
   }
 
-  const analysisMap = useMemo(() => {
-    const map = new Map<number, Analysis>();
-    matches.forEach(m => map.set(m.id, analyzeMatch(m)));
+  const metricsMap = useMemo(() => {
+    const map = new Map<number, Metrics>();
+    for (const m of matches) {
+      const rows = standingsMap[m.leagueApiId];
+      const home = findStanding(rows, m.home, m.homeTeamId);
+      const away = findStanding(rows, m.away, m.awayTeamId);
+      map.set(m.id, computeMetrics(home, away));
+    }
     return map;
-  }, [matches]);
+  }, [matches, standingsMap]);
 
   const filteredMatches = useMemo(() => {
     if (activeFilter === 'Scout') return matches;
@@ -392,22 +465,21 @@ export default function HomeScreen() {
   }, [matches, activeFilter]);
 
   const sortedMatches = useMemo(
-    () => [...filteredMatches].sort((a, b) => scoutScore(b) - scoutScore(a)),
-    [filteredMatches]
+    () => [...filteredMatches].sort((a, b) => {
+      const ma = metricsMap.get(a.id) ?? NO_DATA;
+      const mb = metricsMap.get(b.id) ?? NO_DATA;
+      return scoutScore(b, mb) - scoutScore(a, ma);
+    }),
+    [filteredMatches, metricsMap]
   );
 
   const isScoutMode = activeFilter === 'Scout' && isToday(selectedDate) && sortedMatches.length > 0;
 
   const hero       = isScoutMode ? sortedMatches[0] : null;
   const highlights = isScoutMode ? sortedMatches.slice(1, 4) : [];
-  const daySummary = isScoutMode ? buildDaySummary(matches, analysisMap) : '';
-
-  const categoryMatches = useMemo(() =>
-    CATEGORIES.map(cat =>
-      sortedMatches.filter(m => { const a = analysisMap.get(m.id); return a ? cat.filter(a) : false; })
-    ),
-    [sortedMatches, analysisMap]
-  );
+  const daySummary = isScoutMode
+    ? buildDaySummary(Array.from(metricsMap.values()))
+    : '';
 
   function goToMatch(m: Match) {
     if (m.leagueApiId === 203) return;
@@ -428,7 +500,7 @@ export default function HomeScreen() {
 
       <View style={styles.topbar}>
         <Text style={styles.appName}><Text style={styles.appNameBlue}>Scout</Text>Football</Text>
-        <TouchableOpacity onPress={() => loadMatches(selectedDate)}>
+        <TouchableOpacity onPress={() => { loadMatches(selectedDate); loadStandings(); }}>
           <Text style={styles.refreshBtn}>↻ Güncelle</Text>
         </TouchableOpacity>
       </View>
@@ -452,7 +524,7 @@ export default function HomeScreen() {
         })}
       </ScrollView>
 
-      {/* Filtre şeridi: Scout + lig filtreleri */}
+      {/* Filtre şeridi */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}
         contentContainerStyle={{ paddingHorizontal: 14, alignItems: 'center', gap: 8 }}>
         <TouchableOpacity
@@ -478,7 +550,7 @@ export default function HomeScreen() {
 
           {/* ── SCOUT MODU ── */}
           {isScoutMode && hero && (() => {
-            const heroA = analysisMap.get(hero.id)!;
+            const heroM = metricsMap.get(hero.id) ?? NO_DATA;
             return (
               <>
                 {/* 1. Hero */}
@@ -486,53 +558,33 @@ export default function HomeScreen() {
                   <Text style={sc.sectionTitle}>GÜNÜN MAÇI</Text>
                 </View>
                 <View style={{ paddingHorizontal: 14, marginBottom: 4 }}>
-                  <HeroCard m={hero} analysis={heroA} onPress={() => goToMatch(hero)} />
+                  <HeroCard m={hero} metrics={heroM} onPress={() => goToMatch(hero)} />
                 </View>
 
-                {/* 2. Kategori şeritleri */}
-                {categoryMatches.some(cm => cm.length > 0) && (
-                  <>
-                    <View style={sc.sectionHeader}>
-                      <Text style={sc.sectionTitle}>HIZLI KATEGORİLER</Text>
-                    </View>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 10, gap: 10 }}>
-                      {CATEGORIES.map((cat, i) =>
-                        categoryMatches[i].length > 0 ? (
-                          <CategoryCard
-                            key={i} icon={cat.icon} label={cat.label}
-                            matches={categoryMatches[i]} onBestPress={goToMatch}
-                          />
-                        ) : null
-                      )}
-                    </ScrollView>
-                  </>
-                )}
-
-                {/* 3. Günün Öne Çıkanları */}
+                {/* 2. Günün Öne Çıkanları */}
                 {highlights.length > 0 && (
                   <>
                     <View style={sc.sectionHeader}>
                       <Text style={sc.sectionTitle}>GÜNÜN ÖNE ÇIKANLARI</Text>
                     </View>
                     {highlights.map((m, i) => {
-                      const a = analysisMap.get(m.id);
-                      return a ? <HighlightCard key={m.id} m={m} rank={i} analysis={a} onPress={() => goToMatch(m)} /> : null;
+                      const mm = metricsMap.get(m.id) ?? NO_DATA;
+                      return <HighlightCard key={m.id} m={m} rank={i} metrics={mm} onPress={() => goToMatch(m)} />;
                     })}
                   </>
                 )}
 
-                {/* 4. Bugün Ne Bekleniyor? */}
+                {/* 3. Bugün Ne Bekleniyor? */}
                 <DaySummaryCard summary={daySummary} />
 
-                {/* 5. Tüm Maçlar */}
+                {/* 4. Tüm Maçlar */}
                 <View style={sc.sectionHeader}>
                   <Text style={sc.sectionTitle}>TÜM MAÇLAR</Text>
-                  <Text style={sc.sectionSub}>Scout değerine göre sıralandı</Text>
+                  <Text style={sc.sectionSub}>Scout skoruna göre sıralandı</Text>
                 </View>
                 {sortedMatches.map(m => {
-                  const a = analysisMap.get(m.id);
-                  return a ? <MatchRow key={m.id} m={m} analysis={a} onPress={() => goToMatch(m)} /> : null;
+                  const mm = metricsMap.get(m.id) ?? NO_DATA;
+                  return <MatchRow key={m.id} m={m} metrics={mm} onPress={() => goToMatch(m)} />;
                 })}
               </>
             );
@@ -554,8 +606,8 @@ export default function HomeScreen() {
                   </Text>
                 </View>
                 {sortedMatches.map(m => {
-                  const a = analysisMap.get(m.id);
-                  return a ? <MatchRow key={m.id} m={m} analysis={a} onPress={() => goToMatch(m)} /> : null;
+                  const mm = metricsMap.get(m.id) ?? NO_DATA;
+                  return <MatchRow key={m.id} m={m} metrics={mm} onPress={() => goToMatch(m)} />;
                 })}
               </>
             )
@@ -629,15 +681,10 @@ const sc = StyleSheet.create({
   heroSubLabel:  { fontSize: 10, color: 'rgba(255,255,255,0.5)', marginBottom: 2 },
   heroTime:      { fontSize: 20, fontWeight: '800', color: '#fff' },
   heroScore:     { fontSize: 22, fontWeight: '800', color: '#fff' },
-  heroSummary:   { fontSize: 12, color: 'rgba(255,255,255,0.8)', fontStyle: 'italic', lineHeight: 17, marginTop: 10 },
-
-  catCard:       { width: 118, backgroundColor: '#fff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#E4EEF8' },
-  catIcon:       { fontSize: 20, marginBottom: 6 },
-  catLabel:      { fontSize: 11, color: '#185FA5', fontWeight: '700', letterSpacing: 0.3, marginBottom: 6, lineHeight: 15 },
-  catCount:      { fontSize: 10, color: '#aaa', marginBottom: 8 },
-  catTeam:       { fontSize: 12, fontWeight: '600', color: '#111', marginVertical: 1 },
-  catVs:         { fontSize: 10, color: '#ccc', marginVertical: 1 },
-  catTime:       { fontSize: 12, fontWeight: '600', color: '#185FA5', marginTop: 6 },
+  heroMetricRow:     { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 4 },
+  heroMetricPrimary: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  heroMetricDot:     { fontSize: 13, color: 'rgba(255,255,255,0.5)', paddingHorizontal: 6 },
+  heroSummary:       { fontSize: 12, color: 'rgba(255,255,255,0.82)', lineHeight: 17, marginTop: 10 },
 
   hlCard:        { marginHorizontal: 14, marginBottom: 8, backgroundColor: '#fff', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#E4EEF8', borderLeftWidth: 3 },
   hlTop:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
@@ -646,7 +693,8 @@ const sc = StyleSheet.create({
   hlTeams:       { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   hlTeam:        { flex: 1, fontSize: 14, fontWeight: '600', color: '#111' },
   hlTime:        { fontSize: 14, fontWeight: '700', color: '#333', paddingHorizontal: 8 },
-  hlSummary:     { fontSize: 12, color: '#555', fontStyle: 'italic', lineHeight: 17, marginBottom: 8 },
+  hlMetric:      { fontSize: 13, fontWeight: '600', color: '#0C447C', marginBottom: 4 },
+  hlSummary:     { fontSize: 12, color: '#555', lineHeight: 17, marginTop: 2 },
 
   daySummary:      { marginHorizontal: 14, marginTop: 4, marginBottom: 4, padding: 14, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#E4EEF8' },
   daySummaryTitle: { fontSize: 11, color: '#185FA5', fontWeight: '700', letterSpacing: 0.4, marginBottom: 6 },
@@ -659,12 +707,9 @@ const sc = StyleSheet.create({
   scoreRow:      { flexDirection: 'row', alignItems: 'center', gap: 5 },
   scoreText:     { fontSize: 13, fontWeight: '700', color: '#111' },
   scoreMs:       { fontSize: 10, color: '#aaa' },
-  matchTeams:    { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  matchTeams:    { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   matchTeam:     { flex: 1, fontSize: 14, fontWeight: '600', color: '#111' },
   matchSep:      { paddingHorizontal: 8, color: '#ccc', fontSize: 14 },
-  matchSummary:  { fontSize: 11, color: '#888', fontStyle: 'italic', marginTop: 7, lineHeight: 16 },
-
-  tagRow:        { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  tag:           { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  tagText:       { fontSize: 11, fontWeight: '500' },
+  matchMetricLine:      { fontSize: 12, color: '#0C447C', marginTop: 4 },
+  matchMetricLineMuted: { fontSize: 11, color: '#aaa', marginTop: 4, fontStyle: 'italic' },
 });
