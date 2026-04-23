@@ -2,6 +2,7 @@
 
 # dependencies
 node_modules/
+ScoutFootball-Backend/node_modules/
 
 # Expo
 .expo/
@@ -18,20 +19,46 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
+# Build outputs (mobile binaries)
+*.ipa
+*.apk
+*.aab
+
 # Metro
 .metro-health-check*
 
-# debug
+# debug / logs
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+*.log
+logs/
 
 # macOS
 .DS_Store
+**/.DS_Store
 *.pem
 
-# local env files
-.env*.local
+# Windows (Umut'un makinesi)
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Editors / IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment & secrets (backend env'leri Railway'de, repo'da değil)
+.env
+.env.*
+!.env.example
+ScoutFootball-Backend/.env
+ScoutFootball-Backend/.env.*
+
+# Claude Code — kullanıcıya özel yerel ayarlar
+.claude/settings.local.json
 
 # typescript
 *.tsbuildinfo
