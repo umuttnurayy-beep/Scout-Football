@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Linking, Modal, ScrollView, StyleSheet,
+  ActivityIndicator, Alert, Image, Linking, Modal, ScrollView, StyleSheet,
   Switch, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { getSuperLigStandings, getSuperLigTeamForm, getStandings, getTeamForm } from '../services/api';
@@ -553,7 +553,10 @@ export default function ProfileScreen() {
 
       {/* Top Bar */}
       <View style={styles.topbar}>
-        <View style={{ width: 60 }} />
+        <View style={styles.headerBrand}>
+          <Image source={require('../assets/images/android-icon-foreground.png')} style={styles.headerLogo} />
+          <Text style={styles.appName}><Text style={styles.appNameBlue}>Scout</Text>Football</Text>
+        </View>
         <Text style={styles.topbarTitle}>Scout Rozeti</Text>
         <View style={{ width: 60 }} />
       </View>
@@ -864,6 +867,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f8f8' },
   topbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingTop: 52, paddingBottom: 12, backgroundColor: '#fff', borderBottomWidth: 0.5, borderBottomColor: '#eee' },
   topbarTitle: { fontSize: 16, fontWeight: '600', color: '#111' },
+  headerBrand: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerLogo: { width: 42, height: 42, resizeMode: 'contain' },
+  appName: { fontSize: 16, fontWeight: '600', color: '#00BAFF' },
+  appNameBlue: { color: '#2563EB' },
   scroll: { flex: 1 },
 
   // Identity card

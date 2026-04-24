@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, ScrollView, StatusBar, StyleSheet,
+  ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
 import {
@@ -582,7 +582,10 @@ export default function HomeScreen() {
       <StatusBar barStyle="dark-content" />
 
       <View style={styles.topbar}>
-        <Text style={styles.appName}><Text style={styles.appNameBlue}>Scout</Text>Football</Text>
+        <View style={styles.headerBrand}>
+          <Image source={require('../assets/images/android-icon-foreground.png')} style={styles.headerLogo} />
+          <Text style={styles.appName}><Text style={styles.appNameBlue}>Scout</Text>Football</Text>
+        </View>
         <TouchableOpacity onPress={() => loadMatches(selectedDate)}>
           <Text style={styles.refreshBtn}>↻ Güncelle</Text>
         </TouchableOpacity>
@@ -722,8 +725,10 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container:          { flex: 1, backgroundColor: '#F8F9FB' },
   topbar:             { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingTop: 52, paddingBottom: 8, backgroundColor: '#fff' },
-  appName:            { fontSize: 20, fontWeight: '500', color: '#111' },
-  appNameBlue:        { color: '#185FA5' },
+  headerBrand:        { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerLogo:         { width: 42, height: 42, resizeMode: 'contain' },
+  appName:            { fontSize: 16, fontWeight: '600', color: '#00BAFF' },
+  appNameBlue:        { color: '#2563EB' },
   refreshBtn:         { fontSize: 13, color: '#185FA5' },
   dateRow:            { borderBottomWidth: 0.5, borderBottomColor: '#eee', flexGrow: 0, backgroundColor: '#fff' },
   datePill:           { alignItems: 'center', paddingHorizontal: 10, paddingVertical: 8, marginRight: 6, borderRadius: 10, borderWidth: 0.5, borderColor: '#eee', minWidth: 52 },

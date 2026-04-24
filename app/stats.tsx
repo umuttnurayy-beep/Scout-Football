@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const leagues = [
   { id: 1, apiId: 39,  fdId: 2021, name: 'Premier Lig', country: 'İngiltere', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
@@ -18,7 +18,10 @@ export default function StatsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.topbar}>
-        <Text style={styles.appName}><Text style={styles.appNameBlue}>Scout</Text>Football</Text>
+        <View style={styles.headerBrand}>
+          <Image source={require('../assets/images/android-icon-foreground.png')} style={styles.headerLogo} />
+          <Text style={styles.appName}><Text style={styles.appNameBlue}>Scout</Text>Football</Text>
+        </View>
         <Text style={styles.pageTitle}>İstatistik</Text>
       </View>
 
@@ -54,8 +57,10 @@ export default function StatsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   topbar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingTop: 52, paddingBottom: 8 },
-  appName: { fontSize: 18, fontWeight: '500', color: '#111' },
-  appNameBlue: { color: '#185FA5' },
+  headerBrand: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerLogo: { width: 42, height: 42, resizeMode: 'contain' },
+  appName: { fontSize: 16, fontWeight: '600', color: '#00BAFF' },
+  appNameBlue: { color: '#2563EB' },
   pageTitle: { fontSize: 13, color: '#888' },
   scroll: { flex: 1 },
   sectionLabel: { fontSize: 11, color: '#888', fontWeight: '500', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6, letterSpacing: 0.5 },
