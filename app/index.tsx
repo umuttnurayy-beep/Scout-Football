@@ -24,7 +24,13 @@ const LEAGUE_NAMES: Record<number, string> = {
 };
 
 const LEAGUE_WEIGHT: Record<number, number> = {
-  2001: 10, 2021: 9, 2014: 8, 2002: 7, 2019: 7, 2015: 6, 203: 5,
+  2001: 30,  // UCL
+  2021: 26,  // Premier Lig
+  2014: 26,  // La Liga
+  2002: 22,  // Bundesliga
+  2019: 22,  // Serie A
+  2015: 18,  // Ligue 1
+  203:  14,  // Süper Lig
 };
 
 // standings yüklerken leagueApiId (Match'in kullandığı) → backend apiId eşlemesi
@@ -72,6 +78,8 @@ type Metrics = {
   favorite: 'home' | 'away' | 'balanced';
   confidence: 'low' | 'medium' | 'high';
   tempo: number;           // toplam gol ortalaması (iki takım birleşik)
+  homePos?: number;        // lig sırası (prestij bonusu için)
+  awayPos?: number;
   reason?: string;         // hasData=false ise neden
   summary: string;         // kart altındaki açıklama cümlesi
 };
@@ -146,6 +154,8 @@ function computeMetrics(home: Standing | null, away: Standing | null): Metrics {
     diff: round1(diff),
     favorite, confidence,
     tempo: round1(tempo),
+    homePos: home.pos,
+    awayPos: away.pos,
     summary: buildMatchSummary({ expectedGoals, favorite, confidence, tempo, homePpg, awayPpg }),
   };
 }
@@ -225,11 +235,20 @@ function timeToMins(t: string): number {
 }
 
 function scoutScore(m: Match, metrics: Metrics): number {
-  let s = LEAGUE_WEIGHT[m.leagueApiId] ?? 4;
+  let s = LEAGUE_WEIGHT[m.leagueApiId] ?? 8;
   const mins = timeToMins(m.time);
   if (mins >= 20 * 60)      s += 2;
   else if (mins >= 18 * 60) s += 1;
   if (!m.finished) s += 1;
+
+  // Prestij bonusu: lig sırası üst-sıra takımları öne çıkarır
+  const posBonusFn = (pos: number | undefined) => {
+    if (pos === undefined) return 0;
+    if (pos <= 3) return 4;
+    if (pos <= 6) return 2;
+    return 0;
+  };
+  s += posBonusFn(metrics.homePos) + posBonusFn(metrics.awayPos);
 
   if (metrics.hasData) {
     if (metrics.expectedGoals > 3.0)                                          s += 2;
