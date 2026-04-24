@@ -703,14 +703,16 @@ export default function MatchDetail() {
   useEffect(()=>{
     async function load(){
       setLoading(true);
-      try{
-        const [stats,h2h,weather,odds,hForm,aForm]=await Promise.all([
-          getMatchStats(matchId),getH2H(matchId),getWeather(city),
-          getOdds(home,away,leagueApiId),getTeamForm(homeTeamId),getTeamForm(awayTeamId),
-        ]);
-        setMatchData(stats);setH2hData(h2h);setWeatherData(weather);
-        setOddsData(odds);setHomeForm(hForm);setAwayForm(aForm);
-      }catch(e){console.log('loadData hata:',e);}
+      const [statsR,h2hR,weatherR,oddsR,hFormR,aFormR] = await Promise.allSettled([
+        getMatchStats(matchId),getH2H(matchId),getWeather(city),
+        getOdds(home,away,leagueApiId),getTeamForm(homeTeamId),getTeamForm(awayTeamId),
+      ]);
+      setMatchData(statsR.status==='fulfilled'?statsR.value:null);
+      setH2hData(h2hR.status==='fulfilled'?(h2hR.value||[]):[]);
+      setWeatherData(weatherR.status==='fulfilled'?weatherR.value:null);
+      setOddsData(oddsR.status==='fulfilled'?oddsR.value:null);
+      setHomeForm(hFormR.status==='fulfilled'?(hFormR.value||[]):[]);
+      setAwayForm(aFormR.status==='fulfilled'?(aFormR.value||[]):[]);
       setLoading(false);
     }
     if(matchId) load(); else setLoading(false);
@@ -1148,7 +1150,9 @@ export default function MatchDetail() {
             </View>
           </>
         ) : (
-          <View style={styles.noDataBox}><Text style={styles.noDataText}>Hakem bilgisi bulunamadı.</Text></View>
+          <View style={styles.noDataBox}>
+            <Text style={styles.noDataText}>{(!isFinished && !isLive) ? '📅 Hakem maç gününe yakın açıklanacak.' : 'Hakem bilgisi bulunamadı.'}</Text>
+          </View>
         )}
 
         {/* H2H */}
