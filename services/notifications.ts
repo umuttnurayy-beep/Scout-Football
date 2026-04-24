@@ -73,6 +73,10 @@ export async function cancelAllNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
 
+export async function resetScheduleDate(): Promise<void> {
+  await AsyncStorage.removeItem(LAST_DATE_KEY);
+}
+
 // ── Scheduler ─────────────────────────────────────────────────────────────────
 
 function todayStr(): string {

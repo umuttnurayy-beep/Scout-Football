@@ -8,7 +8,7 @@ import {
 import { getSuperLigStandings, getSuperLigTeamForm, getStandings, getTeamForm } from '../services/api';
 import {
   DEFAULT_PREFS, NotifPrefs, cancelAllNotifications,
-  loadNotifPrefs, requestPermissions, saveNotifPrefs,
+  loadNotifPrefs, requestPermissions, resetScheduleDate, saveNotifPrefs,
 } from '../services/notifications';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -433,6 +433,7 @@ export default function ProfileScreen() {
         );
         return;
       }
+      await resetScheduleDate();
     }
 
     if (!anyWillBeEnabled) await cancelAllNotifications();
