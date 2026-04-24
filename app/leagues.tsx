@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 import { getStandings, getSuperLigStandings, getUclKnockouts } from '../services/api';
 
 const leagues = [
@@ -81,6 +82,7 @@ function tieResult(tie: any): { homeAgg: number; awayAgg: number; winner: string
 }
 
 function TieCard({ tie, isFinal }: { tie: any; isFinal?: boolean }) {
+  const { colors: c } = useTheme();
   const { homeAgg, awayAgg, winner } = tieResult(tie);
   const l1 = tie.leg1, l2 = tie.leg2;
   const homeName = l1.homeTeam?.shortName || l1.homeTeam?.name || '?';
@@ -93,46 +95,46 @@ function TieCard({ tie, isFinal }: { tie: any; isFinal?: boolean }) {
   const awayWins = !!winner && winner === awayName;
 
   return (
-    <View style={bkStyles.card}>
+    <View style={[bkStyles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
       <View style={bkStyles.teamsRow}>
-        <Text style={[bkStyles.teamName, homeWins && { color: '#185FA5', fontWeight: '700' }]} numberOfLines={1}>
+        <Text style={[bkStyles.teamName, { color: c.text }, homeWins && { color: c.primary, fontWeight: '700' }]} numberOfLines={1}>
           {homeName}
         </Text>
         <View style={bkStyles.scoreBlock}>
           {hasScore ? (
             <>
-              <Text style={bkStyles.aggScore}>{homeAgg} – {awayAgg}</Text>
-              <Text style={bkStyles.aggLabel}>{l2 ? 'TOPLAM' : 'SONUÇ'}</Text>
+              <Text style={[bkStyles.aggScore, { color: c.text }]}>{homeAgg} – {awayAgg}</Text>
+              <Text style={[bkStyles.aggLabel, { color: c.textFaint }]}>{l2 ? 'TOPLAM' : 'SONUÇ'}</Text>
             </>
           ) : (
-            <Text style={bkStyles.tbd}>— : —</Text>
+            <Text style={[bkStyles.tbd, { color: c.textVeryFaint }]}>— : —</Text>
           )}
         </View>
-        <Text style={[bkStyles.teamName, { textAlign: 'right' }, awayWins && { color: '#A32D2D', fontWeight: '700' }]} numberOfLines={1}>
+        <Text style={[bkStyles.teamName, { color: c.text, textAlign: 'right' }, awayWins && { color: '#F85149', fontWeight: '700' }]} numberOfLines={1}>
           {awayName}
         </Text>
       </View>
 
       {hasScore && l2 && (
         <View style={bkStyles.legsRow}>
-          <Text style={bkStyles.legText}>1. Maç ({fmt(l1.utcDate)}): {l1h}–{l1a}</Text>
-          <Text style={bkStyles.legSep}>·</Text>
-          <Text style={bkStyles.legText}>2. Maç ({fmt(l2.utcDate)}): {l2h ?? '?'}–{l2a ?? '?'}</Text>
+          <Text style={[bkStyles.legText, { color: c.textMuted }]}>1. Maç ({fmt(l1.utcDate)}): {l1h}–{l1a}</Text>
+          <Text style={[bkStyles.legSep, { color: c.textVeryFaint }]}>·</Text>
+          <Text style={[bkStyles.legText, { color: c.textMuted }]}>2. Maç ({fmt(l2.utcDate)}): {l2h ?? '?'}–{l2a ?? '?'}</Text>
         </View>
       )}
       {hasScore && !l2 && (
-        <Text style={[bkStyles.legText, { marginTop: 2 }]}>{fmt(l1.utcDate)}</Text>
+        <Text style={[bkStyles.legText, { color: c.textMuted, marginTop: 2 }]}>{fmt(l1.utcDate)}</Text>
       )}
 
       {winner ? (
-        <View style={[bkStyles.winnerBadge, { backgroundColor: homeWins ? '#E6F1FB' : '#FDE8E8' }]}>
-          <Text style={[bkStyles.winnerText, { color: homeWins ? '#185FA5' : '#A32D2D' }]}>
+        <View style={[bkStyles.winnerBadge, { backgroundColor: homeWins ? c.primaryLight : '#3D1515' }]}>
+          <Text style={[bkStyles.winnerText, { color: homeWins ? c.primary : '#F85149' }]}>
             {isFinal ? '🏆' : '✅'} {winner}
           </Text>
         </View>
       ) : hasScore ? (
-        <View style={[bkStyles.winnerBadge, { backgroundColor: '#f0f0f0' }]}>
-          <Text style={[bkStyles.winnerText, { color: '#888' }]}>⏳ Uzatma / Penaltı</Text>
+        <View style={[bkStyles.winnerBadge, { backgroundColor: c.surfaceAlt }]}>
+          <Text style={[bkStyles.winnerText, { color: c.textMuted }]}>⏳ Uzatma / Penaltı</Text>
         </View>
       ) : null}
     </View>
@@ -140,29 +142,40 @@ function TieCard({ tie, isFinal }: { tie: any; isFinal?: boolean }) {
 }
 
 const bkStyles = StyleSheet.create({
-  card:        { marginHorizontal: 14, marginBottom: 10, borderRadius: 10, borderWidth: 0.5, borderColor: '#e0e0e0', padding: 14, backgroundColor: '#fafafa' },
+  card:        { marginHorizontal: 14, marginBottom: 10, borderRadius: 10, borderWidth: 0.5, padding: 14 },
   teamsRow:    { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  teamName:    { flex: 1, fontSize: 13, color: '#111', fontWeight: '500' },
+  teamName:    { flex: 1, fontSize: 13, fontWeight: '500' },
   scoreBlock:  { alignItems: 'center', paddingHorizontal: 10, minWidth: 90 },
-  aggScore:    { fontSize: 20, fontWeight: '700', color: '#111' },
-  aggLabel:    { fontSize: 9, color: '#aaa', letterSpacing: 0.5, marginTop: 1 },
-  tbd:         { fontSize: 16, color: '#bbb', fontWeight: '500' },
+  aggScore:    { fontSize: 20, fontWeight: '700' },
+  aggLabel:    { fontSize: 9, letterSpacing: 0.5, marginTop: 1 },
+  tbd:         { fontSize: 16, fontWeight: '500' },
   legsRow:     { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginBottom: 4 },
-  legText:     { fontSize: 11, color: '#888' },
-  legSep:      { fontSize: 11, color: '#ccc' },
+  legText:     { fontSize: 11 },
+  legSep:      { fontSize: 11 },
   winnerBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20, marginTop: 6 },
   winnerText:  { fontSize: 12, fontWeight: '600' },
 });
 
 // ── ANALYSIS HELPERS ──────────────────────────────────────────
 
-function getTagColor(level: Level): { color: string; bg: string } {
-  if (level === 'Yüksek') return { color: '#A32D2D', bg: '#FDE8E8' };
-  if (level === 'Orta')   return { color: '#E6A817', bg: '#FFF8E1' };
-  return                         { color: '#666',    bg: '#f0f0f0' };
+type CP = { color: string; bg: string };
+const SC: Record<string, { l: CP; d: CP }> = {
+  red:    { l: { color: '#A32D2D', bg: '#FDE8E8' }, d: { color: '#F85149', bg: '#3D0F0F' } },
+  green:  { l: { color: '#27500A', bg: '#E8F5E9' }, d: { color: '#3FB950', bg: '#0D2010' } },
+  yellow: { l: { color: '#E6A817', bg: '#FFF8E1' }, d: { color: '#E3B341', bg: '#2D1A00' } },
+  purple: { l: { color: '#5b2d8e', bg: '#F3E5F5' }, d: { color: '#A371F7', bg: '#1E0F3D' } },
+  blue:   { l: { color: '#185FA5', bg: '#E6F1FB' }, d: { color: '#58A6FF', bg: '#0D2F4F' } },
+  gray:   { l: { color: '#666',    bg: '#f0f0f0' }, d: { color: '#8B949E', bg: '#21262D' } },
+};
+const cp = (key: string, isDark: boolean): CP => isDark ? SC[key].d : SC[key].l;
+
+function getTagColor(level: Level, isDark = false): { color: string; bg: string } {
+  if (level === 'Yüksek') return cp('red', isDark);
+  if (level === 'Orta')   return cp('yellow', isDark);
+  return cp('gray', isDark);
 }
 
-function getLeagueCharacter(avgGoals: number, drawRate: number): LeagueChar {
+function getLeagueCharacter(avgGoals: number, drawRate: number, isDark = false): LeagueChar {
   const gol: Level   = avgGoals >= 2.8 ? 'Yüksek' : avgGoals >= 2.2 ? 'Orta' : 'Düşük';
   const tempo: Level = avgGoals >= 2.7 ? 'Yüksek' : avgGoals >= 2.2 ? 'Orta' : 'Düşük';
   const risk: Level  = drawRate >= 0.30 ? 'Yüksek' : drawRate >= 0.25 ? 'Orta' : 'Düşük';
@@ -171,32 +184,32 @@ function getLeagueCharacter(avgGoals: number, drawRate: number): LeagueChar {
   let label: string, color: string, bg: string, traits: string[], rec: string, ozet: string;
 
   if (avgGoals >= 3.0) {
-    label = 'Hücum Ağırlıklı'; color = '#A32D2D'; bg = '#FDE8E8';
+    label = 'Hücum Ağırlıklı'; ({ color, bg } = cp('red', isDark));
     traits = ['Yüksek gol ortalaması', 'Over 2.5 eğilimi güçlü', 'Savunma açıkları belirgin'];
     rec  = 'Over 2.5, KG Var kombinasyonları öne çıkar';
     ozet = 'Yüksek tempolu ve gollü bir lig. Savunmalar açık, her iki kale tehlikede — favoriler baskı kuruyor.';
   } else if (avgGoals < 2.0 && drawRate >= 0.28) {
-    label = 'Savunma & Sıkışık'; color = '#27500A'; bg = '#E8F5E9';
+    label = 'Savunma & Sıkışık'; ({ color, bg } = cp('green', isDark));
     traits = ['Az gol, beraberlik eğilimi yüksek', 'Alt 2.5 çok sık', 'Favori avantajı sınırlı'];
     rec  = 'Alt 2.5, çift şans (1X/X2) bahisleri değerli';
     ozet = 'Sıkı savunma anlayışı ve yüksek beraberlik oranıyla öne çıkan bir lig. Sürpriz sonuçlar sık yaşanıyor.';
   } else if (avgGoals < 2.0) {
-    label = 'Savunma Ağırlıklı'; color = '#27500A'; bg = '#E8F5E9';
+    label = 'Savunma Ağırlıklı'; ({ color, bg } = cp('green', isDark));
     traits = ['Düşük gol ortalaması', 'Sıkı savunma anlayışı', 'Net sonuçlar ağırlıkta'];
     rec  = "Alt 2.5, maç galibi — over'dan kaçın";
     ozet = 'Savunma disiplini ön planda; gol sayısı düşük. Maçlar sıkışık seyrediyor, net galibiyetler belirleyici.';
   } else if (drawRate >= 0.30) {
-    label = 'Beraberlik Eğilimli'; color = '#5b2d8e'; bg = '#F3E5F5';
+    label = 'Beraberlik Eğilimli'; ({ color, bg } = cp('purple', isDark));
     traits = ['Yüksek beraberlik oranı', 'Sonuç belirsizliği fazla', 'Güçlü savunma dengeleri'];
     rec  = 'Beraberlik, çift şans — net galibiyet riski var';
     ozet = 'Beraberlikler sık, sonuçlar belirsiz. Dengeli güç dağılımı sürprizlere zemin hazırlıyor.';
   } else if (avgGoals >= 2.5 && drawRate <= 0.24) {
-    label = 'Hücumcu & Sonuç Odaklı'; color = '#E6A817'; bg = '#FFF8E1';
+    label = 'Hücumcu & Sonuç Odaklı'; ({ color, bg } = cp('yellow', isDark));
     traits = ['Gollü ve net galibiyetli', 'Takımlar arası fark belirgin', 'Over + galibiyet birlikte güçlü'];
     rec  = 'Over 2.5 + maç galibi kombinasyonu etkili';
     ozet = 'Gollü ve sonuç odaklı bir lig. Favoriler genelde kazanıyor; güçlü takımlar farkı büyütüyor.';
   } else {
-    label = 'Dengeli'; color = '#185FA5'; bg = '#E6F1FB';
+    label = 'Dengeli'; ({ color, bg } = cp('blue', isDark));
     traits = ['Dengeli hücum-savunma', 'Çeşitli sonuç profilleri', 'Maç özelinde analiz gerekli'];
     rec  = 'Maç bazında değerlendirme yapılmalı';
     ozet = 'Dengeli yapıda bir lig. Hücum ve savunma birbirine yakın; maç özelinde derin analiz şart.';
@@ -210,18 +223,19 @@ function getLiderTags(
   sortedByGfR: Standing[],
   sortedByGaR: Standing[],
   leaderGap: number,
+  isDark = false,
 ): { label: string; color: string; bg: string }[] {
   const tags: { label: string; color: string; bg: string }[] = [];
   const winRate     = leader.played > 0 ? leader.win / leader.played : 0;
   const isTopScorer = sortedByGfR[0]?.team === leader.team;
   const isBestDef   = sortedByGaR[0]?.team === leader.team;
 
-  if (isTopScorer)      tags.push({ label: '⚽ En Golcü',        color: '#A32D2D', bg: '#FDE8E8' });
-  if (isBestDef)        tags.push({ label: '🛡️ Sağlam Savunma', color: '#27500A', bg: '#E8F5E9' });
-  if (winRate >= 0.65)  tags.push({ label: '🔥 Dominant',        color: '#E6A817', bg: '#FFF8E1' });
-  if (leaderGap >= 8)   tags.push({ label: '📏 Açık Ara Lider',  color: '#5b2d8e', bg: '#F3E5F5' });
-  if (leader.loss === 0) tags.push({ label: '✅ Yenilmez',       color: '#185FA5', bg: '#E6F1FB' });
-  if (tags.length === 0) tags.push({ label: '🏆 Lider',          color: '#185FA5', bg: '#E6F1FB' });
+  if (isTopScorer)       tags.push({ label: '⚽ En Golcü',        ...cp('red',    isDark) });
+  if (isBestDef)         tags.push({ label: '🛡️ Sağlam Savunma', ...cp('green',  isDark) });
+  if (winRate >= 0.65)   tags.push({ label: '🔥 Dominant',        ...cp('yellow', isDark) });
+  if (leaderGap >= 8)    tags.push({ label: '📏 Açık Ara Lider',  ...cp('purple', isDark) });
+  if (leader.loss === 0) tags.push({ label: '✅ Yenilmez',        ...cp('blue',   isDark) });
+  if (tags.length === 0) tags.push({ label: '🏆 Lider',           ...cp('blue',   isDark) });
 
   return tags;
 }
@@ -249,13 +263,13 @@ function getLeaderNarrative(leader: Standing, second: Standing | undefined): str
   return `${gap} puanlık avantajla önde, tablo henüz netleşmedi.`;
 }
 
-function getTeamLabel(gfPer: number, gaPer: number, winRate: number, pos: number, total: number, avgGfPer: number, avgGaPer: number) {
-  if (winRate >= 0.60)                                       return { label: 'Formda',              color: '#185FA5', bg: '#E6F1FB' };
-  if (gfPer >= avgGfPer * 1.25 && gaPer >= avgGaPer * 1.15) return { label: 'Hücumcu & Kırılgan',  color: '#E6A817', bg: '#FFF8E1' };
-  if (gfPer >= avgGfPer * 1.20)                             return { label: 'Hücumcu',             color: '#A32D2D', bg: '#FDE8E8' };
-  if (gaPer <= avgGaPer * 0.80)                             return { label: 'Savunmacı',           color: '#27500A', bg: '#E8F5E9' };
-  if (winRate < 0.25 && pos > total * 0.60)                 return { label: 'Dengesiz',            color: '#C0392B', bg: '#FDECEA' };
-  return                                                            { label: 'Dengeli',             color: '#888',    bg: '#f5f5f5' };
+function getTeamLabel(gfPer: number, gaPer: number, winRate: number, pos: number, total: number, avgGfPer: number, avgGaPer: number, isDark = false) {
+  if (winRate >= 0.60)                                        return { label: 'Formda',             ...cp('blue',   isDark) };
+  if (gfPer >= avgGfPer * 1.25 && gaPer >= avgGaPer * 1.15) return { label: 'Hücumcu & Kırılgan', ...cp('yellow', isDark) };
+  if (gfPer >= avgGfPer * 1.20)                              return { label: 'Hücumcu',            ...cp('red',    isDark) };
+  if (gaPer <= avgGaPer * 0.80)                              return { label: 'Savunmacı',          ...cp('green',  isDark) };
+  if (winRate < 0.25 && pos > total * 0.60)                  return { label: 'Dengesiz',           ...cp('red',    isDark) };
+  return                                                             { label: 'Dengeli',            ...cp('gray',   isDark) };
 }
 
 function getBadgeStyle(pos: number, total: number, apiId: number) {
@@ -277,6 +291,7 @@ function getBadgeStyle(pos: number, total: number, apiId: number) {
 
 export default function LeaguesScreen() {
   const router = useRouter();
+  const { colors: c, isDark } = useTheme();
   const [activeLeague, setActiveLeague] = useState<League>(leagues[0]);
   const [subTab, setSubTab]             = useState<SubTab>('genel');
   const [uclView, setUclView]           = useState<'standings' | 'bracket'>('standings');
@@ -314,14 +329,13 @@ export default function LeaguesScreen() {
   const leaderGap      = leader && standings[1] ? leader.pts - standings[1].pts : 0;
   const totalDraws     = standings.reduce((s, r) => s + r.draw, 0) / 2;
   const drawRate       = totalGames > 0 ? totalDraws / totalGames : 0;
-  const ligChar        = standings.length > 0 ? getLeagueCharacter(avgGoals, drawRate) : null;
+  const ligChar        = standings.length > 0 ? getLeagueCharacter(avgGoals, drawRate, isDark) : null;
   const leaderNarr     = leader ? getLeaderNarrative(leader, standings[1]) : '';
   const avgLeagueGfPer = standings.length > 0 ? standings.reduce((s, r) => s + r.gf / Math.max(r.played, 1), 0) / standings.length : 0;
   const avgLeagueGaPer = standings.length > 0 ? standings.reduce((s, r) => s + r.ga / Math.max(r.played, 1), 0) / standings.length : 0;
   const sortedByGfR    = [...standings].sort((a, b) => b.gf / Math.max(b.played, 1) - a.gf / Math.max(a.played, 1));
   const sortedByGaR    = [...standings].sort((a, b) => a.ga / Math.max(a.played, 1) - b.ga / Math.max(b.played, 1));
 
-  // Hücum/Savunma Gücü — lig içi min-max normalizasyon, 1.00-10.00
   const gfPer = (r: Standing) => r.played > 0 ? r.gf / r.played : 0;
   const gaPer = (r: Standing) => r.played > 0 ? r.ga / r.played : 0;
   const maxGfPer = sortedByGfR.length > 0 ? gfPer(sortedByGfR[0]) : 0;
@@ -347,35 +361,36 @@ export default function LeaguesScreen() {
   const bestWinRate    = [...standings].sort((a, b) => b.win / Math.max(b.played, 1) - a.win / Math.max(a.played, 1))[0] ?? null;
   const halfPoint      = Math.floor(standings.length / 2);
   const surpriseTeam   = [...standings].filter(r => r.pos > halfPoint).sort((a, b) => b.gf / Math.max(b.played, 1) - a.gf / Math.max(a.played, 1))[0] ?? null;
-  const liderTags      = leader ? getLiderTags(leader, sortedByGfR, sortedByGaR, leaderGap) : [];
+  const liderTags      = leader ? getLiderTags(leader, sortedByGfR, sortedByGaR, leaderGap, isDark) : [];
 
   return (
-    <View style={styles.container}>
-      <View style={styles.topbar}>
+    <View style={[styles.container, { backgroundColor: c.bg }]}>
+      <View style={[styles.topbar, { backgroundColor: c.surface }]}>
         <View style={styles.headerBrand}>
           <Image source={require('../assets/images/android-icon-foreground.png')} style={styles.headerLogo} />
           <Text style={styles.appName}><Text style={styles.appNameBlue}>Scout</Text>Football</Text>
         </View>
-        <Text style={styles.pageTitle}>Ligler</Text>
+        <Text style={[styles.pageTitle, { color: c.textMuted }]}>Ligler</Text>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.leagueNav}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}
+        style={[styles.leagueNav, { borderBottomColor: c.border, backgroundColor: c.surface }]}
         contentContainerStyle={{ paddingHorizontal: 14 }}>
         {leagues.map(l => (
           <TouchableOpacity key={l.id}
-            style={[styles.leaguePill, activeLeague.id === l.id && styles.leaguePillActive]}
+            style={[styles.leaguePill, { borderColor: c.border }, activeLeague.id === l.id && styles.leaguePillActive]}
             onPress={() => setActiveLeague(l)}>
             <Text style={styles.leagueFlag}>{l.flag}</Text>
-            <Text style={[styles.leaguePillText, activeLeague.id === l.id && styles.leaguePillTextActive]}>{l.name}</Text>
+            <Text style={[styles.leaguePillText, { color: c.textMuted }, activeLeague.id === l.id && styles.leaguePillTextActive]}>{l.name}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
-      <View style={styles.leagueHeader}>
+      <View style={[styles.leagueHeader, { borderBottomColor: c.border, backgroundColor: c.surface }]}>
         <Text style={styles.leagueHeaderFlag}>{activeLeague.flag}</Text>
         <View style={{ flex: 1 }}>
-          <Text style={styles.leagueHeaderName}>{activeLeague.name}</Text>
-          <Text style={styles.leagueHeaderSub}>{activeLeague.country} · {activeLeague.season}</Text>
+          <Text style={[styles.leagueHeaderName, { color: c.text }]}>{activeLeague.name}</Text>
+          <Text style={[styles.leagueHeaderSub, { color: c.textMuted }]}>{activeLeague.country} · {activeLeague.season}</Text>
         </View>
         {ligChar && (
           <View style={[stStyles.ligCharBadge, { backgroundColor: ligChar.bg }]}>
@@ -384,65 +399,63 @@ export default function LeaguesScreen() {
         )}
       </View>
 
-      <View style={stStyles.subTabBar}>
+      <View style={[stStyles.subTabBar, { borderBottomColor: c.border, backgroundColor: c.surface }]}>
         {SUB_TABS.map(t => (
           <TouchableOpacity key={t.key}
             style={[stStyles.subTab, subTab === t.key && stStyles.subTabActive]}
             onPress={() => setSubTab(t.key)}>
-            <Text style={[stStyles.subTabText, subTab === t.key && stStyles.subTabTextActive]}>{t.label}</Text>
+            <Text style={[stStyles.subTabText, { color: c.textMuted }, subTab === t.key && { color: c.primary, fontWeight: '600' }]}>{t.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
       <ScrollView style={styles.scroll}>
         {loading ? (
-          <ActivityIndicator style={{ marginTop: 40 }} color="#185FA5" />
+          <ActivityIndicator style={{ marginTop: 40 }} color={c.primary} />
         ) : (
           <>
             {/* ===== GENEL ===== */}
             {subTab === 'genel' && (
               standings.length === 0 ? (
-                <Text style={styles.emptyText}>Veri yüklenemedi</Text>
+                <Text style={[styles.emptyText, { color: c.textMuted }]}>Veri yüklenemedi</Text>
               ) : (
                 <>
-                  {/* 1. LİG ÖZETİ */}
                   {ligChar && (
-                    <View style={ozStyles.card}>
+                    <View style={[ozStyles.card, { backgroundColor: isDark ? '#0D2F4F' : '#0C447C' }]}>
                       <Text style={ozStyles.header}>🏟️ LİG ÖZETİ</Text>
                       <View style={ozStyles.pillRow}>
-                        <View style={[ozStyles.pill, { backgroundColor: '#E6F1FB' }]}>
-                          <Text style={ozStyles.pillLabel}>Stil</Text>
-                          <Text style={[ozStyles.pillValue, { color: '#185FA5' }]}>{ligChar.stil}</Text>
+                        <View style={[ozStyles.pill, { backgroundColor: c.primaryLight }]}>
+                          <Text style={[ozStyles.pillLabel, { color: c.textMuted }]}>Stil</Text>
+                          <Text style={[ozStyles.pillValue, { color: c.primary }]}>{ligChar.stil}</Text>
                         </View>
-                        <View style={[ozStyles.pill, { backgroundColor: getTagColor(ligChar.gol).bg }]}>
-                          <Text style={ozStyles.pillLabel}>Gol</Text>
-                          <Text style={[ozStyles.pillValue, { color: getTagColor(ligChar.gol).color }]}>{ligChar.gol}</Text>
+                        <View style={[ozStyles.pill, { backgroundColor: getTagColor(ligChar.gol, isDark).bg }]}>
+                          <Text style={[ozStyles.pillLabel, { color: c.textMuted }]}>Gol</Text>
+                          <Text style={[ozStyles.pillValue, { color: getTagColor(ligChar.gol, isDark).color }]}>{ligChar.gol}</Text>
                         </View>
-                        <View style={[ozStyles.pill, { backgroundColor: getTagColor(ligChar.tempo).bg }]}>
-                          <Text style={ozStyles.pillLabel}>Tempo</Text>
-                          <Text style={[ozStyles.pillValue, { color: getTagColor(ligChar.tempo).color }]}>{ligChar.tempo}</Text>
+                        <View style={[ozStyles.pill, { backgroundColor: getTagColor(ligChar.tempo, isDark).bg }]}>
+                          <Text style={[ozStyles.pillLabel, { color: c.textMuted }]}>Tempo</Text>
+                          <Text style={[ozStyles.pillValue, { color: getTagColor(ligChar.tempo, isDark).color }]}>{ligChar.tempo}</Text>
                         </View>
-                        <View style={[ozStyles.pill, { backgroundColor: getTagColor(ligChar.risk).bg }]}>
-                          <Text style={ozStyles.pillLabel}>Risk</Text>
-                          <Text style={[ozStyles.pillValue, { color: getTagColor(ligChar.risk).color }]}>{ligChar.risk}</Text>
+                        <View style={[ozStyles.pill, { backgroundColor: getTagColor(ligChar.risk, isDark).bg }]}>
+                          <Text style={[ozStyles.pillLabel, { color: c.textMuted }]}>Risk</Text>
+                          <Text style={[ozStyles.pillValue, { color: getTagColor(ligChar.risk, isDark).color }]}>{ligChar.risk}</Text>
                         </View>
                       </View>
-                      <Text style={ozStyles.ozet}>{ligChar.ozet}</Text>
+                      <Text style={[ozStyles.ozet, { color: isDark ? '#93C5FD' : '#C8DEFF' }]}>{ligChar.ozet}</Text>
                     </View>
                   )}
 
-                  {/* 2. LİG KARAKTERİ */}
                   {ligChar && (
-                    <View style={[stStyles.ligCharCard, { borderLeftColor: ligChar.color }]}>
+                    <View style={[stStyles.ligCharCard, { backgroundColor: c.surface, borderColor: c.border, borderLeftColor: ligChar.color }]}>
                       <View style={stStyles.ligCharTraits}>
                         {ligChar.traits.map((t, i) => (
                           <View key={i} style={stStyles.ligCharTrait}>
-                            <Text style={stStyles.ligCharTraitDot}>·</Text>
-                            <Text style={stStyles.ligCharTraitText}>{t}</Text>
+                            <Text style={[stStyles.ligCharTraitDot, { color: c.textFaint }]}>·</Text>
+                            <Text style={[stStyles.ligCharTraitText, { color: c.textSub }]}>{t}</Text>
                           </View>
                         ))}
                       </View>
-                      <View style={stStyles.scoutScoreRow}>
+                      <View style={[stStyles.scoutScoreRow, { borderTopColor: c.border }]}>
                         {[
                           { label: 'Gol Pot.',  score: goalScore     },
                           { label: 'Tempo',     score: tempoScore    },
@@ -450,20 +463,19 @@ export default function LeaguesScreen() {
                           { label: 'Sürpriz',   score: surpriseScore },
                         ].map(s => (
                           <View key={s.label} style={stStyles.scoutScoreItem}>
-                            <Text style={stStyles.scoutScoreVal}>{s.score}</Text>
-                            <Text style={stStyles.scoutScoreLbl}>{s.label}</Text>
+                            <Text style={[stStyles.scoutScoreVal, { color: c.primary }]}>{s.score}</Text>
+                            <Text style={[stStyles.scoutScoreLbl, { color: c.textMuted }]}>{s.label}</Text>
                           </View>
                         ))}
                       </View>
-                      <View style={stStyles.scoutRecBox}>
-                        <Text style={stStyles.scoutRecLabel}>Scout Öneri</Text>
-                        <Text style={stStyles.scoutRecText}>{ligChar.rec}</Text>
+                      <View style={[stStyles.scoutRecBox, { backgroundColor: c.bg, borderTopColor: c.border }]}>
+                        <Text style={[stStyles.scoutRecLabel, { color: c.textMuted }]}>Scout Öneri</Text>
+                        <Text style={[stStyles.scoutRecText, { color: c.text }]}>{ligChar.rec}</Text>
                       </View>
                     </View>
                   )}
 
-                  {/* 3. ÖZETLEYİCİ SAYILAR */}
-                  <View style={stStyles.summaryCard}>
+                  <View style={[stStyles.summaryCard, { backgroundColor: c.surfaceAlt }]}>
                     <View style={stStyles.summaryRow}>
                       {[
                         { val: totalGoals.toString(),             lbl: 'Toplam Gol' },
@@ -471,22 +483,21 @@ export default function LeaguesScreen() {
                         { val: Math.round(totalGames).toString(), lbl: 'Toplam Maç' },
                       ].map(s => (
                         <View key={s.lbl} style={stStyles.summaryStat}>
-                          <Text style={stStyles.summaryVal}>{s.val}</Text>
-                          <Text style={stStyles.summaryLbl}>{s.lbl}</Text>
+                          <Text style={[stStyles.summaryVal, { color: c.text }]}>{s.val}</Text>
+                          <Text style={[stStyles.summaryLbl, { color: c.textMuted }]}>{s.lbl}</Text>
                         </View>
                       ))}
                     </View>
                   </View>
 
-                  {/* 4. LİDER KARTI */}
                   {leader && (
-                    <View style={stStyles.leaderCard}>
+                    <View style={[stStyles.leaderCard, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
                       <View style={stStyles.leaderTop}>
-                        <Text style={stStyles.leaderBadge}>🏆 LİDER</Text>
-                        {leaderGap > 0 && <Text style={stStyles.leaderGap}>+{leaderGap} puan önde</Text>}
+                        <Text style={[stStyles.leaderBadge, { color: c.primary }]}>🏆 LİDER</Text>
+                        {leaderGap > 0 && <Text style={[stStyles.leaderGap, { color: c.primary }]}>+{leaderGap} puan önde</Text>}
                       </View>
-                      <Text style={stStyles.leaderTeam}>{leader.team}</Text>
-                      <Text style={stStyles.leaderNarr}>{leaderNarr}</Text>
+                      <Text style={[stStyles.leaderTeam, { color: c.text }]}>{leader.team}</Text>
+                      <Text style={[stStyles.leaderNarr, { color: c.textSub }]}>{leaderNarr}</Text>
                       {liderTags.length > 0 && (
                         <View style={stStyles.liderTagRow}>
                           {liderTags.map((t, i) => (
@@ -496,7 +507,7 @@ export default function LeaguesScreen() {
                           ))}
                         </View>
                       )}
-                      <View style={stStyles.leaderStats}>
+                      <View style={[stStyles.leaderStats, { borderTopColor: c.cardBorder }]}>
                         {[
                           { v: leader.pts.toString(), l: 'Puan'      },
                           { v: leader.win.toString(), l: 'Galibiyet' },
@@ -504,27 +515,26 @@ export default function LeaguesScreen() {
                           { v: leader.ga.toString(),  l: 'Yenilen'   },
                         ].map(s => (
                           <View key={s.l} style={stStyles.leaderStat}>
-                            <Text style={stStyles.leaderStatV}>{s.v}</Text>
-                            <Text style={stStyles.leaderStatL}>{s.l}</Text>
+                            <Text style={[stStyles.leaderStatV, { color: c.primary }]}>{s.v}</Text>
+                            <Text style={[stStyles.leaderStatL, { color: c.textMuted }]}>{s.l}</Text>
                           </View>
                         ))}
                       </View>
-                      <View style={stStyles.leaderPowerRow}>
+                      <View style={[stStyles.leaderPowerRow, { borderTopColor: c.cardBorder }]}>
                         <View style={stStyles.leaderPower}>
-                          <Text style={stStyles.leaderPowerLbl}>Hücum Gücü</Text>
-                          <Text style={stStyles.leaderPowerVal}>{attackPower.toFixed(2)}/10</Text>
+                          <Text style={[stStyles.leaderPowerLbl, { color: c.textMuted }]}>Hücum Gücü</Text>
+                          <Text style={[stStyles.leaderPowerVal, { color: c.primary }]}>{attackPower.toFixed(2)}/10</Text>
                         </View>
-                        <View style={stStyles.leaderPowerDiv} />
+                        <View style={[stStyles.leaderPowerDiv, { backgroundColor: c.cardBorder }]} />
                         <View style={stStyles.leaderPower}>
-                          <Text style={stStyles.leaderPowerLbl}>Savunma Gücü</Text>
-                          <Text style={stStyles.leaderPowerVal}>{defPower.toFixed(2)}/10</Text>
+                          <Text style={[stStyles.leaderPowerLbl, { color: c.textMuted }]}>Savunma Gücü</Text>
+                          <Text style={[stStyles.leaderPowerVal, { color: c.primary }]}>{defPower.toFixed(2)}/10</Text>
                         </View>
                       </View>
                     </View>
                   )}
 
-                  {/* 5. ÖNE ÇIKAN PROFİLLER */}
-                  <Text style={styles.sectionLabel}>ÖNE ÇIKAN PROFİLLER</Text>
+                  <Text style={[styles.sectionLabel, { color: c.textMuted }]}>ÖNE ÇIKAN PROFİLLER</Text>
                   {([
                     mostGoals    ? { icon: '⚽', label: 'En Golcü',        team: mostGoals,    stat: (mostGoals.gf / Math.max(mostGoals.played, 1)).toFixed(1) + ' gol/maç',           insight: 'Over 2.5 eğilimi güçlü; rakip kale her an tehlikede.' }           : null,
                     bestDef      ? { icon: '🛡️', label: 'En İyi Savunma', team: bestDef,      stat: (bestDef.ga  / Math.max(bestDef.played,   1)).toFixed(1) + ' yenilen/maç',        insight: 'Kale sıfır potansiyeli yüksek; alt bahisler için referans.' }        : null,
@@ -532,35 +542,34 @@ export default function LeaguesScreen() {
                     bestWinRate  ? { icon: '📈', label: 'En Formda',        team: bestWinRate,  stat: Math.round(bestWinRate.win / Math.max(bestWinRate.played, 1) * 100) + '% galibiyet', insight: 'Tutarlı profil — tahmin edilebilir, güvenilir seçenek.' } : null,
                     surpriseTeam ? { icon: '🌀', label: 'Sürpriz',          team: surpriseTeam, stat: surpriseTeam.pos + '. sıra · ' + (surpriseTeam.gf / Math.max(surpriseTeam.played, 1)).toFixed(1) + ' gol/maç', insight: 'Sıralama beklenenden üst — dikkatle izlenmeyi hak ediyor.' } : null,
                   ] as const).filter(Boolean).map((p, i) => p && (
-                    <View key={i} style={stStyles.profileRow}>
+                    <View key={i} style={[stStyles.profileRow, { borderBottomColor: c.borderLight }]}>
                       <Text style={stStyles.profileIcon}>{p.icon}</Text>
                       <View style={{ flex: 1 }}>
-                        <Text style={stStyles.profileLabel}>{p.label}</Text>
-                        <Text style={stStyles.profileTeam} numberOfLines={1}>{p.team.team}</Text>
-                        <Text style={stStyles.profileInsight}>{p.insight}</Text>
+                        <Text style={[stStyles.profileLabel, { color: c.textMuted }]}>{p.label}</Text>
+                        <Text style={[stStyles.profileTeam, { color: c.text }]} numberOfLines={1}>{p.team.team}</Text>
+                        <Text style={[stStyles.profileInsight, { color: c.textMuted }]}>{p.insight}</Text>
                       </View>
-                      <Text style={stStyles.profileStat}>{p.stat}</Text>
+                      <Text style={[stStyles.profileStat, { color: c.primary }]}>{p.stat}</Text>
                     </View>
                   ))}
 
-                  {/* 6. GOL VERİMLİLİĞİ */}
                   {(() => {
                     const sorted = [...standings].sort((a, b) => b.gf - a.gf);
                     const maxGf = sorted[0]?.gf || 1;
                     return (
                       <>
-                        <Text style={styles.sectionLabel}>GOL VERİMLİLİĞİ</Text>
-                        <Text style={styles.effSubtitle}>En fazla gol atan takım 100 birim alır, diğerleri ona oranlanır.</Text>
+                        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>GOL VERİMLİLİĞİ</Text>
+                        <Text style={[styles.effSubtitle, { color: c.textFaint }]}>En fazla gol atan takım 100 birim alır, diğerleri ona oranlanır.</Text>
                         {sorted.map((row, i) => {
                           const ratio = row.gf / maxGf;
-                          const color = i === 0 ? '#185FA5' : i < 3 ? '#E6A817' : i < 5 ? '#4CAF50' : '#bbb';
+                          const color = i === 0 ? c.primary : i < 3 ? '#E6A817' : i < 5 ? '#4CAF50' : c.textVeryFaint;
                           return (
-                            <View key={i} style={styles.effRow}>
+                            <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
                               <Text style={[styles.effRank, { color }]}>{i + 1}</Text>
                               <View style={{ flex: 1 }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                  <Text style={styles.effTeam} numberOfLines={1}>{row.team}</Text>
-                                  <View style={styles.effBarWrap}>
+                                  <Text style={[styles.effTeam, { color: c.text }]} numberOfLines={1}>{row.team}</Text>
+                                  <View style={[styles.effBarWrap, { backgroundColor: c.border }]}>
                                     <View style={[styles.effBarFill, { width: `${ratio * 100}%`, backgroundColor: color }]} />
                                   </View>
                                   <Text style={[styles.effGoals, { color }]}>{row.gf}</Text>
@@ -573,10 +582,9 @@ export default function LeaguesScreen() {
                     );
                   })()}
 
-                  {/* 7. BU LİGDE NE OYNANIR? */}
                   {ligChar && (
-                    <View style={ozStyles.noynanirCard}>
-                      <Text style={ozStyles.noynanirHeader}>🎯 BU LİGDE NE OYNANIR?</Text>
+                    <View style={[ozStyles.noynanirCard, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
+                      <Text style={[ozStyles.noynanirHeader, { color: c.primary }]}>🎯 BU LİGDE NE OYNANIR?</Text>
                       {[
                         {
                           ok: avgGoals >= 2.3,
@@ -600,7 +608,7 @@ export default function LeaguesScreen() {
                           <Text style={[ozStyles.noynanirIcon, { color: b.ok ? '#27AE60' : '#E6A817' }]}>
                             {b.ok ? '✔' : '⚠'}
                           </Text>
-                          <Text style={ozStyles.noynanirText}>{b.text}</Text>
+                          <Text style={[ozStyles.noynanirText, { color: c.text }]}>{b.text}</Text>
                         </View>
                       ))}
                     </View>
@@ -613,16 +621,16 @@ export default function LeaguesScreen() {
             {subTab === 'tablo' && (
               <>
                 {activeLeague.apiId === 2 && (
-                  <View style={styles.uclToggle}>
+                  <View style={[styles.uclToggle, { borderColor: c.border }]}>
                     <TouchableOpacity
                       style={[styles.uclToggleBtn, uclView === 'standings' && styles.uclToggleBtnActive]}
                       onPress={() => setUclView('standings')}>
-                      <Text style={[styles.uclToggleText, uclView === 'standings' && styles.uclToggleTextActive]}>Puan Tablosu</Text>
+                      <Text style={[styles.uclToggleText, { color: c.textMuted }, uclView === 'standings' && styles.uclToggleTextActive]}>Puan Tablosu</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.uclToggleBtn, uclView === 'bracket' && styles.uclToggleBtnActive]}
                       onPress={() => setUclView('bracket')}>
-                      <Text style={[styles.uclToggleText, uclView === 'bracket' && styles.uclToggleTextActive]}>🏆 Eşleşmeler</Text>
+                      <Text style={[styles.uclToggleText, { color: c.textMuted }, uclView === 'bracket' && styles.uclToggleTextActive]}>🏆 Eşleşmeler</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -630,21 +638,21 @@ export default function LeaguesScreen() {
                 {activeLeague.apiId === 2 && uclView === 'bracket' && (
                   <>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}
-                      style={styles.stageNav} contentContainerStyle={{ paddingHorizontal: 14, gap: 6 }}>
+                      style={[styles.stageNav, { borderBottomColor: c.border }]} contentContainerStyle={{ paddingHorizontal: 14, gap: 6 }}>
                       {UCL_STAGES.map(s => (
                         <TouchableOpacity key={s.key}
-                          style={[styles.stagePill, activeStage === s.key && styles.stagePillActive]}
+                          style={[styles.stagePill, { borderColor: c.border }, activeStage === s.key && styles.stagePillActive]}
                           onPress={() => setActiveStage(s.key)}>
-                          <Text style={[styles.stagePillText, activeStage === s.key && styles.stagePillTextActive]}>
+                          <Text style={[styles.stagePillText, { color: c.textMuted }, activeStage === s.key && styles.stagePillTextActive]}>
                             {s.label}
                           </Text>
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
                     {knockouts == null ? (
-                      <ActivityIndicator style={{ marginTop: 30 }} color="#185FA5" />
+                      <ActivityIndicator style={{ marginTop: 30 }} color={c.primary} />
                     ) : (knockouts[activeStage] || []).length === 0 ? (
-                      <Text style={styles.emptyText}>Bu tura ait veri bulunamadı</Text>
+                      <Text style={[styles.emptyText, { color: c.textMuted }]}>Bu tura ait veri bulunamadı</Text>
                     ) : (
                       groupTies(knockouts[activeStage] || []).map((tie, i) => (
                         <TieCard key={i} tie={tie} isFinal={activeStage === 'FINAL'} />
@@ -655,40 +663,40 @@ export default function LeaguesScreen() {
 
                 {(activeLeague.apiId !== 2 || uclView === 'standings') && (
                   standings.length === 0 ? (
-                    <Text style={styles.emptyText}>Veri yüklenemedi</Text>
+                    <Text style={[styles.emptyText, { color: c.textMuted }]}>Veri yüklenemedi</Text>
                   ) : (
                     <>
-                      <Text style={styles.sectionLabel}>PUAN TABLOSU</Text>
-                      <View style={styles.tableHeader}>
-                        <Text style={styles.rankCell}>#</Text>
-                        <Text style={styles.teamCell}>Takım</Text>
-                        <Text style={styles.dataCell}>O</Text>
-                        <Text style={styles.dataCell}>G</Text>
-                        <Text style={styles.dataCell}>B</Text>
-                        <Text style={styles.dataCell}>M</Text>
-                        <Text style={styles.dataCell}>AG</Text>
-                        <Text style={[styles.dataCell, { color: '#185FA5', fontWeight: '600' }]}>P</Text>
+                      <Text style={[styles.sectionLabel, { color: c.textMuted }]}>PUAN TABLOSU</Text>
+                      <View style={[styles.tableHeader, { backgroundColor: c.surfaceAlt, borderBottomColor: c.border }]}>
+                        <Text style={[styles.rankCell, { color: c.textMuted }]}>#</Text>
+                        <Text style={[styles.teamCell, { color: c.textMuted }]}>Takım</Text>
+                        <Text style={[styles.dataCell, { color: c.textMuted }]}>O</Text>
+                        <Text style={[styles.dataCell, { color: c.textMuted }]}>G</Text>
+                        <Text style={[styles.dataCell, { color: c.textMuted }]}>B</Text>
+                        <Text style={[styles.dataCell, { color: c.textMuted }]}>M</Text>
+                        <Text style={[styles.dataCell, { color: c.textMuted }]}>AG</Text>
+                        <Text style={[styles.dataCell, { color: c.primary, fontWeight: '600' }]}>P</Text>
                       </View>
                       {standings.map((row, i) => (
-                        <View key={i} style={[styles.tableRow, i % 2 === 0 && styles.tableRowAlt]}>
+                        <View key={i} style={[styles.tableRow, { borderBottomColor: c.borderLight }, i % 2 === 0 && { backgroundColor: c.surfaceAlt }]}>
                           <View style={[styles.posBadge, getBadgeStyle(row.pos, standings.length, activeLeague.apiId)]}>
                             <Text style={styles.posText}>{row.pos}</Text>
                           </View>
-                          <Text style={styles.teamNameCell} numberOfLines={1}>{row.team}</Text>
-                          <Text style={styles.dataCell}>{row.played}</Text>
-                          <Text style={styles.dataCell}>{row.win}</Text>
-                          <Text style={styles.dataCell}>{row.draw}</Text>
-                          <Text style={styles.dataCell}>{row.loss}</Text>
-                          <Text style={styles.dataCell}>{row.gf - row.ga > 0 ? `+${row.gf - row.ga}` : row.gf - row.ga}</Text>
-                          <Text style={[styles.dataCell, { color: '#185FA5', fontWeight: '600' }]}>{row.pts}</Text>
+                          <Text style={[styles.teamNameCell, { color: c.text }]} numberOfLines={1}>{row.team}</Text>
+                          <Text style={[styles.dataCell, { color: c.textMuted }]}>{row.played}</Text>
+                          <Text style={[styles.dataCell, { color: c.textMuted }]}>{row.win}</Text>
+                          <Text style={[styles.dataCell, { color: c.textMuted }]}>{row.draw}</Text>
+                          <Text style={[styles.dataCell, { color: c.textMuted }]}>{row.loss}</Text>
+                          <Text style={[styles.dataCell, { color: c.textMuted }]}>{row.gf - row.ga > 0 ? `+${row.gf - row.ga}` : row.gf - row.ga}</Text>
+                          <Text style={[styles.dataCell, { color: c.primary, fontWeight: '600' }]}>{row.pts}</Text>
                         </View>
                       ))}
                       <View style={styles.legendBox}>
-                        <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: '#185FA5' }]} /><Text style={styles.legendText}>Şampiyonlar Ligi</Text></View>
-                        <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: '#E6A817' }]} /><Text style={styles.legendText}>Avrupa Ligi</Text></View>
-                        <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: '#27AE60' }]} /><Text style={styles.legendText}>Konferans Ligi</Text></View>
+                        <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: '#185FA5' }]} /><Text style={[styles.legendText, { color: c.textMuted }]}>Şampiyonlar Ligi</Text></View>
+                        <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: '#E6A817' }]} /><Text style={[styles.legendText, { color: c.textMuted }]}>Avrupa Ligi</Text></View>
+                        <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: '#27AE60' }]} /><Text style={[styles.legendText, { color: c.textMuted }]}>Konferans Ligi</Text></View>
                         {activeLeague.apiId === 203 && (
-                          <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: '#C0392B' }]} /><Text style={styles.legendText}>Küme Düşme</Text></View>
+                          <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: '#C0392B' }]} /><Text style={[styles.legendText, { color: c.textMuted }]}>Küme Düşme</Text></View>
                         )}
                       </View>
                     </>
@@ -700,42 +708,42 @@ export default function LeaguesScreen() {
             {/* ===== TAKIMLAR ===== */}
             {subTab === 'takimlar' && (
               standings.length === 0 ? (
-                <Text style={styles.emptyText}>Veri yüklenemedi</Text>
+                <Text style={[styles.emptyText, { color: c.textMuted }]}>Veri yüklenemedi</Text>
               ) : (
                 <>
-                  <Text style={styles.sectionLabel}>TAKIM KİMLİKLERİ</Text>
-                  <Text style={styles.effSubtitle}>Alfabetik sırada · sezon ortalamaları + karakter profili</Text>
+                  <Text style={[styles.sectionLabel, { color: c.textMuted }]}>TAKIM KİMLİKLERİ</Text>
+                  <Text style={[styles.effSubtitle, { color: c.textFaint }]}>Alfabetik sırada · sezon ortalamaları + karakter profili</Text>
                   {[...standings].sort((a, b) => a.team.localeCompare(b.team, 'tr')).map((row, i) => {
                     const avgGf      = row.played > 0 ? row.gf / row.played : 0;
                     const avgGa      = row.played > 0 ? row.ga / row.played : 0;
                     const winRate    = row.played > 0 ? row.win / row.played : 0;
                     const winPct     = Math.round(winRate * 100);
-                    const lbl        = getTeamLabel(avgGf, avgGa, winRate, row.pos, standings.length, avgLeagueGfPer, avgLeagueGaPer);
+                    const lbl        = getTeamLabel(avgGf, avgGa, winRate, row.pos, standings.length, avgLeagueGfPer, avgLeagueGaPer, isDark);
                     const personality = getTeamPersonality(lbl.label, avgGf, avgGa, winRate);
                     const atkS       = attackScore(row);
                     const defS       = defenseScore(row);
                     return (
-                      <View key={i} style={stStyles.tkCard}>
+                      <View key={i} style={[stStyles.tkCard, { backgroundColor: c.surface, borderColor: c.border }]}>
                         <View style={stStyles.tkCardTop}>
                           <View style={[styles.posBadge, getBadgeStyle(row.pos, standings.length, activeLeague.apiId)]}>
                             <Text style={styles.posText}>{row.pos}</Text>
                           </View>
-                          <Text style={stStyles.tkName} numberOfLines={1}>{row.team}</Text>
+                          <Text style={[stStyles.tkName, { color: c.text }]} numberOfLines={1}>{row.team}</Text>
                           <View style={[stStyles.tkLabel, { backgroundColor: lbl.bg }]}>
                             <Text style={[stStyles.tkLabelText, { color: lbl.color }]}>{lbl.label}</Text>
                           </View>
                         </View>
-                        <Text style={stStyles.tkPersonality}>{personality}</Text>
+                        <Text style={[stStyles.tkPersonality, { color: c.textSub }]}>{personality}</Text>
                         <View style={stStyles.tkPowerRow}>
-                          <Text style={stStyles.tkPowerText}>Hücum <Text style={stStyles.tkPowerVal}>{atkS.toFixed(2)}</Text>/10</Text>
-                          <Text style={stStyles.tkPowerDot}>·</Text>
-                          <Text style={stStyles.tkPowerText}>Savunma <Text style={stStyles.tkPowerVal}>{defS.toFixed(2)}</Text>/10</Text>
+                          <Text style={[stStyles.tkPowerText, { color: c.textSub }]}>Hücum <Text style={[stStyles.tkPowerVal, { color: c.primary }]}>{atkS.toFixed(2)}</Text>/10</Text>
+                          <Text style={[stStyles.tkPowerDot, { color: c.textVeryFaint }]}>·</Text>
+                          <Text style={[stStyles.tkPowerText, { color: c.textSub }]}>Savunma <Text style={[stStyles.tkPowerVal, { color: c.primary }]}>{defS.toFixed(2)}</Text>/10</Text>
                         </View>
-                        <View style={stStyles.tkStats}>
-                          <View style={stStyles.tkStat}><Text style={stStyles.tkStatV}>{avgGf.toFixed(1)}</Text><Text style={stStyles.tkStatL}>Gol/M</Text></View>
-                          <View style={stStyles.tkStat}><Text style={stStyles.tkStatV}>{avgGa.toFixed(1)}</Text><Text style={stStyles.tkStatL}>Yenilen/M</Text></View>
-                          <View style={stStyles.tkStat}><Text style={stStyles.tkStatV}>{winPct}%</Text><Text style={stStyles.tkStatL}>Galibiyet</Text></View>
-                          <View style={stStyles.tkStat}><Text style={stStyles.tkStatV}>{row.pts}</Text><Text style={stStyles.tkStatL}>Puan</Text></View>
+                        <View style={[stStyles.tkStats, { borderTopColor: c.border }]}>
+                          <View style={stStyles.tkStat}><Text style={[stStyles.tkStatV, { color: c.text }]}>{avgGf.toFixed(1)}</Text><Text style={[stStyles.tkStatL, { color: c.textMuted }]}>Gol/M</Text></View>
+                          <View style={stStyles.tkStat}><Text style={[stStyles.tkStatV, { color: c.text }]}>{avgGa.toFixed(1)}</Text><Text style={[stStyles.tkStatL, { color: c.textMuted }]}>Yenilen/M</Text></View>
+                          <View style={stStyles.tkStat}><Text style={[stStyles.tkStatV, { color: c.text }]}>{winPct}%</Text><Text style={[stStyles.tkStatL, { color: c.textMuted }]}>Galibiyet</Text></View>
+                          <View style={stStyles.tkStat}><Text style={[stStyles.tkStatV, { color: c.text }]}>{row.pts}</Text><Text style={[stStyles.tkStatL, { color: c.textMuted }]}>Puan</Text></View>
                         </View>
                       </View>
                     );
@@ -747,7 +755,7 @@ export default function LeaguesScreen() {
             {/* ===== TRENDLER ===== */}
             {subTab === 'trendler' && (
               standings.length === 0 ? (
-                <Text style={styles.emptyText}>Veri yüklenemedi</Text>
+                <Text style={[styles.emptyText, { color: c.textMuted }]}>Veri yüklenemedi</Text>
               ) : (() => {
                 const withRates = standings.map(r => ({
                   ...r,
@@ -773,33 +781,33 @@ export default function LeaguesScreen() {
 
                 return (
                   <>
-                    <View style={stStyles.trendNote}>
-                      <Text style={stStyles.trendNoteText}>
+                    <View style={[stStyles.trendNote, { backgroundColor: c.primaryLight }]}>
+                      <Text style={[stStyles.trendNoteText, { color: c.text }]}>
                         Maç başı {avgGoals.toFixed(2)} gol ·
                         {avgGoals >= 2.8 ? ' Yüksek tempolu lig' : avgGoals >= 2.3 ? ' Orta tempolu lig' : ' Düşük tempolu lig'}
                       </Text>
                     </View>
 
-                    <Text style={styles.sectionLabel}>HÜCUM GÜCÜ (Gol/Maç)</Text>
-                    <Text style={styles.effSubtitle}>Maç başı en fazla gol atan takımlar</Text>
+                    <Text style={[styles.sectionLabel, { color: c.textMuted }]}>HÜCUM GÜCÜ (Gol/Maç)</Text>
+                    <Text style={[styles.effSubtitle, { color: c.textFaint }]}>Maç başı en fazla gol atan takımlar</Text>
                     {attackTop[0] && (
-                      <View style={stStyles.insightBox}>
-                        <Text style={stStyles.insightText}>
+                      <View style={[stStyles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
+                        <Text style={[stStyles.insightText, { color: c.text }]}>
                           En golcü {attackTop[0].team}, maç başı {attackTop[0].gfPer.toFixed(1)} golle ligin hücum motorunu temsil ediyor.
                         </Text>
-                        <Text style={stStyles.insightWhy}>Neden önemli: Yüksek hücum gücü, over 2.5 ve KG-var bahislerinde güçlü bir ipucu sunar.</Text>
+                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Yüksek hücum gücü, over 2.5 ve KG-var bahislerinde güçlü bir ipucu sunar.</Text>
                       </View>
                     )}
                     {attackTop.map((row, i) => {
                       const ratio = row.gfPer / maxAtk;
-                      const color = i === 0 ? '#185FA5' : i < 3 ? '#E6A817' : i < 5 ? '#4CAF50' : '#bbb';
+                      const color = i === 0 ? c.primary : i < 3 ? '#E6A817' : i < 5 ? '#4CAF50' : c.textVeryFaint;
                       return (
-                        <View key={i} style={styles.effRow}>
+                        <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
                           <Text style={[styles.effRank, { color }]}>{i + 1}</Text>
                           <View style={{ flex: 1 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <Text style={styles.effTeam} numberOfLines={1}>{row.team}</Text>
-                              <View style={styles.effBarWrap}>
+                              <Text style={[styles.effTeam, { color: c.text }]} numberOfLines={1}>{row.team}</Text>
+                              <View style={[styles.effBarWrap, { backgroundColor: c.border }]}>
                                 <View style={[styles.effBarFill, { width: `${ratio * 100}%`, backgroundColor: color }]} />
                               </View>
                               <Text style={[styles.effGoals, { color }]}>{row.gfPer.toFixed(2)}</Text>
@@ -809,26 +817,26 @@ export default function LeaguesScreen() {
                       );
                     })}
 
-                    <Text style={styles.sectionLabel}>SAVUNMA DİRENCİ (Yenilen/Maç)</Text>
-                    <Text style={styles.effSubtitle}>En az gol yiyen takımlar — düşük değer daha iyi</Text>
+                    <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SAVUNMA DİRENCİ (Yenilen/Maç)</Text>
+                    <Text style={[styles.effSubtitle, { color: c.textFaint }]}>En az gol yiyen takımlar — düşük değer daha iyi</Text>
                     {defTop[0] && (
-                      <View style={stStyles.insightBox}>
-                        <Text style={stStyles.insightText}>
+                      <View style={[stStyles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
+                        <Text style={[stStyles.insightText, { color: c.text }]}>
                           {defTop[0].team} maç başı yalnızca {defTop[0].gaPer.toFixed(1)} gol yiyor — ligin en sağlam savunması.
                         </Text>
-                        <Text style={stStyles.insightWhy}>Neden önemli: Az gol yiyen takımlar, alt 2.5 ve kale sıfır bahislerinde güvenilir referans noktasıdır.</Text>
+                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Az gol yiyen takımlar, alt 2.5 ve kale sıfır bahislerinde güvenilir referans noktasıdır.</Text>
                       </View>
                     )}
                     {defTop.map((row, i) => {
                       const ratio = (maxDef - row.gaPer) / defRange;
-                      const color = i === 0 ? '#1B5E20' : i < 3 ? '#388E3C' : i < 5 ? '#4CAF50' : '#bbb';
+                      const color = i === 0 ? '#1B5E20' : i < 3 ? '#388E3C' : i < 5 ? '#4CAF50' : c.textVeryFaint;
                       return (
-                        <View key={i} style={styles.effRow}>
+                        <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
                           <Text style={[styles.effRank, { color }]}>{i + 1}</Text>
                           <View style={{ flex: 1 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <Text style={styles.effTeam} numberOfLines={1}>{row.team}</Text>
-                              <View style={styles.effBarWrap}>
+                              <Text style={[styles.effTeam, { color: c.text }]} numberOfLines={1}>{row.team}</Text>
+                              <View style={[styles.effBarWrap, { backgroundColor: c.border }]}>
                                 <View style={[styles.effBarFill, { width: `${ratio * 100}%`, backgroundColor: color }]} />
                               </View>
                               <Text style={[styles.effGoals, { color }]}>{row.gaPer.toFixed(2)}</Text>
@@ -838,57 +846,57 @@ export default function LeaguesScreen() {
                       );
                     })}
 
-                    <Text style={styles.sectionLabel}>TEMPO ENDEKSİ (Toplam Gol/Maç)</Text>
-                    <Text style={styles.effSubtitle}>Maçlarında en fazla toplam gol oynanan takımlar — over eğilimi göstergesi</Text>
+                    <Text style={[styles.sectionLabel, { color: c.textMuted }]}>TEMPO ENDEKSİ (Toplam Gol/Maç)</Text>
+                    <Text style={[styles.effSubtitle, { color: c.textFaint }]}>Maçlarında en fazla toplam gol oynanan takımlar — over eğilimi göstergesi</Text>
                     {tempoTop[0] && (
-                      <View style={stStyles.insightBox}>
-                        <Text style={stStyles.insightText}>
+                      <View style={[stStyles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
+                        <Text style={[stStyles.insightText, { color: c.text }]}>
                           {tempoTop[0].team} maçları bu ligde en heyecanlı seyrediyor — maç başı {tempoTop[0].tempoPer.toFixed(1)} toplam gol.
                         </Text>
-                        <Text style={stStyles.insightWhy}>Neden önemli: Toplam gol ortalaması, over/alt kararlarının en doğrudan göstergesidir.</Text>
+                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Toplam gol ortalaması, over/alt kararlarının en doğrudan göstergesidir.</Text>
                       </View>
                     )}
                     {tempoTop.map((row, i) => {
                       const ratio  = row.tempoPer / maxTempo;
                       const isOver = row.tempoPer >= 2.5;
-                      const color  = i === 0 ? '#E65100' : i < 3 ? '#F4511E' : i < 5 ? '#FF7043' : '#bbb';
+                      const color  = i === 0 ? '#E65100' : i < 3 ? '#F4511E' : i < 5 ? '#FF7043' : c.textVeryFaint;
                       return (
-                        <View key={i} style={styles.effRow}>
+                        <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
                           <Text style={[styles.effRank, { color }]}>{i + 1}</Text>
                           <View style={{ flex: 1 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <Text style={styles.effTeam} numberOfLines={1}>{row.team}</Text>
-                              <View style={styles.effBarWrap}>
+                              <Text style={[styles.effTeam, { color: c.text }]} numberOfLines={1}>{row.team}</Text>
+                              <View style={[styles.effBarWrap, { backgroundColor: c.border }]}>
                                 <View style={[styles.effBarFill, { width: `${ratio * 100}%`, backgroundColor: color }]} />
                               </View>
                               <Text style={[styles.effGoals, { color }]}>{row.tempoPer.toFixed(2)}</Text>
                             </View>
-                            {isOver && <Text style={styles.effLabel}>Over 2.5 eğilimi güçlü</Text>}
+                            {isOver && <Text style={[styles.effLabel, { color: c.textFaint }]}>Over 2.5 eğilimi güçlü</Text>}
                           </View>
                         </View>
                       );
                     })}
 
-                    <Text style={styles.sectionLabel}>BERABERLİK EĞİLİMİ</Text>
-                    <Text style={styles.effSubtitle}>En fazla beraberlikle biten maç oynayan takımlar</Text>
+                    <Text style={[styles.sectionLabel, { color: c.textMuted }]}>BERABERLİK EĞİLİMİ</Text>
+                    <Text style={[styles.effSubtitle, { color: c.textFaint }]}>En fazla beraberlikle biten maç oynayan takımlar</Text>
                     {drawTop[0] && (
-                      <View style={stStyles.insightBox}>
-                        <Text style={stStyles.insightText}>
+                      <View style={[stStyles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
+                        <Text style={[stStyles.insightText, { color: c.text }]}>
                           {drawTop[0].team} bu sezon en sık beraberlik oynayan takım — {drawTop[0].draw} kez eşit bitti, sonuç belirsizliği yüksek.
                         </Text>
-                        <Text style={stStyles.insightWhy}>Neden önemli: Beraberlik eğilimi yüksek takımlar çift şans ve beraberlik bahislerinde değer yaratabilir.</Text>
+                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Beraberlik eğilimi yüksek takımlar çift şans ve beraberlik bahislerinde değer yaratabilir.</Text>
                       </View>
                     )}
                     {drawTop.map((row, i) => {
                       const ratio = row.drawPer / maxDraw;
-                      const color = i === 0 ? '#5b2d8e' : i < 3 ? '#7B1FA2' : i < 5 ? '#9C27B0' : '#bbb';
+                      const color = i === 0 ? '#5b2d8e' : i < 3 ? '#7B1FA2' : i < 5 ? '#9C27B0' : c.textVeryFaint;
                       return (
-                        <View key={i} style={styles.effRow}>
+                        <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
                           <Text style={[styles.effRank, { color }]}>{i + 1}</Text>
                           <View style={{ flex: 1 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <Text style={styles.effTeam} numberOfLines={1}>{row.team}</Text>
-                              <View style={styles.effBarWrap}>
+                              <Text style={[styles.effTeam, { color: c.text }]} numberOfLines={1}>{row.team}</Text>
+                              <View style={[styles.effBarWrap, { backgroundColor: c.border }]}>
                                 <View style={[styles.effBarFill, { width: `${ratio * 100}%`, backgroundColor: color }]} />
                               </View>
                               <Text style={[styles.effGoals, { color }]}>{row.draw}</Text>
@@ -907,152 +915,151 @@ export default function LeaguesScreen() {
         <View style={{ height: 30 }} />
       </ScrollView>
 
-      <View style={styles.tabBar}>
-        <TouchableOpacity style={styles.tab} onPress={() => router.push('/')}><Text style={styles.tabText}>Maçlar</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.tab}><Text style={[styles.tabText, styles.tabActive]}>Ligler</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.tab} onPress={() => router.push('/stats')}><Text style={styles.tabText}>İstatistik</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.tab} onPress={() => router.push('/profile')}><Text style={styles.tabText}>Profil</Text></TouchableOpacity>
+      <View style={[styles.tabBar, { backgroundColor: c.surface, borderTopColor: c.border }]}>
+        <TouchableOpacity style={styles.tab} onPress={() => router.push('/')}><Text style={[styles.tabText, { color: c.textMuted }]}>Maçlar</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.tab}><Text style={[styles.tabText, styles.tabActive, { color: c.primary }]}>Ligler</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.tab} onPress={() => router.push('/stats')}><Text style={[styles.tabText, { color: c.textMuted }]}>İstatistik</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.tab} onPress={() => router.push('/profile')}><Text style={[styles.tabText, { color: c.textMuted }]}>Profil</Text></TouchableOpacity>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container:           { flex: 1, backgroundColor: '#fff' },
+  container:           { flex: 1 },
   topbar:              { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingTop: 52, paddingBottom: 8 },
   headerBrand:         { flexDirection: 'row', alignItems: 'center', gap: 6 },
   headerLogo:          { width: 42, height: 42, resizeMode: 'contain' },
   appName:             { fontSize: 16, fontWeight: '600', color: '#00BAFF' },
   appNameBlue:         { color: '#2563EB' },
-  pageTitle:           { fontSize: 13, color: '#888' },
-  leagueNav:           { maxHeight: 48, borderBottomWidth: 0.5, borderBottomColor: '#eee' },
-  leaguePill:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, marginRight: 6, borderRadius: 20, borderWidth: 0.5, borderColor: '#ddd', gap: 4 },
+  pageTitle:           { fontSize: 13 },
+  leagueNav:           { maxHeight: 48, borderBottomWidth: 0.5 },
+  leaguePill:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, marginRight: 6, borderRadius: 20, borderWidth: 0.5, gap: 4 },
   leaguePillActive:    { backgroundColor: '#185FA5', borderColor: '#185FA5' },
   leagueFlag:          { fontSize: 14 },
-  leaguePillText:      { fontSize: 12, color: '#666' },
+  leaguePillText:      { fontSize: 12 },
   leaguePillTextActive:{ color: '#fff' },
   scroll:              { flex: 1 },
-  leagueHeader:        { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: '#eee' },
+  leagueHeader:        { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 0.5 },
   leagueHeaderFlag:    { fontSize: 32 },
-  leagueHeaderName:    { fontSize: 16, fontWeight: '500', color: '#111' },
-  leagueHeaderSub:     { fontSize: 12, color: '#888', marginTop: 2 },
-  sectionLabel:        { fontSize: 11, color: '#888', fontWeight: '500', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6, letterSpacing: 0.5 },
-  emptyText:           { textAlign: 'center', color: '#888', marginTop: 40, fontSize: 13 },
-  tableHeader:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 8, backgroundColor: '#f8f8f8', borderBottomWidth: 0.5, borderBottomColor: '#eee' },
-  tableRow:            { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: '#f0f0f0' },
-  tableRowAlt:         { backgroundColor: '#fafafa' },
-  rankCell:            { fontSize: 11, color: '#888', width: 28, textAlign: 'center' },
-  teamCell:            { flex: 1, fontSize: 11, color: '#888' },
-  dataCell:            { fontSize: 11, color: '#888', width: 28, textAlign: 'center' },
-  teamNameCell:        { flex: 1, fontSize: 12, color: '#111', fontWeight: '500' },
+  leagueHeaderName:    { fontSize: 16, fontWeight: '500' },
+  leagueHeaderSub:     { fontSize: 12, marginTop: 2 },
+  sectionLabel:        { fontSize: 11, fontWeight: '500', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6, letterSpacing: 0.5 },
+  emptyText:           { textAlign: 'center', marginTop: 40, fontSize: 13 },
+  tableHeader:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 8, borderBottomWidth: 0.5 },
+  tableRow:            { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 0.5 },
+  tableRowAlt:         {},
+  rankCell:            { fontSize: 11, width: 28, textAlign: 'center' },
+  teamCell:            { flex: 1, fontSize: 11 },
+  dataCell:            { fontSize: 11, width: 28, textAlign: 'center' },
+  teamNameCell:        { flex: 1, fontSize: 12, fontWeight: '500' },
   posBadge:            { width: 20, height: 20, borderRadius: 4, alignItems: 'center', justifyContent: 'center', marginRight: 6 },
   posTop:              { backgroundColor: '#185FA5' },
   posMid:              { backgroundColor: '#E6A817' },
   posConf:             { backgroundColor: '#27AE60' },
   posRel:              { backgroundColor: '#C0392B' },
-  posNormal:           { backgroundColor: '#eee' },
+  posNormal:           { backgroundColor: '#888' },
   posText:             { fontSize: 10, fontWeight: '600', color: '#fff' },
   legendBox:           { marginHorizontal: 14, marginTop: 12, gap: 6 },
   legendRow:           { flexDirection: 'row', alignItems: 'center', gap: 8 },
   legendDot:           { width: 10, height: 10, borderRadius: 2 },
-  legendText:          { fontSize: 12, color: '#888' },
-  tabBar:              { flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: '#eee', paddingBottom: 20 },
+  legendText:          { fontSize: 12 },
+  tabBar:              { flexDirection: 'row', borderTopWidth: 0.5, paddingBottom: 20 },
   tab:                 { flex: 1, paddingVertical: 12, alignItems: 'center' },
-  tabText:             { fontSize: 12, color: '#888' },
-  tabActive:           { color: '#185FA5', fontWeight: '500' },
-  uclToggle:           { flexDirection: 'row', marginHorizontal: 14, marginVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#e0e0e0', overflow: 'hidden' },
+  tabText:             { fontSize: 12 },
+  tabActive:           { fontWeight: '500' },
+  uclToggle:           { flexDirection: 'row', marginHorizontal: 14, marginVertical: 10, borderRadius: 10, borderWidth: 1, overflow: 'hidden' },
   uclToggleBtn:        { flex: 1, paddingVertical: 10, alignItems: 'center' },
   uclToggleBtnActive:  { backgroundColor: '#185FA5' },
-  uclToggleText:       { fontSize: 13, color: '#888', fontWeight: '500' },
+  uclToggleText:       { fontSize: 13, fontWeight: '500' },
   uclToggleTextActive: { color: '#fff', fontWeight: '600' },
-  stageNav:            { maxHeight: 44, borderBottomWidth: 0.5, borderBottomColor: '#eee' },
-  stagePill:           { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 0.5, borderColor: '#ddd', marginRight: 6 },
+  stageNav:            { maxHeight: 44, borderBottomWidth: 0.5 },
+  stagePill:           { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 0.5, marginRight: 6 },
   stagePillActive:     { backgroundColor: '#185FA5', borderColor: '#185FA5' },
-  stagePillText:       { fontSize: 12, color: '#666' },
+  stagePillText:       { fontSize: 12 },
   stagePillTextActive: { color: '#fff', fontWeight: '500' },
-  effSubtitle:         { fontSize: 11, color: '#aaa', paddingHorizontal: 14, marginBottom: 6, marginTop: -4 },
-  effRow:              { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 14, paddingVertical: 7, borderBottomWidth: 0.5, borderBottomColor: '#f0f0f0', gap: 8 },
+  effSubtitle:         { fontSize: 11, paddingHorizontal: 14, marginBottom: 6, marginTop: -4 },
+  effRow:              { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 14, paddingVertical: 7, borderBottomWidth: 0.5, gap: 8 },
   effRank:             { width: 22, fontSize: 12, fontWeight: '700', textAlign: 'center', paddingTop: 1 },
-  effTeam:             { width: 110, fontSize: 12, color: '#111', fontWeight: '500' },
-  effBarWrap:          { flex: 1, height: 10, backgroundColor: '#f0f0f0', borderRadius: 5, overflow: 'hidden', alignSelf: 'center' },
+  effTeam:             { width: 110, fontSize: 12, fontWeight: '500' },
+  effBarWrap:          { flex: 1, height: 10, borderRadius: 5, overflow: 'hidden', alignSelf: 'center' },
   effBarFill:          { height: '100%', borderRadius: 5 },
   effGoals:            { width: 28, fontSize: 12, fontWeight: '700', textAlign: 'right', alignSelf: 'center' },
-  effLabel:            { fontSize: 9, color: '#aaa', marginTop: 3, paddingLeft: 2 },
+  effLabel:            { fontSize: 9, marginTop: 3, paddingLeft: 2 },
 });
 
 const stStyles = StyleSheet.create({
-  subTabBar:        { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: '#eee', backgroundColor: '#fff' },
+  subTabBar:        { flexDirection: 'row', borderBottomWidth: 0.5 },
   subTab:           { flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
   subTabActive:     { borderBottomColor: '#185FA5' },
-  subTabText:       { fontSize: 11, color: '#888' },
-  subTabTextActive: { color: '#185FA5', fontWeight: '600' },
-  summaryCard:      { margin: 14, padding: 14, backgroundColor: '#f8f8f8', borderRadius: 12 },
+  subTabText:       { fontSize: 11 },
+  summaryCard:      { margin: 14, padding: 14, borderRadius: 12 },
   summaryRow:       { flexDirection: 'row', marginBottom: 10 },
   summaryStat:      { flex: 1, alignItems: 'center' },
-  summaryVal:       { fontSize: 20, fontWeight: '700', color: '#111' },
-  summaryLbl:       { fontSize: 11, color: '#888', marginTop: 3 },
-  summaryNote:      { fontSize: 11, color: '#555', lineHeight: 16, borderTopWidth: 0.5, borderTopColor: '#e0e0e0', paddingTop: 10 },
-  leaderCard:       { marginHorizontal: 14, marginBottom: 6, padding: 14, backgroundColor: '#E6F1FB', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#185FA5' },
+  summaryVal:       { fontSize: 20, fontWeight: '700' },
+  summaryLbl:       { fontSize: 11, marginTop: 3 },
+  summaryNote:      { fontSize: 11, lineHeight: 16, borderTopWidth: 0.5, paddingTop: 10 },
+  leaderCard:       { marginHorizontal: 14, marginBottom: 6, padding: 14, borderRadius: 12, borderLeftWidth: 3 },
   leaderTop:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  leaderBadge:      { fontSize: 11, fontWeight: '700', color: '#185FA5', letterSpacing: 0.5 },
-  leaderGap:        { fontSize: 11, color: '#0C447C', fontWeight: '600' },
-  leaderTeam:       { fontSize: 18, fontWeight: '700', color: '#111', marginBottom: 6 },
-  leaderNarr:       { fontSize: 12, color: '#555', fontStyle: 'italic', marginBottom: 10, lineHeight: 17 },
+  leaderBadge:      { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
+  leaderGap:        { fontSize: 11, fontWeight: '600' },
+  leaderTeam:       { fontSize: 18, fontWeight: '700', marginBottom: 6 },
+  leaderNarr:       { fontSize: 12, fontStyle: 'italic', marginBottom: 10, lineHeight: 17 },
   liderTagRow:      { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
   liderTag:         { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
   liderTagText:     { fontSize: 11, fontWeight: '600' },
-  leaderStats:      { flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: '#c5d8ec', paddingTop: 10 },
+  leaderStats:      { flexDirection: 'row', borderTopWidth: 0.5, paddingTop: 10 },
   leaderStat:       { flex: 1, alignItems: 'center' },
-  leaderStatV:      { fontSize: 16, fontWeight: '600', color: '#185FA5' },
-  leaderStatL:      { fontSize: 10, color: '#888', marginTop: 2 },
-  leaderPowerRow:   { flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: '#c5d8ec', marginTop: 10, paddingTop: 10 },
+  leaderStatV:      { fontSize: 16, fontWeight: '600' },
+  leaderStatL:      { fontSize: 10, marginTop: 2 },
+  leaderPowerRow:   { flexDirection: 'row', borderTopWidth: 0.5, marginTop: 10, paddingTop: 10 },
   leaderPower:      { flex: 1, alignItems: 'center' },
-  leaderPowerDiv:   { width: 0.5, backgroundColor: '#c5d8ec' },
-  leaderPowerLbl:   { fontSize: 10, color: '#888', marginBottom: 3 },
-  leaderPowerVal:   { fontSize: 16, fontWeight: '700', color: '#185FA5' },
-  topRow:           { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: '#f0f0f0', gap: 8 },
-  topTeam:          { flex: 1, fontSize: 13, color: '#111', fontWeight: '500' },
-  topDetail:        { fontSize: 11, color: '#888' },
-  topPts:           { fontSize: 13, fontWeight: '700', color: '#185FA5', minWidth: 36, textAlign: 'right' },
-  trendNote:        { marginHorizontal: 14, marginTop: 10, marginBottom: 4, padding: 10, backgroundColor: '#f0f4ff', borderRadius: 8 },
-  trendNoteText:    { fontSize: 12, color: '#333', textAlign: 'center' },
-  tkCard:           { marginHorizontal: 14, marginBottom: 8, padding: 12, backgroundColor: '#fafafa', borderRadius: 10, borderWidth: 0.5, borderColor: '#eee' },
+  leaderPowerDiv:   { width: 0.5 },
+  leaderPowerLbl:   { fontSize: 10, marginBottom: 3 },
+  leaderPowerVal:   { fontSize: 16, fontWeight: '700' },
+  topRow:           { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5, gap: 8 },
+  topTeam:          { flex: 1, fontSize: 13, fontWeight: '500' },
+  topDetail:        { fontSize: 11 },
+  topPts:           { fontSize: 13, fontWeight: '700', minWidth: 36, textAlign: 'right' },
+  trendNote:        { marginHorizontal: 14, marginTop: 10, marginBottom: 4, padding: 10, borderRadius: 8 },
+  trendNoteText:    { fontSize: 12, textAlign: 'center' },
+  tkCard:           { marginHorizontal: 14, marginBottom: 8, padding: 12, borderRadius: 10, borderWidth: 0.5 },
   tkCardTop:        { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  tkName:           { flex: 1, fontSize: 13, fontWeight: '600', color: '#111' },
+  tkName:           { flex: 1, fontSize: 13, fontWeight: '600' },
   tkLabel:          { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
   tkLabelText:      { fontSize: 11, fontWeight: '600' },
-  tkPersonality:    { fontSize: 11, color: '#666', fontStyle: 'italic', marginBottom: 8, lineHeight: 16 },
+  tkPersonality:    { fontSize: 11, fontStyle: 'italic', marginBottom: 8, lineHeight: 16 },
   tkPowerRow:       { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  tkPowerText:      { fontSize: 11, color: '#555', fontWeight: '500' },
-  tkPowerVal:       { color: '#0C447C', fontWeight: '700' },
-  tkPowerDot:       { color: '#ccc', paddingHorizontal: 6 },
-  tkStats:          { flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: '#eee', paddingTop: 8 },
+  tkPowerText:      { fontSize: 11, fontWeight: '500' },
+  tkPowerVal:       { fontWeight: '700' },
+  tkPowerDot:       { paddingHorizontal: 6 },
+  tkStats:          { flexDirection: 'row', borderTopWidth: 0.5, paddingTop: 8 },
   tkStat:           { flex: 1, alignItems: 'center' },
-  tkStatV:          { fontSize: 14, fontWeight: '600', color: '#111' },
-  tkStatL:          { fontSize: 10, color: '#888', marginTop: 2 },
-  ligCharCard:      { marginHorizontal: 14, marginTop: 6, marginBottom: 6, padding: 14, backgroundColor: '#fff', borderRadius: 12, borderWidth: 0.5, borderColor: '#e0e0e0', borderLeftWidth: 3 },
+  tkStatV:          { fontSize: 14, fontWeight: '600' },
+  tkStatL:          { fontSize: 10, marginTop: 2 },
+  ligCharCard:      { marginHorizontal: 14, marginTop: 6, marginBottom: 6, padding: 14, borderRadius: 12, borderWidth: 0.5, borderLeftWidth: 3 },
   ligCharBadge:     { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   ligCharBadgeText: { fontSize: 12, fontWeight: '700' },
   ligCharTraits:    { gap: 4, marginBottom: 12 },
   ligCharTrait:     { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
-  ligCharTraitDot:  { fontSize: 14, color: '#aaa', lineHeight: 18 },
-  ligCharTraitText: { fontSize: 12, color: '#444', lineHeight: 18, flex: 1 },
-  scoutScoreRow:    { flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: '#eee', paddingTop: 12, marginBottom: 12 },
+  ligCharTraitDot:  { fontSize: 14, lineHeight: 18 },
+  ligCharTraitText: { fontSize: 12, lineHeight: 18, flex: 1 },
+  scoutScoreRow:    { flexDirection: 'row', borderTopWidth: 0.5, paddingTop: 12, marginBottom: 12 },
   scoutScoreItem:   { flex: 1, alignItems: 'center' },
-  scoutScoreVal:    { fontSize: 20, fontWeight: '700', color: '#185FA5' },
-  scoutScoreLbl:    { fontSize: 10, color: '#888', marginTop: 2 },
-  scoutRecBox:      { backgroundColor: '#F8F9FB', borderRadius: 8, padding: 10, borderTopWidth: 0.5, borderTopColor: '#eee' },
-  scoutRecLabel:    { fontSize: 10, color: '#888', fontWeight: '600', letterSpacing: 0.4, marginBottom: 3 },
-  scoutRecText:     { fontSize: 12, color: '#222', lineHeight: 17 },
-  profileRow:       { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: '#f0f0f0', gap: 10 },
+  scoutScoreVal:    { fontSize: 20, fontWeight: '700' },
+  scoutScoreLbl:    { fontSize: 10, marginTop: 2 },
+  scoutRecBox:      { borderRadius: 8, padding: 10, borderTopWidth: 0.5 },
+  scoutRecLabel:    { fontSize: 10, fontWeight: '600', letterSpacing: 0.4, marginBottom: 3 },
+  scoutRecText:     { fontSize: 12, lineHeight: 17 },
+  profileRow:       { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5, gap: 10 },
   profileIcon:      { fontSize: 20, width: 28, textAlign: 'center', paddingTop: 2 },
-  profileLabel:     { fontSize: 10, color: '#888', fontWeight: '500', marginBottom: 2 },
-  profileTeam:      { fontSize: 13, color: '#111', fontWeight: '600' },
-  profileInsight:   { fontSize: 10, color: '#888', marginTop: 3, lineHeight: 14, fontStyle: 'italic' },
-  profileStat:      { fontSize: 11, color: '#185FA5', fontWeight: '600', textAlign: 'right', maxWidth: 110, paddingTop: 2 },
-  insightBox:       { marginHorizontal: 14, marginBottom: 6, padding: 10, backgroundColor: '#f0f4ff', borderRadius: 8, borderLeftWidth: 2, borderLeftColor: '#185FA5' },
-  insightText:      { fontSize: 12, color: '#333', lineHeight: 17, fontStyle: 'italic' },
-  insightWhy:       { fontSize: 11, color: '#666', marginTop: 5, lineHeight: 16 },
+  profileLabel:     { fontSize: 10, fontWeight: '500', marginBottom: 2 },
+  profileTeam:      { fontSize: 13, fontWeight: '600' },
+  profileInsight:   { fontSize: 10, marginTop: 3, lineHeight: 14, fontStyle: 'italic' },
+  profileStat:      { fontSize: 11, fontWeight: '600', textAlign: 'right', maxWidth: 110, paddingTop: 2 },
+  insightBox:       { marginHorizontal: 14, marginBottom: 6, padding: 10, borderRadius: 8, borderLeftWidth: 2 },
+  insightText:      { fontSize: 12, lineHeight: 17, fontStyle: 'italic' },
+  insightWhy:       { fontSize: 11, marginTop: 5, lineHeight: 16 },
 });
 
 const ozStyles = StyleSheet.create({
@@ -1063,9 +1070,9 @@ const ozStyles = StyleSheet.create({
   pillLabel:      { fontSize: 9, color: '#888', marginBottom: 3, letterSpacing: 0.3 },
   pillValue:      { fontSize: 12, fontWeight: '700' },
   ozet:           { fontSize: 13, color: '#C8DEFF', lineHeight: 19, fontStyle: 'italic' },
-  noynanirCard:   { marginHorizontal: 14, marginTop: 8, marginBottom: 8, padding: 14, backgroundColor: '#f0f4ff', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#185FA5' },
-  noynanirHeader: { fontSize: 12, fontWeight: '700', color: '#185FA5', letterSpacing: 0.5, marginBottom: 10 },
+  noynanirCard:   { marginHorizontal: 14, marginTop: 8, marginBottom: 8, padding: 14, borderRadius: 12, borderLeftWidth: 3 },
+  noynanirHeader: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5, marginBottom: 10 },
   noynanirRow:    { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 7 },
   noynanirIcon:   { fontSize: 13, width: 18, textAlign: 'center', lineHeight: 18 },
-  noynanirText:   { flex: 1, fontSize: 12, color: '#333', lineHeight: 18 },
+  noynanirText:   { flex: 1, fontSize: 12, lineHeight: 18 },
 });

@@ -5,6 +5,7 @@ import {
   ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 import {
   getCityForTeam, getStandings, getSuperLigMatches, getSuperLigStandings,
   getTodayMatches, Standing,
@@ -338,65 +339,68 @@ function HeroCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
 function HighlightCard({ m, rank, metrics, onPress }: {
   m: Match; rank: number; metrics: Metrics; onPress: () => void;
 }) {
+  const { colors: c } = useTheme();
   const label = rank === 0 ? '⭐ Öne Çıkan' : rank === 1 ? '🎯 İzlenecek' : '📌 Dikkat';
-  const borderColor = rank === 0 ? '#185FA5' : rank === 1 ? '#E6A817' : '#aaa';
+  const borderColor = rank === 0 ? c.primary : rank === 1 ? '#E6A817' : c.textFaint;
   return (
-    <TouchableOpacity style={[sc.hlCard, { borderLeftColor: borderColor }]} onPress={onPress} activeOpacity={0.85}>
+    <TouchableOpacity style={[sc.hlCard, { backgroundColor: c.surface, borderColor: c.cardBorder, borderLeftColor: borderColor }]} onPress={onPress} activeOpacity={0.85}>
       <View style={sc.hlTop}>
         <Text style={[sc.hlRank, { color: borderColor }]}>{label}</Text>
-        <Text style={sc.hlLeague}>{m.league}</Text>
+        <Text style={[sc.hlLeague, { color: c.textFaint }]}>{m.league}</Text>
       </View>
       <View style={sc.hlTeams}>
-        <Text style={sc.hlTeam} numberOfLines={1}>{m.home}</Text>
-        <Text style={sc.hlTime}>{m.finished && m.score ? m.score : m.time}</Text>
-        <Text style={[sc.hlTeam, { textAlign: 'right' }]} numberOfLines={1}>{m.away}</Text>
+        <Text style={[sc.hlTeam, { color: c.text }]} numberOfLines={1}>{m.home}</Text>
+        <Text style={[sc.hlTime, { color: c.textSub }]}>{m.finished && m.score ? m.score : m.time}</Text>
+        <Text style={[sc.hlTeam, { color: c.text, textAlign: 'right' }]} numberOfLines={1}>{m.away}</Text>
       </View>
       {metrics.hasData ? (
         <>
-          <Text style={sc.hlMetric}>{expectedLine(metrics)} · {favoriteText(m, metrics)}</Text>
-          <Text style={sc.hlSummary}>{metrics.summary}</Text>
+          <Text style={[sc.hlMetric, { color: c.primary }]}>{expectedLine(metrics)} · {favoriteText(m, metrics)}</Text>
+          <Text style={[sc.hlSummary, { color: c.textSub }]}>{metrics.summary}</Text>
         </>
       ) : (
-        <Text style={sc.hlSummary}>{metrics.summary}</Text>
+        <Text style={[sc.hlSummary, { color: c.textSub }]}>{metrics.summary}</Text>
       )}
     </TouchableOpacity>
   );
 }
 
 function DaySummaryCard({ summary }: { summary: string }) {
+  const { colors: c } = useTheme();
   return (
-    <View style={sc.daySummary}>
-      <Text style={sc.daySummaryTitle}>📊 BUGÜN NE BEKLENİYOR?</Text>
-      <Text style={sc.daySummaryText}>{summary}</Text>
+    <View style={[sc.daySummary, { backgroundColor: c.surface, borderColor: c.cardBorder }]}>
+      <Text style={[sc.daySummaryTitle, { color: c.primary }]}>📊 BUGÜN NE BEKLENİYOR?</Text>
+      <Text style={[sc.daySummaryText, { color: c.text }]}>{summary}</Text>
     </View>
   );
 }
 
 function MatchRow({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress: () => void }) {
+  const { colors: c } = useTheme();
   return (
-    <TouchableOpacity style={sc.matchCard} onPress={onPress} activeOpacity={0.8}>
+    <TouchableOpacity style={[sc.matchCard, { backgroundColor: c.surface, borderColor: c.border }]} onPress={onPress} activeOpacity={0.8}>
       <View style={sc.matchTop}>
-        <Text style={sc.matchLeague}>{m.league}</Text>
+        <Text style={[sc.matchLeague, { color: c.primary }]}>{m.league}</Text>
         {m.finished && m.score ? (
           <View style={sc.scoreRow}>
-            <Text style={sc.scoreText}>{m.score}</Text>
-            <Text style={sc.scoreMs}>MS</Text>
+            <Text style={[sc.scoreText, { color: c.text }]}>{m.score}</Text>
+            <Text style={[sc.scoreMs, { color: c.textFaint }]}>MS</Text>
           </View>
         ) : (
-          <Text style={sc.matchTime}>{m.time}</Text>
+          <Text style={[sc.matchTime, { color: c.textSub }]}>{m.time}</Text>
         )}
       </View>
       <View style={sc.matchTeams}>
-        <Text style={sc.matchTeam} numberOfLines={1}>{m.home}</Text>
-        <Text style={sc.matchSep}>—</Text>
-        <Text style={[sc.matchTeam, { textAlign: 'right' }]} numberOfLines={1}>{m.away}</Text>
+        <Text style={[sc.matchTeam, { color: c.text }]} numberOfLines={1}>{m.home}</Text>
+        <Text style={[sc.matchSep, { color: c.textVeryFaint }]}>—</Text>
+        <Text style={[sc.matchTeam, { color: c.text, textAlign: 'right' }]} numberOfLines={1}>{m.away}</Text>
       </View>
       {metrics.hasData ? (
-        <Text style={sc.matchMetricLine}>
+        <Text style={[sc.matchMetricLine, { color: c.primary }]}>
           {expectedLine(metrics)} · {favoriteText(m, metrics)}
         </Text>
       ) : (
-        <Text style={sc.matchMetricLineMuted}>{metrics.reason}</Text>
+        <Text style={[sc.matchMetricLineMuted, { color: c.textFaint }]}>{metrics.reason}</Text>
       )}
     </TouchableOpacity>
   );
@@ -406,6 +410,7 @@ function MatchRow({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { colors: c, isDark } = useTheme();
   const [activeFilter, setActiveFilter] = useState<string>('Scout');
   const [matches, setMatches]           = useState<Match[]>([]);
   const [standingsMap, setStandingsMap] = useState<Record<number, Standing[]>>({});
@@ -603,59 +608,61 @@ export default function HomeScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+    <View style={[styles.container, { backgroundColor: c.bg }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-      <View style={styles.topbar}>
+      <View style={[styles.topbar, { backgroundColor: c.surface }]}>
         <View style={styles.headerBrand}>
           <Image source={require('../assets/images/android-icon-foreground.png')} style={styles.headerLogo} />
           <Text style={styles.appName}><Text style={styles.appNameBlue}>Scout</Text>Football</Text>
         </View>
         <TouchableOpacity onPress={() => loadMatches(selectedDate)}>
-          <Text style={styles.refreshBtn}>↻ Güncelle</Text>
+          <Text style={[styles.refreshBtn, { color: c.primary }]}>↻ Güncelle</Text>
         </TouchableOpacity>
       </View>
 
       {/* Tarih şeridi */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateRow}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}
+        style={[styles.dateRow, { backgroundColor: c.surface, borderBottomColor: c.border }]}
         contentContainerStyle={{ paddingHorizontal: 14, paddingVertical: 8 }}>
         {dateList.map((date, i) => {
           const isSelected  = date.toDateString() === selectedDate.toDateString();
           const isTodayDate = isToday(date);
           return (
             <TouchableOpacity key={i}
-              style={[styles.datePill, isSelected && styles.datePillActive]}
+              style={[styles.datePill, { borderColor: c.border }, isSelected && styles.datePillActive]}
               onPress={() => setSelectedDate(date)}>
-              <Text style={[styles.dateDayName, isSelected && styles.dateDayNameActive]}>
+              <Text style={[styles.dateDayName, { color: c.textMuted }, isSelected && styles.dateDayNameActive]}>
                 {isTodayDate ? 'Bugün' : DAYS[date.getDay()]}
               </Text>
-              <Text style={[styles.dateNum, isSelected && styles.dateNumActive]}>{date.getDate()}</Text>
+              <Text style={[styles.dateNum, { color: c.text }, isSelected && styles.dateNumActive]}>{date.getDate()}</Text>
             </TouchableOpacity>
           );
         })}
       </ScrollView>
 
       {/* Filtre şeridi */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}
+        style={[styles.filterRow, { backgroundColor: c.surface, borderBottomColor: c.borderLight }]}
         contentContainerStyle={{ paddingHorizontal: 14, alignItems: 'center', gap: 8 }}>
         <TouchableOpacity
-          style={[styles.scoutPill, activeFilter === 'Scout' && styles.scoutPillActive]}
+          style={[styles.scoutPill, { borderColor: c.primary }, activeFilter === 'Scout' && styles.scoutPillActive]}
           onPress={() => setActiveFilter('Scout')}>
-          <Text style={[styles.scoutPillText, activeFilter === 'Scout' && styles.scoutPillTextActive]}>
+          <Text style={[styles.scoutPillText, { color: c.primary }, activeFilter === 'Scout' && styles.scoutPillTextActive]}>
             🔍 Scout
           </Text>
         </TouchableOpacity>
         {LIG_FILTERS.map(f => (
           <TouchableOpacity key={f.id}
-            style={[styles.filterPill, activeFilter === f.label && styles.filterPillActive]}
+            style={[styles.filterPill, { borderColor: c.border }, activeFilter === f.label && styles.filterPillActive]}
             onPress={() => setActiveFilter(f.label)}>
-            <Text style={[styles.filterText, activeFilter === f.label && styles.filterTextActive]}>{f.label}</Text>
+            <Text style={[styles.filterText, { color: c.textMuted }, activeFilter === f.label && styles.filterTextActive]}>{f.label}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color="#185FA5" />
+        <ActivityIndicator style={{ marginTop: 40 }} color={c.primary} />
       ) : (
         <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 24 }}>
 
@@ -666,7 +673,7 @@ export default function HomeScreen() {
               <>
                 {/* 1. Hero */}
                 <View style={sc.sectionHeader}>
-                  <Text style={sc.sectionTitle}>GÜNÜN MAÇI</Text>
+                  <Text style={[sc.sectionTitle, { color: c.textMuted }]}>GÜNÜN MAÇI</Text>
                 </View>
                 <View style={{ paddingHorizontal: 14, marginBottom: 4 }}>
                   <HeroCard m={hero} metrics={heroM} onPress={() => goToMatch(hero)} />
@@ -676,7 +683,7 @@ export default function HomeScreen() {
                 {highlights.length > 0 && (
                   <>
                     <View style={sc.sectionHeader}>
-                      <Text style={sc.sectionTitle}>GÜNÜN ÖNE ÇIKANLARI</Text>
+                      <Text style={[sc.sectionTitle, { color: c.textMuted }]}>GÜNÜN ÖNE ÇIKANLARI</Text>
                     </View>
                     {highlights.map((m, i) => {
                       const mm = metricsMap.get(m.id) ?? NO_DATA;
@@ -690,8 +697,8 @@ export default function HomeScreen() {
 
                 {/* 4. Tüm Maçlar */}
                 <View style={sc.sectionHeader}>
-                  <Text style={sc.sectionTitle}>TÜM MAÇLAR</Text>
-                  <Text style={sc.sectionSub}>Scout skoruna göre sıralandı</Text>
+                  <Text style={[sc.sectionTitle, { color: c.textMuted }]}>TÜM MAÇLAR</Text>
+                  <Text style={[sc.sectionSub, { color: c.textFaint }]}>Scout skoruna göre sıralandı</Text>
                 </View>
                 {sortedMatches.map(m => {
                   const mm = metricsMap.get(m.id) ?? NO_DATA;
@@ -704,13 +711,13 @@ export default function HomeScreen() {
           {/* ── LİG FİLTRESİ / BAŞKA GÜN ── */}
           {!isScoutMode && (
             sortedMatches.length === 0 ? (
-              <Text style={styles.emptyText}>
+              <Text style={[styles.emptyText, { color: c.textMuted }]}>
                 {activeFilter !== 'Scout' ? `${activeFilter} için maç bulunamadı` : 'Bu tarihte maç bulunamadı'}
               </Text>
             ) : (
               <>
                 <View style={sc.sectionHeader}>
-                  <Text style={sc.sectionTitle}>
+                  <Text style={[sc.sectionTitle, { color: c.textMuted }]}>
                     {activeFilter !== 'Scout'
                       ? `${activeFilter.toUpperCase()} MAÇLARI`
                       : `${selectedDate.getDate()} ${MONTHS[selectedDate.getMonth()]} MAÇLARI`}
@@ -727,18 +734,18 @@ export default function HomeScreen() {
         </ScrollView>
       )}
 
-      <View style={styles.tabBar}>
+      <View style={[styles.tabBar, { backgroundColor: c.surface, borderTopColor: c.border }]}>
         <TouchableOpacity style={styles.tab}>
-          <Text style={[styles.tabText, styles.tabActive]}>Maçlar</Text>
+          <Text style={[styles.tabText, styles.tabActive, { color: c.primary }]}>Maçlar</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tab} onPress={() => router.push('/leagues')}>
-          <Text style={styles.tabText}>Ligler</Text>
+          <Text style={[styles.tabText, { color: c.textMuted }]}>Ligler</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tab} onPress={() => router.push('/stats')}>
-          <Text style={styles.tabText}>İstatistik</Text>
+          <Text style={[styles.tabText, { color: c.textMuted }]}>İstatistik</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tab} onPress={() => router.push('/profile')}>
-          <Text style={styles.tabText}>Profil</Text>
+          <Text style={[styles.tabText, { color: c.textMuted }]}>Profil</Text>
         </TouchableOpacity>
       </View>
     </View>

@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 import { getSuperLigStandings, getStandings } from '../services/api';
 
 type Team = {
@@ -18,6 +19,7 @@ type Team = {
 
 export default function TeamDetailScreen() {
   const router = useRouter();
+  const { colors: c } = useTheme();
   const params = useLocalSearchParams();
   const leagueName = Array.isArray(params.leagueName) ? params.leagueName[0] : (params.leagueName || '');
   const leagueFlag = Array.isArray(params.leagueFlag) ? params.leagueFlag[0] : (params.leagueFlag || '');
@@ -44,21 +46,21 @@ export default function TeamDetailScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.topbar}>
+    <View style={[styles.container, { backgroundColor: c.bg }]}>
+      <View style={[styles.topbar, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backBtn}>‹ Geri</Text>
+          <Text style={[styles.backBtn, { color: c.primary }]}>‹ Geri</Text>
         </TouchableOpacity>
-        <Text style={styles.topbarTitle}>{leagueFlag} {leagueName}</Text>
+        <Text style={[styles.topbarTitle, { color: c.text }]}>{leagueFlag} {leagueName}</Text>
         <View style={{ width: 60 }} />
       </View>
 
-      <Text style={styles.sectionLabel}>TAKIMLAR — A'DAN Z'YE</Text>
+      <Text style={[styles.sectionLabel, { color: c.textMuted }]}>TAKIMLAR — A'DAN Z'YE</Text>
 
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color="#185FA5" />
+        <ActivityIndicator style={{ marginTop: 40 }} color={c.primary} />
       ) : teams.length === 0 ? (
-        <Text style={styles.emptyText}>Takım verisi bulunamadı.</Text>
+        <Text style={[styles.emptyText, { color: c.textMuted }]}>Takım verisi bulunamadı.</Text>
       ) : (
         <ScrollView style={styles.scroll}>
           {[...teams]
@@ -67,7 +69,7 @@ export default function TeamDetailScreen() {
             .map((team, i) => {
               const initials = team.team.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
               return (
-                <TouchableOpacity key={i} style={styles.teamItem}
+                <TouchableOpacity key={i} style={[styles.teamItem, { backgroundColor: c.surface, borderBottomColor: c.border }]}
                   onPress={() => router.push({
                     pathname: '/team_stats',
                     params: {
@@ -86,12 +88,12 @@ teamId: (team as any).teamId || team.id || 0,                      leagueName,
                       pts: team.pts,
                     },
                   })}>
-                  <View style={styles.teamInitial}>
-                    <Text style={styles.teamInitialText}>{initials}</Text>
+                  <View style={[styles.teamInitial, { backgroundColor: c.primaryLight }]}>
+                    <Text style={[styles.teamInitialText, { color: c.primary }]}>{initials}</Text>
                   </View>
-                  <Text style={styles.teamName}>{team.team}</Text>
-                  <Text style={styles.teamPts}>{team.pts} P</Text>
-                  <Text style={styles.arrow}>›</Text>
+                  <Text style={[styles.teamName, { color: c.text }]}>{team.team}</Text>
+                  <Text style={[styles.teamPts, { color: c.textMuted }]}>{team.pts} P</Text>
+                  <Text style={[styles.arrow, { color: c.textVeryFaint }]}>›</Text>
                 </TouchableOpacity>
               );
             })}
@@ -103,17 +105,17 @@ teamId: (team as any).teamId || team.id || 0,                      leagueName,
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  topbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingTop: 52, paddingBottom: 10, borderBottomWidth: 0.5, borderBottomColor: '#eee' },
-  backBtn: { fontSize: 16, color: '#185FA5', fontWeight: '500' },
-  topbarTitle: { fontSize: 14, fontWeight: '500', color: '#111' },
-  sectionLabel: { fontSize: 11, color: '#888', fontWeight: '500', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6, letterSpacing: 0.5 },
-  scroll: { flex: 1 },
-  emptyText: { textAlign: 'center', color: '#888', marginTop: 40, fontSize: 13 },
-  teamItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: '#eee', gap: 10 },
-  teamInitial: { width: 36, height: 36, borderRadius: 8, backgroundColor: '#E6F1FB', alignItems: 'center', justifyContent: 'center' },
-  teamInitialText: { fontSize: 13, fontWeight: '500', color: '#0C447C' },
-  teamName: { flex: 1, fontSize: 14, color: '#111' },
-  teamPts: { fontSize: 12, color: '#888' },
-  arrow: { fontSize: 18, color: '#ccc' },
+  container:        { flex: 1 },
+  topbar:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingTop: 52, paddingBottom: 10, borderBottomWidth: 0.5 },
+  backBtn:          { fontSize: 16, fontWeight: '500' },
+  topbarTitle:      { fontSize: 14, fontWeight: '500' },
+  sectionLabel:     { fontSize: 11, fontWeight: '500', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6, letterSpacing: 0.5 },
+  scroll:           { flex: 1 },
+  emptyText:        { textAlign: 'center', marginTop: 40, fontSize: 13 },
+  teamItem:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 0.5, gap: 10 },
+  teamInitial:      { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  teamInitialText:  { fontSize: 13, fontWeight: '500' },
+  teamName:         { flex: 1, fontSize: 14 },
+  teamPts:          { fontSize: 12 },
+  arrow:            { fontSize: 18 },
 });
