@@ -5,6 +5,7 @@ import {
   TouchableOpacity, View,
 } from 'react-native';
 import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-svg';
+import { useTheme } from '../context/ThemeContext';
 import { getH2H, getMatchStats, getOdds, getTeamForm, getWeather } from '../services/api';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -321,30 +322,35 @@ function buildMatchAnalysis(
 
 // ── Tag Color ──────────────────────────────────────────────────────────────
 
-function getTagColor(type: string, value: string): { bg: string; text: string } {
+function getTagColor(type: string, value: string, isDark: boolean): { bg: string; text: string } {
   if (type === 'stil') {
-    if (value === 'Hücumcu')   return { bg: '#FDE8E8', text: '#A32D2D' };
-    if (value === 'Savunmacı') return { bg: '#E8F8F0', text: '#27500A' };
-    return { bg: '#E6F1FB', text: '#185FA5' };
+    if (value === 'Hücumcu')   return { bg: isDark ? '#2C0A0A' : '#FDE8E8', text: isDark ? '#F85149' : '#A32D2D' };
+    if (value === 'Savunmacı') return { bg: isDark ? '#0D2010' : '#E8F8F0', text: isDark ? '#3FB950' : '#27500A' };
+    return { bg: isDark ? '#0A1929' : '#E6F1FB', text: isDark ? '#58A6FF' : '#185FA5' };
   }
   if (type === 'risk' || type === 'guven') {
-    if (value === 'Yüksek') return type === 'risk' ? { bg: '#FDE8E8', text: '#A32D2D' } : { bg: '#E8F8F0', text: '#27500A' };
-    if (value === 'Düşük')  return type === 'risk' ? { bg: '#E8F8F0', text: '#27500A' } : { bg: '#FDE8E8', text: '#A32D2D' };
-    return { bg: '#FFF8E1', text: '#7A5700' };
+    if (value === 'Yüksek') return type === 'risk'
+      ? { bg: isDark ? '#2C0A0A' : '#FDE8E8', text: isDark ? '#F85149' : '#A32D2D' }
+      : { bg: isDark ? '#0D2010' : '#E8F8F0', text: isDark ? '#3FB950' : '#27500A' };
+    if (value === 'Düşük')  return type === 'risk'
+      ? { bg: isDark ? '#0D2010' : '#E8F8F0', text: isDark ? '#3FB950' : '#27500A' }
+      : { bg: isDark ? '#2C0A0A' : '#FDE8E8', text: isDark ? '#F85149' : '#A32D2D' };
+    return { bg: isDark ? '#2A1F00' : '#FFF8E1', text: isDark ? '#E3B341' : '#7A5700' };
   }
   if (type === 'gol') {
-    if (value === 'Yüksek') return { bg: '#FDE8E8', text: '#A32D2D' };
-    if (value === 'Düşük')  return { bg: '#f0f0f0', text: '#555' };
-    return { bg: '#FFF8E1', text: '#7A5700' };
+    if (value === 'Yüksek') return { bg: isDark ? '#2C0A0A' : '#FDE8E8', text: isDark ? '#F85149' : '#A32D2D' };
+    if (value === 'Düşük')  return { bg: isDark ? '#21262D' : '#f0f0f0', text: isDark ? '#8B949E' : '#555' };
+    return { bg: isDark ? '#2A1F00' : '#FFF8E1', text: isDark ? '#E3B341' : '#7A5700' };
   }
   // tempo
-  if (value === 'Yüksek') return { bg: '#FFF8E1', text: '#7A5700' };
-  if (value === 'Düşük')  return { bg: '#f0f0f0', text: '#555' };
-  return { bg: '#E6F1FB', text: '#185FA5' };
+  if (value === 'Yüksek') return { bg: isDark ? '#2A1F00' : '#FFF8E1', text: isDark ? '#E3B341' : '#7A5700' };
+  if (value === 'Düşük')  return { bg: isDark ? '#21262D' : '#f0f0f0', text: isDark ? '#8B949E' : '#555' };
+  return { bg: isDark ? '#0A1929' : '#E6F1FB', text: isDark ? '#58A6FF' : '#185FA5' };
 }
 
 function TagPill({ label, type, value }: { label: string; type: string; value: string }) {
-  const { bg, text } = getTagColor(type, value);
+  const { isDark } = useTheme();
+  const { bg, text } = getTagColor(type, value, isDark);
   return (
     <View style={{ backgroundColor: bg, paddingHorizontal: 11, paddingVertical: 5, borderRadius: 20, marginRight: 6 }}>
       <Text style={{ fontSize: 11, fontWeight: '600', color: text }}>{label}</Text>
@@ -571,6 +577,7 @@ function ShotGauge({shotsOn,shotsTotal}:{shotsOn:number;shotsTotal:number}){
 
 const NEON='#00E676';
 function RadarChart({homeVals,awayVals,labels}:{homeVals:number[];awayVals:number[];labels:string[]}){
+  const { colors: rc, isDark: rDark } = useTheme();
   const SIZE=240,cx=SIZE/2,cy=SIZE/2+4,maxR=80,n=labels.length;
   const toRad=(deg:number)=>deg*(Math.PI/180);
   const angles=Array.from({length:n},(_,i)=>toRad(-90+(360/n)*i));
@@ -580,20 +587,23 @@ function RadarChart({homeVals,awayVals,labels}:{homeVals:number[];awayVals:numbe
   const hSum=homeVals.reduce((s,v)=>s+v,0);
   const aSum=awayVals.reduce((s,v)=>s+v,0);
   const hLeads=hSum>=aSum;
-  const hS=hLeads?NEON:'#185FA5',aS=!hLeads?NEON:'#A32D2D';
-  const hF=hLeads?'rgba(0,230,118,0.18)':'rgba(24,95,165,0.12)';
-  const aF=!hLeads?'rgba(0,230,118,0.18)':'rgba(163,45,45,0.12)';
+  const hS=hLeads?NEON:rc.primary;
+  const aS=!hLeads?NEON:rc.loss;
+  const hF=hLeads?'rgba(0,230,118,0.18)':rDark?'rgba(88,166,255,0.12)':'rgba(24,95,165,0.12)';
+  const aF=!hLeads?'rgba(0,230,118,0.18)':rDark?'rgba(248,81,73,0.12)':'rgba(163,45,45,0.12)';
+  const gridStroke=rDark?'#30363D':'#eee';
+  const labelFill=rDark?'#8B949E':'#444';
   return (
     <Svg width={SIZE} height={SIZE}>
       {rings.map(r=>(
-        <Polygon key={r} points={angles.map(a=>{const p=pt(a,r*maxR);return`${p.x},${p.y}`;}).join(' ')} fill="none" stroke="#eee" strokeWidth={1}/>
+        <Polygon key={r} points={angles.map(a=>{const p=pt(a,r*maxR);return`${p.x},${p.y}`;}).join(' ')} fill="none" stroke={gridStroke} strokeWidth={1}/>
       ))}
-      {angles.map((a,i)=>{const tip=pt(a,maxR);return<Line key={i} x1={cx} y1={cy} x2={tip.x} y2={tip.y} stroke="#eee" strokeWidth={1}/>;  })}
+      {angles.map((a,i)=>{const tip=pt(a,maxR);return<Line key={i} x1={cx} y1={cy} x2={tip.x} y2={tip.y} stroke={gridStroke} strokeWidth={1}/>;  })}
       <Path d={toPath(awayVals)} fill={aF} stroke={aS} strokeWidth={hLeads?1.5:2.5}/>
       <Path d={toPath(homeVals)} fill={hF} stroke={hS} strokeWidth={hLeads?2.5:1.5}/>
       {angles.map((a,i)=>{
         const tip=pt(a,maxR+24);
-        return<SvgText key={i} x={tip.x} y={tip.y} textAnchor="middle" fontSize={11} fontWeight="600" fill="#444">{labels[i]}</SvgText>;
+        return<SvgText key={i} x={tip.x} y={tip.y} textAnchor="middle" fontSize={11} fontWeight="600" fill={labelFill}>{labels[i]}</SvgText>;
       })}
       {homeVals.map((v,i)=>{const{x,y}=pt(angles[i],Math.min(Math.max(v,0),1)*maxR);return<Circle key={i} cx={x} cy={y} r={3.5} fill={hS}/>;  })}
       {awayVals.map((v,i)=>{const{x,y}=pt(angles[i],Math.min(Math.max(v,0),1)*maxR);return<Circle key={i} cx={x} cy={y} r={3.5} fill={aS}/>;  })}
@@ -602,18 +612,19 @@ function RadarChart({homeVals,awayVals,labels}:{homeVals:number[];awayVals:numbe
 }
 
 function FormHeatRow({matches,teamId,label}:{matches:any[];teamId:number;label:string}){
+  const { colors: fc, isDark: fDark } = useTheme();
   const last5=matches.filter((m:any)=>m.score?.fullTime?.home!=null).slice(-5);
   if(last5.length===0) return null;
   return (
     <View style={fStyles.row}>
-      <Text style={fStyles.label} numberOfLines={1}>{label}</Text>
+      <Text style={[fStyles.label,{color:fc.textSub}]} numberOfLines={1}>{label}</Text>
       <View style={fStyles.badges}>
         {last5.map((m:any,i:number)=>{
           const isHome=m.homeTeam?.id===teamId;
           const gf=isHome?m.score.fullTime.home:m.score.fullTime.away;
           const ga=isHome?m.score.fullTime.away:m.score.fullTime.home;
           const result=gf>ga?'G':gf===ga?'B':'M';
-          const bg=result==='G'?'#2E7D32':result==='B'?'#888':'#C62828';
+          const bg=result==='G'?fc.win:result==='B'?fc.draw:fc.loss;
           return(
             <View key={i} style={[fStyles.badge,{backgroundColor:bg}]}>
               <Text style={fStyles.badgeText}>{result}</Text>
@@ -628,7 +639,7 @@ function FormHeatRow({matches,teamId,label}:{matches:any[];teamId:number;label:s
 
 const fStyles=StyleSheet.create({
   row:{flexDirection:'row',alignItems:'center',paddingHorizontal:14,paddingVertical:6,gap:10},
-  label:{width:90,fontSize:11,color:'#555',fontWeight:'500'},
+  label:{width:90,fontSize:11,fontWeight:'500'},
   badges:{flexDirection:'row',gap:5},
   badge:{width:32,height:36,borderRadius:6,alignItems:'center',justifyContent:'center'},
   badgeText:{fontSize:11,fontWeight:'700',color:'#fff'},
@@ -636,27 +647,29 @@ const fStyles=StyleSheet.create({
 });
 
 function CompareRow({label,homeVal,awayVal,higherIsBetter=true}:{label:string;homeVal:number|string;awayVal:number|string;higherIsBetter?:boolean}){
+  const { colors: cc } = useTheme();
   const h=parseFloat(String(homeVal)),a=parseFloat(String(awayVal));
   const hW=higherIsBetter?h>a:h<a, aW=higherIsBetter?a>h:a<h;
   return(
-    <View style={cStyles.row}>
-      <Text style={[cStyles.val,hW&&cStyles.winner]}>{homeVal}</Text>
-      <Text style={cStyles.lbl}>{label}</Text>
-      <Text style={[cStyles.val,aW&&cStyles.winnerAway]}>{awayVal}</Text>
+    <View style={[cStyles.row,{borderBottomColor:cc.borderLight}]}>
+      <Text style={[cStyles.val,{color:cc.textMuted},hW&&{color:cc.primary,fontWeight:'700',fontSize:16}]}>{homeVal}</Text>
+      <Text style={[cStyles.lbl,{color:cc.textMuted}]}>{label}</Text>
+      <Text style={[cStyles.val,{color:cc.textMuted},aW&&{color:cc.loss,fontWeight:'700',fontSize:16}]}>{awayVal}</Text>
     </View>
   );
 }
 const cStyles=StyleSheet.create({
-  row:{flexDirection:'row',alignItems:'center',paddingHorizontal:14,paddingVertical:9,borderBottomWidth:0.5,borderBottomColor:'#f0f0f0'},
-  val:{width:56,fontSize:14,color:'#888',textAlign:'center'},
-  lbl:{flex:1,fontSize:11,color:'#888',textAlign:'center'},
-  winner:{color:'#185FA5',fontWeight:'700',fontSize:16},
-  winnerAway:{color:'#A32D2D',fontWeight:'700',fontSize:16},
+  row:{flexDirection:'row',alignItems:'center',paddingHorizontal:14,paddingVertical:9,borderBottomWidth:0.5},
+  val:{width:56,fontSize:14,textAlign:'center'},
+  lbl:{flex:1,fontSize:11,textAlign:'center'},
+  winner:{fontWeight:'700',fontSize:16},
+  winnerAway:{fontWeight:'700',fontSize:16},
 });
 
 // ── Main Screen ────────────────────────────────────────────────────────────
 
 export default function MatchDetail() {
+  const { colors: c, isDark } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams();
   const [matchData,  setMatchData]  = useState<any>(null);
@@ -756,56 +769,63 @@ export default function MatchDetail() {
   const h2hComment    = getH2HComment(h2hData,home,away);
   const oddsComment   = getOddsComment(oddsData,home,analysis);
 
-  if (loading) return <View style={styles.loaderContainer}><ActivityIndicator size="large" color="#185FA5"/></View>;
+  if (loading) return <View style={[styles.loaderContainer,{backgroundColor:c.bg}]}><ActivityIndicator size="large" color={c.primary}/></View>;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container,{backgroundColor:c.bg}]}>
 
       {/* ── Topbar ── */}
-      <View style={styles.topbar}>
-        <TouchableOpacity onPress={()=>router.back()}><Text style={styles.backBtn}>‹ Geri</Text></TouchableOpacity>
+      <View style={[styles.topbar,{backgroundColor:c.surface,borderBottomColor:c.border}]}>
+        <TouchableOpacity onPress={()=>router.back()}><Text style={[styles.backBtn,{color:c.primary}]}>‹ Geri</Text></TouchableOpacity>
         <View style={{alignItems:'center'}}>
-          <Text style={styles.topbarTitle} numberOfLines={1}>{home} - {away}</Text>
-          <Text style={styles.topbarSub}>{league}</Text>
+          <Text style={[styles.topbarTitle,{color:c.text}]} numberOfLines={1}>{home} - {away}</Text>
+          <Text style={[styles.topbarSub,{color:c.textMuted}]}>{league}</Text>
         </View>
         <View style={{width:60}}/>
       </View>
 
       {/* ── Hero ── */}
-      <View style={styles.hero}>
+      <View style={[styles.hero,{backgroundColor:c.surface,borderBottomColor:c.border}]}>
         <View style={styles.teamsRow}>
-          <Text style={styles.teamNameLeft}  numberOfLines={1}>{home}</Text>
+          <Text style={[styles.teamNameLeft,{color:c.text}]} numberOfLines={1}>{home}</Text>
           <View style={styles.vsBlock}>
             {hasScore ? (
               <>
-                <Text style={styles.vsScore}>{displayHome} : {displayAway}</Text>
-                {isFinished&&<Text style={styles.vsStatusLabel}>MS</Text>}
-                {isLive&&<Text style={[styles.vsStatusLabel,{color:'#A32D2D'}]}>CANLI</Text>}
+                <Text style={[styles.vsScore,{color:c.text}]}>{displayHome} : {displayAway}</Text>
+                {isFinished&&<Text style={[styles.vsStatusLabel,{color:c.textMuted}]}>MS</Text>}
+                {isLive&&<Text style={[styles.vsStatusLabel,{color:c.loss}]}>CANLI</Text>}
               </>
             ) : (
-              <Text style={styles.vsTime}>{matchTime}</Text>
+              <Text style={[styles.vsTime,{color:c.text}]}>{matchTime}</Text>
             )}
-            <Text style={styles.vsLabel}>{matchDate}</Text>
+            <Text style={[styles.vsLabel,{color:c.textMuted}]}>{matchDate}</Text>
           </View>
-          <Text style={styles.teamNameRight} numberOfLines={1}>{away}</Text>
+          <Text style={[styles.teamNameRight,{color:c.text}]} numberOfLines={1}>{away}</Text>
         </View>
         <View style={styles.heroBadgeRow}>
-          <View style={styles.badgeLiga}><Text style={styles.badgeLigaText}>{league}</Text></View>
-          <View style={[styles.confidenceBadge,{backgroundColor:analysis.badgeBg}]}>
+          <View style={[styles.badgeLiga,{backgroundColor:c.primaryLight}]}><Text style={[styles.badgeLigaText,{color:c.primaryDark}]}>{league}</Text></View>
+          <View style={[styles.confidenceBadge,{backgroundColor:
+            analysis.badgeLabel.includes('Favori')
+              ? (isDark ? '#0D2010' : '#E8F8F0')
+              : analysis.badgeLabel.includes('Riskli')
+                ? (isDark ? '#2C0A0A' : '#FDE8E8')
+                : (isDark ? '#2A1F00' : '#FFF8E1')
+          }]}>
             <Text style={[styles.confidenceBadgeText,{color:analysis.badgeColor}]}>{analysis.badgeLabel}</Text>
           </View>
         </View>
       </View>
 
       {/* ── Scout Özeti ── */}
-      <View style={scStyles.card}>
+      <View style={[scStyles.card,{backgroundColor:isDark?'#1A1228':'#f4f0ff',borderBottomColor:isDark?'#2D2040':'#ddd6ff'}]}>
         <View style={scStyles.headerRow}>
-          <Text style={scStyles.headerLabel}>🧠 SCOUT ÖZETİ</Text>
-          <View style={[scStyles.guvenPill,
-            analysis.guven==='Yüksek'?{backgroundColor:'#E8F8F0'}:
-            analysis.guven==='Düşük'?{backgroundColor:'#FDE8E8'}:{backgroundColor:'#FFF8E1'}]}>
+          <Text style={[scStyles.headerLabel,{color:isDark?'#C19BFF':'#5b2d8e'}]}>🧠 SCOUT ÖZETİ</Text>
+          <View style={[scStyles.guvenPill,{backgroundColor:
+            analysis.guven==='Yüksek' ? (isDark?'#0D2010':'#E8F8F0') :
+            analysis.guven==='Düşük'  ? (isDark?'#2C0A0A':'#FDE8E8') :
+            (isDark?'#2A1F00':'#FFF8E1')}]}>
             <Text style={[scStyles.guvenText,
-              {color:analysis.guven==='Yüksek'?'#1B6B3A':analysis.guven==='Düşük'?'#A32D2D':'#7A5700'}]}>
+              {color:analysis.guven==='Yüksek'?(isDark?'#3FB950':'#1B6B3A'):analysis.guven==='Düşük'?(isDark?'#F85149':'#A32D2D'):(isDark?'#E3B341':'#7A5700')}]}>
               {analysis.guven==='Yüksek'?'✅':analysis.guven==='Düşük'?'⚠️':'⚡'} Güven: {analysis.guven}
             </Text>
           </View>
@@ -814,26 +834,26 @@ export default function MatchDetail() {
         <View style={scStyles.metricsRow}>
           {(['stil','gol','tempo','risk'] as const).map(key=>{
             const val = analysis[key] as string;
-            const {bg,text}=getTagColor(key,val);
+            const {bg,text}=getTagColor(key,val,isDark);
             const label = key==='stil'?'Stil':key==='gol'?'Gol':key==='tempo'?'Tempo':'Risk';
             return(
               <View key={key} style={[scStyles.metricItem,{backgroundColor:bg}]}>
-                <Text style={scStyles.metricLabel}>{label}</Text>
+                <Text style={[scStyles.metricLabel,{color:c.textMuted}]}>{label}</Text>
                 <Text style={[scStyles.metricVal,{color:text}]}>{val}</Text>
               </View>
             );
           })}
         </View>
 
-        <Text style={scStyles.mediumText}>{analysis.medium}</Text>
+        <Text style={[scStyles.mediumText,{color:c.textSub}]}>{analysis.medium}</Text>
 
         <TouchableOpacity onPress={()=>setShowNeden(v=>!v)} style={scStyles.nedenBtn}>
-          <Text style={scStyles.nedenBtnText}>{showNeden?'▲ Kapat':'▼ Neden? — Gerekçeleri göster'}</Text>
+          <Text style={[scStyles.nedenBtnText,{color:isDark?'#C19BFF':'#5b2d8e'}]}>{showNeden?'▲ Kapat':'▼ Neden? — Gerekçeleri göster'}</Text>
         </TouchableOpacity>
         {showNeden && (
-          <View style={scStyles.nedenBox}>
+          <View style={[scStyles.nedenBox,{borderTopColor:isDark?'#2D2040':'#ddd6ff'}]}>
             {analysis.reasons.map((r,i)=>(
-              <Text key={i} style={scStyles.nedenBullet}>• {r}</Text>
+              <Text key={i} style={[scStyles.nedenBullet,{color:c.textSub}]}>• {r}</Text>
             ))}
           </View>
         )}
@@ -841,7 +861,7 @@ export default function MatchDetail() {
 
       {/* ── Hızlı Etiketler ── */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false}
-        style={styles.tagsBar} contentContainerStyle={styles.tagsBarContent}>
+        style={[styles.tagsBar,{borderBottomColor:c.border,backgroundColor:c.surface}]} contentContainerStyle={styles.tagsBarContent}>
         <TagPill type="stil"  value={analysis.stil}  label={`Stil: ${analysis.stil}`}/>
         <TagPill type="gol"   value={analysis.gol}   label={`Gol: ${analysis.gol}`}/>
         <TagPill type="tempo" value={analysis.tempo}  label={`Tempo: ${analysis.tempo}`}/>
@@ -851,7 +871,7 @@ export default function MatchDetail() {
       </ScrollView>
 
       {/* ── Main Scroll ── */}
-      <ScrollView style={styles.scroll}>
+      <ScrollView style={[styles.scroll,{backgroundColor:c.bg}]}>
 
         {/* Canlı / Biten Maç İstatistikleri */}
         {matchData?.statistics?.length>0 && (() => {
@@ -868,10 +888,10 @@ export default function MatchDetail() {
           const slbl=sr>0.83?'Çok Sert Maç':sr>0.66?'Gergin Atmosfer':sr>0.5?'Hareketli Maç':sr>0.33?'Normal Atmosfer':'Sakin Maç';
           return (
             <>
-              <Text style={styles.sectionLabel}>MAÇ İSTATİSTİKLERİ</Text>
+              <Text style={[styles.sectionLabel,{color:c.textMuted}]}>MAÇ İSTATİSTİKLERİ</Text>
               <View style={styles.statLegend}>
-                <Text style={styles.legendHome}>{home}</Text>
-                <Text style={styles.legendAway}>{away}</Text>
+                <Text style={[styles.legendHome,{color:c.primary}]}>{home}</Text>
+                <Text style={[styles.legendAway,{color:c.loss}]}>{away}</Text>
               </View>
               {matchData.statistics[0]?.statistics?.map((stat:any,i:number)=>{
                 const hv=parseInt(stat.value)||0;
@@ -879,38 +899,38 @@ export default function MatchDetail() {
                 const tot=hv+av, hp=tot>0?(hv/tot)*100:50;
                 return(
                   <View key={i} style={styles.statRow}>
-                    <Text style={styles.statVal}>{stat.value}</Text>
-                    <View style={styles.barWrap}><View style={[styles.barHome,{width:`${hp}%`}]}/></View>
-                    <Text style={styles.statName}>{stat.type}</Text>
-                    <View style={styles.barWrap}><View style={[styles.barAway,{width:`${100-hp}%`}]}/></View>
-                    <Text style={styles.statVal}>{matchData.statistics[1]?.statistics?.[i]?.value??'-'}</Text>
+                    <Text style={[styles.statVal,{color:c.text}]}>{stat.value}</Text>
+                    <View style={[styles.barWrap,{backgroundColor:c.border}]}><View style={[styles.barHome,{width:`${hp}%`,backgroundColor:c.primary}]}/></View>
+                    <Text style={[styles.statName,{color:c.textMuted}]}>{stat.type}</Text>
+                    <View style={[styles.barWrap,{backgroundColor:c.border}]}><View style={[styles.barAway,{width:`${100-hp}%`,backgroundColor:c.loss}]}/></View>
+                    <Text style={[styles.statVal,{color:c.text}]}>{matchData.statistics[1]?.statistics?.[i]?.value??'-'}</Text>
                   </View>
                 );
               })}
               {(hTot>0||aTot>0)&&(
                 <>
-                  <Text style={styles.sectionLabel}>BİTİRİCİLİK (İSABETLİ ŞUT ORANI)</Text>
+                  <Text style={[styles.sectionLabel,{color:c.textMuted}]}>BİTİRİCİLİK (İSABETLİ ŞUT ORANI)</Text>
                   <View style={{flexDirection:'row',paddingHorizontal:8,marginBottom:4}}>
                     <View style={{flex:1,alignItems:'center'}}>
                       <ShotGauge shotsOn={hOn} shotsTotal={hTot}/>
-                      <Text style={{fontSize:11,color:'#185FA5',fontWeight:'500',marginTop:2}} numberOfLines={1}>{home}</Text>
+                      <Text style={{fontSize:11,color:c.primary,fontWeight:'500',marginTop:2}} numberOfLines={1}>{home}</Text>
                     </View>
                     <View style={{flex:1,alignItems:'center'}}>
                       <ShotGauge shotsOn={aOn} shotsTotal={aTot}/>
-                      <Text style={{fontSize:11,color:'#A32D2D',fontWeight:'500',marginTop:2}} numberOfLines={1}>{away}</Text>
+                      <Text style={{fontSize:11,color:c.loss,fontWeight:'500',marginTop:2}} numberOfLines={1}>{away}</Text>
                     </View>
                   </View>
                 </>
               )}
               {fouls>0&&(
                 <>
-                  <Text style={styles.sectionLabel}>MAÇIN SERTLİK SEVİYESİ</Text>
+                  <Text style={[styles.sectionLabel,{color:c.textMuted}]}>MAÇIN SERTLİK SEVİYESİ</Text>
                   <View style={{marginHorizontal:14,marginBottom:12}}>
                     <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
                       <Text style={{fontSize:13,fontWeight:'600',color:sc}}>🌡️ {slbl}</Text>
-                      <Text style={{fontSize:10,color:'#888'}}>{fouls} faul · {yellows} sarı{reds>0?` · ${reds} 🔴`:''}</Text>
+                      <Text style={{fontSize:10,color:c.textMuted}}>{fouls} faul · {yellows} sarı{reds>0?` · ${reds} 🔴`:''}</Text>
                     </View>
-                    <View style={{height:16,backgroundColor:'#f0f0f0',borderRadius:8,overflow:'hidden'}}>
+                    <View style={{height:16,backgroundColor:c.border,borderRadius:8,overflow:'hidden'}}>
                       <View style={{width:`${sr*100}%`,height:'100%',backgroundColor:sc,borderRadius:8}}/>
                     </View>
                   </View>

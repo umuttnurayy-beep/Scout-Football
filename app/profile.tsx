@@ -10,6 +10,7 @@ import {
   DEFAULT_PREFS, NotifPrefs, cancelAllNotifications,
   loadNotifPrefs, requestPermissions, resetScheduleDate, saveNotifPrefs,
 } from '../services/notifications';
+import { useTheme } from '../context/ThemeContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -193,6 +194,7 @@ function timeAgo(ts: number): string {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { colors: c, isDark, mode, setMode } = useTheme();
 
   const [scoutName, setScoutName] = useState('');
   const [editingName, setEditingName] = useState(false);
@@ -469,19 +471,20 @@ export default function ProfileScreen() {
   function renderTeamPicker() {
     return (
       <Modal visible={teamPickerVisible} animationType="slide" onRequestClose={() => { setTeamPickerVisible(false); setTeamSearch(''); }}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
+        <View style={[styles.modalContainer, { backgroundColor: c.surface }]}>
+          <View style={[styles.modalHeader, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
+            <Text style={[styles.modalTitle, { color: c.text }]}>
               {teamPickerMode === 'fav' ? 'Favori Takım Seç' : 'Takip Listesine Ekle'}
             </Text>
             <TouchableOpacity onPress={() => { setTeamPickerVisible(false); setTeamSearch(''); }}>
-              <Text style={styles.modalClose}>Kapat</Text>
+              <Text style={[styles.modalClose, { color: c.primary }]}>Kapat</Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.searchBox}>
+          <View style={[styles.searchBox, { borderBottomColor: c.borderLight }]}>
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { backgroundColor: c.surfaceAlt, color: c.text }]}
               placeholder="Takım ara..."
+              placeholderTextColor={c.textMuted}
               value={teamSearch}
               onChangeText={setTeamSearch}
               autoCorrect={false}
@@ -490,15 +493,15 @@ export default function ProfileScreen() {
           <ScrollView keyboardShouldPersistTaps="handled">
             {filteredLeagues.map(lg => (
               <View key={lg.leagueName}>
-                <View style={styles.pickerLeagueHeader}>
-                  <Text style={styles.pickerLeagueTitle}>{lg.flag} {lg.leagueName}</Text>
+                <View style={[styles.pickerLeagueHeader, { backgroundColor: c.surfaceAlt, borderBottomColor: c.border }]}>
+                  <Text style={[styles.pickerLeagueTitle, { color: c.textMuted }]}>{lg.flag} {lg.leagueName}</Text>
                 </View>
                 {lg.teams.map(t => (
-                  <TouchableOpacity key={t.name} style={styles.pickerTeamRow}
+                  <TouchableOpacity key={t.name} style={[styles.pickerTeamRow, { borderBottomColor: c.borderLight }]}
                     onPress={() => selectTeam(lg.flag, lg.leagueName, lg.apiId, t.name, t.teamId)}>
                     <View style={[styles.pickerTeamDot, { backgroundColor: getTeamColors(t.name).p }]} />
-                    <Text style={styles.pickerTeamName}>{t.name}</Text>
-                    <Text style={styles.pickerArrow}>›</Text>
+                    <Text style={[styles.pickerTeamName, { color: c.text }]}>{t.name}</Text>
+                    <Text style={[styles.pickerArrow, { color: c.textVeryFaint }]}>›</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -516,8 +519,8 @@ export default function ProfileScreen() {
     return (
       <Modal visible={avatarPickerVisible} animationType="fade" transparent onRequestClose={() => setAvatarPickerVisible(false)}>
         <View style={styles.avatarModalOverlay}>
-          <View style={styles.avatarModalBox}>
-            <Text style={styles.avatarModalTitle}>Renk Seç</Text>
+          <View style={[styles.avatarModalBox, { backgroundColor: c.surface }]}>
+            <Text style={[styles.avatarModalTitle, { color: c.text }]}>Renk Seç</Text>
             <View style={styles.avatarGrid}>
               {AVATAR_COLORS.map((color, i) => (
                 <TouchableOpacity key={i} style={[styles.avatarOption, { backgroundColor: color },
@@ -532,7 +535,7 @@ export default function ProfileScreen() {
               ))}
             </View>
             <TouchableOpacity style={styles.avatarModalCancel} onPress={() => setAvatarPickerVisible(false)}>
-              <Text style={styles.avatarModalCancelText}>Vazgeç</Text>
+              <Text style={[styles.avatarModalCancelText, { color: c.textMuted }]}>Vazgeç</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -547,24 +550,24 @@ export default function ProfileScreen() {
   const favColors = favTeam ? getTeamColors(favTeam.name) : { p: '#185FA5', s: '#0C447C' };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: c.bg }]}>
       {renderTeamPicker()}
       {renderAvatarPicker()}
 
       {/* Top Bar */}
-      <View style={styles.topbar}>
+      <View style={[styles.topbar, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
         <View style={styles.headerBrand}>
           <Image source={require('../assets/images/android-icon-foreground.png')} style={styles.headerLogo} />
           <Text style={styles.appName}><Text style={styles.appNameBlue}>Scout</Text>Football</Text>
         </View>
-        <Text style={styles.topbarTitle}>Scout Rozeti</Text>
+        <Text style={[styles.topbarTitle, { color: c.text }]}>Scout Rozeti</Text>
         <View style={{ width: 60 }} />
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
 
         {/* ── Scout Kimlik Kartı ── */}
-        <View style={styles.identityCard}>
+        <View style={[styles.identityCard, { backgroundColor: c.surface }]}>
           <TouchableOpacity style={[styles.avatar, { backgroundColor: avatarColor }]}
             onPress={() => setAvatarPickerVisible(true)}>
             <Text style={styles.avatarText}>{avatarLabel}</Text>
@@ -573,21 +576,22 @@ export default function ProfileScreen() {
             {editingName ? (
               <View style={styles.nameEditRow}>
                 <TextInput
-                  style={styles.nameInput}
+                  style={[styles.nameInput, { color: c.text, borderBottomColor: c.primary }]}
                   value={nameInput}
                   onChangeText={setNameInput}
                   placeholder="Scout adın..."
+                  placeholderTextColor={c.textMuted}
                   autoFocus
                   onSubmitEditing={saveName}
                 />
-                <TouchableOpacity style={styles.saveBtn} onPress={saveName}>
+                <TouchableOpacity style={[styles.saveBtn, { backgroundColor: c.primary }]} onPress={saveName}>
                   <Text style={styles.saveBtnText}>Kaydet</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <TouchableOpacity onPress={() => { setNameInput(scoutName); setEditingName(true); }}>
-                <Text style={styles.scoutName}>{scoutName || 'Adın ne olsun?'}</Text>
-                <Text style={styles.scoutNameHint}>Düzenlemek için dokun</Text>
+                <Text style={[styles.scoutName, { color: c.text }]}>{scoutName || 'Adın ne olsun?'}</Text>
+                <Text style={[styles.scoutNameHint, { color: c.textFaint }]}>Düzenlemek için dokun</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -595,10 +599,10 @@ export default function ProfileScreen() {
 
         {/* ── Favori Takım ── */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionLabel}>FAVORİ TAKIM</Text>
+          <Text style={[styles.sectionLabel, { color: c.textMuted }]}>FAVORİ TAKIM</Text>
           {favTeam && (
             <TouchableOpacity onPress={removeFavTeam}>
-              <Text style={styles.sectionAction}>Kaldır</Text>
+              <Text style={[styles.sectionAction, { color: c.primary }]}>Kaldır</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -645,7 +649,7 @@ export default function ProfileScreen() {
                         {favForm.length > 0
                           ? favForm.map((r, i) => (
                             <View key={i} style={[styles.formDot,
-                              r === 'G' ? styles.formWin : r === 'B' ? styles.formDraw : styles.formLoss]}>
+                              r === 'G' ? { backgroundColor: c.win } : r === 'B' ? { backgroundColor: c.draw } : { backgroundColor: c.loss }]}>
                               <Text style={styles.formDotText}>{r}</Text>
                             </View>
                           ))
@@ -660,41 +664,41 @@ export default function ProfileScreen() {
             </View>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity style={styles.addTeamBtn}
+          <TouchableOpacity style={[styles.addTeamBtn, { borderColor: c.primary }]}
             onPress={() => { setTeamPickerMode('fav'); setTeamPickerVisible(true); }}>
-            <Text style={styles.addTeamBtnIcon}>+</Text>
-            <Text style={styles.addTeamBtnText}>Favori takımını seç</Text>
+            <Text style={[styles.addTeamBtnIcon, { color: c.primary }]}>+</Text>
+            <Text style={[styles.addTeamBtnText, { color: c.primary }]}>Favori takımını seç</Text>
           </TouchableOpacity>
         )}
 
         {/* ── Takip Listesi ── */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionLabel}>TAKİP LİSTESİ</Text>
+          <Text style={[styles.sectionLabel, { color: c.textMuted }]}>TAKİP LİSTESİ</Text>
           <TouchableOpacity onPress={() => { setTeamPickerMode('watchlist'); setTeamPickerVisible(true); }}>
-            <Text style={styles.sectionAction}>+ Ekle</Text>
+            <Text style={[styles.sectionAction, { color: c.primary }]}>+ Ekle</Text>
           </TouchableOpacity>
         </View>
 
         {watchlist.length === 0 ? (
-          <Text style={styles.emptyHint}>İzlemek istediğin takımları buraya ekle.</Text>
+          <Text style={[styles.emptyHint, { color: c.textFaint }]}>İzlemek istediğin takımları buraya ekle.</Text>
         ) : (
           watchlist.map((team) => {
             const wColors = getTeamColors(team.name);
             const wForm = watchlistForms[team.teamId] || [];
             const wStats = watchlistStats[team.name];
             return (
-              <TouchableOpacity key={team.name} style={styles.watchlistItem}
+              <TouchableOpacity key={team.name} style={[styles.watchlistItem, { backgroundColor: c.surface, borderBottomColor: c.borderLight }]}
                 onPress={() => router.push({ pathname: '/team_stats', params: { teamName: team.name, teamId: team.teamId, leagueName: team.leagueName, leagueFlag: team.leagueFlag, apiId: team.apiId, fdId: 0, pos: wStats?.pos ?? 0, played: wStats?.played ?? 0, win: wStats?.win ?? 0, draw: wStats?.draw ?? 0, loss: wStats?.loss ?? 0, gf: wStats?.gf ?? 0, ga: wStats?.ga ?? 0, pts: wStats?.pts ?? 0 } })}>
                 <View style={[styles.watchlistDot, { backgroundColor: wColors.p }]} />
                 <View style={styles.watchlistInfo}>
-                  <Text style={styles.watchlistName}>{team.name}</Text>
-                  <Text style={styles.watchlistLeague}>{team.leagueFlag} {team.leagueName}</Text>
+                  <Text style={[styles.watchlistName, { color: c.text }]}>{team.name}</Text>
+                  <Text style={[styles.watchlistLeague, { color: c.textMuted }]}>{team.leagueFlag} {team.leagueName}</Text>
                 </View>
                 {wForm.length > 0 && (
                   <View style={styles.watchlistForm}>
                     {wForm.map((r, i) => (
                       <View key={i} style={[styles.formDotSm,
-                        r === 'G' ? styles.formWin : r === 'B' ? styles.formDraw : styles.formLoss]}>
+                        r === 'G' ? { backgroundColor: c.win } : r === 'B' ? { backgroundColor: c.draw } : { backgroundColor: c.loss }]}>
                         <Text style={styles.formDotSmText}>{r}</Text>
                       </View>
                     ))}
@@ -702,7 +706,7 @@ export default function ProfileScreen() {
                 )}
                 <TouchableOpacity style={styles.watchlistRemove}
                   onPress={() => removeWatchlistItem(team.name)}>
-                  <Text style={styles.watchlistRemoveText}>✕</Text>
+                  <Text style={[styles.watchlistRemoveText, { color: c.textVeryFaint }]}>✕</Text>
                 </TouchableOpacity>
               </TouchableOpacity>
             );
@@ -713,29 +717,29 @@ export default function ProfileScreen() {
         {recentlyViewed.length > 0 && (
           <>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionLabel}>SON BAKILANLAR</Text>
+              <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SON BAKILANLAR</Text>
               <TouchableOpacity onPress={async () => {
                 await AsyncStorage.removeItem(STORAGE.RECENT);
                 setRecentlyViewed([]);
               }}>
-                <Text style={styles.sectionAction}>Temizle</Text>
+                <Text style={[styles.sectionAction, { color: c.primary }]}>Temizle</Text>
               </TouchableOpacity>
             </View>
             {recentlyViewed.slice(0, 8).map((item, i) => {
               const rStats = recentStats[item.name];
               return (
-              <TouchableOpacity key={i} style={styles.recentItem}
+              <TouchableOpacity key={i} style={[styles.recentItem, { backgroundColor: c.surface, borderBottomColor: c.borderLight }]}
                 onPress={() => router.push({ pathname: '/team_stats', params: { teamName: item.name, teamId: item.id, leagueName: item.leagueName, leagueFlag: '', apiId: item.apiId, fdId: 0, pos: rStats?.pos ?? 0, played: rStats?.played ?? 0, win: rStats?.win ?? 0, draw: rStats?.draw ?? 0, loss: rStats?.loss ?? 0, gf: rStats?.gf ?? 0, ga: rStats?.ga ?? 0, pts: rStats?.pts ?? 0 } })}>
-                <View style={styles.recentIcon}>
-                  <Text style={styles.recentIconText}>
+                <View style={[styles.recentIcon, { backgroundColor: c.primaryLight }]}>
+                  <Text style={[styles.recentIconText, { color: c.primaryDark }]}>
                     {item.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
                   </Text>
                 </View>
                 <View style={styles.recentInfo}>
-                  <Text style={styles.recentName}>{item.name}</Text>
-                  <Text style={styles.recentLeague}>{item.leagueName}</Text>
+                  <Text style={[styles.recentName, { color: c.text }]}>{item.name}</Text>
+                  <Text style={[styles.recentLeague, { color: c.textMuted }]}>{item.leagueName}</Text>
                 </View>
-                <Text style={styles.recentTime}>{timeAgo(item.timestamp)}</Text>
+                <Text style={[styles.recentTime, { color: c.textFaint }]}>{timeAgo(item.timestamp)}</Text>
               </TouchableOpacity>
               );
             })}
@@ -744,70 +748,96 @@ export default function ProfileScreen() {
 
         {/* ── Ayarlar ── */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionLabel}>AYARLAR</Text>
+          <Text style={[styles.sectionLabel, { color: c.textMuted }]}>AYARLAR</Text>
         </View>
 
-        {/* ── Bildirimler kartı ── */}
-        <View style={styles.settingsCard}>
+        {/* ── Tema seçimi ── */}
+        <View style={[styles.settingsCard, { backgroundColor: c.surface }]}>
           <View style={styles.notifSectionHeader}>
-            <Text style={styles.notifSectionTitle}>BİLDİRİMLER</Text>
+            <Text style={[styles.notifSectionTitle, { color: c.textMuted }]}>TEMA</Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingBottom: 14 }}>
+            {([['light', '☀️ Açık'], ['system', '⚙️ Otomatik'], ['dark', '🌙 Koyu']] as const).map(([m, label]) => (
+              <TouchableOpacity
+                key={m}
+                onPress={() => setMode(m)}
+                style={[{
+                  flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center',
+                  borderWidth: 1.5,
+                  borderColor: mode === m ? c.primary : c.border,
+                  backgroundColor: mode === m ? c.primaryLight : c.surface,
+                }]}>
+                <Text style={{ fontSize: 12, color: mode === m ? c.primary : c.textMuted, fontWeight: mode === m ? '600' : '400' }}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={{ height: 12 }} />
+
+        {/* ── Bildirimler kartı ── */}
+        <View style={[styles.settingsCard, { backgroundColor: c.surface }]}>
+          <View style={styles.notifSectionHeader}>
+            <Text style={[styles.notifSectionTitle, { color: c.textMuted }]}>BİLDİRİMLER</Text>
           </View>
 
           <View style={styles.settingsRow}>
             <View style={styles.notifLabelWrap}>
-              <Text style={styles.settingsLabel}>Günlük analiz bildirimi</Text>
-              <Text style={styles.notifSub}>Her gün "Bugünün analizleri hazır"</Text>
+              <Text style={[styles.settingsLabel, { color: c.text }]}>Günlük analiz bildirimi</Text>
+              <Text style={[styles.notifSub, { color: c.textFaint }]}>Her gün "Bugünün analizleri hazır"</Text>
             </View>
             <Switch
               value={notifPrefs.daily}
               onValueChange={v => togglePref('daily', v)}
-              trackColor={{ false: '#e0e0e0', true: '#185FA5' }}
-              thumbColor="#fff"
+              trackColor={{ false: c.border, true: c.primary }}
+              thumbColor={c.surface}
             />
           </View>
 
-          <View style={styles.settingsDivider} />
+          <View style={[styles.settingsDivider, { backgroundColor: c.borderLight }]} />
 
           <View style={styles.settingsRow}>
             <View style={styles.notifLabelWrap}>
-              <Text style={styles.settingsLabel}>Favori takım bildirimleri</Text>
-              <Text style={styles.notifSub}>Favori takımın oynayacağı günler</Text>
+              <Text style={[styles.settingsLabel, { color: c.text }]}>Favori takım bildirimleri</Text>
+              <Text style={[styles.notifSub, { color: c.textFaint }]}>Favori takımın oynayacağı günler</Text>
             </View>
             <Switch
               value={notifPrefs.favTeam}
               onValueChange={v => togglePref('favTeam', v)}
-              trackColor={{ false: '#e0e0e0', true: '#185FA5' }}
-              thumbColor="#fff"
+              trackColor={{ false: c.border, true: c.primary }}
+              thumbColor={c.surface}
             />
           </View>
 
-          <View style={styles.settingsDivider} />
+          <View style={[styles.settingsDivider, { backgroundColor: c.borderLight }]} />
 
           <View style={styles.settingsRow}>
             <View style={styles.notifLabelWrap}>
-              <Text style={styles.settingsLabel}>Öne çıkan maçlar</Text>
-              <Text style={styles.notifSub}>Günün en yüksek puanlı maçı</Text>
+              <Text style={[styles.settingsLabel, { color: c.text }]}>Öne çıkan maçlar</Text>
+              <Text style={[styles.notifSub, { color: c.textFaint }]}>Günün en yüksek puanlı maçı</Text>
             </View>
             <Switch
               value={notifPrefs.featured}
               onValueChange={v => togglePref('featured', v)}
-              trackColor={{ false: '#e0e0e0', true: '#185FA5' }}
-              thumbColor="#fff"
+              trackColor={{ false: c.border, true: c.primary }}
+              thumbColor={c.surface}
             />
           </View>
 
-          <View style={styles.settingsDivider} />
+          <View style={[styles.settingsDivider, { backgroundColor: c.borderLight }]} />
 
           <View style={styles.settingsRow}>
             <View style={styles.notifLabelWrap}>
-              <Text style={styles.settingsLabel}>Riskli maç uyarıları</Text>
-              <Text style={styles.notifSub}>Sürpriz senaryoya açık maçlar</Text>
+              <Text style={[styles.settingsLabel, { color: c.text }]}>Riskli maç uyarıları</Text>
+              <Text style={[styles.notifSub, { color: c.textFaint }]}>Sürpriz senaryoya açık maçlar</Text>
             </View>
             <Switch
               value={notifPrefs.risky}
               onValueChange={v => togglePref('risky', v)}
-              trackColor={{ false: '#e0e0e0', true: '#185FA5' }}
-              thumbColor="#fff"
+              trackColor={{ false: c.border, true: c.primary }}
+              thumbColor={c.surface}
             />
           </View>
 
@@ -816,26 +846,26 @@ export default function ProfileScreen() {
         <View style={{ height: 12 }} />
 
         {/* ── Diğer ayarlar ── */}
-        <View style={styles.settingsCard}>
+        <View style={[styles.settingsCard, { backgroundColor: c.surface }]}>
           <TouchableOpacity style={styles.settingsRow}
             onPress={() => Linking.openURL('https://twitter.com/scoutfootballhq')}>
-            <Text style={styles.settingsLabel}>Twitter</Text>
-            <Text style={styles.settingsValue}>@scoutfootballhq ›</Text>
+            <Text style={[styles.settingsLabel, { color: c.text }]}>Twitter</Text>
+            <Text style={[styles.settingsValue, { color: c.primary }]}>@scoutfootballhq ›</Text>
           </TouchableOpacity>
 
-          <View style={styles.settingsDivider} />
+          <View style={[styles.settingsDivider, { backgroundColor: c.borderLight }]} />
 
           <TouchableOpacity style={styles.settingsRow}
             onPress={() => Linking.openURL('https://instagram.com/scoutfootballapp')}>
-            <Text style={styles.settingsLabel}>Instagram</Text>
-            <Text style={styles.settingsValue}>@scoutfootballapp ›</Text>
+            <Text style={[styles.settingsLabel, { color: c.text }]}>Instagram</Text>
+            <Text style={[styles.settingsValue, { color: c.primary }]}>@scoutfootballapp ›</Text>
           </TouchableOpacity>
 
-          <View style={styles.settingsDivider} />
+          <View style={[styles.settingsDivider, { backgroundColor: c.borderLight }]} />
 
           <View style={styles.settingsRow}>
-            <Text style={styles.settingsLabel}>Versiyon</Text>
-            <Text style={styles.settingsValue}>1.0.0</Text>
+            <Text style={[styles.settingsLabel, { color: c.text }]}>Versiyon</Text>
+            <Text style={[styles.settingsValue, { color: c.primary }]}>1.0.0</Text>
           </View>
         </View>
 
@@ -843,18 +873,18 @@ export default function ProfileScreen() {
       </ScrollView>
 
       {/* ── Tab Bar ── */}
-      <View style={styles.tabBar}>
+      <View style={[styles.tabBar, { backgroundColor: c.surface, borderTopColor: c.border }]}>
         <TouchableOpacity style={styles.tab} onPress={() => router.push('/')}>
-          <Text style={styles.tabText}>Maçlar</Text>
+          <Text style={[styles.tabText, { color: c.textMuted }]}>Maçlar</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tab} onPress={() => router.push('/leagues')}>
-          <Text style={styles.tabText}>Ligler</Text>
+          <Text style={[styles.tabText, { color: c.textMuted }]}>Ligler</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tab} onPress={() => router.push('/stats')}>
-          <Text style={styles.tabText}>İstatistik</Text>
+          <Text style={[styles.tabText, { color: c.textMuted }]}>İstatistik</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tab}>
-          <Text style={[styles.tabText, styles.tabActive]}>Profil</Text>
+          <Text style={[styles.tabText, { color: c.primary, fontWeight: '500' }]}>Profil</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -864,9 +894,9 @@ export default function ProfileScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f8f8' },
-  topbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingTop: 52, paddingBottom: 12, backgroundColor: '#fff', borderBottomWidth: 0.5, borderBottomColor: '#eee' },
-  topbarTitle: { fontSize: 16, fontWeight: '600', color: '#111' },
+  container: { flex: 1 },
+  topbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingTop: 52, paddingBottom: 12, borderBottomWidth: 0.5 },
+  topbarTitle: { fontSize: 16, fontWeight: '600' },
   headerBrand: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   headerLogo: { width: 42, height: 42, resizeMode: 'contain' },
   appName: { fontSize: 16, fontWeight: '600', color: '#00BAFF' },
@@ -874,27 +904,27 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
 
   // Identity card
-  identityCard: { backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', padding: 18, marginBottom: 8, gap: 14 },
+  identityCard: { flexDirection: 'row', alignItems: 'center', padding: 18, marginBottom: 8, gap: 14 },
   avatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 22, fontWeight: '700', color: '#fff' },
   identityInfo: { flex: 1 },
   nameEditRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  nameInput: { flex: 1, fontSize: 18, fontWeight: '600', color: '#111', borderBottomWidth: 1.5, borderBottomColor: '#185FA5', paddingBottom: 4 },
-  saveBtn: { backgroundColor: '#185FA5', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  nameInput: { flex: 1, fontSize: 18, fontWeight: '600', borderBottomWidth: 1.5, paddingBottom: 4 },
+  saveBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
   saveBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  scoutName: { fontSize: 20, fontWeight: '700', color: '#111', marginBottom: 2 },
-  scoutNameHint: { fontSize: 12, color: '#aaa' },
+  scoutName: { fontSize: 20, fontWeight: '700', marginBottom: 2 },
+  scoutNameHint: { fontSize: 12 },
 
   // Section
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingTop: 20, paddingBottom: 8 },
-  sectionLabel: { fontSize: 11, color: '#888', fontWeight: '700', letterSpacing: 0.6 },
-  sectionAction: { fontSize: 13, color: '#185FA5', fontWeight: '500' },
-  emptyHint: { fontSize: 13, color: '#aaa', paddingHorizontal: 14, paddingBottom: 8, textAlign: 'center', marginTop: 4 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.6 },
+  sectionAction: { fontSize: 13, fontWeight: '500' },
+  emptyHint: { fontSize: 13, paddingHorizontal: 14, paddingBottom: 8, textAlign: 'center', marginTop: 4 },
 
   // Fav team card
-  addTeamBtn: { marginHorizontal: 14, borderRadius: 12, borderWidth: 1.5, borderColor: '#185FA5', borderStyle: 'dashed', paddingVertical: 20, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 },
-  addTeamBtnIcon: { fontSize: 22, color: '#185FA5', fontWeight: '300' },
-  addTeamBtnText: { fontSize: 15, color: '#185FA5', fontWeight: '500' },
+  addTeamBtn: { marginHorizontal: 14, borderRadius: 12, borderWidth: 1.5, borderStyle: 'dashed', paddingVertical: 20, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 },
+  addTeamBtnIcon: { fontSize: 22, fontWeight: '300' },
+  addTeamBtnText: { fontSize: 15, fontWeight: '500' },
   favCard: { marginHorizontal: 14, borderRadius: 14, overflow: 'hidden', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6 },
   favCardStripe: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 5 },
   favCardContent: { padding: 16, paddingLeft: 20 },
@@ -912,79 +942,81 @@ const styles = StyleSheet.create({
   formDots: { flexDirection: 'row', gap: 4 },
   formDot: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   formDotText: { fontSize: 9, fontWeight: '700', color: '#fff' },
+  // Keep static fallback colors for StyleSheet (overridden in JSX via c.win/draw/loss)
   formWin: { backgroundColor: '#27AE60' },
   formDraw: { backgroundColor: '#888' },
   formLoss: { backgroundColor: '#C0392B' },
 
   // Watchlist
-  watchlistItem: { backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: '#f0f0f0', gap: 10 },
+  watchlistItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 0.5, gap: 10 },
   watchlistDot: { width: 10, height: 10, borderRadius: 5 },
   watchlistInfo: { flex: 1 },
-  watchlistName: { fontSize: 14, fontWeight: '600', color: '#111' },
-  watchlistLeague: { fontSize: 12, color: '#888', marginTop: 2 },
+  watchlistName: { fontSize: 14, fontWeight: '600' },
+  watchlistLeague: { fontSize: 12, marginTop: 2 },
   watchlistForm: { flexDirection: 'row', gap: 3 },
   formDotSm: { width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   formDotSmText: { fontSize: 7, fontWeight: '700', color: '#fff' },
   watchlistRemove: { padding: 6 },
-  watchlistRemoveText: { fontSize: 14, color: '#ccc' },
+  watchlistRemoveText: { fontSize: 14 },
 
   // Recently viewed
-  recentItem: { backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 0.5, borderBottomColor: '#f0f0f0', gap: 10 },
-  recentIcon: { width: 34, height: 34, borderRadius: 8, backgroundColor: '#E6F1FB', alignItems: 'center', justifyContent: 'center' },
-  recentIconText: { fontSize: 11, fontWeight: '700', color: '#0C447C' },
+  recentItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 0.5, gap: 10 },
+  recentIcon: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  recentIconText: { fontSize: 11, fontWeight: '700' },
   recentInfo: { flex: 1 },
-  recentName: { fontSize: 14, color: '#111' },
-  recentLeague: { fontSize: 11, color: '#888', marginTop: 1 },
-  recentTime: { fontSize: 11, color: '#bbb' },
+  recentName: { fontSize: 14 },
+  recentLeague: { fontSize: 11, marginTop: 1 },
+  recentTime: { fontSize: 11 },
 
   // Settings
-  settingsCard: { backgroundColor: '#fff', marginHorizontal: 14, borderRadius: 12, overflow: 'hidden' },
+  settingsCard: { marginHorizontal: 14, borderRadius: 12, overflow: 'hidden' },
   settingsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 14 },
-  settingsLabel: { fontSize: 14, color: '#111' },
-  settingsValue: { fontSize: 13, color: '#185FA5' },
-  settingsDivider: { height: 0.5, backgroundColor: '#f0f0f0', marginLeft: 14 },
+  settingsLabel: { fontSize: 14 },
+  settingLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.6 },
+  settingsValue: { fontSize: 13 },
+  settingsDivider: { height: 0.5, marginLeft: 14 },
 
   // Notification settings
   notifSectionHeader: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 6 },
-  notifSectionTitle: { fontSize: 11, color: '#888', fontWeight: '700', letterSpacing: 0.6 },
+  notifSectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.6 },
   notifLabelWrap: { flex: 1, paddingRight: 12 },
-  notifSub: { fontSize: 11, color: '#aaa', marginTop: 2 },
+  notifSub: { fontSize: 11, marginTop: 2 },
   notifHourRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 12 },
-  notifHourLabel: { fontSize: 14, color: '#111' },
+  notifHourLabel: { fontSize: 14 },
   notifHourBtns: { flexDirection: 'row', gap: 8 },
-  notifHourBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', backgroundColor: '#f8f8f8' },
-  notifHourBtnActive: { backgroundColor: '#185FA5', borderColor: '#185FA5' },
-  notifHourBtnText: { fontSize: 13, color: '#555', fontWeight: '500' },
-  notifHourBtnTextActive: { color: '#fff', fontWeight: '600' },
+  notifHourBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8, borderWidth: 1 },
+  notifHourBtnActive: {},
+  notifHourBtnText: { fontSize: 13, fontWeight: '500' },
+  notifHourBtnTextActive: { fontWeight: '600' },
 
   // Tab bar
-  tabBar: { flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: '#eee', paddingBottom: 20, backgroundColor: '#fff' },
+  tabBar: { flexDirection: 'row', borderTopWidth: 0.5, paddingBottom: 20 },
   tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
-  tabText: { fontSize: 12, color: '#888' },
-  tabActive: { color: '#185FA5', fontWeight: '500' },
+  tabText: { fontSize: 12 },
+  tabActive: { fontWeight: '500' },
 
   // Team picker modal
-  modalContainer: { flex: 1, backgroundColor: '#fff' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 52, paddingBottom: 12, borderBottomWidth: 0.5, borderBottomColor: '#eee' },
-  modalTitle: { fontSize: 17, fontWeight: '600', color: '#111' },
-  modalClose: { fontSize: 15, color: '#185FA5' },
-  searchBox: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: '#f0f0f0' },
-  searchInput: { backgroundColor: '#f5f5f5', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14, color: '#111' },
-  pickerLeagueHeader: { backgroundColor: '#f8f8f8', paddingHorizontal: 14, paddingVertical: 8, borderBottomWidth: 0.5, borderBottomColor: '#eee' },
-  pickerLeagueTitle: { fontSize: 12, fontWeight: '700', color: '#888', letterSpacing: 0.5 },
-  pickerTeamRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: '#f5f5f5', gap: 12 },
+  modalContainer: { flex: 1 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 52, paddingBottom: 12, borderBottomWidth: 0.5 },
+  modalTitle: { fontSize: 17, fontWeight: '600' },
+  modalClose: { fontSize: 15 },
+  searchBox: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5 },
+  searchInput: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14 },
+  pickerLeagueHeader: { paddingHorizontal: 14, paddingVertical: 8, borderBottomWidth: 0.5 },
+  pickerLeagueTitle: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
+  pickerTeamRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 14, borderBottomWidth: 0.5, gap: 12 },
   pickerTeamDot: { width: 10, height: 10, borderRadius: 5 },
-  pickerTeamName: { flex: 1, fontSize: 15, color: '#111' },
-  pickerArrow: { fontSize: 18, color: '#ccc' },
+  pickerTeamName: { flex: 1, fontSize: 15 },
+  pickerArrow: { fontSize: 18 },
 
   // Avatar picker modal
   avatarModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  avatarModalBox: { backgroundColor: '#fff', borderRadius: 16, padding: 24, width: 280, alignItems: 'center' },
-  avatarModalTitle: { fontSize: 16, fontWeight: '600', color: '#111', marginBottom: 20 },
+  avatarModalBox: { borderRadius: 16, padding: 24, width: 280, alignItems: 'center' },
+  avatarModalTitle: { fontSize: 16, fontWeight: '600', marginBottom: 20 },
   avatarGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center', marginBottom: 20 },
   avatarOption: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   avatarOptionSelected: { borderWidth: 3, borderColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 4 },
   avatarCheck: { fontSize: 20, color: '#fff', fontWeight: '700' },
   avatarModalCancel: { paddingVertical: 10 },
-  avatarModalCancelText: { fontSize: 15, color: '#888' },
+  avatarModalCancelText: { fontSize: 15 },
 });

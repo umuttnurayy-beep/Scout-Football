@@ -10,6 +10,7 @@ import {
   getAllSportsTeamStats, getFdTeamData, getTeamForm, getTopScorers,
   getSuperLigTeamForm, getSuperLigPlayers, getSuperLigScorers,
 } from '../services/api';
+import { useTheme } from '../context/ThemeContext';
 
 const AF_POSITION_MAP: Record<string, string> = {
   G: 'Kaleci', D: 'Defans', M: 'Orta saha', F: 'Forvet',
@@ -152,28 +153,29 @@ function calcSLSeasonStats(matches: any[], teamId: number) {
   };
 }
 
-function getTeamProfile(avgGf: number, avgGa: number, winPct: number) {
+function getTeamProfile(avgGf: number, avgGa: number, winPct: number, isDark: boolean) {
   const total = avgGf + avgGa;
   if (avgGf >= 2.0 && avgGa <= 1.0)
-    return { label: 'Dominant', emoji: '👑', color: '#1565C0', desc: 'Hem hücum hem savunmada ligde öne çıkıyor. Rakipleri için en zor karşılaşmalardan biri.' };
+    return { label: 'Dominant', emoji: '👑', color: isDark ? '#79AAFF' : '#1565C0', desc: 'Hem hücum hem savunmada ligde öne çıkıyor. Rakipleri için en zor karşılaşmalardan biri.' };
   if (total > 3.2)
     return { label: 'Tempolu', emoji: '⚡', color: '#E65100', desc: 'Karşılıklı gol ve yüksek tempo bu takımın imzası. Maçları genellikle çok gollü geçiyor.' };
   if (avgGf >= 1.8 && avgGa >= 1.4)
-    return { label: 'Hücumcu', emoji: '⚽', color: '#185FA5', desc: 'Güçlü hücumla gol üreten ama savunmada bedel ödeyen bir takım. Yüksek skorlu maç profili.' };
+    return { label: 'Hücumcu', emoji: '⚽', color: isDark ? '#58A6FF' : '#185FA5', desc: 'Güçlü hücumla gol üreten ama savunmada bedel ödeyen bir takım. Yüksek skorlu maç profili.' };
   if (avgGf <= 1.0 && avgGa <= 0.8)
-    return { label: 'Katı Savunmacı', emoji: '🛡️', color: '#1B5E20', desc: 'Yenilmezlik üzerine kurulu bir sistem. Az gol, az yenilen — sağlam ama az gollü maçlar.' };
+    return { label: 'Katı Savunmacı', emoji: '🛡️', color: isDark ? '#3FB950' : '#1B5E20', desc: 'Yenilmezlik üzerine kurulu bir sistem. Az gol, az yenilen — sağlam ama az gollü maçlar.' };
   if (avgGf <= 1.2 && avgGa <= 1.0)
-    return { label: 'Savunmacı', emoji: '🛡️', color: '#388E3C', desc: 'Savunma odaklı, kontrollü bir oyun anlayışı. Riskten kaçınan ve sağlam bir yapı.' };
+    return { label: 'Savunmacı', emoji: '🛡️', color: isDark ? '#56D364' : '#388E3C', desc: 'Savunma odaklı, kontrollü bir oyun anlayışı. Riskten kaçınan ve sağlam bir yapı.' };
   if (avgGa > 1.7)
-    return { label: 'Kırılgan Savunma', emoji: '🚨', color: '#A32D2D', desc: 'Savunma beklenmedik gol yeme riski taşıyor. Hücumuyla öne geçse de arkasında açık var.' };
+    return { label: 'Kırılgan Savunma', emoji: '🚨', color: isDark ? '#F85149' : '#A32D2D', desc: 'Savunma beklenmedik gol yeme riski taşıyor. Hücumuyla öne geçse de arkasında açık var.' };
   if (winPct >= 55 && avgGf >= 1.5)
-    return { label: 'Kontrollü', emoji: '📈', color: '#0C447C', desc: 'Galibiyet yüzdesi ve gol dengesi iyi. Ligde üst sıralarda tutarlı bir güç.' };
-  return { label: 'Dengeli', emoji: '⚖️', color: '#555', desc: 'Hücum ve savunma arasında denge kurmuş, her türlü rakiple yarışabilen bir takım.' };
+    return { label: 'Kontrollü', emoji: '📈', color: isDark ? '#1F6FEB' : '#0C447C', desc: 'Galibiyet yüzdesi ve gol dengesi iyi. Ligde üst sıralarda tutarlı bir güç.' };
+  return { label: 'Dengeli', emoji: '⚖️', color: isDark ? '#B1BAC4' : '#555', desc: 'Hücum ve savunma arasında denge kurmuş, her türlü rakiple yarışabilen bir takım.' };
 }
 
 export default function TeamStatsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { colors: c, isDark } = useTheme();
 
   const teamName  = Array.isArray(params.teamName)  ? params.teamName[0]  : (params.teamName  || '');
   const teamId    = parseInt(Array.isArray(params.teamId)   ? params.teamId[0]   : (params.teamId   || '0'));
@@ -363,40 +365,40 @@ export default function TeamStatsScreen() {
   }, {} as Record<string, any[]>);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.topbar}>
+    <View style={[styles.container, { backgroundColor: c.bg }]}>
+      <View style={[styles.topbar, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backBtn}>‹ Geri</Text>
+          <Text style={[styles.backBtn, { color: c.primary }]}>‹ Geri</Text>
         </TouchableOpacity>
-        <Text style={styles.topbarTitle}>{teamName}</Text>
+        <Text style={[styles.topbarTitle, { color: c.text }]}>{teamName}</Text>
         <View style={{ width: 60 }} />
       </View>
 
       <ScrollView style={styles.scroll}>
-        <View style={styles.teamHeader}>
-          <View style={styles.teamLogo}>
-            <Text style={styles.teamLogoText}>{initials}</Text>
+        <View style={[styles.teamHeader, { borderBottomColor: c.border }]}>
+          <View style={[styles.teamLogo, { backgroundColor: c.primaryLight }]}>
+            <Text style={[styles.teamLogoText, { color: c.primaryDark }]}>{initials}</Text>
           </View>
           <View>
-            <Text style={styles.teamTitle}>{teamName}</Text>
-            <Text style={styles.teamSub}>{leagueFlag} {leagueName} · 2025/26</Text>
+            <Text style={[styles.teamTitle, { color: c.text }]}>{teamName}</Text>
+            <Text style={[styles.teamSub, { color: c.textMuted }]}>{leagueFlag} {leagueName} · 2025/26</Text>
           </View>
         </View>
 
-        <View style={styles.toggleRow}>
+        <View style={[styles.toggleRow, { backgroundColor: c.surfaceAlt }]}>
           <TouchableOpacity
-            style={[styles.toggleBtn, activeTab === 'takim' && styles.toggleBtnActive]}
+            style={[styles.toggleBtn, activeTab === 'takim' && [styles.toggleBtnActive, { backgroundColor: c.surface, borderColor: c.border }]]}
             onPress={() => setActiveTab('takim')}
           >
-            <Text style={[styles.toggleBtnText, activeTab === 'takim' && styles.toggleBtnTextActive]}>
+            <Text style={[styles.toggleBtnText, { color: c.textMuted }, activeTab === 'takim' && { color: c.text }]}>
               Takım İstatistikleri
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.toggleBtn, activeTab === 'oyuncular' && styles.toggleBtnActive]}
+            style={[styles.toggleBtn, activeTab === 'oyuncular' && [styles.toggleBtnActive, { backgroundColor: c.surface, borderColor: c.border }]]}
             onPress={() => setActiveTab('oyuncular')}
           >
-            <Text style={[styles.toggleBtnText, activeTab === 'oyuncular' && styles.toggleBtnTextActive]}>
+            <Text style={[styles.toggleBtnText, { color: c.textMuted }, activeTab === 'oyuncular' && { color: c.text }]}>
               Oyuncular
             </Text>
           </TouchableOpacity>
@@ -408,28 +410,28 @@ export default function TeamStatsScreen() {
             {played > 0 && (() => {
               const avgGf = gf / played;
               const avgGa = ga / played;
-              const profile = getTeamProfile(avgGf, avgGa, winPct);
+              const profile = getTeamProfile(avgGf, avgGa, winPct, isDark);
               return (
-                <View style={[styles.profileCard, { borderLeftColor: profile.color }]}>
+                <View style={[styles.profileCard, { backgroundColor: c.surfaceAlt, borderColor: c.border, borderLeftColor: profile.color }]}>
                   <View style={styles.profileTop}>
                     <Text style={styles.profileEmoji}>{profile.emoji}</Text>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.profileLabel, { color: profile.color }]}>{profile.label}</Text>
-                      <Text style={styles.profileDesc}>{profile.desc}</Text>
+                      <Text style={[styles.profileDesc, { color: c.textSub }]}>{profile.desc}</Text>
                     </View>
                   </View>
-                  <View style={styles.profileStats}>
+                  <View style={[styles.profileStats, { borderTopColor: c.border }]}>
                     <View style={styles.profileStat}>
-                      <Text style={styles.profileStatVal}>{avgGf.toFixed(1)}</Text>
-                      <Text style={styles.profileStatLbl}>Gol/Maç</Text>
+                      <Text style={[styles.profileStatVal, { color: c.text }]}>{avgGf.toFixed(1)}</Text>
+                      <Text style={[styles.profileStatLbl, { color: c.textMuted }]}>Gol/Maç</Text>
                     </View>
                     <View style={styles.profileStat}>
-                      <Text style={styles.profileStatVal}>{avgGa.toFixed(1)}</Text>
-                      <Text style={styles.profileStatLbl}>Yenilen/Maç</Text>
+                      <Text style={[styles.profileStatVal, { color: c.text }]}>{avgGa.toFixed(1)}</Text>
+                      <Text style={[styles.profileStatLbl, { color: c.textMuted }]}>Yenilen/Maç</Text>
                     </View>
                     <View style={styles.profileStat}>
-                      <Text style={styles.profileStatVal}>{winPct}%</Text>
-                      <Text style={styles.profileStatLbl}>Galibiyet</Text>
+                      <Text style={[styles.profileStatVal, { color: c.text }]}>{winPct}%</Text>
+                      <Text style={[styles.profileStatLbl, { color: c.textMuted }]}>Galibiyet</Text>
                     </View>
                   </View>
                 </View>
@@ -437,140 +439,140 @@ export default function TeamStatsScreen() {
             })()}
 
             {/* SON FORM — üste taşındı */}
-            <Text style={styles.sectionLabel}>SON FORM</Text>
+            <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SON FORM</Text>
             <View style={styles.formRow}>
               {(loadingForm || loadingAf) && displayForm.length === 0 ? (
-                <ActivityIndicator color="#185FA5" />
+                <ActivityIndicator color={c.primary} />
               ) : displayForm.length === 0 ? (
-                <Text style={styles.formNote}>Form verisi bulunamadı</Text>
+                <Text style={[styles.formNote, { color: c.textMuted }]}>Form verisi bulunamadı</Text>
               ) : (
                 <>
                   {displayForm.map((r, i) => (
                     <View key={i} style={[styles.formBadge,
-                      r === 'G' ? styles.formG : r === 'B' ? styles.formB : styles.formM]}>
+                      r === 'G' ? { backgroundColor: c.win } : r === 'B' ? { backgroundColor: c.draw } : { backgroundColor: c.loss }]}>
                       <Text style={styles.formBadgeText}>{r}</Text>
                     </View>
                   ))}
-                  <Text style={styles.formNote}>Son {displayForm.length} maç</Text>
+                  <Text style={[styles.formNote, { color: c.textMuted }]}>Son {displayForm.length} maç</Text>
                 </>
               )}
             </View>
 
             {/* MAÇ ÖZETİ — eski GENEL'in kompakt hali */}
-            <Text style={styles.sectionLabel}>MAÇ ÖZETİ</Text>
-            <View style={styles.summaryCard}>
+            <Text style={[styles.sectionLabel, { color: c.textMuted }]}>MAÇ ÖZETİ</Text>
+            <View style={[styles.summaryCard, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
               <View style={styles.summaryRow}>
                 <View style={styles.summaryStat}>
-                  <Text style={styles.summaryV}>{played}</Text>
-                  <Text style={styles.summaryL}>Maç</Text>
+                  <Text style={[styles.summaryV, { color: c.text }]}>{played}</Text>
+                  <Text style={[styles.summaryL, { color: c.textMuted }]}>Maç</Text>
                 </View>
                 <View style={styles.summaryStat}>
-                  <Text style={[styles.summaryV, { color: '#27500A' }]}>{win}</Text>
-                  <Text style={styles.summaryL}>Galibiyet</Text>
+                  <Text style={[styles.summaryV, { color: c.win }]}>{win}</Text>
+                  <Text style={[styles.summaryL, { color: c.textMuted }]}>Galibiyet</Text>
                 </View>
                 <View style={styles.summaryStat}>
-                  <Text style={[styles.summaryV, { color: '#888' }]}>{draw}</Text>
-                  <Text style={styles.summaryL}>Beraberlik</Text>
+                  <Text style={[styles.summaryV, { color: c.draw }]}>{draw}</Text>
+                  <Text style={[styles.summaryL, { color: c.textMuted }]}>Beraberlik</Text>
                 </View>
                 <View style={styles.summaryStat}>
-                  <Text style={[styles.summaryV, { color: '#A32D2D' }]}>{loss}</Text>
-                  <Text style={styles.summaryL}>Mağlubiyet</Text>
+                  <Text style={[styles.summaryV, { color: c.loss }]}>{loss}</Text>
+                  <Text style={[styles.summaryL, { color: c.textMuted }]}>Mağlubiyet</Text>
                 </View>
                 <View style={styles.summaryStat}>
-                  <Text style={[styles.summaryV, { color: '#185FA5' }]}>{pts}</Text>
-                  <Text style={styles.summaryL}>Puan</Text>
+                  <Text style={[styles.summaryV, { color: c.primary }]}>{pts}</Text>
+                  <Text style={[styles.summaryL, { color: c.textMuted }]}>Puan</Text>
                 </View>
               </View>
               {played > 0 && (
-                <View style={styles.wdlBar}>
-                  {win > 0 && <View style={[styles.wdlSeg, styles.wdlW, { flex: win }]} />}
-                  {draw > 0 && <View style={[styles.wdlSeg, styles.wdlD, { flex: draw }]} />}
-                  {loss > 0 && <View style={[styles.wdlSeg, styles.wdlL, { flex: loss }]} />}
+                <View style={[styles.wdlBar, { backgroundColor: c.border }]}>
+                  {win > 0 && <View style={[styles.wdlSeg, { flex: win, backgroundColor: c.win }]} />}
+                  {draw > 0 && <View style={[styles.wdlSeg, { flex: draw, backgroundColor: c.draw }]} />}
+                  {loss > 0 && <View style={[styles.wdlSeg, { flex: loss, backgroundColor: c.loss }]} />}
                 </View>
               )}
             </View>
 
             {/* GOL — sadece 3 makro rakam (gol/maç profil kartında zaten var) */}
-            <Text style={styles.sectionLabel}>GOL</Text>
-            <View style={styles.goalCard}>
+            <Text style={[styles.sectionLabel, { color: c.textMuted }]}>GOL</Text>
+            <View style={[styles.goalCard, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
               <View style={styles.goalStat}>
-                <Text style={[styles.goalV, { color: '#27500A' }]}>{gf}</Text>
-                <Text style={styles.goalL}>Atılan</Text>
+                <Text style={[styles.goalV, { color: c.win }]}>{gf}</Text>
+                <Text style={[styles.goalL, { color: c.textMuted }]}>Atılan</Text>
               </View>
-              <View style={styles.goalDivider} />
+              <View style={[styles.goalDivider, { backgroundColor: c.border }]} />
               <View style={styles.goalStat}>
-                <Text style={[styles.goalV, { color: '#A32D2D' }]}>{ga}</Text>
-                <Text style={styles.goalL}>Yenilen</Text>
+                <Text style={[styles.goalV, { color: c.loss }]}>{ga}</Text>
+                <Text style={[styles.goalL, { color: c.textMuted }]}>Yenilen</Text>
               </View>
-              <View style={styles.goalDivider} />
+              <View style={[styles.goalDivider, { backgroundColor: c.border }]} />
               <View style={styles.goalStat}>
-                <Text style={[styles.goalV, { color: averaj >= 0 ? '#27500A' : '#A32D2D' }]}>
+                <Text style={[styles.goalV, { color: averaj >= 0 ? c.win : c.loss }]}>
                   {averaj >= 0 ? '+' : ''}{averaj}
                 </Text>
-                <Text style={styles.goalL}>Averaj</Text>
+                <Text style={[styles.goalL, { color: c.textMuted }]}>Averaj</Text>
               </View>
             </View>
 
             {/* SEZON ANALİZİ — Gol beklentileri görsel bar + özel durumlar */}
             {loadingForm && !activeSeasonStats ? (
-              <ActivityIndicator color="#185FA5" style={{ margin: 14 }} />
+              <ActivityIndicator color={c.primary} style={{ margin: 14 }} />
             ) : activeSeasonStats ? (
               <>
-                <Text style={styles.sectionLabel}>
+                <Text style={[styles.sectionLabel, { color: c.textMuted }]}>
                   GOL BEKLENTİLERİ ({activeSeasonStats.total} maç)
                 </Text>
-                <View style={styles.expectCard}>
+                <View style={[styles.expectCard, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
                   {[
                     { label: '1.5 Üst', value: activeSeasonStats.over15Pct },
                     { label: '2.5 Üst', value: activeSeasonStats.over25Pct },
                     { label: '3.5 Üst', value: activeSeasonStats.over35Pct },
                   ].map(row => (
                     <View key={row.label} style={styles.pbRow}>
-                      <Text style={styles.pbLabel}>{row.label}</Text>
-                      <View style={styles.pbTrack}>
-                        <View style={[styles.pbFill, { width: `${Math.min(100, row.value)}%` }]} />
+                      <Text style={[styles.pbLabel, { color: c.textSub }]}>{row.label}</Text>
+                      <View style={[styles.pbTrack, { backgroundColor: c.border }]}>
+                        <View style={[styles.pbFill, { width: `${Math.min(100, row.value)}%`, backgroundColor: c.primary }]} />
                       </View>
-                      <Text style={styles.pbValue}>{row.value}%</Text>
+                      <Text style={[styles.pbValue, { color: c.primary }]}>{row.value}%</Text>
                     </View>
                   ))}
                 </View>
 
-                <Text style={styles.sectionLabel}>ÖZEL DURUMLAR</Text>
+                <Text style={[styles.sectionLabel, { color: c.textMuted }]}>ÖZEL DURUMLAR</Text>
                 <View style={styles.specialRow}>
-                  <View style={styles.specialBox}>
-                    <Text style={[styles.specialV, { color: '#185FA5' }]}>{activeSeasonStats.bttsPct}%</Text>
-                    <Text style={styles.specialL}>KG Var</Text>
+                  <View style={[styles.specialBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                    <Text style={[styles.specialV, { color: c.primary }]}>{activeSeasonStats.bttsPct}%</Text>
+                    <Text style={[styles.specialL, { color: c.textMuted }]}>KG Var</Text>
                   </View>
-                  <View style={styles.specialBox}>
-                    <Text style={[styles.specialV, { color: '#27500A' }]}>{activeSeasonStats.cleanSheetPct}%</Text>
-                    <Text style={styles.specialL}>Kale sıfır</Text>
+                  <View style={[styles.specialBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                    <Text style={[styles.specialV, { color: c.win }]}>{activeSeasonStats.cleanSheetPct}%</Text>
+                    <Text style={[styles.specialL, { color: c.textMuted }]}>Kale sıfır</Text>
                   </View>
-                  <View style={styles.specialBox}>
-                    <Text style={[styles.specialV, { color: '#A32D2D' }]}>{activeSeasonStats.failedToScorePct}%</Text>
-                    <Text style={styles.specialL}>Gol atamadı</Text>
+                  <View style={[styles.specialBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                    <Text style={[styles.specialV, { color: c.loss }]}>{activeSeasonStats.failedToScorePct}%</Text>
+                    <Text style={[styles.specialL, { color: c.textMuted }]}>Gol atamadı</Text>
                   </View>
                 </View>
 
                 {/* İÇ SAHA vs DEPLASMAN — görsel karşılaştırma */}
-                <Text style={styles.sectionLabel}>İÇ SAHA vs DEPLASMAN</Text>
-                <View style={styles.splitCompareCard}>
+                <Text style={[styles.sectionLabel, { color: c.textMuted }]}>İÇ SAHA vs DEPLASMAN</Text>
+                <View style={[styles.splitCompareCard, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
                   {[
                     { label: 'İç Saha',   data: activeSeasonStats.home },
                     { label: 'Deplasman', data: activeSeasonStats.away },
                   ].map(s => (
                     <View key={s.label} style={styles.splitCompareRow}>
                       <View style={styles.splitCompareHeader}>
-                        <Text style={styles.splitCompareLabel}>{s.label}</Text>
-                        <Text style={styles.splitCompareRecord}>
+                        <Text style={[styles.splitCompareLabel, { color: c.textSub }]}>{s.label}</Text>
+                        <Text style={[styles.splitCompareRecord, { color: c.text }]}>
                           {s.data.win}G {s.data.draw}B {s.data.loss}M
                         </Text>
-                        <Text style={styles.splitCompareMeta}>{s.data.played} maç</Text>
+                        <Text style={[styles.splitCompareMeta, { color: c.textMuted }]}>{s.data.played} maç</Text>
                       </View>
                       {s.data.played > 0 && (
-                        <View style={styles.splitCompareBar}>
-                          {s.data.win  > 0 && <View style={[styles.splitSeg, styles.wdlW, { flex: s.data.win  }]} />}
-                          {s.data.draw > 0 && <View style={[styles.splitSeg, styles.wdlD, { flex: s.data.draw }]} />}
-                          {s.data.loss > 0 && <View style={[styles.splitSeg, styles.wdlL, { flex: s.data.loss }]} />}
+                        <View style={[styles.splitCompareBar, { backgroundColor: c.border }]}>
+                          {s.data.win  > 0 && <View style={[styles.splitSeg, { flex: s.data.win,  backgroundColor: c.win  }]} />}
+                          {s.data.draw > 0 && <View style={[styles.splitSeg, { flex: s.data.draw, backgroundColor: c.draw }]} />}
+                          {s.data.loss > 0 && <View style={[styles.splitSeg, { flex: s.data.loss, backgroundColor: c.loss }]} />}
                         </View>
                       )}
                     </View>
@@ -578,40 +580,40 @@ export default function TeamStatsScreen() {
                 </View>
               </>
             ) : (
-              <Text style={styles.noDataSmall}>Veri yükleniyor...</Text>
+              <Text style={[styles.noDataSmall, { color: c.textFaint }]}>Veri yükleniyor...</Text>
             )}
 
             {/* KORNER & POSSESSION — AllSports */}
             {allSportsStats && (
               <>
-                <Text style={styles.sectionLabel}>
+                <Text style={[styles.sectionLabel, { color: c.textMuted }]}>
                   KORNER & POZİSYON ({allSportsStats.matchesAnalyzed} maç)
                 </Text>
                 <View style={styles.statGrid}>
                   {allSportsStats.avgCorners != null && (
-                    <View style={styles.statBox}>
-                      <Text style={[styles.statVal, { color: '#185FA5' }]}>{allSportsStats.avgCorners}</Text>
-                      <Text style={styles.statLbl}>Ort. Korner</Text>
+                    <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                      <Text style={[styles.statVal, { color: c.primary }]}>{allSportsStats.avgCorners}</Text>
+                      <Text style={[styles.statLbl, { color: c.textMuted }]}>Ort. Korner</Text>
                     </View>
                   )}
                   {allSportsStats.avgOppCorners != null && (
-                    <View style={styles.statBox}>
-                      <Text style={[styles.statVal, { color: '#888' }]}>{allSportsStats.avgOppCorners}</Text>
-                      <Text style={styles.statLbl}>Rakip Korner</Text>
+                    <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                      <Text style={[styles.statVal, { color: c.textMuted }]}>{allSportsStats.avgOppCorners}</Text>
+                      <Text style={[styles.statLbl, { color: c.textMuted }]}>Rakip Korner</Text>
                     </View>
                   )}
                   {allSportsStats.avgCorners != null && allSportsStats.avgOppCorners != null && (
-                    <View style={styles.statBox}>
-                      <Text style={styles.statVal}>
+                    <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                      <Text style={[styles.statVal, { color: c.text }]}>
                         {(parseFloat(allSportsStats.avgCorners) + parseFloat(allSportsStats.avgOppCorners)).toFixed(1)}
                       </Text>
-                      <Text style={styles.statLbl}>Toplam Ort.</Text>
+                      <Text style={[styles.statLbl, { color: c.textMuted }]}>Toplam Ort.</Text>
                     </View>
                   )}
                   {allSportsStats.avgPossession != null && (
-                    <View style={styles.statBox}>
-                      <Text style={[styles.statVal, { color: '#185FA5' }]}>{allSportsStats.avgPossession}%</Text>
-                      <Text style={styles.statLbl}>Ort. Possession</Text>
+                    <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                      <Text style={[styles.statVal, { color: c.primary }]}>{allSportsStats.avgPossession}%</Text>
+                      <Text style={[styles.statLbl, { color: c.textMuted }]}>Ort. Possession</Text>
                     </View>
                   )}
                 </View>
@@ -621,23 +623,23 @@ export default function TeamStatsScreen() {
             {/* GEÇEN SEZON DETAY — AF 2024 */}
             {afTeamStats && (
               <>
-                <Text style={styles.sectionLabel}>GEÇEN SEZON DETAY (2024/25)</Text>
+                <Text style={[styles.sectionLabel, { color: c.textMuted }]}>GEÇEN SEZON DETAY (2024/25)</Text>
                 <View style={styles.statGrid}>
-                  <View style={styles.statBox}>
-                    <Text style={styles.statVal}>{afTeamStats.clean_sheet?.total ?? '-'}</Text>
-                    <Text style={styles.statLbl}>Kalesini sıfır</Text>
+                  <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                    <Text style={[styles.statVal, { color: c.text }]}>{afTeamStats.clean_sheet?.total ?? '-'}</Text>
+                    <Text style={[styles.statLbl, { color: c.textMuted }]}>Kalesini sıfır</Text>
                   </View>
-                  <View style={styles.statBox}>
-                    <Text style={styles.statVal}>{afTeamStats.failed_to_score?.total ?? '-'}</Text>
-                    <Text style={styles.statLbl}>Gol atamadı</Text>
+                  <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                    <Text style={[styles.statVal, { color: c.text }]}>{afTeamStats.failed_to_score?.total ?? '-'}</Text>
+                    <Text style={[styles.statLbl, { color: c.textMuted }]}>Gol atamadı</Text>
                   </View>
-                  <View style={styles.statBox}>
-                    <Text style={styles.statVal}>{sumCards(afTeamStats.cards?.yellow)}</Text>
-                    <Text style={styles.statLbl}>Sarı kart</Text>
+                  <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                    <Text style={[styles.statVal, { color: c.text }]}>{sumCards(afTeamStats.cards?.yellow)}</Text>
+                    <Text style={[styles.statLbl, { color: c.textMuted }]}>Sarı kart</Text>
                   </View>
-                  <View style={styles.statBox}>
-                    <Text style={styles.statVal}>{sumCards(afTeamStats.cards?.red)}</Text>
-                    <Text style={styles.statLbl}>Kırmızı kart</Text>
+                  <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                    <Text style={[styles.statVal, { color: c.text }]}>{sumCards(afTeamStats.cards?.red)}</Text>
+                    <Text style={[styles.statLbl, { color: c.textMuted }]}>Kırmızı kart</Text>
                   </View>
                 </View>
               </>
@@ -648,59 +650,59 @@ export default function TeamStatsScreen() {
 
         {activeTab === 'oyuncular' && apiId === 203 && (
           loadingPlayers ? (
-            <ActivityIndicator style={{ marginTop: 40 }} color="#185FA5" />
+            <ActivityIndicator style={{ marginTop: 40 }} color={c.primary} />
           ) : !showFullSquad ? (
             <>
               {slTeamScorers.length > 0 ? (
                 <>
                   <View style={styles.catLabel}>
-                    <Text style={styles.catLabelText}>EN FAZLA GOL (Bu Sezon)</Text>
+                    <Text style={[styles.catLabelText, { color: c.textMuted }]}>EN FAZLA GOL (Bu Sezon)</Text>
                     <TouchableOpacity onPress={() => setShowFullSquad(true)}>
-                      <Text style={styles.catLabelLink}>Kadroyu gör ›</Text>
+                      <Text style={[styles.catLabelLink, { color: c.primary }]}>Kadroyu gör ›</Text>
                     </TouchableOpacity>
                   </View>
                   {slTeamScorers.slice(0, 5).map((s: any, i: number) => (
                     <View key={i}>
-                      <View style={[styles.topPlayer, i === Math.min(slTeamScorers.length, 5) - 1 && { borderBottomWidth: 0 }]}>
-                        <View style={[styles.rankBadge, { backgroundColor: RANK_COLORS[i]?.bg || '#E6F1FB' }]}>
-                          <Text style={[styles.rankText, { color: RANK_COLORS[i]?.color || '#0C447C' }]}>{i + 1}</Text>
+                      <View style={[styles.topPlayer, { borderBottomColor: c.border }, i === Math.min(slTeamScorers.length, 5) - 1 && { borderBottomWidth: 0 }]}>
+                        <View style={[styles.rankBadge, { backgroundColor: RANK_COLORS[i]?.bg || c.primaryLight }]}>
+                          <Text style={[styles.rankText, { color: RANK_COLORS[i]?.color || c.primaryDark }]}>{i + 1}</Text>
                         </View>
-                        <View style={styles.playerPhotoPlaceholder} />
+                        <View style={[styles.playerPhotoPlaceholder, { backgroundColor: c.primaryLight }]} />
                         <View style={styles.topPlayerInfo}>
-                          <Text style={styles.topPlayerName}>{s.name}</Text>
+                          <Text style={[styles.topPlayerName, { color: c.text }]}>{s.name}</Text>
                         </View>
-                        <Text style={styles.topPlayerVal}>{s.goals}</Text>
+                        <Text style={[styles.topPlayerVal, { color: c.primary }]}>{s.goals}</Text>
                       </View>
                       <View style={styles.barRow}>
-                        <View style={styles.barBg}>
-                          <View style={[styles.barFill, { width: `${(s.goals / (slTeamScorers[0]?.goals || 1)) * 100}%` }]} />
+                        <View style={[styles.barBg, { backgroundColor: c.borderLight }]}>
+                          <View style={[styles.barFill, { width: `${(s.goals / (slTeamScorers[0]?.goals || 1)) * 100}%`, backgroundColor: c.primary }]} />
                         </View>
                       </View>
                     </View>
                   ))}
-                  <TouchableOpacity style={styles.seeAllBtn} onPress={() => setShowFullSquad(true)}>
-                    <Text style={styles.seeAllText}>Tüm kadroyu gör ›</Text>
+                  <TouchableOpacity style={[styles.seeAllBtn, { borderTopColor: c.border }]} onPress={() => setShowFullSquad(true)}>
+                    <Text style={[styles.seeAllText, { color: c.primary }]}>Tüm kadroyu gör ›</Text>
                   </TouchableOpacity>
                 </>
               ) : (
                 <>
-                  <View style={styles.noDataBox}>
-                    <Text style={styles.noDataText}>Bu sezon gol istatistiği bulunamadı.</Text>
+                  <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
+                    <Text style={[styles.noDataText, { color: c.textSub }]}>Bu sezon gol istatistiği bulunamadı.</Text>
                   </View>
-                  <TouchableOpacity style={styles.seeAllBtn} onPress={() => setShowFullSquad(true)}>
-                    <Text style={styles.seeAllText}>Kadroyu gör ›</Text>
+                  <TouchableOpacity style={[styles.seeAllBtn, { borderTopColor: c.border }]} onPress={() => setShowFullSquad(true)}>
+                    <Text style={[styles.seeAllText, { color: c.primary }]}>Kadroyu gör ›</Text>
                   </TouchableOpacity>
                 </>
               )}
             </>
           ) : (
             <>
-              <TouchableOpacity style={styles.backToStats} onPress={() => setShowFullSquad(false)}>
-                <Text style={styles.backToStatsText}>‹ İstatistiklere dön</Text>
+              <TouchableOpacity style={[styles.backToStats, { borderBottomColor: c.border }]} onPress={() => setShowFullSquad(false)}>
+                <Text style={[styles.backToStatsText, { color: c.primary }]}>‹ İstatistiklere dön</Text>
               </TouchableOpacity>
               {slPlayers.length === 0 ? (
-                <View style={styles.noDataBox}>
-                  <Text style={styles.noDataText}>Kadro verisi bulunamadı.</Text>
+                <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
+                  <Text style={[styles.noDataText, { color: c.textSub }]}>Kadro verisi bulunamadı.</Text>
                 </View>
               ) : (
                 AF_POSITION_ORDER.map(pos => {
@@ -708,20 +710,20 @@ export default function TeamStatsScreen() {
                   if (players.length === 0) return null;
                   return (
                     <View key={pos}>
-                      <Text style={styles.sectionLabel}>{AF_POSITION_MAP[pos]}</Text>
+                      <Text style={[styles.sectionLabel, { color: c.textMuted }]}>{AF_POSITION_MAP[pos]}</Text>
                       {players.map((p: any, i: number) => {
                         const scorer = slTeamScorers.find((s: any) => s.name === p.name);
                         return (
-                          <View key={i} style={styles.playerItem}>
-                            <View style={[styles.playerPhotoSmall, { backgroundColor: '#E6F1FB' }]} />
+                          <View key={i} style={[styles.playerItem, { borderBottomColor: c.border }]}>
+                            <View style={[styles.playerPhotoSmall, { backgroundColor: c.primaryLight }]} />
                             <View style={styles.playerInfo}>
-                              <Text style={styles.playerName}>{p.name}</Text>
-                              <Text style={styles.playerNat}>{p.nationality}</Text>
+                              <Text style={[styles.playerName, { color: c.text }]}>{p.name}</Text>
+                              <Text style={[styles.playerNat, { color: c.textMuted }]}>{p.nationality}</Text>
                             </View>
                             {scorer && scorer.goals > 0 && (
                               <View style={styles.playerStatBadges}>
-                                <View style={styles.goalBadge}>
-                                  <Text style={styles.goalBadgeText}>⚽ {scorer.goals}</Text>
+                                <View style={[styles.goalBadge, { backgroundColor: c.primaryLight }]}>
+                                  <Text style={[styles.goalBadgeText, { color: c.primaryDark }]}>⚽ {scorer.goals}</Text>
                                 </View>
                               </View>
                             )}
@@ -738,34 +740,35 @@ export default function TeamStatsScreen() {
 
         {activeTab === 'oyuncular' && apiId !== 203 && (
           loadingPlayers ? (
-            <ActivityIndicator style={{ marginTop: 40 }} color="#185FA5" />
+            <ActivityIndicator style={{ marginTop: 40 }} color={c.primary} />
           ) : !showFullSquad ? (
             <>
               {topScorers.length > 0 ? (
                 <>
                   <View style={styles.catLabel}>
-                    <Text style={styles.catLabelText}>EN FAZLA GOL (Bu Sezon)</Text>
+                    <Text style={[styles.catLabelText, { color: c.textMuted }]}>EN FAZLA GOL (Bu Sezon)</Text>
                     <TouchableOpacity onPress={() => setShowFullSquad(true)}>
-                      <Text style={styles.catLabelLink}>Kadroyu gör ›</Text>
+                      <Text style={[styles.catLabelLink, { color: c.primary }]}>Kadroyu gör ›</Text>
                     </TouchableOpacity>
                   </View>
                   {topScorers.map((p: any, i: number) => (
                     <View key={p.player?.id || i}>
-                      <View style={[styles.topPlayer, i === topScorers.length - 1 && { borderBottomWidth: 0 }]}>
-                        <View style={[styles.rankBadge, { backgroundColor: RANK_COLORS[i]?.bg || '#E6F1FB' }]}>
-                          <Text style={[styles.rankText, { color: RANK_COLORS[i]?.color || '#0C447C' }]}>{i + 1}</Text>
+                      <View style={[styles.topPlayer, { borderBottomColor: c.border }, i === topScorers.length - 1 && { borderBottomWidth: 0 }]}>
+                        <View style={[styles.rankBadge, { backgroundColor: RANK_COLORS[i]?.bg || c.primaryLight }]}>
+                          <Text style={[styles.rankText, { color: RANK_COLORS[i]?.color || c.primaryDark }]}>{i + 1}</Text>
                         </View>
-                        <View style={styles.playerPhotoPlaceholder} />
+                        <View style={[styles.playerPhotoPlaceholder, { backgroundColor: c.primaryLight }]} />
                         <View style={styles.topPlayerInfo}>
-                          <Text style={styles.topPlayerName}>{p.player?.name}</Text>
-                          <Text style={styles.topPlayerPos}>{p.playedMatches} maç</Text>
+                          <Text style={[styles.topPlayerName, { color: c.text }]}>{p.player?.name}</Text>
+                          <Text style={[styles.topPlayerPos, { color: c.textMuted }]}>{p.playedMatches} maç</Text>
                         </View>
-                        <Text style={styles.topPlayerVal}>{p.goals}</Text>
+                        <Text style={[styles.topPlayerVal, { color: c.primary }]}>{p.goals}</Text>
                       </View>
                       <View style={styles.barRow}>
-                        <View style={styles.barBg}>
+                        <View style={[styles.barBg, { backgroundColor: c.borderLight }]}>
                           <View style={[styles.barFill, {
                             width: `${(p.goals / (topScorers[0]?.goals || 1)) * 100}%`,
+                            backgroundColor: c.primary,
                           }]} />
                         </View>
                       </View>
@@ -773,24 +776,24 @@ export default function TeamStatsScreen() {
                   ))}
                   {topAssists.length > 0 && (
                     <>
-                      <View style={[styles.catLabel, { marginTop: 8, borderTopWidth: 0.5, borderTopColor: '#eee', paddingTop: 12 }]}>
-                        <Text style={styles.catLabelText}>EN FAZLA ASİST (Bu Sezon)</Text>
+                      <View style={[styles.catLabel, { marginTop: 8, borderTopWidth: 0.5, borderTopColor: c.border, paddingTop: 12 }]}>
+                        <Text style={[styles.catLabelText, { color: c.textMuted }]}>EN FAZLA ASİST (Bu Sezon)</Text>
                       </View>
                       {topAssists.map((p: any, i: number) => (
                         <View key={p.player?.id || i}>
-                          <View style={[styles.topPlayer, i === topAssists.length - 1 && { borderBottomWidth: 0 }]}>
-                            <View style={[styles.rankBadge, { backgroundColor: RANK_COLORS[i]?.bg || '#E6F1FB' }]}>
-                              <Text style={[styles.rankText, { color: RANK_COLORS[i]?.color || '#0C447C' }]}>{i + 1}</Text>
+                          <View style={[styles.topPlayer, { borderBottomColor: c.border }, i === topAssists.length - 1 && { borderBottomWidth: 0 }]}>
+                            <View style={[styles.rankBadge, { backgroundColor: RANK_COLORS[i]?.bg || c.primaryLight }]}>
+                              <Text style={[styles.rankText, { color: RANK_COLORS[i]?.color || c.primaryDark }]}>{i + 1}</Text>
                             </View>
-                            <View style={styles.playerPhotoPlaceholder} />
+                            <View style={[styles.playerPhotoPlaceholder, { backgroundColor: c.primaryLight }]} />
                             <View style={styles.topPlayerInfo}>
-                              <Text style={styles.topPlayerName}>{p.player?.name}</Text>
-                              <Text style={styles.topPlayerPos}>{p.playedMatches} maç</Text>
+                              <Text style={[styles.topPlayerName, { color: c.text }]}>{p.player?.name}</Text>
+                              <Text style={[styles.topPlayerPos, { color: c.textMuted }]}>{p.playedMatches} maç</Text>
                             </View>
                             <Text style={[styles.topPlayerVal, { color: '#E65100' }]}>{p.assists}</Text>
                           </View>
                           <View style={styles.barRow}>
-                            <View style={styles.barBg}>
+                            <View style={[styles.barBg, { backgroundColor: c.borderLight }]}>
                               <View style={[styles.barFill, {
                                 width: `${(p.assists / (topAssists[0]?.assists || 1)) * 100}%`,
                                 backgroundColor: '#E65100',
@@ -801,29 +804,29 @@ export default function TeamStatsScreen() {
                       ))}
                     </>
                   )}
-                  <TouchableOpacity style={styles.seeAllBtn} onPress={() => setShowFullSquad(true)}>
-                    <Text style={styles.seeAllText}>Tüm kadroyu gör ›</Text>
+                  <TouchableOpacity style={[styles.seeAllBtn, { borderTopColor: c.border }]} onPress={() => setShowFullSquad(true)}>
+                    <Text style={[styles.seeAllText, { color: c.primary }]}>Tüm kadroyu gör ›</Text>
                   </TouchableOpacity>
                 </>
               ) : (
                 <>
-                  <View style={styles.noDataBox}>
-                    <Text style={styles.noDataText}>Bu sezon gol istatistiği bulunamadı.</Text>
+                  <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
+                    <Text style={[styles.noDataText, { color: c.textSub }]}>Bu sezon gol istatistiği bulunamadı.</Text>
                   </View>
-                  <TouchableOpacity style={styles.seeAllBtn} onPress={() => setShowFullSquad(true)}>
-                    <Text style={styles.seeAllText}>Kadroyu gör ›</Text>
+                  <TouchableOpacity style={[styles.seeAllBtn, { borderTopColor: c.border }]} onPress={() => setShowFullSquad(true)}>
+                    <Text style={[styles.seeAllText, { color: c.primary }]}>Kadroyu gör ›</Text>
                   </TouchableOpacity>
                 </>
               )}
             </>
           ) : (
             <>
-              <TouchableOpacity style={styles.backToStats} onPress={() => setShowFullSquad(false)}>
-                <Text style={styles.backToStatsText}>‹ İstatistiklere dön</Text>
+              <TouchableOpacity style={[styles.backToStats, { borderBottomColor: c.border }]} onPress={() => setShowFullSquad(false)}>
+                <Text style={[styles.backToStatsText, { color: c.primary }]}>‹ İstatistiklere dön</Text>
               </TouchableOpacity>
               {fdSquad.length === 0 ? (
-                <View style={styles.noDataBox}>
-                  <Text style={styles.noDataText}>Kadro verisi bulunamadı.</Text>
+                <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
+                  <Text style={[styles.noDataText, { color: c.textSub }]}>Kadro verisi bulunamadı.</Text>
                 </View>
               ) : (
                 AF_POSITION_ORDER.map(pos => {
@@ -831,23 +834,23 @@ export default function TeamStatsScreen() {
                   if (!players) return null;
                   return (
                     <View key={pos}>
-                      <Text style={styles.sectionLabel}>{AF_POSITION_MAP[pos]}</Text>
+                      <Text style={[styles.sectionLabel, { color: c.textMuted }]}>{AF_POSITION_MAP[pos]}</Text>
                       {players.map((p: any, i: number) => {
                         const scorer = fdScorers.find((s: any) =>
                           s.player?.id === p.id || teamsMatch(s.player?.name || '', p.name)
                         );
                         return (
-                          <View key={i} style={styles.playerItem}>
-                            <View style={[styles.playerPhotoSmall, { backgroundColor: '#E6F1FB' }]} />
+                          <View key={i} style={[styles.playerItem, { borderBottomColor: c.border }]}>
+                            <View style={[styles.playerPhotoSmall, { backgroundColor: c.primaryLight }]} />
                             <View style={styles.playerInfo}>
-                              <Text style={styles.playerName}>{p.name}</Text>
-                              <Text style={styles.playerNat}>{p.nationality}</Text>
+                              <Text style={[styles.playerName, { color: c.text }]}>{p.name}</Text>
+                              <Text style={[styles.playerNat, { color: c.textMuted }]}>{p.nationality}</Text>
                             </View>
                             {scorer && (
                               <View style={styles.playerStatBadges}>
                                 {scorer.goals > 0 && (
-                                  <View style={styles.goalBadge}>
-                                    <Text style={styles.goalBadgeText}>⚽ {scorer.goals}</Text>
+                                  <View style={[styles.goalBadge, { backgroundColor: c.primaryLight }]}>
+                                    <Text style={[styles.goalBadgeText, { color: c.primaryDark }]}>⚽ {scorer.goals}</Text>
                                   </View>
                                 )}
                                 {scorer.assists > 0 && (
@@ -875,115 +878,114 @@ export default function TeamStatsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:           { flex: 1, backgroundColor: '#fff' },
-  topbar:              { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingTop: 52, paddingBottom: 10, borderBottomWidth: 0.5, borderBottomColor: '#eee' },
-  backBtn:             { fontSize: 16, color: '#185FA5', fontWeight: '500' },
-  topbarTitle:         { fontSize: 14, fontWeight: '500', color: '#111' },
+  container:           { flex: 1 },
+  topbar:              { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingTop: 52, paddingBottom: 10, borderBottomWidth: 0.5 },
+  backBtn:             { fontSize: 16, fontWeight: '500' },
+  topbarTitle:         { fontSize: 14, fontWeight: '500' },
   scroll:              { flex: 1 },
-  teamHeader:          { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderBottomWidth: 0.5, borderBottomColor: '#eee' },
-  teamLogo:            { width: 48, height: 48, borderRadius: 12, backgroundColor: '#E6F1FB', alignItems: 'center', justifyContent: 'center' },
-  teamLogoText:        { fontSize: 16, fontWeight: '500', color: '#0C447C' },
-  teamTitle:           { fontSize: 16, fontWeight: '500', color: '#111' },
-  teamSub:             { fontSize: 12, color: '#888', marginTop: 2 },
-  toggleRow:           { flexDirection: 'row', margin: 14, backgroundColor: '#f5f5f5', borderRadius: 8, padding: 3 },
+  teamHeader:          { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderBottomWidth: 0.5 },
+  teamLogo:            { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  teamLogoText:        { fontSize: 16, fontWeight: '500' },
+  teamTitle:           { fontSize: 16, fontWeight: '500' },
+  teamSub:             { fontSize: 12, marginTop: 2 },
+  toggleRow:           { flexDirection: 'row', margin: 14, borderRadius: 8, padding: 3 },
   toggleBtn:           { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },
-  toggleBtnActive:     { backgroundColor: '#fff', borderWidth: 0.5, borderColor: '#eee' },
-  toggleBtnText:       { fontSize: 13, color: '#888' },
-  toggleBtnTextActive: { color: '#111', fontWeight: '500' },
-  sectionLabel:        { fontSize: 11, color: '#888', fontWeight: '500', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6, letterSpacing: 0.5 },
+  toggleBtnActive:     { borderWidth: 0.5 },
+  toggleBtnText:       { fontSize: 13 },
+  sectionLabel:        { fontSize: 11, fontWeight: '500', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6, letterSpacing: 0.5 },
   statGrid:            { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 10, gap: 8, marginBottom: 4 },
-  statBox:             { width: '30%', flexGrow: 1, backgroundColor: '#f8f8f8', borderRadius: 10, padding: 12, borderWidth: 0.5, borderColor: '#eee' },
-  statVal:             { fontSize: 22, fontWeight: '500', color: '#111' },
-  statLbl:             { fontSize: 10, color: '#888', marginTop: 2 },
-  noDataSmall:         { fontSize: 12, color: '#aaa', paddingHorizontal: 14, paddingBottom: 10 },
+  statBox:             { width: '30%', flexGrow: 1, borderRadius: 10, padding: 12, borderWidth: 0.5 },
+  statVal:             { fontSize: 22, fontWeight: '500' },
+  statLbl:             { fontSize: 10, marginTop: 2 },
+  noDataSmall:         { fontSize: 12, paddingHorizontal: 14, paddingBottom: 10 },
 
   // Maç Özeti (W-D-L bar dahil)
-  summaryCard:         { marginHorizontal: 14, marginBottom: 8, backgroundColor: '#f8f8f8', borderRadius: 10, borderWidth: 0.5, borderColor: '#eee', padding: 12 },
+  summaryCard:         { marginHorizontal: 14, marginBottom: 8, borderRadius: 10, borderWidth: 0.5, padding: 12 },
   summaryRow:          { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   summaryStat:         { alignItems: 'center' },
-  summaryV:            { fontSize: 20, fontWeight: '600', color: '#111' },
-  summaryL:            { fontSize: 10, color: '#888', marginTop: 2 },
-  wdlBar:              { flexDirection: 'row', height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: '#eee' },
+  summaryV:            { fontSize: 20, fontWeight: '600' },
+  summaryL:            { fontSize: 10, marginTop: 2 },
+  wdlBar:              { flexDirection: 'row', height: 6, borderRadius: 3, overflow: 'hidden' },
   wdlSeg:              { height: '100%' },
-  wdlW:                { backgroundColor: '#27500A' },
-  wdlD:                { backgroundColor: '#888' },
-  wdlL:                { backgroundColor: '#A32D2D' },
+  wdlW:                {},
+  wdlD:                {},
+  wdlL:                {},
 
   // Gol kartı
-  goalCard:            { flexDirection: 'row', marginHorizontal: 14, marginBottom: 8, backgroundColor: '#f8f8f8', borderRadius: 10, borderWidth: 0.5, borderColor: '#eee', padding: 14 },
+  goalCard:            { flexDirection: 'row', marginHorizontal: 14, marginBottom: 8, borderRadius: 10, borderWidth: 0.5, padding: 14 },
   goalStat:            { flex: 1, alignItems: 'center' },
-  goalDivider:         { width: 0.5, backgroundColor: '#eee' },
-  goalV:               { fontSize: 26, fontWeight: '600', color: '#111' },
-  goalL:               { fontSize: 11, color: '#888', marginTop: 3 },
+  goalDivider:         { width: 0.5 },
+  goalV:               { fontSize: 26, fontWeight: '600' },
+  goalL:               { fontSize: 11, marginTop: 3 },
 
   // Gol Beklentileri — yatay bar
-  expectCard:          { marginHorizontal: 14, marginBottom: 8, backgroundColor: '#f8f8f8', borderRadius: 10, borderWidth: 0.5, borderColor: '#eee', padding: 14 },
+  expectCard:          { marginHorizontal: 14, marginBottom: 8, borderRadius: 10, borderWidth: 0.5, padding: 14 },
   pbRow:               { flexDirection: 'row', alignItems: 'center', marginVertical: 5, gap: 8 },
-  pbLabel:             { fontSize: 12, color: '#555', width: 54 },
-  pbTrack:             { flex: 1, height: 8, backgroundColor: '#eaeaea', borderRadius: 4, overflow: 'hidden' },
-  pbFill:              { height: '100%', borderRadius: 4, backgroundColor: '#185FA5' },
-  pbValue:             { fontSize: 13, fontWeight: '600', color: '#185FA5', width: 44, textAlign: 'right' },
+  pbLabel:             { fontSize: 12, width: 54 },
+  pbTrack:             { flex: 1, height: 8, borderRadius: 4, overflow: 'hidden' },
+  pbFill:              { height: '100%', borderRadius: 4 },
+  pbValue:             { fontSize: 13, fontWeight: '600', width: 44, textAlign: 'right' },
 
   // Özel durumlar
   specialRow:          { flexDirection: 'row', marginHorizontal: 10, gap: 8, marginBottom: 8 },
-  specialBox:          { flex: 1, backgroundColor: '#f8f8f8', borderRadius: 10, padding: 12, borderWidth: 0.5, borderColor: '#eee', alignItems: 'center' },
+  specialBox:          { flex: 1, borderRadius: 10, padding: 12, borderWidth: 0.5, alignItems: 'center' },
   specialV:            { fontSize: 20, fontWeight: '600' },
-  specialL:            { fontSize: 10, color: '#888', marginTop: 3, textAlign: 'center' },
+  specialL:            { fontSize: 10, marginTop: 3, textAlign: 'center' },
 
   // İç Saha vs Deplasman — karşılaştırma barı
-  splitCompareCard:    { marginHorizontal: 14, marginBottom: 8, backgroundColor: '#f8f8f8', borderRadius: 10, borderWidth: 0.5, borderColor: '#eee', padding: 12 },
+  splitCompareCard:    { marginHorizontal: 14, marginBottom: 8, borderRadius: 10, borderWidth: 0.5, padding: 12 },
   splitCompareRow:     { marginVertical: 6 },
   splitCompareHeader:  { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
-  splitCompareLabel:   { flex: 1, fontSize: 12, color: '#555', fontWeight: '500' },
-  splitCompareRecord:  { fontSize: 13, color: '#111', fontWeight: '600', marginRight: 8 },
-  splitCompareMeta:    { fontSize: 11, color: '#888' },
-  splitCompareBar:     { flexDirection: 'row', height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: '#eee' },
+  splitCompareLabel:   { flex: 1, fontSize: 12, fontWeight: '500' },
+  splitCompareRecord:  { fontSize: 13, fontWeight: '600', marginRight: 8 },
+  splitCompareMeta:    { fontSize: 11 },
+  splitCompareBar:     { flexDirection: 'row', height: 6, borderRadius: 3, overflow: 'hidden' },
   splitSeg:            { height: '100%' },
 
   formRow:             { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingBottom: 16, gap: 6 },
   formBadge:           { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  formG:               { backgroundColor: '#27500A' },
-  formB:               { backgroundColor: '#888' },
-  formM:               { backgroundColor: '#A32D2D' },
+  formG:               {},
+  formB:               {},
+  formM:               {},
   formBadgeText:       { fontSize: 13, fontWeight: '600', color: '#fff' },
-  formNote:            { fontSize: 11, color: '#888', marginLeft: 6 },
+  formNote:            { fontSize: 11, marginLeft: 6 },
   catLabel:            { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4 },
-  catLabelText:        { fontSize: 11, color: '#888', fontWeight: '500', letterSpacing: 0.5 },
-  catLabelLink:        { fontSize: 11, color: '#185FA5' },
-  topPlayer:           { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: '#eee', gap: 10 },
+  catLabelText:        { fontSize: 11, fontWeight: '500', letterSpacing: 0.5 },
+  catLabelLink:        { fontSize: 11 },
+  topPlayer:           { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5, gap: 10 },
   rankBadge:           { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   rankText:            { fontSize: 11, fontWeight: '500' },
-  playerPhotoPlaceholder: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#E6F1FB' },
+  playerPhotoPlaceholder: { width: 32, height: 32, borderRadius: 16 },
   topPlayerInfo:       { flex: 1 },
-  topPlayerName:       { fontSize: 13, fontWeight: '500', color: '#111' },
-  topPlayerPos:        { fontSize: 11, color: '#888', marginTop: 1 },
-  topPlayerVal:        { fontSize: 16, fontWeight: '500', color: '#185FA5' },
+  topPlayerName:       { fontSize: 13, fontWeight: '500' },
+  topPlayerPos:        { fontSize: 11, marginTop: 1 },
+  topPlayerVal:        { fontSize: 16, fontWeight: '500' },
   barRow:              { paddingHorizontal: 14, paddingBottom: 4 },
-  barBg:               { height: 4, backgroundColor: '#f0f0f0', borderRadius: 2, overflow: 'hidden' },
-  barFill:             { height: '100%', backgroundColor: '#185FA5', borderRadius: 2 },
-  seeAllBtn:           { borderTopWidth: 0.5, borderTopColor: '#eee', paddingVertical: 12, alignItems: 'center' },
-  seeAllText:          { fontSize: 13, color: '#185FA5' },
-  backToStats:         { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: '#eee' },
-  backToStatsText:     { fontSize: 13, color: '#185FA5' },
-  noDataBox:           { margin: 20, padding: 20, backgroundColor: '#f8f8f8', borderRadius: 10, alignItems: 'center' },
-  noDataText:          { fontSize: 13, color: '#555', textAlign: 'center' },
-  playerItem:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: '#eee', gap: 10 },
+  barBg:               { height: 4, borderRadius: 2, overflow: 'hidden' },
+  barFill:             { height: '100%', borderRadius: 2 },
+  seeAllBtn:           { borderTopWidth: 0.5, paddingVertical: 12, alignItems: 'center' },
+  seeAllText:          { fontSize: 13 },
+  backToStats:         { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5 },
+  backToStatsText:     { fontSize: 13 },
+  noDataBox:           { margin: 20, padding: 20, borderRadius: 10, alignItems: 'center' },
+  noDataText:          { fontSize: 13, textAlign: 'center' },
+  playerItem:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5, gap: 10 },
   playerPhotoSmall:    { width: 36, height: 36, borderRadius: 18 },
   playerInfo:          { flex: 1 },
-  playerName:          { fontSize: 13, fontWeight: '500', color: '#111' },
-  playerNat:           { fontSize: 11, color: '#888', marginTop: 2 },
+  playerName:          { fontSize: 13, fontWeight: '500' },
+  playerNat:           { fontSize: 11, marginTop: 2 },
   playerStatBadges:    { flexDirection: 'row', gap: 4 },
-  goalBadge:           { backgroundColor: '#E6F1FB', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  goalBadgeText:       { fontSize: 11, color: '#0C447C' },
+  goalBadge:           { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  goalBadgeText:       { fontSize: 11 },
   assistBadge:         { backgroundColor: '#FFF3E0', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   assistBadgeText:     { fontSize: 11, color: '#E65100' },
-  profileCard:         { marginHorizontal: 14, marginBottom: 6, padding: 14, backgroundColor: '#f8f8f8', borderRadius: 12, borderLeftWidth: 3 },
+  profileCard:         { marginHorizontal: 14, marginBottom: 6, padding: 14, borderRadius: 12, borderLeftWidth: 3, borderWidth: 0.5 },
   profileTop:          { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
   profileEmoji:        { fontSize: 26, marginTop: 2 },
   profileLabel:        { fontSize: 15, fontWeight: '700', marginBottom: 3 },
-  profileDesc:         { fontSize: 12, color: '#555', lineHeight: 17 },
-  profileStats:        { flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: '#eee', paddingTop: 10, gap: 0 },
+  profileDesc:         { fontSize: 12, lineHeight: 17 },
+  profileStats:        { flexDirection: 'row', borderTopWidth: 0.5, paddingTop: 10, gap: 0 },
   profileStat:         { flex: 1, alignItems: 'center' },
-  profileStatVal:      { fontSize: 16, fontWeight: '600', color: '#111' },
-  profileStatLbl:      { fontSize: 10, color: '#888', marginTop: 2 },
+  profileStatVal:      { fontSize: 16, fontWeight: '600' },
+  profileStatLbl:      { fontSize: 10, marginTop: 2 },
 });
