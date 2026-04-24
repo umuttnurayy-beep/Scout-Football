@@ -13,6 +13,8 @@ import { NotifData, loadNotifPrefs, scheduleNotifications } from '../services/no
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
+const STANDINGS_CACHE_KEY = 'scout_standings_cache_v1';
+
 const SUPPORTED_LEAGUES = [2021, 2014, 2002, 2019, 2015, 2001];
 
 const LEAGUE_NAMES: Record<number, string> = {
@@ -434,21 +436,44 @@ export default function HomeScreen() {
       const dateStr = formatDateParam(date);
       const needsStandings = Object.keys(standingsMap).length === 0;
       if (!silent && needsStandings) {
-        // İlk yüklemede maç + standings birlikte beklenir — hero ilk renderdan itibaren sabit kalır
-        const [data, slData, fdResults, slStandings] = await Promise.all([
-          getTodayMatches(dateStr),
-          getSuperLigMatches(dateStr),
-          Promise.all(STANDINGS_LEAGUES.map(({ apiId }) => getStandings(apiId))),
-          getSuperLigStandings(),
-        ]);
-        const map: Record<number, Standing[]> = {};
-        STANDINGS_LEAGUES.forEach((x, i) => { map[x.leagueApiId] = fdResults[i] || []; });
-        map[203] = slStandings || [];
-        setStandingsMap(map);
-        const mainMatches = data
-          .filter((m: any) => SUPPORTED_LEAGUES.includes(m.competition?.id))
-          .map(mapMatch);
-        setMatches([...mainMatches, ...slData.map(mapSLMatch)]);
+        // Cache'ten standings yükle (aynı gün ise ağa gitme — hero kararlı kalır)
+        let map: Record<number, Standing[]> | null = null;
+        try {
+          const raw = await AsyncStorage.getItem(STANDINGS_CACHE_KEY);
+          if (raw) {
+            const { cacheDate, data: cached } = JSON.parse(raw);
+            if (cacheDate === dateStr) map = cached;
+          }
+        } catch {}
+
+        if (map) {
+          // Cache var: sadece maçları çek, standings sabit
+          const [data, slData] = await Promise.all([
+            getTodayMatches(dateStr), getSuperLigMatches(dateStr),
+          ]);
+          setStandingsMap(map);
+          const mainMatches = data
+            .filter((m: any) => SUPPORTED_LEAGUES.includes(m.competition?.id))
+            .map(mapMatch);
+          setMatches([...mainMatches, ...slData.map(mapSLMatch)]);
+        } else {
+          // İlk yükleme: maç + standings birlikte çek, cache'e kaydet
+          const [data, slData, fdResults, slStandings] = await Promise.all([
+            getTodayMatches(dateStr),
+            getSuperLigMatches(dateStr),
+            Promise.all(STANDINGS_LEAGUES.map(({ apiId }) => getStandings(apiId))),
+            getSuperLigStandings(),
+          ]);
+          map = {};
+          STANDINGS_LEAGUES.forEach((x, i) => { map![x.leagueApiId] = fdResults[i] || []; });
+          map[203] = slStandings || [];
+          AsyncStorage.setItem(STANDINGS_CACHE_KEY, JSON.stringify({ cacheDate: dateStr, data: map })).catch(() => {});
+          setStandingsMap(map);
+          const mainMatches = data
+            .filter((m: any) => SUPPORTED_LEAGUES.includes(m.competition?.id))
+            .map(mapMatch);
+          setMatches([...mainMatches, ...slData.map(mapSLMatch)]);
+        }
       } else {
         // Güncelle / sessiz yenileme: sadece maç skorları güncellenir, standings sabit kalır
         const [data, slData] = await Promise.all([
