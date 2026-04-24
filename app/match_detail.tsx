@@ -691,9 +691,10 @@ export default function MatchDetail() {
   const leagueApiId = parseInt(p('leagueApiId') || '0');
   const homeTeamId  = parseInt(p('homeTeamId')  || '0');
   const awayTeamId  = parseInt(p('awayTeamId')  || '0');
-  const liveParam   = p('live');
-  const scoreParam  = p('score');
-  const isFromLive  = liveParam === '1';
+  const liveParam      = p('live');
+  const scoreParam     = p('score');
+  const isFromLive     = liveParam === '1';
+  const finishedParam  = p('finished') === '1';
 
   const matchDate = utcDate ? new Date(utcDate).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'}) : '';
   const matchTime = utcDate ? new Date(utcDate).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}) : '';
@@ -704,7 +705,7 @@ export default function MatchDetail() {
     async function load(){
       setLoading(true);
       const [statsR,h2hR,weatherR,oddsR,hFormR,aFormR] = await Promise.allSettled([
-        getMatchStats(matchId),getH2H(matchId),getWeather(city),
+        getMatchStats(matchId),getH2H(matchId,finishedParam),getWeather(city),
         getOdds(home,away,leagueApiId),getTeamForm(homeTeamId),getTeamForm(awayTeamId),
       ]);
       setMatchData(statsR.status==='fulfilled'?statsR.value:null);
@@ -770,6 +771,52 @@ export default function MatchDetail() {
   const compareComment= hasFormData?getCompareComment(homeStats,awayStats,home,away):'';
   const h2hComment    = getH2HComment(h2hData,home,away);
   const oddsComment   = getOddsComment(oddsData,home,analysis);
+
+  const ts = {
+    insightBox:      { backgroundColor: isDark ? '#0D2038' : '#f4f8ff', borderLeftColor: c.primary },
+    insightText:     { color: isDark ? c.textSub : '#1a3a5c' },
+    noDataBox:       { backgroundColor: c.surfaceAlt },
+    noDataText:      { color: c.textSub },
+    sumBox:          { backgroundColor: c.surfaceAlt },
+    sumVal:          { color: c.text },
+    sumLbl:          { color: c.textMuted },
+    h2hRow:          { borderBottomColor: c.border },
+    h2hDate:         { color: c.textMuted },
+    h2hTeams:        { color: c.text },
+    h2hScore:        { color: c.text },
+    scoutCard:       { backgroundColor: isDark ? '#0A1929' : '#EBF3FF', borderColor: isDark ? '#1F4F7A' : '#C8DAFF' },
+    scoutTitle:      { color: isDark ? c.primary : '#0C447C' },
+    scoutSub:        { color: c.textMuted },
+    scoutRow:        { backgroundColor: c.surface },
+    scoutColBorder:  { borderLeftColor: c.border },
+    scoutVal:        { color: c.text },
+    scoutLabel:      { color: c.textMuted },
+    bahisBtn:        { backgroundColor: c.surfaceAlt, borderColor: c.border },
+    bahisType:       { color: c.textMuted },
+    bahisOdd:        { color: c.text },
+    weatherCard:     { backgroundColor: isDark ? '#0A1929' : '#f0f6ff' },
+    weatherCity:     { color: c.textMuted },
+    weatherTemp:     { color: c.text },
+    weatherDesc:     { color: c.textSub },
+    weatherBadge:    { backgroundColor: c.surface },
+    weatherBadgeText:{ color: c.textSub },
+    impactBadge:     { backgroundColor: c.surfaceAlt },
+    impactLabel:     { color: c.textMuted },
+    refCard:         { backgroundColor: c.surfaceAlt },
+    refName:         { color: c.text },
+    refSub:          { color: c.textMuted },
+    refFaulPill:     { backgroundColor: c.primaryLight, borderColor: isDark ? '#1F4F7A' : '#C8DAFF' },
+    refFaulText:     { color: c.primary },
+    refAkisPill:     { backgroundColor: c.surfaceAlt, borderColor: c.border },
+    refAkisText:     { color: c.textSub },
+    styleBadge:      { backgroundColor: c.surfaceAlt },
+    styleTeam:       { color: c.textMuted },
+    riskBox:         { borderColor: c.border },
+    riskRow:         { borderTopColor: c.border },
+    riskText:        { color: c.textSub },
+    disclaimer:      { backgroundColor: isDark ? '#2A2000' : '#fff8e1', borderColor: isDark ? '#5A4000' : '#ffe082' },
+    disclaimerText:  { color: isDark ? '#E6C350' : '#856404' },
+  };
 
   if (loading) return <View style={[styles.loaderContainer,{backgroundColor:c.bg}]}><ActivityIndicator size="large" color={c.primary}/></View>;
 
@@ -945,18 +992,18 @@ export default function MatchDetail() {
         {/* Performans Profili */}
         {hasFormData && (
           <>
-            <Text style={styles.sectionLabel}>PERFORMANS PROFİLİ</Text>
+            <Text style={[styles.sectionLabel,{color:c.textMuted}]}>PERFORMANS PROFİLİ</Text>
             <View style={styles.radarLegendRow}>
               <View style={[styles.radarDot,{backgroundColor:hLeadsRadar?NEON:'#185FA5'}]}/>
-              <Text style={[styles.radarLegendText,hLeadsRadar&&{color:NEON,fontWeight:'600'}]}>{home}</Text>
+              <Text style={[styles.radarLegendText,{color:c.textSub},hLeadsRadar&&{color:NEON,fontWeight:'600'}]}>{home}</Text>
               <View style={[styles.radarDot,{backgroundColor:!hLeadsRadar?NEON:'#A32D2D'}]}/>
-              <Text style={[styles.radarLegendText,!hLeadsRadar&&{color:NEON,fontWeight:'600'}]}>{away}</Text>
+              <Text style={[styles.radarLegendText,{color:c.textSub},!hLeadsRadar&&{color:NEON,fontWeight:'600'}]}>{away}</Text>
             </View>
             <View style={{alignItems:'center',marginBottom:4}}>
               <RadarChart homeVals={homeRadar} awayVals={awayRadar} labels={radarLabels}/>
             </View>
-            <View style={styles.insightBox}>
-              <Text style={styles.insightText}>
+            <View style={[styles.insightBox,ts.insightBox]}>
+              <Text style={[styles.insightText,ts.insightText]}>
                 {hLeadsRadar
                   ? `${home} radar grafiğinde genel olarak önde; hücum ve savunma dengesi lehine.`
                   : `${away} radar grafiğinde genel olarak önde; istatistiksel tablo daha güçlü görünüyor.`}
@@ -968,11 +1015,11 @@ export default function MatchDetail() {
         {/* Takım Karşılaştırması */}
         {hasFormData && (
           <>
-            <Text style={styles.sectionLabel}>TAKIM KARŞILAŞTIRMASI</Text>
+            <Text style={[styles.sectionLabel,{color:c.textMuted}]}>TAKIM KARŞILAŞTIRMASI</Text>
             <View style={styles.compareHeader}>
-              <Text style={[styles.compareTeam,{color:'#185FA5'}]} numberOfLines={1}>{home}</Text>
+              <Text style={[styles.compareTeam,{color:c.primary}]} numberOfLines={1}>{home}</Text>
               <View style={{width:100}}/>
-              <Text style={[styles.compareTeam,{color:'#A32D2D',textAlign:'right'}]} numberOfLines={1}>{away}</Text>
+              <Text style={[styles.compareTeam,{color:c.loss,textAlign:'right'}]} numberOfLines={1}>{away}</Text>
             </View>
             <CompareRow label="Gol / Maç"           homeVal={homeStats.totalAvgGf}         awayVal={awayStats.totalAvgGf}/>
             <CompareRow label="Yenilen / Maç"        homeVal={homeStats.totalAvgGa}         awayVal={awayStats.totalAvgGa}        higherIsBetter={false}/>
@@ -982,19 +1029,19 @@ export default function MatchDetail() {
             <CompareRow label="KG Var %"             homeVal={`${homeStats.kgVarPct}%`}    awayVal={`${awayStats.kgVarPct}%`}/>
             <CompareRow label="İç Saha Galibiyet %"  homeVal={`${homeStats.homeWinPct}%`}  awayVal={`${awayStats.homeWinPct}%`}/>
             <CompareRow label="Deplasman Galibiyet %" homeVal={`${homeStats.awayWinPct}%`} awayVal={`${awayStats.awayWinPct}%`}/>
-            <View style={styles.insightBox}>
-              <Text style={styles.insightText}>{compareComment}</Text>
+            <View style={[styles.insightBox,ts.insightBox]}>
+              <Text style={[styles.insightText,ts.insightText]}>{compareComment}</Text>
             </View>
 
             {/* Son Form */}
-            <Text style={styles.sectionLabel}>SON FORM  (İ = İç Saha · D = Deplasman)</Text>
+            <Text style={[styles.sectionLabel,{color:c.textMuted}]}>SON FORM  (İ = İç Saha · D = Deplasman)</Text>
             <FormHeatRow matches={homeForm} teamId={homeTeamId} label={home}/>
             <FormHeatRow matches={awayForm} teamId={awayTeamId}  label={away}/>
           </>
         )}
 
         {/* Oran + Yorum */}
-        <Text style={styles.sectionLabel}>ORAN + YORUM</Text>
+        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>ORAN + YORUM</Text>
         {hasFormData && (() => {
           const rawH=(homeStats.homeWinPct*0.55+homeStats.totalWinPct*0.45)*0.85;
           const rawA=(awayStats.awayWinPct*0.55+awayStats.totalWinPct*0.45)*0.85;
@@ -1002,21 +1049,21 @@ export default function MatchDetail() {
           const ourH=Math.round(rawH/rawTot*100),ourD=Math.round(rawD/rawTot*100),ourA=100-ourH-ourD;
           const maxV=Math.max(ourH,ourD,ourA);
           const cols=[
-            {label:home,val:ourH,color:'#185FA5'},
-            {label:'Berabere',val:ourD,color:'#666'},
-            {label:away,val:ourA,color:'#A32D2D'},
+            {label:home,val:ourH,color:c.primary},
+            {label:'Berabere',val:ourD,color:c.textMuted},
+            {label:away,val:ourA,color:c.loss},
           ];
           return(
-            <View style={styles.scoutOddsCard}>
+            <View style={[styles.scoutOddsCard,ts.scoutCard]}>
               <View style={styles.scoutOddsHeader}>
-                <Text style={styles.scoutOddsTitle}>🎯 SCOUT TAHMİNİ</Text>
-                <Text style={styles.scoutOddsSub}>Form verisinden hesaplandı</Text>
+                <Text style={[styles.scoutOddsTitle,ts.scoutTitle]}>🎯 SCOUT TAHMİNİ</Text>
+                <Text style={[styles.scoutOddsSub,ts.scoutSub]}>Form verisinden hesaplandı</Text>
               </View>
-              <View style={{flexDirection:'row',backgroundColor:'#fff'}}>
+              <View style={{flexDirection:'row',backgroundColor:c.surface}}>
                 {cols.map((col,i)=>(
-                  <View key={i} style={[styles.scoutOddsCol,i>0&&{borderLeftWidth:0.5,borderLeftColor:'#e0eaff'}]}>
-                    <Text style={styles.scoutOddsLabel} numberOfLines={1}>{col.label}</Text>
-                    <Text style={[styles.scoutOddsVal,col.val===maxV&&{color:col.color,fontSize:24}]}>{col.val}%</Text>
+                  <View key={i} style={[styles.scoutOddsCol,i>0&&{borderLeftWidth:0.5,borderLeftColor:c.border}]}>
+                    <Text style={[styles.scoutOddsLabel,ts.scoutLabel]} numberOfLines={1}>{col.label}</Text>
+                    <Text style={[styles.scoutOddsVal,ts.scoutVal,col.val===maxV&&{color:col.color,fontSize:24}]}>{col.val}%</Text>
                     <View style={styles.scoutOddsBarWrap}>
                       <View style={[styles.scoutOddsBarFill,{width:`${col.val}%`,backgroundColor:col.color}]}/>
                     </View>
@@ -1032,9 +1079,9 @@ export default function MatchDetail() {
               {[
                 {label:home,val:oddsData.home},{label:'Berabere',val:oddsData.draw},{label:away,val:oddsData.away}
               ].map((btn,i)=>(
-                <View key={i} style={styles.bahisBtn}>
-                  <Text style={styles.bahisType} numberOfLines={1}>{btn.label}</Text>
-                  <Text style={styles.bahisOdd}>{btn.val}</Text>
+                <View key={i} style={[styles.bahisBtn,ts.bahisBtn]}>
+                  <Text style={[styles.bahisType,ts.bahisType]} numberOfLines={1}>{btn.label}</Text>
+                  <Text style={[styles.bahisOdd,ts.bahisOdd]}>{btn.val}</Text>
                 </View>
               ))}
             </View>
@@ -1058,24 +1105,24 @@ export default function MatchDetail() {
                 :'Bahisçi ve form tahmini dengede — belirgin değer farkı yok';
               const cols2=[{label:home,imp:impH,our:ourH},{label:'Berabere',imp:impD,our:ourD},{label:away,imp:impA,our:ourA}];
               return(
-                <View style={{marginHorizontal:14,marginBottom:4,borderWidth:0.5,borderColor:'#eee',borderRadius:10,overflow:'hidden'}}>
-                  <View style={{backgroundColor:'#f4f8ff',paddingHorizontal:12,paddingVertical:8}}>
-                    <Text style={{fontSize:10,color:'#888',fontWeight:'500',letterSpacing:0.5}}>BAHİSÇİ vs SCOUT KARŞILAŞTIRMASI</Text>
+                <View style={{marginHorizontal:14,marginBottom:4,borderWidth:0.5,borderColor:c.border,borderRadius:10,overflow:'hidden'}}>
+                  <View style={{backgroundColor:c.surfaceAlt,paddingHorizontal:12,paddingVertical:8}}>
+                    <Text style={{fontSize:10,color:c.textMuted,fontWeight:'500',letterSpacing:0.5}}>BAHİSÇİ vs SCOUT KARŞILAŞTIRMASI</Text>
                   </View>
-                  <View style={{flexDirection:'row',paddingVertical:10}}>
+                  <View style={{flexDirection:'row',paddingVertical:10,backgroundColor:c.surface}}>
                     {cols2.map((col,i)=>(
-                      <View key={i} style={{flex:1,alignItems:'center',borderRightWidth:i<2?0.5:0,borderRightColor:'#eee'}}>
-                        <Text style={{fontSize:9,color:'#888',marginBottom:4,textAlign:'center'}} numberOfLines={1}>{col.label}</Text>
-                        <Text style={{fontSize:16,fontWeight:'700',color:'#111'}}>{col.imp}%</Text>
-                        <Text style={{fontSize:9,color:'#aaa',marginTop:1}}>bahisçi</Text>
-                        <Text style={{fontSize:13,fontWeight:'600',color:Math.abs(col.our-col.imp)>9?'#27AE60':'#888',marginTop:6}}>{col.our}%</Text>
-                        <Text style={{fontSize:9,color:'#aaa',marginTop:1}}>scout</Text>
+                      <View key={i} style={{flex:1,alignItems:'center',borderRightWidth:i<2?0.5:0,borderRightColor:c.border}}>
+                        <Text style={{fontSize:9,color:c.textMuted,marginBottom:4,textAlign:'center'}} numberOfLines={1}>{col.label}</Text>
+                        <Text style={{fontSize:16,fontWeight:'700',color:c.text}}>{col.imp}%</Text>
+                        <Text style={{fontSize:9,color:c.textFaint,marginTop:1}}>bahisçi</Text>
+                        <Text style={{fontSize:13,fontWeight:'600',color:Math.abs(col.our-col.imp)>9?c.win:c.textMuted,marginTop:6}}>{col.our}%</Text>
+                        <Text style={{fontSize:9,color:c.textFaint,marginTop:1}}>scout</Text>
                       </View>
                     ))}
                   </View>
-                  <View style={{paddingHorizontal:12,paddingBottom:10}}>
-                    <View style={[{padding:8,borderRadius:6},hasValue?{backgroundColor:'#f0fff4',borderWidth:0.5,borderColor:'#27AE60'}:{backgroundColor:'#f8f8f8'}]}>
-                      <Text style={{fontSize:11,color:hasValue?'#1a5c30':'#888',lineHeight:16}}>{hasValue?`💡 ${valueText}`:valueText}</Text>
+                  <View style={{paddingHorizontal:12,paddingBottom:10,backgroundColor:c.surface}}>
+                    <View style={[{padding:8,borderRadius:6},hasValue?{backgroundColor:isDark?'#0D2010':'#f0fff4',borderWidth:0.5,borderColor:c.win}:{backgroundColor:c.surfaceAlt}]}>
+                      <Text style={{fontSize:11,color:hasValue?c.win:c.textMuted,lineHeight:16}}>{hasValue?`💡 ${valueText}`:valueText}</Text>
                     </View>
                   </View>
                 </View>
@@ -1083,85 +1130,85 @@ export default function MatchDetail() {
             })()}
           </>
         ) : (
-          <View style={styles.noDataBox}><Text style={styles.noDataText}>📅 Bu maç için henüz oran yayınlanmadı.</Text></View>
+          <View style={[styles.noDataBox,ts.noDataBox]}><Text style={[styles.noDataText,ts.noDataText]}>📅 Bu maç için henüz oran yayınlanmadı.</Text></View>
         )}
-        <View style={styles.insightBox}>
-          <Text style={styles.insightText}>{oddsComment}</Text>
+        <View style={[styles.insightBox,ts.insightBox]}>
+          <Text style={[styles.insightText,ts.insightText]}>{oddsComment}</Text>
         </View>
 
         {/* Hava Etkisi */}
-        <Text style={styles.sectionLabel}>HAVA ETKİSİ</Text>
+        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>HAVA ETKİSİ</Text>
         {weatherData ? (
           <>
-            <View style={styles.weatherCard}>
-              <Text style={styles.weatherCity}>{weatherData.city}</Text>
+            <View style={[styles.weatherCard,ts.weatherCard]}>
+              <Text style={[styles.weatherCity,ts.weatherCity]}>{weatherData.city}</Text>
               <Text style={styles.weatherIcon}>{weatherData.temp>25?'☀️':weatherData.temp>15?'⛅':weatherData.temp>5?'🌥️':'❄️'}</Text>
-              <Text style={styles.weatherTemp}>{weatherData.temp}°C</Text>
-              <Text style={styles.weatherDesc}>{weatherData.condition}</Text>
+              <Text style={[styles.weatherTemp,ts.weatherTemp]}>{weatherData.temp}°C</Text>
+              <Text style={[styles.weatherDesc,ts.weatherDesc]}>{weatherData.condition}</Text>
               <View style={styles.weatherBadgeRow}>
-                <View style={styles.weatherBadge}><Text style={styles.weatherBadgeText}>💨 {weatherData.wind} km/s</Text></View>
-                <View style={styles.weatherBadge}><Text style={styles.weatherBadgeText}>💧 %{weatherData.humidity} nem</Text></View>
+                <View style={[styles.weatherBadge,ts.weatherBadge]}><Text style={[styles.weatherBadgeText,ts.weatherBadgeText]}>💨 {weatherData.wind} km/s</Text></View>
+                <View style={[styles.weatherBadge,ts.weatherBadge]}><Text style={[styles.weatherBadgeText,ts.weatherBadgeText]}>💧 %{weatherData.humidity} nem</Text></View>
               </View>
             </View>
             <View style={{flexDirection:'row',gap:8,paddingHorizontal:14,marginBottom:6}}>
               {[
                 {icon:'🌧️',label:'Yağmur',level:/rain|shower|drizzle/.test((weatherData.condition||'').toLowerCase())?'orta':'yok',color:'#42A5F5'},
-                {icon:'💨',label:'Rüzgar',level:weatherData.wind>40?'yüksek':weatherData.wind>25?'orta':'düşük',color:weatherData.wind>40?'#E65100':weatherData.wind>25?'#FF8F00':'#bbb'},
-                {icon:'🌡️',label:'Sıcaklık',level:weatherData.temp>28||weatherData.temp<5?'orta':'düşük',color:weatherData.temp>28||weatherData.temp<5?'#6A1B9A':'#bbb'},
+                {icon:'💨',label:'Rüzgar',level:weatherData.wind>40?'yüksek':weatherData.wind>25?'orta':'düşük',color:weatherData.wind>40?'#E65100':weatherData.wind>25?'#FF8F00':c.textFaint},
+                {icon:'🌡️',label:'Sıcaklık',level:weatherData.temp>28||weatherData.temp<5?'orta':'düşük',color:weatherData.temp>28||weatherData.temp<5?'#6A1B9A':c.textFaint},
               ].map(item=>(
-                <View key={item.label} style={[styles.impactBadge,{borderColor:item.color}]}>
+                <View key={item.label} style={[styles.impactBadge,ts.impactBadge,{borderColor:item.color}]}>
                   <Text style={styles.impactIcon}>{item.icon}</Text>
-                  <Text style={styles.impactLabel}>{item.label}</Text>
+                  <Text style={[styles.impactLabel,ts.impactLabel]}>{item.label}</Text>
                   <Text style={[styles.impactLevel,{color:item.color}]}>{item.level}</Text>
                 </View>
               ))}
             </View>
-            <View style={styles.insightBox}>
-              <Text style={[styles.insightText,{fontWeight:'500'}]}>Etki: {weatherCom.impact}</Text>
-              <Text style={[styles.insightText,{marginTop:3}]}>{weatherCom.sentence}</Text>
+            <View style={[styles.insightBox,ts.insightBox]}>
+              <Text style={[styles.insightText,ts.insightText,{fontWeight:'500'}]}>Etki: {weatherCom.impact}</Text>
+              <Text style={[styles.insightText,ts.insightText,{marginTop:3}]}>{weatherCom.sentence}</Text>
             </View>
           </>
         ) : (
-          <View style={styles.noDataBox}><Text style={styles.noDataText}>Hava durumu verisi alınamadı.</Text></View>
+          <View style={[styles.noDataBox,ts.noDataBox]}><Text style={[styles.noDataText,ts.noDataText]}>Hava durumu verisi alınamadı.</Text></View>
         )}
 
         {/* Hakem */}
-        <Text style={styles.sectionLabel}>HAKEM</Text>
+        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>HAKEM</Text>
         {refProfile ? (
           <>
-            <View style={styles.refCard}>
+            <View style={[styles.refCard,ts.refCard]}>
               <Text style={styles.refIcon}>🧑‍⚖️</Text>
-              <Text style={styles.refName}>{refName}</Text>
-              <Text style={styles.refSub}>{league} · Maç Hakemi</Text>
+              <Text style={[styles.refName,ts.refName]}>{refName}</Text>
+              <Text style={[styles.refSub,ts.refSub]}>{league} · Maç Hakemi</Text>
             </View>
             <View style={{flexDirection:'row',gap:8,paddingHorizontal:14,marginBottom:6}}>
               <View style={[styles.refTagPill,{backgroundColor:refProfile.kartColor+'18',borderColor:refProfile.kartColor+'60'}]}>
                 <Text style={[styles.refTagText,{color:refProfile.kartColor}]}>{refProfile.kartEmoji} Kart: {refProfile.kart}</Text>
               </View>
-              <View style={[styles.refTagPill,{backgroundColor:'#E6F1FB',borderColor:'#C8DAFF'}]}>
-                <Text style={[styles.refTagText,{color:'#185FA5'}]}>⚖️ Faul: {refProfile.faul}</Text>
+              <View style={[styles.refTagPill,ts.refFaulPill]}>
+                <Text style={[styles.refTagText,ts.refFaulText]}>⚖️ Faul: {refProfile.faul}</Text>
               </View>
-              <View style={[styles.refTagPill,{backgroundColor:'#f0f0f0',borderColor:'#ddd'}]}>
-                <Text style={[styles.refTagText,{color:'#555'}]}>🎮 Akış: {refProfile.akis}</Text>
+              <View style={[styles.refTagPill,ts.refAkisPill]}>
+                <Text style={[styles.refTagText,ts.refAkisText]}>🎮 Akış: {refProfile.akis}</Text>
               </View>
             </View>
-            <View style={styles.insightBox}>
-              <Text style={styles.insightText}>{refProfile.narrative}</Text>
+            <View style={[styles.insightBox,ts.insightBox]}>
+              <Text style={[styles.insightText,ts.insightText]}>{refProfile.narrative}</Text>
             </View>
           </>
         ) : (
-          <View style={styles.noDataBox}>
-            <Text style={styles.noDataText}>{(!isFinished && !isLive) ? '📅 Hakem maç gününe yakın açıklanacak.' : 'Hakem bilgisi bulunamadı.'}</Text>
+          <View style={[styles.noDataBox,ts.noDataBox]}>
+            <Text style={[styles.noDataText,ts.noDataText]}>{(!isFinished && !isLive) ? '📅 Hakem maç gününe yakın açıklanacak.' : 'Hakem bilgisi bulunamadı.'}</Text>
           </View>
         )}
 
         {/* H2H */}
-        <Text style={styles.sectionLabel}>H2H — GEÇMIŞ KARŞILAŞMALAR</Text>
-        <View style={styles.insightBox}>
-          <Text style={styles.insightText}>{h2hComment}</Text>
+        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>H2H — GEÇMIŞ KARŞILAŞMALAR</Text>
+        <View style={[styles.insightBox,ts.insightBox]}>
+          <Text style={[styles.insightText,ts.insightText]}>{h2hComment}</Text>
         </View>
         {h2hData.length===0 ? (
-          <View style={styles.noDataBox}><Text style={styles.noDataText}>H2H verisi bulunamadı.</Text></View>
+          <View style={[styles.noDataBox,ts.noDataBox]}><Text style={[styles.noDataText,ts.noDataText]}>H2H verisi bulunamadı.</Text></View>
         ) : (
           <>
             {(() => {
@@ -1174,9 +1221,9 @@ export default function MatchDetail() {
               });
               return(
                 <View style={styles.summaryGrid}>
-                  <View style={styles.sumBox}><Text style={[styles.sumVal,{color:'#185FA5'}]}>{hw}</Text><Text style={styles.sumLbl} numberOfLines={1}>{home}</Text></View>
-                  <View style={styles.sumBox}><Text style={styles.sumVal}>{d}</Text><Text style={styles.sumLbl}>Berabere</Text></View>
-                  <View style={styles.sumBox}><Text style={[styles.sumVal,{color:'#A32D2D'}]}>{aw}</Text><Text style={styles.sumLbl} numberOfLines={1}>{away}</Text></View>
+                  <View style={[styles.sumBox,ts.sumBox]}><Text style={[styles.sumVal,ts.sumVal,{color:c.primary}]}>{hw}</Text><Text style={[styles.sumLbl,ts.sumLbl]} numberOfLines={1}>{home}</Text></View>
+                  <View style={[styles.sumBox,ts.sumBox]}><Text style={[styles.sumVal,ts.sumVal]}>{d}</Text><Text style={[styles.sumLbl,ts.sumLbl]}>Berabere</Text></View>
+                  <View style={[styles.sumBox,ts.sumBox]}><Text style={[styles.sumVal,ts.sumVal,{color:c.loss}]}>{aw}</Text><Text style={[styles.sumLbl,ts.sumLbl]} numberOfLines={1}>{away}</Text></View>
                 </View>
               );
             })()}
@@ -1184,12 +1231,12 @@ export default function MatchDetail() {
               const fh=m.score?.fullTime?.home,fa=m.score?.fullTime?.away;
               const date=new Date(m.utcDate).toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'});
               return(
-                <View key={i} style={styles.h2hRow}>
+                <View key={i} style={[styles.h2hRow,ts.h2hRow]}>
                   <View style={styles.h2hLeft}>
-                    <Text style={styles.h2hDate}>{date}</Text>
-                    <Text style={styles.h2hTeams}>{m.homeTeam?.shortName||m.homeTeam?.name} - {m.awayTeam?.shortName||m.awayTeam?.name}</Text>
+                    <Text style={[styles.h2hDate,ts.h2hDate]}>{date}</Text>
+                    <Text style={[styles.h2hTeams,ts.h2hTeams]}>{m.homeTeam?.shortName||m.homeTeam?.name} - {m.awayTeam?.shortName||m.awayTeam?.name}</Text>
                   </View>
-                  <Text style={styles.h2hScore}>{fh??'-'} – {fa??'-'}</Text>
+                  <Text style={[styles.h2hScore,ts.h2hScore]}>{fh??'-'} – {fa??'-'}</Text>
                 </View>
               );
             })}
@@ -1199,20 +1246,20 @@ export default function MatchDetail() {
         {/* Maç Karakteri Detayı */}
         {hasFormData && hStyle && aStyle && (
           <>
-            <Text style={styles.sectionLabel}>MAÇ KARAKTERİ DETAYI</Text>
+            <Text style={[styles.sectionLabel,{color:c.textMuted}]}>MAÇ KARAKTERİ DETAYI</Text>
             <View style={{flexDirection:'row',gap:10,paddingHorizontal:14,marginBottom:10}}>
               {[
                 {team:home,style:hStyle},{team:away,style:aStyle}
               ].map(({team,style},i)=>(
-                <View key={i} style={[styles.styleBadge,{borderColor:style.color}]}>
+                <View key={i} style={[styles.styleBadge,ts.styleBadge,{borderColor:style.color}]}>
                   <Text style={styles.styleEmoji}>{style.emoji}</Text>
                   <Text style={[styles.styleLabel,{color:style.color}]}>{style.label}</Text>
-                  <Text style={styles.styleTeam} numberOfLines={1}>{team}</Text>
+                  <Text style={[styles.styleTeam,ts.styleTeam]} numberOfLines={1}>{team}</Text>
                 </View>
               ))}
             </View>
-            <View style={[styles.insightBox,{borderLeftColor:'#185FA5',borderLeftWidth:3}]}>
-              <Text style={[styles.insightText,{color:'#1a3a5c'}]}>
+            <View style={[styles.insightBox,ts.insightBox]}>
+              <Text style={[styles.insightText,ts.insightText]}>
                 {analysis.medium}
               </Text>
             </View>
@@ -1220,17 +1267,17 @@ export default function MatchDetail() {
         )}
 
         {/* Risk & Uyarı */}
-        <Text style={styles.sectionLabel}>RİSK & UYARI</Text>
-        <View style={styles.riskBox}>
+        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>RİSK & UYARI</Text>
+        <View style={[styles.riskBox,ts.riskBox]}>
           {riskWarns.map((w,i)=>(
-            <View key={i} style={[styles.riskRow,i>0&&{borderTopWidth:0.5,borderTopColor:'#f0f0f0'}]}>
+            <View key={i} style={[styles.riskRow,{backgroundColor:c.surface},i>0&&{borderTopWidth:0.5,...ts.riskRow}]}>
               <Text style={styles.riskIcon}>{w.startsWith('Belirgin')? '✅':'⚠️'}</Text>
-              <Text style={styles.riskText}>{w}</Text>
+              <Text style={[styles.riskText,ts.riskText]}>{w}</Text>
             </View>
           ))}
         </View>
-        <View style={styles.disclaimerBox}>
-          <Text style={styles.disclaimerText}>ℹ️ Bu sayfa yalnızca bilgilendirme amaçlıdır. Analizler form verileri ve lig profillerine dayalı algoritmik tahmindir.</Text>
+        <View style={[styles.disclaimerBox,ts.disclaimer]}>
+          <Text style={[styles.disclaimerText,ts.disclaimerText]}>ℹ️ Bu sayfa yalnızca bilgilendirme amaçlıdır. Analizler form verileri ve lig profillerine dayalı algoritmik tahmindir.</Text>
         </View>
 
         <View style={{height:30}}/>

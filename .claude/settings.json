@@ -37,7 +37,8 @@
       "Bash(python3 -c \" import json,sys,io sys.stdin = io.TextIOWrapper\\(sys.stdin.buffer, encoding='utf-8', errors='replace'\\) d=json.load\\(sys.stdin\\) players = d.get\\('player'\\) or [] print\\('Oyuncu sayisi:', len\\(players\\)\\) for p in players[:5]: print\\(p.get\\('idPlayer'\\), p.get\\('strPlayer'\\), p.get\\('strPosition'\\)\\) \")",
       "Bash(python3 -c \" import json,sys,io sys.stdin = io.TextIOWrapper\\(sys.stdin.buffer, encoding='utf-8', errors='replace'\\) d=json.load\\(sys.stdin\\) events = d.get\\('events'\\) or [] if events: e = events[0] print\\('Home team:', e.get\\('strHomeTeam'\\)\\) print\\('Away team:', e.get\\('strAwayTeam'\\)\\) print\\('Home goals:', e.get\\('strHomeGoalDetails','YOOK'\\)[:100] if e.get\\('strHomeGoalDetails'\\) else 'None'\\) print\\('Away goals:', e.get\\('strAwayGoalDetails','YOOK'\\)[:100] if e.get\\('strAwayGoalDetails'\\) else 'None'\\) print\\('Home ID:', e.get\\('idHomeTeam'\\)\\) print\\('Away ID:', e.get\\('idAwayTeam'\\)\\) \")",
       "Bash(python3 -c \" import sys, json lines = sys.stdin.read\\(\\).strip\\(\\).split\\('\\\\n'\\) for line in lines[-20:]: try: obj = json.loads\\(line\\) role = obj.get\\('role', ''\\) content = obj.get\\('content', ''\\) if isinstance\\(content, list\\): for c in content: if isinstance\\(c, dict\\) and c.get\\('type'\\) == 'text': print\\(f'[{role}]: {c[\\\\\"text\\\\\"][:500]}'\\) elif isinstance\\(content, str\\): print\\(f'[{role}]: {content[:500]}'\\) except: pass \")",
-      "Read(//c/Users/umutn/Desktop/**)"
+      "Read(//c/Users/umutn/Desktop/**)",
+      "Read(//c/Users/umutn/**)"
     ],
     "additionalDirectories": [
       "C:\\tmp"

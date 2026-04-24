@@ -199,9 +199,10 @@ export async function getMatchStats(matchId: string): Promise<any> {
   }
 }
 
-export async function getH2H(matchId: string): Promise<any[]> {
+export async function getH2H(matchId: string, isFinished?: boolean): Promise<any[]> {
   try {
-    const res = await fetch(`${BASE_URL}/h2h/${matchId}`);
+    const url = isFinished ? `${BASE_URL}/h2h/${matchId}?finished=1` : `${BASE_URL}/h2h/${matchId}`;
+    const res = await fetch(url);
     const data = await res.json();
     return Array.isArray(data) ? data : [];
   } catch (e) {
