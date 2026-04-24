@@ -6,6 +6,10 @@ import {
   Switch, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { getSuperLigStandings, getSuperLigTeamForm, getStandings, getTeamForm } from '../services/api';
+import {
+  DEFAULT_PREFS, NotifPrefs, cancelAllNotifications,
+  loadNotifPrefs, requestPermissions, saveNotifPrefs,
+} from '../services/notifications';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,7 +37,6 @@ const STORAGE = {
   FAV_TEAM: 'scout_fav_team',
   WATCHLIST: 'scout_watchlist',
   RECENT: 'scout_recent',
-  NOTIFICATIONS: 'scout_notifications',
 };
 
 const AVATAR_COLORS = [
@@ -198,7 +201,7 @@ export default function ProfileScreen() {
   const [favTeam, setFavTeam] = useState<FavTeam | null>(null);
   const [watchlist, setWatchlist] = useState<FavTeam[]>([]);
   const [recentlyViewed, setRecentlyViewed] = useState<RecentItem[]>([]);
-  const [notifications, setNotifications] = useState(false);
+  const [notifPrefs, setNotifPrefs] = useState<NotifPrefs>({ ...DEFAULT_PREFS });
 
   const [favForm, setFavForm] = useState<string[]>([]);
   const [favPos, setFavPos] = useState(0);
@@ -228,13 +231,13 @@ export default function ProfileScreen() {
   );
 
   async function loadAll() {
-    const [name, avt, favRaw, wlRaw, recentRaw, notif] = await Promise.all([
+    const [name, avt, favRaw, wlRaw, recentRaw, prefs] = await Promise.all([
       AsyncStorage.getItem(STORAGE.NAME),
       AsyncStorage.getItem(STORAGE.AVATAR),
       AsyncStorage.getItem(STORAGE.FAV_TEAM),
       AsyncStorage.getItem(STORAGE.WATCHLIST),
       AsyncStorage.getItem(STORAGE.RECENT),
-      AsyncStorage.getItem(STORAGE.NOTIFICATIONS),
+      loadNotifPrefs(),
     ]);
     const name_ = name || '';
     const avt_ = avt ? parseInt(avt) : 0;
@@ -247,7 +250,7 @@ export default function ProfileScreen() {
     setFavTeam(fav_);
     setWatchlist(wl_);
     setRecentlyViewed(recent_);
-    setNotifications(notif === 'true');
+    setNotifPrefs(prefs);
 
     if (fav_) loadFavTeamData(fav_);
     if (wl_.length > 0) loadWatchlistForms(wl_);
@@ -417,9 +420,25 @@ export default function ProfileScreen() {
     await AsyncStorage.setItem(STORAGE.WATCHLIST, JSON.stringify(updated));
   }
 
-  async function toggleNotifications(val: boolean) {
-    setNotifications(val);
-    await AsyncStorage.setItem(STORAGE.NOTIFICATIONS, String(val));
+  async function togglePref(key: keyof Omit<NotifPrefs, 'hour'>, val: boolean) {
+    const updated = { ...notifPrefs, [key]: val };
+    const anyWillBeEnabled = updated.daily || updated.favTeam || updated.featured || updated.risky;
+
+    if (val && anyWillBeEnabled) {
+      const granted = await requestPermissions();
+      if (!granted) {
+        Alert.alert(
+          'Bildirim izni gerekli',
+          'Lütfen uygulama ayarlarından bildirim iznini etkinleştirin.',
+        );
+        return;
+      }
+    }
+
+    if (!anyWillBeEnabled) await cancelAllNotifications();
+
+    setNotifPrefs(updated);
+    await saveNotifPrefs(updated);
   }
 
   function goToTeamStats(team: FavTeam) {
@@ -724,12 +743,20 @@ export default function ProfileScreen() {
           <Text style={styles.sectionLabel}>AYARLAR</Text>
         </View>
 
+        {/* ── Bildirimler kartı ── */}
         <View style={styles.settingsCard}>
+          <View style={styles.notifSectionHeader}>
+            <Text style={styles.notifSectionTitle}>BİLDİRİMLER</Text>
+          </View>
+
           <View style={styles.settingsRow}>
-            <Text style={styles.settingsLabel}>Maç Bildirimleri</Text>
+            <View style={styles.notifLabelWrap}>
+              <Text style={styles.settingsLabel}>Günlük analiz bildirimi</Text>
+              <Text style={styles.notifSub}>Her gün "Bugünün analizleri hazır"</Text>
+            </View>
             <Switch
-              value={notifications}
-              onValueChange={toggleNotifications}
+              value={notifPrefs.daily}
+              onValueChange={v => togglePref('daily', v)}
               trackColor={{ false: '#e0e0e0', true: '#185FA5' }}
               thumbColor="#fff"
             />
@@ -737,6 +764,55 @@ export default function ProfileScreen() {
 
           <View style={styles.settingsDivider} />
 
+          <View style={styles.settingsRow}>
+            <View style={styles.notifLabelWrap}>
+              <Text style={styles.settingsLabel}>Favori takım bildirimleri</Text>
+              <Text style={styles.notifSub}>Favori takımın oynayacağı günler</Text>
+            </View>
+            <Switch
+              value={notifPrefs.favTeam}
+              onValueChange={v => togglePref('favTeam', v)}
+              trackColor={{ false: '#e0e0e0', true: '#185FA5' }}
+              thumbColor="#fff"
+            />
+          </View>
+
+          <View style={styles.settingsDivider} />
+
+          <View style={styles.settingsRow}>
+            <View style={styles.notifLabelWrap}>
+              <Text style={styles.settingsLabel}>Öne çıkan maçlar</Text>
+              <Text style={styles.notifSub}>Günün en yüksek puanlı maçı</Text>
+            </View>
+            <Switch
+              value={notifPrefs.featured}
+              onValueChange={v => togglePref('featured', v)}
+              trackColor={{ false: '#e0e0e0', true: '#185FA5' }}
+              thumbColor="#fff"
+            />
+          </View>
+
+          <View style={styles.settingsDivider} />
+
+          <View style={styles.settingsRow}>
+            <View style={styles.notifLabelWrap}>
+              <Text style={styles.settingsLabel}>Riskli maç uyarıları</Text>
+              <Text style={styles.notifSub}>Sürpriz senaryoya açık maçlar</Text>
+            </View>
+            <Switch
+              value={notifPrefs.risky}
+              onValueChange={v => togglePref('risky', v)}
+              trackColor={{ false: '#e0e0e0', true: '#185FA5' }}
+              thumbColor="#fff"
+            />
+          </View>
+
+        </View>
+
+        <View style={{ height: 12 }} />
+
+        {/* ── Diğer ayarlar ── */}
+        <View style={styles.settingsCard}>
           <TouchableOpacity style={styles.settingsRow}
             onPress={() => Linking.openURL('https://twitter.com/scoutfootballhq')}>
             <Text style={styles.settingsLabel}>Twitter</Text>
@@ -859,6 +935,19 @@ const styles = StyleSheet.create({
   settingsLabel: { fontSize: 14, color: '#111' },
   settingsValue: { fontSize: 13, color: '#185FA5' },
   settingsDivider: { height: 0.5, backgroundColor: '#f0f0f0', marginLeft: 14 },
+
+  // Notification settings
+  notifSectionHeader: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 6 },
+  notifSectionTitle: { fontSize: 11, color: '#888', fontWeight: '700', letterSpacing: 0.6 },
+  notifLabelWrap: { flex: 1, paddingRight: 12 },
+  notifSub: { fontSize: 11, color: '#aaa', marginTop: 2 },
+  notifHourRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 12 },
+  notifHourLabel: { fontSize: 14, color: '#111' },
+  notifHourBtns: { flexDirection: 'row', gap: 8 },
+  notifHourBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', backgroundColor: '#f8f8f8' },
+  notifHourBtnActive: { backgroundColor: '#185FA5', borderColor: '#185FA5' },
+  notifHourBtnText: { fontSize: 13, color: '#555', fontWeight: '500' },
+  notifHourBtnTextActive: { color: '#fff', fontWeight: '600' },
 
   // Tab bar
   tabBar: { flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: '#eee', paddingBottom: 20, backgroundColor: '#fff' },

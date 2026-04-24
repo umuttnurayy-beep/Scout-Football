@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -8,6 +9,7 @@ import {
   getCityForTeam, getStandings, getSuperLigMatches, getSuperLigStandings,
   getTodayMatches, Standing,
 } from '../services/api';
+import { NotifData, loadNotifPrefs, scheduleNotifications } from '../services/notifications';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -194,7 +196,12 @@ function getDateList() {
   return dates;
 }
 
-function formatDateParam(date: Date) { return date.toISOString().split('T')[0]; }
+function formatDateParam(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 function formatTime(utcDate: string) {
   const d = new Date(utcDate);
@@ -408,6 +415,13 @@ export default function HomeScreen() {
   useEffect(() => { loadMatches(selectedDate); }, [selectedDate]);
   useEffect(() => { loadStandings(); }, []);
 
+  // 10 dakikada bir sessiz yenileme — bitmiş maçların skorlarını günceller
+  useEffect(() => {
+    if (!isToday(selectedDate)) return;
+    const id = setInterval(() => loadMatches(selectedDate, true), 10 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [selectedDate]);
+
   useFocusEffect(
     useCallback(() => {
       if (!initialFocusDone.current) initialFocusDone.current = true;
@@ -458,6 +472,59 @@ export default function HomeScreen() {
     return map;
   }, [matches, standingsMap]);
 
+  // Bugünün bildirimleri — metricsMap hazır olduktan sonra çalışır
+  useEffect(() => {
+    if (!isToday(selectedDate) || matches.length === 0) return;
+    (async () => {
+      const prefs = await loadNotifPrefs();
+      const anyEnabled = prefs.daily || prefs.favTeam || prefs.featured || prefs.risky;
+      if (!anyEnabled) return;
+
+      // Scout pick: en yüksek skora sahip bitmemiş maç
+      const ranked = [...matches]
+        .filter(m => !m.finished)
+        .sort((a, b) => {
+          const ma = metricsMap.get(a.id) ?? NO_DATA;
+          const mb = metricsMap.get(b.id) ?? NO_DATA;
+          return scoutScore(b, mb) - scoutScore(a, ma);
+        });
+      const top = ranked[0];
+
+      // Riskli maç: düşük güven + dengeli + bitmemiş
+      const risky = ranked.find(m => {
+        const mt = metricsMap.get(m.id) ?? NO_DATA;
+        return mt.hasData && mt.confidence === 'low' && mt.favorite === 'balanced';
+      });
+
+      // Favori takım bugün oynuyor mu?
+      let favTeamMatch: NotifData['favTeamMatch'];
+      if (prefs.favTeam) {
+        const favRaw = await AsyncStorage.getItem('scout_fav_team');
+        if (favRaw) {
+          const fav = JSON.parse(favRaw);
+          const favNorm = fav.name.toLowerCase().replace(/[çÇ]/g,'c').replace(/[şŞ]/g,'s')
+            .replace(/[ğĞ]/g,'g').replace(/[üÜ]/g,'u').replace(/[öÖ]/g,'o').replace(/[ıİ]/g,'i');
+          const favMatch = matches.find(m => {
+            if (m.finished) return false;
+            const h = m.home.toLowerCase().replace(/[çÇ]/g,'c').replace(/[şŞ]/g,'s')
+              .replace(/[ğĞ]/g,'g').replace(/[üÜ]/g,'u').replace(/[öÖ]/g,'o').replace(/[ıİ]/g,'i');
+            const a = m.away.toLowerCase().replace(/[çÇ]/g,'c').replace(/[şŞ]/g,'s')
+              .replace(/[ğĞ]/g,'g').replace(/[üÜ]/g,'u').replace(/[öÖ]/g,'o').replace(/[ıİ]/g,'i');
+            return h.includes(favNorm) || a.includes(favNorm) || favNorm.includes(h) || favNorm.includes(a);
+          });
+          if (favMatch) favTeamMatch = { home: favMatch.home, away: favMatch.away, time: favMatch.time };
+        }
+      }
+
+      await scheduleNotifications({
+        matchCount: matches.filter(m => !m.finished).length,
+        scoutPick:  top   ? { home: top.home,   away: top.away }   : undefined,
+        favTeamMatch,
+        riskyMatch: risky ? { home: risky.home, away: risky.away } : undefined,
+      }, prefs);
+    })();
+  }, [matches, metricsMap, selectedDate]);
+
   const filteredMatches = useMemo(() => {
     if (activeFilter === 'Scout') return matches;
     const lig = LIG_FILTERS.find(f => f.label === activeFilter);
@@ -482,7 +549,19 @@ export default function HomeScreen() {
     : '';
 
   function goToMatch(m: Match) {
-    if (m.leagueApiId === 203) return;
+    if (m.leagueApiId === 203) {
+      router.push({
+        pathname: '/sl_match_detail' as any,
+        params: {
+          eventId: String(m.id),
+          home: m.home, away: m.away,
+          homeTeamId: String(m.homeTeamId),
+          awayTeamId: String(m.awayTeamId),
+          time: m.time, score: m.score || '',
+        },
+      });
+      return;
+    }
     router.push({
       pathname: '/match_detail',
       params: {

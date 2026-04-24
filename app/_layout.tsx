@@ -10,6 +10,7 @@ export default function RootLayout() {
       <Stack.Screen name="team_detail" options={{ headerShown: false }} />
       <Stack.Screen name="team_stats" options={{ headerShown: false }} />
       <Stack.Screen name="profile" options={{ headerShown: false }} />
+      <Stack.Screen name="sl_match_detail" options={{ headerShown: false }} />
     </Stack>
   );
 }

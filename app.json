@@ -28,6 +28,12 @@
     "plugins": [
       "expo-router",
       [
+        "expo-notifications",
+        {
+          "color": "#185FA5"
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",

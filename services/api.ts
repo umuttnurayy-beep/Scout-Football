@@ -95,19 +95,48 @@ export const TEAM_CITIES: Record<string, string> = {
   'Dinamo Zagreb': 'Zagreb',
   'Copenhagen': 'Copenhagen', 'FC Copenhagen': 'Copenhagen',
   'Galatasaray': 'Istanbul', 'Fenerbahçe': 'Istanbul', 'Beşiktaş': 'Istanbul',
+  'Fenerbahce': 'Istanbul', 'Besiktas': 'Istanbul',
   'Shakhtar': 'Kharkiv', 'Dynamo Kyiv': 'Kyiv',
   'Legia': 'Warsaw',
+  // Süper Lig
+  'Trabzonspor': 'Trabzon',
+  'Başakşehir': 'Istanbul', 'Basaksehir': 'Istanbul', 'Istanbul Basaksehir': 'Istanbul',
+  'Samsunspor': 'Samsun',
+  'Göztepe': 'Izmir', 'Goztepe': 'Izmir',
+  'Çaykur Rizespor': 'Rize', 'Caykur Rizespor': 'Rize', 'Rizespor': 'Rize',
+  'Konyaspor': 'Konya',
+  'Gaziantep': 'Gaziantep',
+  'Kocaelispor': 'Kocaeli', 'Kocaeli': 'Kocaeli',
+  'Alanyaspor': 'Alanya',
+  'Antalyaspor': 'Antalya',
+  'Gençlerbirliği': 'Ankara', 'Genclerbirligi': 'Ankara',
+  'Eyüpspor': 'Istanbul', 'Eyupspor': 'Istanbul',
+  'Kayserispor': 'Kayseri',
+  'Fatih Karagümrük': 'Istanbul', 'Karagumruk': 'Istanbul', 'Karagümrük': 'Istanbul',
+  'Kasımpaşa': 'Istanbul', 'Kasimpasa': 'Istanbul',
+  'Sivasspor': 'Sivas',
+  'Hatayspor': 'Hatay',
+  'Adana Demirspor': 'Adana', 'Demirspor': 'Adana',
+  'Giresunspor': 'Giresun',
+  'Pendikspor': 'Istanbul',
+  'Ümraniyespor': 'Istanbul', 'Umraniyespor': 'Istanbul',
+  'Ankaragücü': 'Ankara', 'Ankaragucu': 'Ankara',
+  'MKE Ankaragücü': 'Ankara',
+  'Altay': 'Izmir',
+  'Bursaspor': 'Bursa',
+  'Eskişehirspor': 'Eskisehir',
+  'Çaykur': 'Rize',
 };
 
 export function getCityForTeam(teamName: string): string {
-  if (!teamName) return 'London';
+  if (!teamName) return 'Istanbul';
   for (const key of Object.keys(TEAM_CITIES)) {
     if (teamName.toLowerCase().includes(key.toLowerCase()) ||
         key.toLowerCase().includes(teamName.toLowerCase())) {
       return TEAM_CITIES[key];
     }
   }
-  return 'London';
+  return 'Istanbul';
 }
 
 export type Standing = {
@@ -391,5 +420,15 @@ export async function getSuperLigScorers(): Promise<any[]> {
     return Array.isArray(data) ? data : [];
   } catch {
     return [];
+  }
+}
+
+export async function getSuperLigMatch(eventId: string): Promise<any | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/superlig/match/${eventId}`);
+    const data = await res.json();
+    return data || null;
+  } catch {
+    return null;
   }
 }
