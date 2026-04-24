@@ -413,7 +413,6 @@ export default function HomeScreen() {
   const initialFocusDone  = useRef(false);
 
   useEffect(() => { loadMatches(selectedDate); }, [selectedDate]);
-  useEffect(() => { loadStandings(); }, []);
 
   // 10 dakikada bir sessiz yenileme — bitmiş maçların skorlarını günceller
   useEffect(() => {
@@ -429,32 +428,36 @@ export default function HomeScreen() {
     }, [selectedDate])
   );
 
-  async function loadStandings() {
-    try {
-      const [fdResults, slResult] = await Promise.all([
-        Promise.all(STANDINGS_LEAGUES.map(({ apiId }) => getStandings(apiId))),
-        getSuperLigStandings(),
-      ]);
-      const map: Record<number, Standing[]> = {};
-      STANDINGS_LEAGUES.forEach((x, i) => { map[x.leagueApiId] = fdResults[i] || []; });
-      map[203] = slResult || [];
-      setStandingsMap(map);
-    } catch (e) {
-      console.log('loadStandings hata:', e);
-    }
-  }
-
   async function loadMatches(date: Date, silent = false) {
     if (!silent) setLoading(true);
     try {
       const dateStr = formatDateParam(date);
-      const [data, slData] = await Promise.all([
-        getTodayMatches(dateStr), getSuperLigMatches(dateStr),
-      ]);
-      const mainMatches = data
-        .filter((m: any) => SUPPORTED_LEAGUES.includes(m.competition?.id))
-        .map(mapMatch);
-      setMatches([...mainMatches, ...slData.map(mapSLMatch)]);
+      if (!silent) {
+        // İlk yüklemede maç + standings birlikte beklenir — hero ilk renderdan itibaren sabit kalır
+        const [data, slData, fdResults, slStandings] = await Promise.all([
+          getTodayMatches(dateStr),
+          getSuperLigMatches(dateStr),
+          Promise.all(STANDINGS_LEAGUES.map(({ apiId }) => getStandings(apiId))),
+          getSuperLigStandings(),
+        ]);
+        const map: Record<number, Standing[]> = {};
+        STANDINGS_LEAGUES.forEach((x, i) => { map[x.leagueApiId] = fdResults[i] || []; });
+        map[203] = slStandings || [];
+        setStandingsMap(map);
+        const mainMatches = data
+          .filter((m: any) => SUPPORTED_LEAGUES.includes(m.competition?.id))
+          .map(mapMatch);
+        setMatches([...mainMatches, ...slData.map(mapSLMatch)]);
+      } else {
+        // Sessiz yenileme: sadece maç skorları güncellenir
+        const [data, slData] = await Promise.all([
+          getTodayMatches(dateStr), getSuperLigMatches(dateStr),
+        ]);
+        const mainMatches = data
+          .filter((m: any) => SUPPORTED_LEAGUES.includes(m.competition?.id))
+          .map(mapMatch);
+        setMatches([...mainMatches, ...slData.map(mapSLMatch)]);
+      }
     } catch (e) {
       console.log('loadMatches hata:', e);
     }
@@ -579,7 +582,7 @@ export default function HomeScreen() {
 
       <View style={styles.topbar}>
         <Text style={styles.appName}><Text style={styles.appNameBlue}>Scout</Text>Football</Text>
-        <TouchableOpacity onPress={() => { loadMatches(selectedDate); loadStandings(); }}>
+        <TouchableOpacity onPress={() => loadMatches(selectedDate)}>
           <Text style={styles.refreshBtn}>↻ Güncelle</Text>
         </TouchableOpacity>
       </View>
