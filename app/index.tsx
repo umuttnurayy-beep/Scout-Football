@@ -432,7 +432,8 @@ export default function HomeScreen() {
     if (!silent) setLoading(true);
     try {
       const dateStr = formatDateParam(date);
-      if (!silent) {
+      const needsStandings = Object.keys(standingsMap).length === 0;
+      if (!silent && needsStandings) {
         // İlk yüklemede maç + standings birlikte beklenir — hero ilk renderdan itibaren sabit kalır
         const [data, slData, fdResults, slStandings] = await Promise.all([
           getTodayMatches(dateStr),
@@ -449,7 +450,7 @@ export default function HomeScreen() {
           .map(mapMatch);
         setMatches([...mainMatches, ...slData.map(mapSLMatch)]);
       } else {
-        // Sessiz yenileme: sadece maç skorları güncellenir
+        // Güncelle / sessiz yenileme: sadece maç skorları güncellenir, standings sabit kalır
         const [data, slData] = await Promise.all([
           getTodayMatches(dateStr), getSuperLigMatches(dateStr),
         ]);
