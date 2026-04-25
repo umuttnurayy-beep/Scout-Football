@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { getSuperLigStandings, getStandings } from '../services/api';
+import { teamDataEmptyMessage } from '../utils/emptyStates';
 
 type Team = {
   id?: number;
@@ -29,7 +30,11 @@ export default function TeamDetailScreen() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadTeams(); }, []);
+  useEffect(() => {
+    loadTeams();
+    // League route params are fixed for this screen instance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function loadTeams() {
     setLoading(true);
@@ -60,7 +65,7 @@ export default function TeamDetailScreen() {
       {loading ? (
         <ActivityIndicator style={{ marginTop: 40 }} color={c.primary} />
       ) : teams.length === 0 ? (
-        <Text style={[styles.emptyText, { color: c.textMuted }]}>Takım verisi bulunamadı.</Text>
+        <Text style={[styles.emptyText, { color: c.textMuted }]}>{teamDataEmptyMessage(String(leagueName))}</Text>
       ) : (
         <ScrollView style={styles.scroll}>
           {[...teams]

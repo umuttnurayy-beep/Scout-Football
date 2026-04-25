@@ -12,6 +12,7 @@ import {
   getTodayMatches, Standing,
 } from '../services/api';
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
+import { matchListEmptyMessage } from '../utils/emptyStates';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -441,13 +442,19 @@ export default function HomeScreen() {
   const dateList          = getDateList();
   const initialFocusDone  = useRef(false);
 
-  useEffect(() => { loadMatches(selectedDate); }, [selectedDate]);
+  useEffect(() => {
+    loadMatches(selectedDate);
+    // loadMatches reads the latest standings cache; selectedDate is the trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate]);
 
   // 10 dakikada bir sessiz yenileme — bitmiş maçların skorlarını günceller
   useEffect(() => {
     if (!isToday(selectedDate)) return;
     const id = setInterval(() => loadMatches(selectedDate, true), 10 * 60 * 1000);
     return () => clearInterval(id);
+    // loadMatches is intentionally not a timer dependency; selectedDate resets the interval.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
   // Uygulama arka plandan öne geldiğinde tarih değiştiyse yeni güne geç
@@ -466,6 +473,8 @@ export default function HomeScreen() {
     useCallback(() => {
       if (!initialFocusDone.current) initialFocusDone.current = true;
       else loadMatches(selectedDate, true);
+      // loadMatches uses current screen state; focus refresh is keyed by selectedDate.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedDate])
   );
 
@@ -766,7 +775,7 @@ export default function HomeScreen() {
           {!isScoutMode && (
             sortedMatches.length === 0 ? (
               <Text style={[styles.emptyText, { color: c.textMuted }]}>
-                {activeFilter !== 'Scout' ? `${activeFilter} için maç bulunamadı` : 'Bu tarihte maç bulunamadı'}
+                {matchListEmptyMessage(activeFilter)}
               </Text>
             ) : (
               <>

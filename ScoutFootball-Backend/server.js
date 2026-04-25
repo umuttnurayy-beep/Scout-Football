@@ -2,34 +2,28 @@ const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
 const mongoose = require('mongoose');
+const createHealthRouter = require('./routes/health');
+const {
+  FOOTBALL_DATA_KEY,
+  WEATHER_API_KEY,
+  ODDS_API_KEY,
+  RAPID_API_KEY,
+  ALLSPORTS_KEY,
+  MONGODB_URI,
+  PUSH_TEST_SECRET,
+  FOOTBALL_DATA_BASE,
+  WEATHER_BASE,
+  ODDS_BASE,
+  API_FOOTBALL_BASE,
+  ALLSPORTS_BASE,
+  SPORTSDB_BASE,
+  SL_LEAGUE_ID,
+  SL_SEASON,
+} = require('./config');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-
-// --- API Keys ---
-function readEnv(name, { optional = false } = {}) {
-  const value = process.env[name] || '';
-  if (!value && !optional) {
-    console.warn(`[config] ${name} is not set. Related endpoints will return empty data.`);
-  }
-  return value;
-}
-
-const FOOTBALL_DATA_KEY = readEnv('FOOTBALL_DATA_KEY');
-const WEATHER_API_KEY   = readEnv('WEATHER_API_KEY');
-const ODDS_API_KEY      = readEnv('ODDS_API_KEY');
-const RAPID_API_KEY     = readEnv('RAPID_API_KEY', { optional: true });
-const ALLSPORTS_KEY     = readEnv('ALLSPORTS_KEY', { optional: true });
-const MONGODB_URI       = readEnv('MONGODB_URI', { optional: true });
-const FOOTBALL_DATA_BASE  = 'https://api.football-data.org/v4';
-const WEATHER_BASE        = 'https://api.weatherapi.com/v1';
-const ODDS_BASE           = 'https://api.the-odds-api.com/v4';
-const API_FOOTBALL_BASE   = 'https://v3.football.api-sports.io';
-const ALLSPORTS_BASE      = 'https://apiv2.allsportsapi.com/football/';
-const SPORTSDB_BASE       = 'https://www.thesportsdb.com/api/v1/json/123';
-const SL_LEAGUE_ID        = '4339';
-const SL_SEASON           = '2025-2026';
 
 // --- MongoDB Persistent Cache ---
 const cacheSchema = new mongoose.Schema({
@@ -527,7 +521,7 @@ app.get('/af/fixture/:fixtureId', async (req, res) => {
 // HEALTH
 // =====================
 
-app.get('/health', (req, res) => res.json({ status: 'ok', mongo: mongoConnected }));
+app.use(createHealthRouter(() => mongoConnected));
 
 // =====================
 // SÜPER LİG (TheSportsDB)
@@ -929,6 +923,33 @@ app.post('/register-token', async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     console.error('register-token hatası:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.get('/push/status', async (req, res) => {
+  if (!mongoConnected) return res.json({ ok: false, mongo: false, tokenCount: 0 });
+  try {
+    const tokenCount = await PushToken.countDocuments();
+    const dailyCount = await PushToken.countDocuments({ 'prefs.daily': true });
+    const favTeamCount = await PushToken.countDocuments({ 'prefs.favTeam': true });
+    const featuredCount = await PushToken.countDocuments({ 'prefs.featured': true });
+    res.json({ ok: true, mongo: true, tokenCount, dailyCount, favTeamCount, featuredCount });
+  } catch (e) {
+    res.status(500).json({ ok: false, mongo: true, error: e.message });
+  }
+});
+
+app.post('/push/test', async (req, res) => {
+  if (!PUSH_TEST_SECRET || req.headers['x-push-test-secret'] !== PUSH_TEST_SECRET) {
+    return res.status(403).json({ ok: false, error: 'forbidden' });
+  }
+  const { token, title = 'ScoutFootball test', body = 'Push bildirimi test mesajı' } = req.body || {};
+  if (!token) return res.status(400).json({ ok: false, error: 'token gerekli' });
+  try {
+    await sendPushNotifications([token], title, body);
+    res.json({ ok: true });
+  } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
 });

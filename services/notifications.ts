@@ -82,6 +82,25 @@ export async function cancelAllNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
 
+export async function scheduleTestNotification(): Promise<boolean> {
+  const granted = await requestPermissions();
+  if (!granted) return false;
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'ScoutFootball test',
+      body: 'Bildirimler çalışıyor. Maç analizleri hazır olduğunda buradan haber vereceğiz.',
+      sound: false,
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: 5,
+    },
+  });
+
+  return true;
+}
+
 export async function registerPushToken(
   prefs: NotifPrefs,
   watchedTeams: string[],

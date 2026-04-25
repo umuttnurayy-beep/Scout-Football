@@ -11,6 +11,7 @@ import {
   getSuperLigTeamForm, getSuperLigPlayers, getSuperLigScorers,
 } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
+import { formDataEmptyMessage } from '../utils/emptyStates';
 
 const AF_POSITION_MAP: Record<string, string> = {
   G: 'Kaleci', D: 'Defans', M: 'Orta saha', F: 'Forvet',
@@ -231,6 +232,8 @@ export default function TeamStatsScreen() {
     loadAllSports();
     if (apiId === 203) loadSLData();
     if (teamId) recordRecentlyViewed();
+    // Team route params are fixed for this screen instance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function recordRecentlyViewed() {
@@ -442,7 +445,7 @@ export default function TeamStatsScreen() {
               {(loadingForm || loadingAf) && displayForm.length === 0 ? (
                 <ActivityIndicator color={c.primary} />
               ) : displayForm.length === 0 ? (
-                <Text style={[styles.formNote, { color: c.textMuted }]}>Form verisi bulunamadı</Text>
+                <Text style={[styles.formNote, { color: c.textMuted }]}>{formDataEmptyMessage()}</Text>
               ) : (
                 <>
                   {displayForm.map((r, i) => (

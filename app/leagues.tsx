@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { getStandings, getSuperLigStandings, getUclKnockouts } from '../services/api';
+import { leagueDataEmptyMessage } from '../utils/emptyStates';
 
 const leagues = [
   { id: 1, apiId: 39,  name: 'Premier Lig', country: 'İngiltere', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', season: '2025/26' },
@@ -418,7 +419,7 @@ export default function LeaguesScreen() {
             {/* ===== GENEL ===== */}
             {subTab === 'genel' && (
               standings.length === 0 ? (
-                <Text style={[styles.emptyText, { color: c.textMuted }]}>Veri yüklenemedi</Text>
+                  <Text style={[styles.emptyText, { color: c.textMuted }]}>{leagueDataEmptyMessage(activeLeague.name)}</Text>
               ) : (
                 <>
                   {ligChar && (
@@ -664,7 +665,7 @@ export default function LeaguesScreen() {
 
                 {(activeLeague.apiId !== 2 || uclView === 'standings') && (
                   standings.length === 0 ? (
-                    <Text style={[styles.emptyText, { color: c.textMuted }]}>Veri yüklenemedi</Text>
+                      <Text style={[styles.emptyText, { color: c.textMuted }]}>{leagueDataEmptyMessage(activeLeague.name)}</Text>
                   ) : (
                     <>
                       <Text style={[styles.sectionLabel, { color: c.textMuted }]}>PUAN TABLOSU</Text>
@@ -709,7 +710,7 @@ export default function LeaguesScreen() {
             {/* ===== TAKIMLAR ===== */}
             {subTab === 'takimlar' && (
               standings.length === 0 ? (
-                <Text style={[styles.emptyText, { color: c.textMuted }]}>Veri yüklenemedi</Text>
+                  <Text style={[styles.emptyText, { color: c.textMuted }]}>{leagueDataEmptyMessage(activeLeague.name)}</Text>
               ) : (
                 <>
                   <Text style={[styles.sectionLabel, { color: c.textMuted }]}>TAKIM KİMLİKLERİ</Text>
@@ -756,7 +757,7 @@ export default function LeaguesScreen() {
             {/* ===== TRENDLER ===== */}
             {subTab === 'trendler' && (
               standings.length === 0 ? (
-                <Text style={[styles.emptyText, { color: c.textMuted }]}>Veri yüklenemedi</Text>
+                  <Text style={[styles.emptyText, { color: c.textMuted }]}>{leagueDataEmptyMessage(activeLeague.name)}</Text>
               ) : (() => {
                 const withRates = standings.map(r => ({
                   ...r,
