@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from './config';
 
-const BASE_URL = 'https://scoutfootball-backend-production.up.railway.app';
+const BASE_URL = API_BASE_URL;
 
 const LEAGUE_MAP: Record<number, number> = {
   39: 2021,

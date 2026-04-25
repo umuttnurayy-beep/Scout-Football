@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { API_BASE_URL } from './config';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -29,7 +30,7 @@ const PREFS_KEY    = 'scout_notif_prefs_v2';
 const DAILY_ID     = 'scout_daily';
 const FEATURED_ID  = 'scout_featured';
 const MATCH_PREFIX = 'scout_match_';
-const BASE_URL     = 'https://scoutfootball-backend-production.up.railway.app';
+const BASE_URL     = API_BASE_URL;
 
 export const DEFAULT_PREFS: NotifPrefs = {
   daily: false, favTeam: false, featured: false,

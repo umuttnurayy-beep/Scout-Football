@@ -7,11 +7,17 @@ import {
 import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../context/ThemeContext';
 import { getCityForTeam, getSuperLigMatch, getSuperLigTeamForm, getWeather } from '../services/api';
+import {
+  ANALYSIS_DELTA as DELTA,
+  Level,
+  Stil,
+  getPersona,
+  pickFrom,
+  shiftLevel,
+  strHash,
+} from '../utils/matchAnalysis';
 
 // ── Types ──────────────────────────────────────────────────────────────────
-
-type Stil  = 'Hücumcu' | 'Savunmacı' | 'Dengeli';
-type Level = 'Düşük' | 'Orta' | 'Yüksek';
 
 interface MatchAnalysis {
   stil: Stil; gol: Level; tempo: Level; risk: Level; guven: Level;
@@ -22,9 +28,6 @@ interface MatchAnalysis {
 // ── League Base Profile ────────────────────────────────────────────────────
 
 const SL_BASE = { stil: 'Dengeli' as Stil, gol: 'Orta' as Level, tempo: 'Yüksek' as Level, risk: 'Yüksek' as Level };
-const DELTA   = [0, 0, 1, -1, 0, 0, 1, -1, 0, 0, 0];
-const LEVELS: Level[] = ['Düşük', 'Orta', 'Yüksek'];
-
 // ── Sentence Banks ─────────────────────────────────────────────────────────
 
 const SHORT_BANK: Record<string, string[]> = {
@@ -154,29 +157,6 @@ const MEDIUM_BANK: Record<string, string[]> = {
 };
 
 // ── Analysis Engine ────────────────────────────────────────────────────────
-
-function strHash(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
-function shiftLevel(l: Level, d: number): Level {
-  return LEVELS[Math.max(0, Math.min(2, LEVELS.indexOf(l) + d))];
-}
-
-function pickFrom<T>(arr: T[], hash: number): T {
-  return arr[Math.abs(hash) % arr.length];
-}
-
-function getPersona(stil: Stil, gol: Level, tempo: Level, risk: Level): string {
-  if (gol === 'Yüksek' && tempo === 'Yüksek') return 'acik';
-  if (gol === 'Düşük') return 'kilitli';
-  if (risk === 'Yüksek') return 'surpriz';
-  if (stil === 'Hücumcu' && risk === 'Düşük') return 'favori';
-  if (stil === 'Savunmacı') return 'savunma';
-  return 'dengeli';
-}
 
 function buildReasons(
   home: string, away: string,
