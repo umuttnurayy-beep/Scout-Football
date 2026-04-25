@@ -443,8 +443,13 @@ function getH2HComment(h2hData: any[], home: string, away: string): string {
     if (fh==null||fa==null) return;
     cnt++; totalG+=fh+fa;
     const ih=m.homeTeam?.shortName===home||m.homeTeam?.name?.includes(home);
-    if (fh>fa) ih?hw++:aw++;
-    else if (fh<fa) ih?aw++:hw++;
+    if (fh > fa) {
+      if (ih) hw++;
+      else aw++;
+    } else if (fh < fa) {
+      if (ih) aw++;
+      else hw++;
+    }
     else d++;
   });
   if (cnt===0) return 'Geçmiş karşılaşma skoru bulunamadı.';
@@ -615,7 +620,7 @@ function RadarChart({homeVals,awayVals,labels}:{homeVals:number[];awayVals:numbe
 }
 
 function FormHeatRow({matches,teamId,label}:{matches:any[];teamId:number;label:string}){
-  const { colors: fc, isDark: fDark } = useTheme();
+  const { colors: fc } = useTheme();
   const last5=matches.filter((m:any)=>m.score?.fullTime?.home!=null).slice(-5);
   if(last5.length===0) return null;
   return (
@@ -1220,7 +1225,13 @@ export default function MatchDetail() {
                 const fh=m.score?.fullTime?.home,fa=m.score?.fullTime?.away;
                 if(fh==null||fa==null)return;
                 const ih=m.homeTeam?.shortName===home||m.homeTeam?.name?.includes(home);
-                if(fh>fa)ih?hw++:aw++; else if(fh<fa)ih?aw++:hw++; else d++;
+                if (fh > fa) {
+                  if (ih) hw++;
+                  else aw++;
+                } else if (fh < fa) {
+                  if (ih) aw++;
+                  else hw++;
+                } else d++;
               });
               return(
                 <View style={styles.summaryGrid}>

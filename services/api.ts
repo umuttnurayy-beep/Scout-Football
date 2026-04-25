@@ -299,7 +299,9 @@ export async function getOdds(homeTeam: string, awayTeam: string, leagueApiId: n
     console.log('getOdds hata:', e);
     return null;
   }
-}export async function getTopScorers(leagueId: number): Promise<any[]> {
+}
+
+export async function getTopScorers(leagueId: number): Promise<any[]> {
   try {
     const res = await fetch(`${BASE_URL}/scorers/${leagueId}`);
     const data = await res.json();

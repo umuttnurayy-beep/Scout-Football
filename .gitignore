@@ -56,6 +56,7 @@ desktop.ini
 !.env.example
 ScoutFootball-Backend/.env
 ScoutFootball-Backend/.env.*
+!ScoutFootball-Backend/.env.example
 
 # Claude Code — kullanıcıya özel yerel ayarlar
 .claude/settings.local.json

@@ -9,7 +9,7 @@ import {
 import { getSuperLigStandings, getSuperLigTeamForm, getStandings, getTeamForm } from '../services/api';
 import {
   DEFAULT_PREFS, NotifPrefs, cancelAllNotifications,
-  loadNotifPrefs, requestPermissions, saveNotifPrefs,
+  loadNotifPrefs, registerPushToken, requestPermissions, saveNotifPrefs,
 } from '../services/notifications';
 import { useTheme } from '../context/ThemeContext';
 
@@ -195,7 +195,7 @@ function timeAgo(ts: number): string {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { colors: c, isDark, mode, setMode } = useTheme();
+  const { colors: c, mode, setMode } = useTheme();
 
   const [scoutName, setScoutName] = useState('');
   const [editingName, setEditingName] = useState(false);
@@ -442,6 +442,14 @@ export default function ProfileScreen() {
 
     setNotifPrefs(updated);
     await saveNotifPrefs(updated);
+
+    if (anyWillBeEnabled) {
+      const watchedTeams = [
+        favTeam?.name,
+        ...watchlist.map(team => team.name),
+      ].filter(Boolean) as string[];
+      await registerPushToken(updated, watchedTeams);
+    }
   }
 
   function goToTeamStats(team: FavTeam) {
@@ -785,7 +793,7 @@ export default function ProfileScreen() {
           <View style={styles.settingsRow}>
             <View style={styles.notifLabelWrap}>
               <Text style={[styles.settingsLabel, { color: c.text }]}>Günlük analiz bildirimi</Text>
-              <Text style={[styles.notifSub, { color: c.textFaint }]}>Her gün "Bugünün analizleri hazır"</Text>
+              <Text style={[styles.notifSub, { color: c.textFaint }]}>{'Her gün "Bugünün analizleri hazır"'}</Text>
             </View>
             <Switch
               value={notifPrefs.daily}

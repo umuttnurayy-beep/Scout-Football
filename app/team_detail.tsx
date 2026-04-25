@@ -55,7 +55,7 @@ export default function TeamDetailScreen() {
         <View style={{ width: 60 }} />
       </View>
 
-      <Text style={[styles.sectionLabel, { color: c.textMuted }]}>TAKIMLAR — A'DAN Z'YE</Text>
+      <Text style={[styles.sectionLabel, { color: c.textMuted }]}>{'TAKIMLAR — A\'DAN Z\'YE'}</Text>
 
       {loading ? (
         <ActivityIndicator style={{ marginTop: 40 }} color={c.primary} />

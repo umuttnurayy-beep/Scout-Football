@@ -217,8 +217,6 @@ export default function TeamStatsScreen() {
   const [slPlayers, setSlPlayers]     = useState<any[]>([]);
   const [slTeamScorers, setSlTeamScorers] = useState<any[]>([]);
 
-  const avg_gf = played > 0 ? (gf / played).toFixed(1) : '0';
-  const avg_ga = played > 0 ? (ga / played).toFixed(1) : '0';
   const averaj = gf - ga;
   const winPct = played > 0 ? Math.round((win / played) * 100) : 0;
   const initials = teamName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();

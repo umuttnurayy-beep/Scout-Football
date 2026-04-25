@@ -8,12 +8,20 @@ app.use(cors());
 app.use(express.json());
 
 // --- API Keys ---
-const FOOTBALL_DATA_KEY = process.env.FOOTBALL_DATA_KEY || '1522c17021a4446d8ebb021a28605ba4';
-const WEATHER_API_KEY   = process.env.WEATHER_API_KEY   || '85dc528452944fd6bd6211756261804';
-const ODDS_API_KEY      = process.env.ODDS_API_KEY      || '9b5a197793d45f523886a673a1301014';
-const RAPID_API_KEY     = process.env.RAPID_API_KEY     || '';
-const ALLSPORTS_KEY     = process.env.ALLSPORTS_KEY     || '';
-const MONGODB_URI       = process.env.MONGODB_URI       || '';
+function readEnv(name, { optional = false } = {}) {
+  const value = process.env[name] || '';
+  if (!value && !optional) {
+    console.warn(`[config] ${name} is not set. Related endpoints will return empty data.`);
+  }
+  return value;
+}
+
+const FOOTBALL_DATA_KEY = readEnv('FOOTBALL_DATA_KEY');
+const WEATHER_API_KEY   = readEnv('WEATHER_API_KEY');
+const ODDS_API_KEY      = readEnv('ODDS_API_KEY');
+const RAPID_API_KEY     = readEnv('RAPID_API_KEY', { optional: true });
+const ALLSPORTS_KEY     = readEnv('ALLSPORTS_KEY', { optional: true });
+const MONGODB_URI       = readEnv('MONGODB_URI', { optional: true });
 const FOOTBALL_DATA_BASE  = 'https://api.football-data.org/v4';
 const WEATHER_BASE        = 'https://api.weatherapi.com/v1';
 const ODDS_BASE           = 'https://api.the-odds-api.com/v4';
@@ -132,6 +140,7 @@ async function fetchEspnStandings(slug) {
 
 app.get('/standings/:leagueId', async (req, res) => {
   const { leagueId } = req.params;
+  if (!FOOTBALL_DATA_KEY) return res.json([]);
   const cacheKey = `standings_v3_${leagueId}`;
   const cached = await getCache(cacheKey);
   if (cached) return res.json(cached);
@@ -180,6 +189,7 @@ app.get('/standings/:leagueId', async (req, res) => {
 
 app.get('/matches', async (req, res) => {
   const { date } = req.query;
+  if (!FOOTBALL_DATA_KEY) return res.json([]);
   const cacheKey = `matches_${date || 'today'}`;
   const cached = await getCache(cacheKey);
   if (cached) return res.json(cached);
@@ -198,6 +208,7 @@ app.get('/matches', async (req, res) => {
 });
 
 app.get('/live', async (req, res) => {
+  if (!FOOTBALL_DATA_KEY) return res.json([]);
   const cached = await getCache('live');
   if (cached) return res.json(cached);
   try {
@@ -215,6 +226,7 @@ app.get('/live', async (req, res) => {
 
 app.get('/match/:matchId', async (req, res) => {
   const { matchId } = req.params;
+  if (!FOOTBALL_DATA_KEY) return res.json(null);
   const cacheKey = `match_${matchId}`;
   const cached = await getCache(cacheKey);
   if (cached) return res.json(cached);
@@ -232,6 +244,7 @@ app.get('/match/:matchId', async (req, res) => {
 
 app.get('/h2h/:matchId', async (req, res) => {
   const { matchId } = req.params;
+  if (!FOOTBALL_DATA_KEY) return res.json([]);
   const isFinished = req.query.finished === '1';
   const cacheKey = `h2h_${matchId}`;
   const cached = await getCache(cacheKey);
@@ -251,6 +264,7 @@ app.get('/h2h/:matchId', async (req, res) => {
 
 app.get('/team/:teamId', async (req, res) => {
   const { teamId } = req.params;
+  if (!FOOTBALL_DATA_KEY) return res.json(null);
   const cacheKey = `team_${teamId}`;
   const cached = await getCache(cacheKey);
   if (cached) return res.json(cached);
@@ -268,6 +282,7 @@ app.get('/team/:teamId', async (req, res) => {
 
 app.get('/team/:teamId/matches', async (req, res) => {
   const { teamId } = req.params;
+  if (!FOOTBALL_DATA_KEY) return res.json([]);
   const cacheKey = `team_matches_${teamId}`;
   const cached = await getCache(cacheKey);
   if (cached) return res.json(cached);
@@ -287,6 +302,7 @@ app.get('/team/:teamId/matches', async (req, res) => {
 
 app.get('/scorers/:leagueId', async (req, res) => {
   const { leagueId } = req.params;
+  if (!FOOTBALL_DATA_KEY) return res.json([]);
   const cacheKey = `scorers_${leagueId}`;
   const cached = await getCache(cacheKey);
   if (cached) return res.json(cached);
@@ -308,6 +324,7 @@ app.get('/scorers/:leagueId', async (req, res) => {
 
 app.get('/weather', async (req, res) => {
   const { city } = req.query;
+  if (!WEATHER_API_KEY || !city) return res.json(null);
   const cacheKey = `weather_${city}`;
   const cached = await getCache(cacheKey);
   if (cached) return res.json(cached);
@@ -332,6 +349,7 @@ app.get('/weather', async (req, res) => {
 
 app.get('/odds', async (req, res) => {
   const { sport } = req.query;
+  if (!ODDS_API_KEY || !sport) return res.json([]);
   const cacheKey = `odds_${sport}`;
   const cached = await getCache(cacheKey);
   if (cached) return res.json(cached);
@@ -767,6 +785,7 @@ function normalizeStage(raw) {
 
 app.get('/ucl/knockouts', async (req, res) => {
   const season = req.query.season || '2025';
+  if (!FOOTBALL_DATA_KEY) return res.json({});
   const cacheKey = `ucl_knockouts_v5_${season}`;
   const cached = await getCache(cacheKey);
   if (cached) return res.json(cached);

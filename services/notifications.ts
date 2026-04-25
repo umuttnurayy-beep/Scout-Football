@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
@@ -28,6 +29,7 @@ const PREFS_KEY    = 'scout_notif_prefs_v2';
 const DAILY_ID     = 'scout_daily';
 const FEATURED_ID  = 'scout_featured';
 const MATCH_PREFIX = 'scout_match_';
+const BASE_URL     = 'https://scoutfootball-backend-production.up.railway.app';
 
 export const DEFAULT_PREFS: NotifPrefs = {
   daily: false, favTeam: false, featured: false,
@@ -77,6 +79,39 @@ export async function requestPermissions(): Promise<boolean> {
 
 export async function cancelAllNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
+}
+
+export async function registerPushToken(
+  prefs: NotifPrefs,
+  watchedTeams: string[],
+): Promise<void> {
+  try {
+    const anyEnabled = prefs.daily || prefs.favTeam || prefs.featured;
+    if (!anyEnabled) return;
+
+    const granted = await requestPermissions();
+    if (!granted) return;
+
+    const projectId =
+      Constants.expoConfig?.extra?.eas?.projectId ||
+      Constants.easConfig?.projectId;
+
+    const tokenResult = await Notifications.getExpoPushTokenAsync(
+      projectId ? { projectId } : undefined,
+    );
+
+    await fetch(`${BASE_URL}/register-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: tokenResult.data,
+        prefs,
+        watchedTeams,
+      }),
+    });
+  } catch (e) {
+    console.log('registerPushToken hata:', e);
+  }
 }
 
 // ── Time helpers ──────────────────────────────────────────────────────────────

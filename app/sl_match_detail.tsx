@@ -416,8 +416,13 @@ function getH2HCommentSL(h2hData: any[], homeTeamId: number, home: string, away:
     if (isNaN(fh)||isNaN(fa)) return;
     cnt++; totalG+=fh+fa;
     const isHomeTeamHome = m.homeTeamId === homeTeamId;
-    if (fh>fa) isHomeTeamHome?hw++:aw++;
-    else if (fh<fa) isHomeTeamHome?aw++:hw++;
+    if (fh > fa) {
+      if (isHomeTeamHome) hw++;
+      else aw++;
+    } else if (fh < fa) {
+      if (isHomeTeamHome) aw++;
+      else hw++;
+    }
     else d++;
   });
   if (cnt===0) return 'Geçmiş karşılaşma skoru bulunamadı.';
@@ -838,13 +843,13 @@ export default function SLMatchDetail() {
                       {isHome ? (
                         <>
                           <Text style={[styles.eventPlayer, { color: c.text }]} numberOfLines={1}>{ev.player}</Text>
-                          <Text style={[styles.eventMin, { color: c.textMuted }]}>{ev.minute}'</Text>
+                          <Text style={[styles.eventMin, { color: c.textMuted }]}>{`${ev.minute}'`}</Text>
                           <Text style={styles.eventIcon}>{icon}</Text>
                         </>
                       ) : (
                         <>
                           <Text style={styles.eventIcon}>{icon}</Text>
-                          <Text style={[styles.eventMin, { color: c.textMuted }]}>{ev.minute}'</Text>
+                          <Text style={[styles.eventMin, { color: c.textMuted }]}>{`${ev.minute}'`}</Text>
                           <Text style={[styles.eventPlayer, { color: c.text }, {textAlign:'right'}]} numberOfLines={1}>{ev.player}</Text>
                         </>
                       )}
@@ -1022,8 +1027,13 @@ export default function SLMatchDetail() {
                 const fh=parseInt(m.homeScore),fa=parseInt(m.awayScore);
                 if(isNaN(fh)||isNaN(fa))return;
                 const isHomeTeamHome = m.homeTeamId === homeTeamId;
-                if(fh>fa)isHomeTeamHome?hw++:aw++;
-                else if(fh<fa)isHomeTeamHome?aw++:hw++;
+                if (fh > fa) {
+                  if (isHomeTeamHome) hw++;
+                  else aw++;
+                } else if (fh < fa) {
+                  if (isHomeTeamHome) aw++;
+                  else hw++;
+                }
                 else d++;
               });
               return (
