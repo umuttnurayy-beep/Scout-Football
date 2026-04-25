@@ -8,7 +8,7 @@ function readEnv(name, { optional = false } = {}) {
 
 module.exports = {
   FOOTBALL_DATA_KEY: readEnv('FOOTBALL_DATA_KEY'),
-  WEATHER_API_KEY: readEnv('WEATHER_API_KEY'),
+  WEATHER_API_KEY: readEnv('WEATHER_API_KEY', { optional: true }) || readEnv('WEATHER_KEY'),
   ODDS_API_KEY: readEnv('ODDS_API_KEY'),
   RAPID_API_KEY: readEnv('RAPID_API_KEY', { optional: true }),
   ALLSPORTS_KEY: readEnv('ALLSPORTS_KEY', { optional: true }),
