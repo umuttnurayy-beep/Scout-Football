@@ -16,7 +16,7 @@ import { matchListEmptyMessage } from '../utils/emptyStates';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
-const STANDINGS_CACHE_KEY = 'scout_standings_cache_v1';
+const STANDINGS_CACHE_KEY = 'scout_standings_cache_v2';
 
 const SUPPORTED_LEAGUES = [2021, 2014, 2002, 2019, 2015, 2001];
 
@@ -110,6 +110,12 @@ function findStanding(standings: Standing[] | undefined, teamName: string, teamI
     const norm = normalizeTeam(s.team);
     return norm.includes(target) || target.includes(norm);
   }) || null;
+}
+
+function hasUsableStandingsMap(map: Record<number, Standing[]> | null): map is Record<number, Standing[]> {
+  if (!map) return false;
+  if (Array.isArray(map[203]) && map[203].length > 0) return true;
+  return STANDINGS_LEAGUES.some(({ leagueApiId }) => Array.isArray(map[leagueApiId]) && map[leagueApiId].length > 0);
 }
 
 const NO_DATA: Metrics = {
@@ -490,7 +496,7 @@ export default function HomeScreen() {
           const raw = await AsyncStorage.getItem(STANDINGS_CACHE_KEY);
           if (raw) {
             const { cacheDate, data: cached } = JSON.parse(raw);
-            if (cacheDate === dateStr) map = cached;
+            if (cacheDate === dateStr && hasUsableStandingsMap(cached)) map = cached;
           }
         } catch {}
 
