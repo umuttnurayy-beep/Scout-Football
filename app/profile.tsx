@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
@@ -557,7 +558,7 @@ export default function ProfileScreen() {
       {/* Top Bar */}
       <View style={[styles.topbar, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
         <View style={styles.headerBrand}>
-          <Image source={require('../assets/images/android-icon-foreground.png')} style={styles.headerLogo} />
+          <Image source={require('../assets/images/sf-logo.png')} style={styles.headerLogo} />
           <Text style={styles.appName}><Text style={styles.appNameBlue}>Scout</Text>Football</Text>
         </View>
         <Text style={[styles.topbarTitle, { color: c.text }]}>Scout Rozeti</Text>
@@ -874,15 +875,19 @@ export default function ProfileScreen() {
       {/* ── Tab Bar ── */}
       <View style={[styles.tabBar, { backgroundColor: c.surface, borderTopColor: c.border }]}>
         <TouchableOpacity style={styles.tab} onPress={() => router.push('/')}>
+          <Ionicons name="football-outline" size={22} color={c.textMuted} />
           <Text style={[styles.tabText, { color: c.textMuted }]}>Maçlar</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tab} onPress={() => router.push('/leagues')}>
+          <Ionicons name="trophy-outline" size={22} color={c.textMuted} />
           <Text style={[styles.tabText, { color: c.textMuted }]}>Ligler</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tab} onPress={() => router.push('/stats')}>
+          <Ionicons name="stats-chart-outline" size={22} color={c.textMuted} />
           <Text style={[styles.tabText, { color: c.textMuted }]}>İstatistik</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tab}>
+          <Ionicons name="person" size={22} color={c.primary} />
           <Text style={[styles.tabText, { color: c.primary, fontWeight: '500' }]}>Profil</Text>
         </TouchableOpacity>
       </View>
@@ -990,7 +995,7 @@ const styles = StyleSheet.create({
 
   // Tab bar
   tabBar: { flexDirection: 'row', borderTopWidth: 0.5, paddingBottom: 20 },
-  tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+  tab: { flex: 1, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', gap: 3 },
   tabText: { fontSize: 12 },
   tabActive: { fontWeight: '500' },
 

@@ -1,8 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet,
+  ActivityIndicator, AppState, Image, ScrollView, StatusBar, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
@@ -447,6 +448,18 @@ export default function HomeScreen() {
     return () => clearInterval(id);
   }, [selectedDate]);
 
+  // Uygulama arka plandan öne geldiğinde tarih değiştiyse yeni güne geç
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', state => {
+      if (state !== 'active') return;
+      const today = new Date();
+      if (selectedDate.toDateString() !== today.toDateString()) {
+        setSelectedDate(today);
+      }
+    });
+    return () => sub.remove();
+  }, [selectedDate]);
+
   useFocusEffect(
     useCallback(() => {
       if (!initialFocusDone.current) initialFocusDone.current = true;
@@ -597,9 +610,10 @@ export default function HomeScreen() {
 
   const hero       = isScoutMode ? sortedMatches[0] : null;
   const highlights = isScoutMode ? sortedMatches.slice(1, 4) : [];
-  const daySummary = isScoutMode
-    ? buildDaySummary(Array.from(metricsMap.values()))
-    : '';
+  const daySummary = isScoutMode ? buildDaySummary(Array.from(metricsMap.values())) : '';
+  const shownIds   = isScoutMode ? new Set([hero?.id, ...highlights.map(m => m.id)]) : new Set<string|number>();
+  const upcomingMatches = isScoutMode ? sortedMatches.filter(m => !m.finished) : [];
+  const finishedMatches = isScoutMode ? sortedMatches.filter(m => m.finished && !shownIds.has(m.id)) : [];
 
   function goToMatch(m: Match) {
     if (m.leagueApiId === 203) {
@@ -632,7 +646,7 @@ export default function HomeScreen() {
 
       <View style={[styles.topbar, { backgroundColor: c.surface }]}>
         <View style={styles.headerBrand}>
-          <Image source={require('../assets/images/android-icon-foreground.png')} style={styles.headerLogo} />
+          <Image source={require('../assets/images/sf-logo.png')} style={styles.headerLogo} />
           <Text style={styles.appName}><Text style={styles.appNameBlue}>Scout</Text>Football</Text>
         </View>
         <TouchableOpacity onPress={() => loadMatches(selectedDate)}>
@@ -714,12 +728,25 @@ export default function HomeScreen() {
                 {/* 3. Bugün Ne Bekleniyor? */}
                 <DaySummaryCard summary={daySummary} />
 
-                {/* 4. Tüm Maçlar */}
+                {/* 4. Tamamlanan Maçlar */}
+                {finishedMatches.length > 0 && (
+                  <>
+                    <View style={sc.sectionHeader}>
+                      <Text style={[sc.sectionTitle, { color: c.textMuted }]}>TAMAMLANAN MAÇLAR</Text>
+                    </View>
+                    {finishedMatches.map(m => {
+                      const mm = metricsMap.get(m.id) ?? NO_DATA;
+                      return <MatchRow key={m.id} m={m} metrics={mm} onPress={() => goToMatch(m)} />;
+                    })}
+                  </>
+                )}
+
+                {/* 5. Yaklaşan Maçlar */}
                 <View style={sc.sectionHeader}>
-                  <Text style={[sc.sectionTitle, { color: c.textMuted }]}>TÜM MAÇLAR</Text>
+                  <Text style={[sc.sectionTitle, { color: c.textMuted }]}>GÜNÜN KALAN MAÇLARI</Text>
                   <Text style={[sc.sectionSub, { color: c.textFaint }]}>Scout skoruna göre sıralandı</Text>
                 </View>
-                {sortedMatches.map(m => {
+                {upcomingMatches.map(m => {
                   const mm = metricsMap.get(m.id) ?? NO_DATA;
                   return <MatchRow key={m.id} m={m} metrics={mm} onPress={() => goToMatch(m)} />;
                 })}
@@ -755,15 +782,19 @@ export default function HomeScreen() {
 
       <View style={[styles.tabBar, { backgroundColor: c.surface, borderTopColor: c.border }]}>
         <TouchableOpacity style={styles.tab}>
+          <Ionicons name="football" size={22} color={c.primary} />
           <Text style={[styles.tabText, styles.tabActive, { color: c.primary }]}>Maçlar</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tab} onPress={() => router.push('/leagues')}>
+          <Ionicons name="trophy-outline" size={22} color={c.textMuted} />
           <Text style={[styles.tabText, { color: c.textMuted }]}>Ligler</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tab} onPress={() => router.push('/stats')}>
+          <Ionicons name="stats-chart-outline" size={22} color={c.textMuted} />
           <Text style={[styles.tabText, { color: c.textMuted }]}>İstatistik</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tab} onPress={() => router.push('/profile')}>
+          <Ionicons name="person-outline" size={22} color={c.textMuted} />
           <Text style={[styles.tabText, { color: c.textMuted }]}>Profil</Text>
         </TouchableOpacity>
       </View>
@@ -800,7 +831,7 @@ const styles = StyleSheet.create({
   scroll:             { flex: 1 },
   emptyText:          { textAlign: 'center', color: '#888', marginTop: 40, fontSize: 13 },
   tabBar:             { flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: '#eee', paddingBottom: 20, backgroundColor: '#fff' },
-  tab:                { flex: 1, paddingVertical: 12, alignItems: 'center' },
+  tab:                { flex: 1, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', gap: 3 },
   tabText:            { fontSize: 12, color: '#888' },
   tabActive:          { color: '#185FA5', fontWeight: '500' },
 });

@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -367,7 +368,7 @@ export default function LeaguesScreen() {
     <View style={[styles.container, { backgroundColor: c.bg }]}>
       <View style={[styles.topbar, { backgroundColor: c.surface }]}>
         <View style={styles.headerBrand}>
-          <Image source={require('../assets/images/android-icon-foreground.png')} style={styles.headerLogo} />
+          <Image source={require('../assets/images/sf-logo.png')} style={styles.headerLogo} />
           <Text style={styles.appName}><Text style={styles.appNameBlue}>Scout</Text>Football</Text>
         </View>
         <Text style={[styles.pageTitle, { color: c.textMuted }]}>Ligler</Text>
@@ -916,10 +917,22 @@ export default function LeaguesScreen() {
       </ScrollView>
 
       <View style={[styles.tabBar, { backgroundColor: c.surface, borderTopColor: c.border }]}>
-        <TouchableOpacity style={styles.tab} onPress={() => router.push('/')}><Text style={[styles.tabText, { color: c.textMuted }]}>Maçlar</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.tab}><Text style={[styles.tabText, styles.tabActive, { color: c.primary }]}>Ligler</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.tab} onPress={() => router.push('/stats')}><Text style={[styles.tabText, { color: c.textMuted }]}>İstatistik</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.tab} onPress={() => router.push('/profile')}><Text style={[styles.tabText, { color: c.textMuted }]}>Profil</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.tab} onPress={() => router.push('/')}>
+          <Ionicons name="football-outline" size={22} color={c.textMuted} />
+          <Text style={[styles.tabText, { color: c.textMuted }]}>Maçlar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.tab}>
+          <Ionicons name="trophy" size={22} color={c.primary} />
+          <Text style={[styles.tabText, styles.tabActive, { color: c.primary }]}>Ligler</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.tab} onPress={() => router.push('/stats')}>
+          <Ionicons name="stats-chart-outline" size={22} color={c.textMuted} />
+          <Text style={[styles.tabText, { color: c.textMuted }]}>İstatistik</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.tab} onPress={() => router.push('/profile')}>
+          <Ionicons name="person-outline" size={22} color={c.textMuted} />
+          <Text style={[styles.tabText, { color: c.textMuted }]}>Profil</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -965,7 +978,7 @@ const styles = StyleSheet.create({
   legendDot:           { width: 10, height: 10, borderRadius: 2 },
   legendText:          { fontSize: 12 },
   tabBar:              { flexDirection: 'row', borderTopWidth: 0.5, paddingBottom: 20 },
-  tab:                 { flex: 1, paddingVertical: 12, alignItems: 'center' },
+  tab:                 { flex: 1, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', gap: 3 },
   tabText:             { fontSize: 12 },
   tabActive:           { fontWeight: '500' },
   uclToggle:           { flexDirection: 'row', marginHorizontal: 14, marginVertical: 10, borderRadius: 10, borderWidth: 1, overflow: 'hidden' },

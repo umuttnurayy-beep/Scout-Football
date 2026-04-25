@@ -553,6 +553,7 @@ function getRefereeProfile(refName: string, leagueApiId: number) {
 // ── Visual Components ──────────────────────────────────────────────────────
 
 function ShotGauge({shotsOn,shotsTotal}:{shotsOn:number;shotsTotal:number}){
+  const { colors: sc, isDark: sDark } = useTheme();
   const W=140,H=92,cx=W/2,cy=H-8,R=52;
   const ratio=shotsTotal>0?Math.min(Math.max(shotsOn/shotsTotal,0.001),0.999):0.001;
   const angle=(1-ratio)*Math.PI;
@@ -560,17 +561,19 @@ function ShotGauge({shotsOn,shotsTotal}:{shotsOn:number;shotsTotal:number}){
   const gc=ratio>=0.65?'#2E7D32':ratio>=0.4?'#E65100':'#B71C1C';
   const lbl=ratio>=0.65?'Bitiricilik Yüksek':ratio>=0.4?'Tehlikeli Hücum':'İsabet Düşük';
   const nx=cx+(R-7)*Math.cos(angle), ny=cy-(R-7)*Math.sin(angle);
+  const needleColor = sDark ? '#C9D1D9' : '#333';
+  const trackColor  = sDark ? '#30363D' : '#e8e8e8';
   return (
     <View style={{alignItems:'center',flex:1}}>
       <Svg width={W} height={H}>
-        <Path d={`M ${cx-R},${cy} A ${R},${R},0,0,0,${cx+R},${cy}`} fill="none" stroke="#e8e8e8" strokeWidth={12} strokeLinecap="round"/>
+        <Path d={`M ${cx-R},${cy} A ${R},${R},0,0,0,${cx+R},${cy}`} fill="none" stroke={trackColor} strokeWidth={12} strokeLinecap="round"/>
         {shotsTotal>0&&<Path d={`M ${cx-R},${cy} A ${R},${R},0,0,0,${eax},${eay}`} fill="none" stroke={gc} strokeWidth={12} strokeLinecap="round"/>}
-        <Line x1={cx} y1={cy} x2={nx} y2={ny} stroke="#333" strokeWidth={2.5} strokeLinecap="round"/>
-        <Circle cx={cx} cy={cy} r={5} fill="#333"/>
+        <Line x1={cx} y1={cy} x2={nx} y2={ny} stroke={needleColor} strokeWidth={2.5} strokeLinecap="round"/>
+        <Circle cx={cx} cy={cy} r={5} fill={needleColor}/>
         <SvgText x={cx} y={cy-20} textAnchor="middle" fontSize={14} fontWeight="bold" fill={gc}>{shotsTotal>0?`${Math.round(ratio*100)}%`:'-'}</SvgText>
       </Svg>
       <Text style={{fontSize:11,fontWeight:'600',color:gc,marginTop:-4,textAlign:'center'}}>{shotsTotal>0?lbl:'Veri Yok'}</Text>
-      <Text style={{fontSize:10,color:'#888',marginTop:2}}>{shotsOn}/{shotsTotal} isabetli</Text>
+      <Text style={{fontSize:10,color:sc.textMuted,marginTop:2}}>{shotsOn}/{shotsTotal} isabetli</Text>
     </View>
   );
 }
@@ -1064,7 +1067,7 @@ export default function MatchDetail() {
                   <View key={i} style={[styles.scoutOddsCol,i>0&&{borderLeftWidth:0.5,borderLeftColor:c.border}]}>
                     <Text style={[styles.scoutOddsLabel,ts.scoutLabel]} numberOfLines={1}>{col.label}</Text>
                     <Text style={[styles.scoutOddsVal,ts.scoutVal,col.val===maxV&&{color:col.color,fontSize:24}]}>{col.val}%</Text>
-                    <View style={styles.scoutOddsBarWrap}>
+                    <View style={[styles.scoutOddsBarWrap,{backgroundColor:c.border}]}>
                       <View style={[styles.scoutOddsBarFill,{width:`${col.val}%`,backgroundColor:col.color}]}/>
                     </View>
                   </View>
@@ -1102,19 +1105,19 @@ export default function MatchDetail() {
                 ?(Math.abs(diffH)>=Math.abs(diffA)
                   ?(diffH>0?`${home} formuna göre değer taşıyor (%${Math.abs(diffH)} fark)`:`${home} oranı form tahminine göre düşük`)
                   :(diffA>0?`${away} formuna göre değer taşıyor (%${Math.abs(diffA)} fark)`:`${away} oranı form tahminine göre düşük`))
-                :'Bahisçi ve form tahmini dengede — belirgin değer farkı yok';
+                :'Piyasa ve form tahmini dengede — belirgin değer farkı yok';
               const cols2=[{label:home,imp:impH,our:ourH},{label:'Berabere',imp:impD,our:ourD},{label:away,imp:impA,our:ourA}];
               return(
                 <View style={{marginHorizontal:14,marginBottom:4,borderWidth:0.5,borderColor:c.border,borderRadius:10,overflow:'hidden'}}>
                   <View style={{backgroundColor:c.surfaceAlt,paddingHorizontal:12,paddingVertical:8}}>
-                    <Text style={{fontSize:10,color:c.textMuted,fontWeight:'500',letterSpacing:0.5}}>BAHİSÇİ vs SCOUT KARŞILAŞTIRMASI</Text>
+                    <Text style={{fontSize:10,color:c.textMuted,fontWeight:'500',letterSpacing:0.5}}>PİYASA vs SCOUT KARŞILAŞTIRMASI</Text>
                   </View>
                   <View style={{flexDirection:'row',paddingVertical:10,backgroundColor:c.surface}}>
                     {cols2.map((col,i)=>(
                       <View key={i} style={{flex:1,alignItems:'center',borderRightWidth:i<2?0.5:0,borderRightColor:c.border}}>
                         <Text style={{fontSize:9,color:c.textMuted,marginBottom:4,textAlign:'center'}} numberOfLines={1}>{col.label}</Text>
                         <Text style={{fontSize:16,fontWeight:'700',color:c.text}}>{col.imp}%</Text>
-                        <Text style={{fontSize:9,color:c.textFaint,marginTop:1}}>bahisçi</Text>
+                        <Text style={{fontSize:9,color:c.textFaint,marginTop:1}}>piyasa</Text>
                         <Text style={{fontSize:13,fontWeight:'600',color:Math.abs(col.our-col.imp)>9?c.win:c.textMuted,marginTop:6}}>{col.our}%</Text>
                         <Text style={{fontSize:9,color:c.textFaint,marginTop:1}}>scout</Text>
                       </View>
