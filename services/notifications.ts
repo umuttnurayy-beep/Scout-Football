@@ -5,26 +5,32 @@ import { Platform } from 'react-native';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type NotifPrefs = {
-  daily: boolean;    // "Bugünün analizleri hazır"
-  favTeam: boolean;  // Favori takım oynuyor
-  featured: boolean; // Günün öne çıkan maçı
-  risky: boolean;    // Riskli maç uyarısı
+  daily: boolean;    // "Bugünün analizleri hazır" — saat 10:00
+  favTeam: boolean;  // Favori + watchlist takımları, maçtan 30 dk önce
+  featured: boolean; // Günün öne çıkan maçı — saat 10:00
+};
+
+export type WatchedMatch = {
+  home: string;
+  away: string;
+  time: string; // "HH:mm" formatında
 };
 
 export type NotifData = {
   matchCount: number;
   scoutPick?: { home: string; away: string };
-  favTeamMatch?: { home: string; away: string; time: string };
-  riskyMatch?: { home: string; away: string };
+  watchedMatches: WatchedMatch[];
 };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const PREFS_KEY    = 'scout_notif_prefs_v1';
-const LAST_DATE_KEY = 'scout_notif_last_date';
+const PREFS_KEY    = 'scout_notif_prefs_v2';
+const DAILY_ID     = 'scout_daily';
+const FEATURED_ID  = 'scout_featured';
+const MATCH_PREFIX = 'scout_match_';
 
 export const DEFAULT_PREFS: NotifPrefs = {
-  daily: false, favTeam: false, featured: false, risky: false,
+  daily: false, favTeam: false, featured: false,
 };
 
 // ── Notification handler (called at module load) ───────────────────────────────
@@ -73,110 +79,113 @@ export async function cancelAllNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
 
-export async function resetScheduleDate(): Promise<void> {
-  await AsyncStorage.removeItem(LAST_DATE_KEY);
+// ── Time helpers ──────────────────────────────────────────────────────────────
+
+// Saat 10:00'a kadar saniye — geçtiyse null döner
+function secondsUntilTen(): number | null {
+  const now = new Date();
+  const target = new Date();
+  target.setHours(10, 0, 0, 0);
+  const diff = Math.floor((target.getTime() - now.getTime()) / 1000);
+  return diff > 30 ? diff : null;
+}
+
+// Maçtan minutesBefore dk önceye kadar saniye — geçtiyse null döner
+function secondsUntilReminder(timeStr: string, minutesBefore: number): number | null {
+  const parts = timeStr.split(':');
+  if (parts.length < 2) return null;
+  const h = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  if (isNaN(h) || isNaN(m)) return null;
+  const now = new Date();
+  const matchTime = new Date();
+  matchTime.setHours(h, m, 0, 0);
+  const reminderTime = new Date(matchTime.getTime() - minutesBefore * 60 * 1000);
+  const diff = Math.floor((reminderTime.getTime() - now.getTime()) / 1000);
+  return diff > 30 ? diff : null;
 }
 
 // ── Scheduler ─────────────────────────────────────────────────────────────────
-
-function todayStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-// Seconds until chosen hour today — if already passed, returns 5 (fire immediately)
-function secondsUntilHour(hour: number): number {
-  const now = new Date();
-  const target = new Date();
-  target.setHours(hour, 0, 0, 0);
-  const diff = Math.floor((target.getTime() - now.getTime()) / 1000);
-  return diff > 10 ? diff : 5;
-}
 
 export async function scheduleNotifications(
   data: NotifData,
   prefs: NotifPrefs,
 ): Promise<void> {
-  const anyEnabled = prefs.daily || prefs.favTeam || prefs.featured || prefs.risky;
-  if (!anyEnabled) return;
+  const anyEnabled = prefs.daily || prefs.favTeam || prefs.featured;
 
-  // Don't reschedule if already done today
-  const lastDate = await AsyncStorage.getItem(LAST_DATE_KEY);
-  if (lastDate === todayStr()) return;
+  if (!anyEnabled) {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    return;
+  }
 
   const granted = await requestPermissions();
   if (!granted) return;
 
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  // Mevcut maç hatırlatmalarını iptal et, yeniden planla
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  for (const n of scheduled) {
+    if (n.identifier.startsWith(MATCH_PREFIX)) {
+      await Notifications.cancelScheduledNotificationAsync(n.identifier);
+    }
+  }
 
-  const base = secondsUntilHour(10);
-  let offset = 0;
+  const baseSeconds = secondsUntilTen();
 
-  // 1. Günlük analiz bildirimi
-  if (prefs.daily) {
+  // 1. Günlük analiz — saat 10:00 (henüz geçmediyse)
+  if (prefs.daily && baseSeconds !== null) {
     let body = `Bugün ${data.matchCount} maç var.`;
     if (data.scoutPick) {
       body = `${data.matchCount} maç · ${data.scoutPick.home} - ${data.scoutPick.away} öne çıkıyor`;
     }
     await Notifications.scheduleNotificationAsync({
+      identifier: DAILY_ID,
       content: { title: 'Bugünün analizleri hazır ⚽', body, sound: false },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds: base + offset,
+        seconds: baseSeconds,
       },
     });
-    offset += 3;
+  } else if (!prefs.daily) {
+    await Notifications.cancelScheduledNotificationAsync(DAILY_ID);
   }
 
-  // 2. Öne çıkan maç (sadece daily kapalıysa ayrı bildirim olarak gönder)
-  if (prefs.featured && !prefs.daily && data.scoutPick) {
+  // 2. Öne çıkan maç — saat 10:00, yalnızca daily kapalıysa ayrı gönderilir
+  if (prefs.featured && !prefs.daily && data.scoutPick && baseSeconds !== null) {
     const { home, away } = data.scoutPick;
     await Notifications.scheduleNotificationAsync({
+      identifier: FEATURED_ID,
       content: {
-        title: 'Günün öne çıkan maçı',
+        title: 'Günün öne çıkan maçı ⭐',
         body: `${home} - ${away} · Scout analizini incele`,
         sound: false,
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds: base + offset,
+        seconds: baseSeconds + 3,
       },
     });
-    offset += 3;
+  } else if (!prefs.featured) {
+    await Notifications.cancelScheduledNotificationAsync(FEATURED_ID);
   }
 
-  // 3. Favori takım oynuyor
-  if (prefs.favTeam && data.favTeamMatch) {
-    const { home, away, time } = data.favTeamMatch;
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: '⭐ Favori takımın bugün oynuyor!',
-        body: `${home} - ${away} · ${time}`,
-        sound: false,
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds: base + offset,
-      },
-    });
-    offset += 3;
+  // 3. Maç hatırlatması — maçtan 30 dk önce (favori + watchlist)
+  if (prefs.favTeam) {
+    for (const wm of data.watchedMatches) {
+      const secs = secondsUntilReminder(wm.time, 30);
+      if (secs === null) continue;
+      const id = `${MATCH_PREFIX}${wm.home}_${wm.away}`.replace(/\s+/g, '_').slice(0, 64);
+      await Notifications.scheduleNotificationAsync({
+        identifier: id,
+        content: {
+          title: '⚽ Maç başlamak üzere!',
+          body: `${wm.home} - ${wm.away} · 30 dakika kaldı`,
+          sound: false,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: secs,
+        },
+      });
+    }
   }
-
-  // 4. Riskli maç uyarısı
-  if (prefs.risky && data.riskyMatch) {
-    const { home, away } = data.riskyMatch;
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: '⚠️ Riskli maç uyarısı',
-        body: `${home} - ${away} · Sürpriz senaryoya açık, dikkatle değerlendirin`,
-        sound: false,
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds: base + offset,
-      },
-    });
-  }
-
-  await AsyncStorage.setItem(LAST_DATE_KEY, todayStr());
 }

@@ -241,11 +241,11 @@ function getLiderTags(
   return tags;
 }
 
-function getTeamPersonality(lblLabel: string, avgGf: number, avgGa: number, winRate: number): string {
+function getTeamPersonality(lblLabel: string, avgGf: number, avgGa: number, winRate: number, avgLeagueGfPer: number): string {
   const winPct = Math.round(winRate * 100);
   if (lblLabel === 'Formda')             return `${winPct}% galibiyet oranı — bu sezonun en tutarlı takımlarından.`;
   if (lblLabel === 'Hücumcu & Kırılgan') return `${avgGf.toFixed(1)} gol atıp ${avgGa.toFixed(1)} gol yiyor — tahmin etmesi güç profil.`;
-  if (lblLabel === 'Hücumcu')            return `${avgGf.toFixed(1)} gol/maç ile lig ortalamasının üzerinde üretim yapıyor.`;
+  if (lblLabel === 'Hücumcu')            return `${avgGf.toFixed(1)} gol/maç — takım başına lig ort. (${avgLeagueGfPer.toFixed(1)}) üzerinde hücum üretimi.`;
   if (lblLabel === 'Savunmacı')          return `Maç başı yalnızca ${avgGa.toFixed(1)} gol yiyen sıkı savunma profili.`;
   if (lblLabel === 'Dengesiz')           return `${winPct}% galibiyet — istikrarsız yapı, sürprizlere açık.`;
   return 'Dengeli skor profili; büyük sürpriz ya da hayal kırıklığı beklentisi düşük.';
@@ -720,7 +720,7 @@ export default function LeaguesScreen() {
                     const winRate    = row.played > 0 ? row.win / row.played : 0;
                     const winPct     = Math.round(winRate * 100);
                     const lbl        = getTeamLabel(avgGf, avgGa, winRate, row.pos, standings.length, avgLeagueGfPer, avgLeagueGaPer, isDark);
-                    const personality = getTeamPersonality(lbl.label, avgGf, avgGa, winRate);
+                    const personality = getTeamPersonality(lbl.label, avgGf, avgGa, winRate, avgLeagueGfPer);
                     const atkS       = attackScore(row);
                     const defS       = defenseScore(row);
                     return (

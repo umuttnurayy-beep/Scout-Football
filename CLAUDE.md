@@ -130,7 +130,7 @@ Süper Lig maç verileri `{ id, home, away, homeScore, awayScore, date, time, st
 Galatasaray 133804, Fenerbahçe 133807, Beşiktaş 133794, Trabzonspor 133796, Başakşehir 134589,
 Samsunspor 133797, Göztepe 135891, Çaykur Rizespor 133885, Konyaspor 133835, Gaziantep FK 138092,
 Kocaelispor 133870, Alanyaspor 135676, Antalyaspor 133799, Gençlerbirliği 133798,
-Eyüpspor 138977, Kayserispor 133802, Fatih Karagümrük 138983, Kasımpaşa (henüz yok → 0).
+Eyüpspor 138977, Kayserispor 133802, Fatih Karagümrük 138983, Kasımpaşa 133834.
 
 ### API-Football (RapidAPI) — Kısmen Aktif
 `RAPID_API_KEY` ayarlanmadığından tüm `/af/` endpoint'leri boş döner. Ancak frontend kodu bu endpoint'lere çağrı yapar; sessizce fallback yapar.
@@ -424,8 +424,8 @@ FINAL                    → Final
 
 | Durum | Açıklama |
 |---|---|
-| Süper Lig takımları TheSportsDB ID bağımlı | Takım ID'leri `profile.tsx` içinde hard-coded. Listede olmayan takımlar (yeni çıkan / yükselen) eklenene kadar favori/form/kadro çalışmaz. Kasımpaşa şu an `teamId = 0`. |
-| Süper Lig maç detayı yok | `index.tsx`'te `leagueApiId === 203` olan maçlara tıklamak detay sayfasına **gitmez** (`match_detail` football-data.org veri şemasına bağlı). |
+| Süper Lig takımları TheSportsDB ID bağımlı | Takım ID'leri `profile.tsx` içinde hard-coded. Listede olmayan takımlar (yeni çıkan / yükselen) eklenene kadar favori/form/kadro çalışmaz. Tüm mevcut takımlar eklendi (Kasımpaşa 133834 dahil). |
+| Süper Lig maç detayı | `app/sl_match_detail.tsx` ile uygulandı. TheSportsDB `lookupevent.php` üzerinden gol/kart timeline, form istatistikleri, radar grafiği, hava durumu ve hakem profili gösterilir. Backend cache'li (tamamlanan: 1 saat, devam eden: 60s). |
 | Serie A / Ligue 1 / UCL standings — ESPN'den, takım satırlarında `teamId = 0` | ESPN ID'leri football-data.org ile örtüşmez. **Ancak `/matches` endpoint'i doğrudan FD'den geldiği için** bu liglerin maç objelerinde gerçek FD team ID'leri bulunur — `match_detail` üzerinden form + kadro çalışır. Yalnızca `leagues` → `team_stats` yolunda (standings tabanlı) form yüklenmez. Ana ekrandaki metrik motoru name-fallback ile standings satırını yine de bulur. |
 | API-Football kapalı | `RAPID_API_KEY` ayarlanmamış. `/af/` endpoint'leri boş döner. Önceki sezon takım detayları (kart, kale sıfır vb.) görünmez. |
 | Maç bildirimleri placeholder | `profile.tsx`'teki "Maç Bildirimleri" toggle yalnızca AsyncStorage flag'i yazar — gerçek push notification altyapısı (expo-notifications) henüz kurulmamış. |

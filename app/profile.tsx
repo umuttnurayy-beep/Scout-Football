@@ -9,7 +9,7 @@ import {
 import { getSuperLigStandings, getSuperLigTeamForm, getStandings, getTeamForm } from '../services/api';
 import {
   DEFAULT_PREFS, NotifPrefs, cancelAllNotifications,
-  loadNotifPrefs, requestPermissions, resetScheduleDate, saveNotifPrefs,
+  loadNotifPrefs, requestPermissions, saveNotifPrefs,
 } from '../services/notifications';
 import { useTheme } from '../context/ThemeContext';
 
@@ -58,7 +58,7 @@ const LEAGUES_TEAMS: { leagueName: string; apiId: number; flag: string; teams: {
       { name: 'Kocaelispor', teamId: 133870 }, { name: 'Alanyaspor', teamId: 135676 },
       { name: 'Antalyaspor', teamId: 133799 }, { name: 'Gençlerbirliği', teamId: 133798 },
       { name: 'Eyüpspor', teamId: 138977 },    { name: 'Kayserispor', teamId: 133802 },
-      { name: 'Fatih Karagümrük', teamId: 138983 }, { name: 'Kasımpaşa', teamId: 0 },
+      { name: 'Fatih Karagümrük', teamId: 138983 }, { name: 'Kasımpaşa', teamId: 133834 },
     ],
   },
   {
@@ -423,9 +423,9 @@ export default function ProfileScreen() {
     await AsyncStorage.setItem(STORAGE.WATCHLIST, JSON.stringify(updated));
   }
 
-  async function togglePref(key: keyof Omit<NotifPrefs, 'hour'>, val: boolean) {
+  async function togglePref(key: keyof NotifPrefs, val: boolean) {
     const updated = { ...notifPrefs, [key]: val };
-    const anyWillBeEnabled = updated.daily || updated.favTeam || updated.featured || updated.risky;
+    const anyWillBeEnabled = updated.daily || updated.favTeam || updated.featured;
 
     if (val && anyWillBeEnabled) {
       const granted = await requestPermissions();
@@ -436,7 +436,6 @@ export default function ProfileScreen() {
         );
         return;
       }
-      await resetScheduleDate();
     }
 
     if (!anyWillBeEnabled) await cancelAllNotifications();
@@ -800,8 +799,8 @@ export default function ProfileScreen() {
 
           <View style={styles.settingsRow}>
             <View style={styles.notifLabelWrap}>
-              <Text style={[styles.settingsLabel, { color: c.text }]}>Favori takım bildirimleri</Text>
-              <Text style={[styles.notifSub, { color: c.textFaint }]}>Favori takımın oynayacağı günler</Text>
+              <Text style={[styles.settingsLabel, { color: c.text }]}>Maç hatırlatması</Text>
+              <Text style={[styles.notifSub, { color: c.textFaint }]}>Favori ve takip listesi takımları, maçtan 30 dk önce</Text>
             </View>
             <Switch
               value={notifPrefs.favTeam}
@@ -821,21 +820,6 @@ export default function ProfileScreen() {
             <Switch
               value={notifPrefs.featured}
               onValueChange={v => togglePref('featured', v)}
-              trackColor={{ false: c.border, true: c.primary }}
-              thumbColor={c.surface}
-            />
-          </View>
-
-          <View style={[styles.settingsDivider, { backgroundColor: c.borderLight }]} />
-
-          <View style={styles.settingsRow}>
-            <View style={styles.notifLabelWrap}>
-              <Text style={[styles.settingsLabel, { color: c.text }]}>Riskli maç uyarıları</Text>
-              <Text style={[styles.notifSub, { color: c.textFaint }]}>Sürpriz senaryoya açık maçlar</Text>
-            </View>
-            <Switch
-              value={notifPrefs.risky}
-              onValueChange={v => togglePref('risky', v)}
               trackColor={{ false: c.border, true: c.primary }}
               thumbColor={c.surface}
             />

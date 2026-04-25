@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const BASE_URL = 'https://scoutfootball-backend-production.up.railway.app';
 
 const LEAGUE_MAP: Record<number, number> = {
@@ -237,6 +239,19 @@ export async function getOdds(homeTeam: string, awayTeam: string, leagueApiId: n
   try {
     const sport = ODDS_LEAGUE_MAP[leagueApiId];
     if (!sport) return null;
+
+    const storeKey = `odds_match_${leagueApiId}_${homeTeam}_${awayTeam}`;
+    const TWENTY_FOUR_H = 24 * 60 * 60 * 1000;
+
+    // Cache'te varsa dön — maç öncesi oran sabit kalır
+    try {
+      const raw = await AsyncStorage.getItem(storeKey);
+      if (raw) {
+        const { odds, ts } = JSON.parse(raw);
+        if (Date.now() - ts < TWENTY_FOUR_H) return odds;
+      }
+    } catch (_) {}
+
     const res = await fetch(`${BASE_URL}/odds?sport=${sport}`);
     const data = await res.json();
     if (!Array.isArray(data)) return null;
@@ -271,11 +286,15 @@ export async function getOdds(homeTeam: string, awayTeam: string, leagueApiId: n
     }
 
     if (!bestHome) return null;
-    return {
+    const odds = {
       home: bestHome.toFixed(2),
       draw: bestDraw.toFixed(2),
       away: bestAway.toFixed(2),
     };
+
+    try { await AsyncStorage.setItem(storeKey, JSON.stringify({ odds, ts: Date.now() })); } catch (_) {}
+
+    return odds;
   } catch (e) {
     console.log('getOdds hata:', e);
     return null;

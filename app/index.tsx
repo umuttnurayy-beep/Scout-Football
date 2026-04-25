@@ -11,7 +11,7 @@ import {
   getCityForTeam, getStandings, getSuperLigMatches, getSuperLigStandings,
   getTodayMatches, Standing,
 } from '../services/api';
-import { NotifData, loadNotifPrefs, scheduleNotifications } from '../services/notifications';
+import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -397,22 +397,24 @@ function DaySummaryCard({ summary }: { summary: string }) {
 
 function MatchRow({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress: () => void }) {
   const { colors: c } = useTheme();
+  const hasScore = m.finished && m.score;
   return (
     <TouchableOpacity style={[sc.matchCard, { backgroundColor: c.surface, borderColor: c.border }]} onPress={onPress} activeOpacity={0.8}>
       <View style={sc.matchTop}>
         <Text style={[sc.matchLeague, { color: c.primary }]}>{m.league}</Text>
-        {m.finished && m.score ? (
-          <View style={sc.scoreRow}>
-            <Text style={[sc.scoreText, { color: c.text }]}>{m.score}</Text>
-            <Text style={[sc.scoreMs, { color: c.textFaint }]}>MS</Text>
-          </View>
+        {hasScore ? (
+          <Text style={[sc.scoreMs, { color: c.textFaint }]}>MS</Text>
         ) : (
           <Text style={[sc.matchTime, { color: c.textSub }]}>{m.time}</Text>
         )}
       </View>
       <View style={sc.matchTeams}>
         <Text style={[sc.matchTeam, { color: c.text }]} numberOfLines={1}>{m.home}</Text>
-        <Text style={[sc.matchSep, { color: c.textVeryFaint }]}>—</Text>
+        {hasScore ? (
+          <Text style={[sc.scoreText, { color: c.text, paddingHorizontal: 8 }]}>{m.score}</Text>
+        ) : (
+          <Text style={[sc.matchSep, { color: c.textVeryFaint }]}>—</Text>
+        )}
         <Text style={[sc.matchTeam, { color: c.text, textAlign: 'right' }]} numberOfLines={1}>{m.away}</Text>
       </View>
       {metrics.hasData ? (
@@ -543,7 +545,7 @@ export default function HomeScreen() {
     if (!isToday(selectedDate) || matches.length === 0) return;
     (async () => {
       const prefs = await loadNotifPrefs();
-      const anyEnabled = prefs.daily || prefs.favTeam || prefs.featured || prefs.risky;
+      const anyEnabled = prefs.daily || prefs.favTeam || prefs.featured;
       if (!anyEnabled) return;
 
       // Scout pick: en yüksek skora sahip bitmemiş maç
@@ -556,37 +558,43 @@ export default function HomeScreen() {
         });
       const top = ranked[0];
 
-      // Riskli maç: düşük güven + dengeli + bitmemiş
-      const risky = ranked.find(m => {
-        const mt = metricsMap.get(m.id) ?? NO_DATA;
-        return mt.hasData && mt.confidence === 'low' && mt.favorite === 'balanced';
+      // Takım adını normalize et (Türkçe karakter desteği)
+      const norm = (s: string) => s.toLowerCase()
+        .replace(/[çÇ]/g,'c').replace(/[şŞ]/g,'s').replace(/[ğĞ]/g,'g')
+        .replace(/[üÜ]/g,'u').replace(/[öÖ]/g,'o').replace(/[ıİ]/g,'i');
+
+      const findTeamMatch = (teamName: string) => matches.find(m => {
+        if (m.finished) return false;
+        const n = norm(teamName);
+        const h = norm(m.home), a = norm(m.away);
+        return h.includes(n) || a.includes(n) || n.includes(h) || n.includes(a);
       });
 
-      // Favori takım bugün oynuyor mu?
-      let favTeamMatch: NotifData['favTeamMatch'];
+      // Favori + watchlist takımlarının bugünkü maçları
+      const watchedMatches: { home: string; away: string; time: string }[] = [];
       if (prefs.favTeam) {
         const favRaw = await AsyncStorage.getItem('scout_fav_team');
         if (favRaw) {
           const fav = JSON.parse(favRaw);
-          const favNorm = fav.name.toLowerCase().replace(/[çÇ]/g,'c').replace(/[şŞ]/g,'s')
-            .replace(/[ğĞ]/g,'g').replace(/[üÜ]/g,'u').replace(/[öÖ]/g,'o').replace(/[ıİ]/g,'i');
-          const favMatch = matches.find(m => {
-            if (m.finished) return false;
-            const h = m.home.toLowerCase().replace(/[çÇ]/g,'c').replace(/[şŞ]/g,'s')
-              .replace(/[ğĞ]/g,'g').replace(/[üÜ]/g,'u').replace(/[öÖ]/g,'o').replace(/[ıİ]/g,'i');
-            const a = m.away.toLowerCase().replace(/[çÇ]/g,'c').replace(/[şŞ]/g,'s')
-              .replace(/[ğĞ]/g,'g').replace(/[üÜ]/g,'u').replace(/[öÖ]/g,'o').replace(/[ıİ]/g,'i');
-            return h.includes(favNorm) || a.includes(favNorm) || favNorm.includes(h) || favNorm.includes(a);
-          });
-          if (favMatch) favTeamMatch = { home: favMatch.home, away: favMatch.away, time: favMatch.time };
+          const m = findTeamMatch(fav.name);
+          if (m) watchedMatches.push({ home: m.home, away: m.away, time: m.time });
+        }
+        const watchRaw = await AsyncStorage.getItem('scout_watchlist');
+        if (watchRaw) {
+          const watchlist: { name: string }[] = JSON.parse(watchRaw);
+          for (const team of watchlist) {
+            const m = findTeamMatch(team.name);
+            if (m && !watchedMatches.some(w => w.home === m.home && w.away === m.away)) {
+              watchedMatches.push({ home: m.home, away: m.away, time: m.time });
+            }
+          }
         }
       }
 
       await scheduleNotifications({
         matchCount: matches.filter(m => !m.finished).length,
-        scoutPick:  top   ? { home: top.home,   away: top.away }   : undefined,
-        favTeamMatch,
-        riskyMatch: risky ? { home: risky.home, away: risky.away } : undefined,
+        scoutPick:  top ? { home: top.home, away: top.away } : undefined,
+        watchedMatches,
       }, prefs);
     })();
   }, [matches, metricsMap, selectedDate]);
