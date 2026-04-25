@@ -35,6 +35,22 @@ const LEAGUE_WEIGHT: Record<number, number> = {
   203:  14,  // Süper Lig
 };
 
+const MARQUEE_MATCHUPS: { leagueApiId: number; teams: [string, string]; bonus: number }[] = [
+  { leagueApiId: 203,  teams: ['Galatasaray', 'Fenerbahce'], bonus: 12 },
+  { leagueApiId: 203,  teams: ['Galatasaray', 'Besiktas'], bonus: 10 },
+  { leagueApiId: 203,  teams: ['Fenerbahce', 'Besiktas'], bonus: 10 },
+  { leagueApiId: 2019, teams: ['Milan', 'Juventus'], bonus: 9 },
+  { leagueApiId: 2019, teams: ['Inter', 'Juventus'], bonus: 9 },
+  { leagueApiId: 2019, teams: ['Inter', 'Milan'], bonus: 9 },
+  { leagueApiId: 2014, teams: ['Real Madrid', 'Barcelona'], bonus: 12 },
+  { leagueApiId: 2014, teams: ['Real Madrid', 'Atletico Madrid'], bonus: 8 },
+  { leagueApiId: 2021, teams: ['Manchester United', 'Liverpool'], bonus: 10 },
+  { leagueApiId: 2021, teams: ['Manchester United', 'Manchester City'], bonus: 9 },
+  { leagueApiId: 2021, teams: ['Arsenal', 'Tottenham'], bonus: 8 },
+  { leagueApiId: 2002, teams: ['Bayern', 'Dortmund'], bonus: 9 },
+  { leagueApiId: 2015, teams: ['Paris Saint-Germain', 'Marseille'], bonus: 8 },
+];
+
 // standings yüklerken leagueApiId (Match'in kullandığı) → backend apiId eşlemesi
 const STANDINGS_LEAGUES: { leagueApiId: number; apiId: number }[] = [
   { leagueApiId: 2021, apiId: 39 },
@@ -257,6 +273,12 @@ function scoutScore(m: Match, metrics: Metrics): number {
     return 0;
   };
   s += posBonusFn(metrics.homePos) + posBonusFn(metrics.awayPos);
+  s += marqueeBonus(m);
+
+  if (metrics.homePos !== undefined && metrics.awayPos !== undefined) {
+    if (metrics.homePos <= 5 && metrics.awayPos <= 5) s += 4;
+    else if (metrics.homePos <= 8 && metrics.awayPos <= 8) s += 2;
+  }
 
   if (metrics.hasData) {
     if (metrics.expectedGoals > 3.0)                                          s += 2;
@@ -265,6 +287,22 @@ function scoutScore(m: Match, metrics: Metrics): number {
     if (metrics.confidence === 'high' && metrics.tempo < 2.3)                 s -= 1;
   }
   return s;
+}
+
+function marqueeBonus(m: Match): number {
+  const home = normalizeTeam(m.home);
+  const away = normalizeTeam(m.away);
+  const samePair = (a: string, b: string) => {
+    const x = normalizeTeam(a);
+    const y = normalizeTeam(b);
+    return (home.includes(x) || x.includes(home)) && (away.includes(y) || y.includes(away)) ||
+      (home.includes(y) || y.includes(home)) && (away.includes(x) || x.includes(away));
+  };
+
+  const matchup = MARQUEE_MATCHUPS.find(item =>
+    item.leagueApiId === m.leagueApiId && samePair(item.teams[0], item.teams[1])
+  );
+  return matchup?.bonus ?? 0;
 }
 
 // ─── data mapping ────────────────────────────────────────────────────────────
