@@ -426,20 +426,18 @@ export default function SLMatchDetail() {
   useEffect(() => {
     async function load() {
       setLoading(true);
-      try {
-        const [ev, hf, af, weather, h2h] = await Promise.all([
-          getSuperLigMatch(eventId),
-          homeTeamId ? getSuperLigTeamForm(homeTeamId) : Promise.resolve([]),
-          awayTeamId ? getSuperLigTeamForm(awayTeamId) : Promise.resolve([]),
-          getWeather(city),
-          home && away ? getAllSportsH2H(home, away) : Promise.resolve([]),
-        ]);
-        setEvent(ev);
-        setHomeForm(hf);
-        setAwayForm(af);
-        setWeatherData(weather);
-        setH2HMatches(h2h);
-      } catch(e) { console.log('SLMatchDetail load hata:', e); }
+      const [evR, hfR, afR, weatherR, h2hR] = await Promise.allSettled([
+        getSuperLigMatch(eventId),
+        homeTeamId ? getSuperLigTeamForm(homeTeamId) : Promise.resolve([]),
+        awayTeamId ? getSuperLigTeamForm(awayTeamId) : Promise.resolve([]),
+        getWeather(city),
+        home && away ? getAllSportsH2H(home, away) : Promise.resolve([]),
+      ]);
+      if (evR.status === 'fulfilled') setEvent(evR.value);
+      setHomeForm(hfR.status === 'fulfilled' ? (hfR.value || []) : []);
+      setAwayForm(afR.status === 'fulfilled' ? (afR.value || []) : []);
+      if (weatherR.status === 'fulfilled') setWeatherData(weatherR.value);
+      setH2HMatches(h2hR.status === 'fulfilled' ? (h2hR.value || []) : []);
       setLoading(false);
     }
     if (eventId) load(); else setLoading(false);
