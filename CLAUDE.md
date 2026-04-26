@@ -1,5 +1,24 @@
 # ScoutFootball — CLAUDE.md
 
+## Guncel Durum Notlari (2026-04-26)
+
+- Railway backend artik ana GitHub reposuna bagli: `umuttnurayy-beep/Scout-Football`, branch `main`, root directory `/ScoutFootball-Backend`.
+- Ayrik `ScoutFootball-Backend` reposu eski deploy kaynagi olarak kalabilir; aktif deploy akisi ana repo uzerinden yurumelidir.
+- Railway production variables: `ALLSPORTS_KEY`, `FOOTBALL_DATA_KEY`, `MONGODB_URI`, `ODDS_API_KEY`, `RAPID_API_KEY`, `WEATHER_KEY`.
+- `WEATHER_API_KEY` Railway build secret hatasi verdigi icin kullanilmiyor; backend `WEATHER_KEY` okur.
+- Push token kaydi aktif: Expo `projectId` app config icinde, `/register-token` MongoDB `PushToken` koleksiyonuna yazar, `/push/status` ile kontrol edilir.
+- EAS project ID: `82f6a1df-704f-4f50-b813-3bc9b2e33e4e`.
+- iOS bundle id ve Android package: `com.umutnuray.scoutfootball`.
+- OTA update hazirligi yapildi: `expo-updates`, `updates.url`, `runtimeVersion.policy = appVersion`, EAS production channel `production`.
+
+
+## Build ve Submit Notlari
+
+- Production build komutu: `eas build --profile production --platform all --auto-submit`.
+- `app.json`: `ios.bundleIdentifier`, `ios.buildNumber`, `android.package`, `android.versionCode`, `updates.url`, `runtimeVersion` tanimli.
+- `eas.json`: production `channel=production`, Android `buildType=app-bundle`, `autoIncrement=true`, submit Android `track=internal`.
+- Auto-submit icin EAS/Store tarafinda Android Play service account ve iOS App Store Connect uygulama kaydi/credential kurulumu gerekebilir; bos `ascAppId` veya `appleTeamId` degerleri `eas.json`a yazilmaz.
+
 Türkçe konuşan bir geliştirici tarafından inşa edilen, futbol maç takibi ve bahis analizi yapan mobil uygulama.
 
 ---

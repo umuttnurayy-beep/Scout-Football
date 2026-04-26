@@ -17,6 +17,11 @@
       }
     },
     "production": {
+      "autoIncrement": true,
+      "channel": "production",
+      "android": {
+        "buildType": "app-bundle"
+      },
       "ios": {
         "simulator": false
       }
@@ -24,6 +29,9 @@
   },
   "submit": {
     "production": {
+      "android": {
+        "track": "internal"
+      },
       "ios": {
         "appleId": "umuttnurayy@gmail.com"
       }

@@ -10,9 +10,12 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.umutnuray.scoutfootball"
+      "bundleIdentifier": "com.umutnuray.scoutfootball",
+      "buildNumber": "1"
     },
     "android": {
+      "package": "com.umutnuray.scoutfootball",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#0D1117",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -49,6 +52,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "updates": {
+      "url": "https://u.expo.dev/82f6a1df-704f-4f50-b813-3bc9b2e33e4e"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     },
     "extra": {
       "router": {},
