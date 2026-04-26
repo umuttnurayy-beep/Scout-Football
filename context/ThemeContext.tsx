@@ -1,9 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useColorScheme } from 'react-native';
 import { ThemeColors, darkColors, lightColors } from '../constants/colors';
 
 const THEME_KEY = 'scout_theme_mode'; // 'light' | 'dark' | 'system'
+const AUTO_LIGHT_START_HOUR = 7;
+const AUTO_DARK_START_HOUR = 20;
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -22,9 +23,9 @@ const ThemeContext = createContext<ThemeContextValue>({
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const systemScheme = useColorScheme();
   const [mode, setModeState] = useState<ThemeMode>('system');
   const [loaded, setLoaded] = useState(false);
+  const [, setClockTick] = useState(0);
 
   useEffect(() => {
     AsyncStorage.getItem(THEME_KEY).then(val => {
@@ -35,10 +36,21 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  useEffect(() => {
+    if (mode !== 'system') return;
+    const id = setInterval(() => setClockTick(t => t + 1), 60 * 1000);
+    return () => clearInterval(id);
+  }, [mode]);
+
+  function isAutoDark() {
+    const hour = new Date().getHours();
+    return hour >= AUTO_DARK_START_HOUR || hour < AUTO_LIGHT_START_HOUR;
+  }
+
   const isDark =
     mode === 'dark' ? true :
     mode === 'light' ? false :
-    systemScheme === 'dark';
+    isAutoDark();
 
   const colors = isDark ? darkColors : lightColors;
 

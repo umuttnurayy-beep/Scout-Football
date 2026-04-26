@@ -778,6 +778,9 @@ export default function ProfileScreen() {
           <View style={styles.notifSectionHeader}>
             <Text style={[styles.notifSectionTitle, { color: c.textMuted }]}>TEMA</Text>
           </View>
+          <Text style={[styles.themeAutoHint, { color: c.textFaint }]}>
+            Otomatik: 07:00-19:59 açık, 20:00-06:59 koyu
+          </Text>
           <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingBottom: 14 }}>
             {([['light', '☀️ Açık'], ['system', '⚙️ Otomatik'], ['dark', '🌙 Koyu']] as const).map(([m, label]) => (
               <TouchableOpacity
@@ -1000,6 +1003,7 @@ const styles = StyleSheet.create({
   // Notification settings
   notifSectionHeader: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 6 },
   notifSectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.6 },
+  themeAutoHint: { fontSize: 11, paddingHorizontal: 14, paddingBottom: 10 },
   notifLabelWrap: { flex: 1, paddingRight: 12 },
   notifSub: { fontSize: 11, marginTop: 2 },
   notifHourRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 12 },
