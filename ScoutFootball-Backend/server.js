@@ -882,6 +882,34 @@ app.get('/allsports/team-stats/:teamName', async (req, res) => {
   }
 });
 
+// ─── AllSports H2H Test ───────────────────────────────────────────────────────
+app.get('/allsports/h2h-test', async (req, res) => {
+  const { home, away } = req.query;
+  if (!home || !away) return res.status(400).json({ error: 'home ve away parametreleri gerekli' });
+  if (!ALLSPORTS_KEY) return res.json({ ok: false, error: 'ALLSPORTS_KEY tanımlı değil' });
+  try {
+    const [homeRes, awayRes] = await Promise.all([
+      fetch(`${ALLSPORTS_BASE}?met=Teams&APIkey=${ALLSPORTS_KEY}&teamName=${encodeURIComponent(home)}`),
+      fetch(`${ALLSPORTS_BASE}?met=Teams&APIkey=${ALLSPORTS_KEY}&teamName=${encodeURIComponent(away)}`),
+    ]);
+    const [homeData, awayData] = await Promise.all([homeRes.json(), awayRes.json()]);
+    const homeTeam = (homeData.result || [])[0];
+    const awayTeam = (awayData.result || [])[0];
+    if (!homeTeam || !awayTeam) return res.json({ ok: false, error: 'Takım bulunamadı', homeData, awayData });
+
+    const h2hRes = await fetch(`${ALLSPORTS_BASE}?met=H2H&APIkey=${ALLSPORTS_KEY}&firstTeamId=${homeTeam.team_key}&secondTeamId=${awayTeam.team_key}`);
+    const h2hData = await h2hRes.json();
+    res.json({
+      ok: true,
+      homeTeam: { id: homeTeam.team_key, name: homeTeam.team_name },
+      awayTeam: { id: awayTeam.team_key, name: awayTeam.team_name },
+      h2hRaw: h2hData,
+    });
+  } catch (e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
 app.get('/af/test', async (req, res) => {
   if (!RAPID_API_KEY) return res.json({ ok: false, error: 'RAPID_API_KEY tanımlı değil' });
   try {
