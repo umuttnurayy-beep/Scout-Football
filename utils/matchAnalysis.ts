@@ -1,6 +1,16 @@
 export type Stil = 'Hücumcu' | 'Savunmacı' | 'Dengeli';
 export type Level = 'Düşük' | 'Orta' | 'Yüksek';
 
+export const MIN_H2H = 3;
+
+export interface MatchFormStats {
+  total: number;
+  totalAvgGf: string | number;
+  totalAvgGa: string | number;
+  over25Pct: number;
+  kgVarPct: number;
+}
+
 export const ANALYSIS_DELTA = [0, 0, 1, -1, 0, 0, 1, -1, 0, 0, 0];
 const LEVELS: Level[] = ['Düşük', 'Orta', 'Yüksek'];
 
@@ -36,6 +46,69 @@ export function getTagColor(type: string, value: string, isDark: boolean): { bg:
   if (value === 'Yüksek') return { bg: isDark ? '#3D0F0F' : '#FDE8E8', text: isDark ? '#F85149' : '#A32D2D' };
   if (value === 'Orta')   return { bg: isDark ? '#2D1A00' : '#FFF8E1', text: isDark ? '#E3B341' : '#E6A817' };
   return { bg: isDark ? '#21262D' : '#f0f0f0', text: isDark ? '#8B949E' : '#666' };
+}
+
+export function buildReasons(
+  home: string, away: string,
+  hSt: MatchFormStats,
+  aSt: MatchFormStats,
+  hFP: number, aFP: number,
+  h2hCount: number, hash: number,
+): string[] {
+  const hAtk = parseFloat(hSt.totalAvgGf as string);
+  const aAtk = parseFloat(aSt.totalAvgGf as string);
+  const hDef = parseFloat(hSt.totalAvgGa as string);
+  const aDef = parseFloat(aSt.totalAvgGa as string);
+  const pool: string[] = [];
+
+  if (Math.abs(hAtk - aAtk) < 0.25) {
+    pool.push(`İki takımın gol üretimi birbirine yakın (${hAtk} - ${aAtk} ort.).`);
+  } else {
+    const lead = hAtk > aAtk ? home : away;
+    pool.push(`${lead} gol ortalamasında önde (${Math.max(hAtk,aAtk).toFixed(1)} vs ${Math.min(hAtk,aAtk).toFixed(1)}).`);
+  }
+  if (Math.abs(hDef - aDef) < 0.25) {
+    pool.push('Savunma istatistikleri birbirine yakın; belirgin savunma avantajı yok.');
+  } else {
+    const better = hDef < aDef ? home : away;
+    pool.push(`${better} savunmada daha sağlam (${Math.min(hDef,aDef).toFixed(1)} vs ${Math.max(hDef,aDef).toFixed(1)} yenilen ort.).`);
+  }
+  if (Math.abs(hFP - aFP) <= 2) {
+    pool.push(`Son 5 maç form dengesi yakın (${hFP} - ${aFP} puan).`);
+  } else {
+    const fLead = hFP > aFP ? home : away;
+    pool.push(`${fLead} son 5 maçta daha istikrarlı (${Math.max(hFP,aFP)} puan vs ${Math.min(hFP,aFP)}).`);
+  }
+  if (h2hCount >= MIN_H2H) {
+    pool.push(`H2H geçmişi ${h2hCount} maçlık veri sunuyor; tarihsel kalıplar da değerlendirildi.`);
+  } else {
+    pool.push('Doğrudan karşılaşma verisi sınırlı; sezon istatistikleri öne alındı.');
+  }
+  const avgOver = (hSt.over25Pct + aSt.over25Pct) / 2;
+  const avgKg   = (hSt.kgVarPct  + aSt.kgVarPct)  / 2;
+  if (avgOver >= 60) pool.push(`2.5 üst trendi tutarlı (ort. %${Math.round(avgOver)}).`);
+  else if (avgOver <= 35) pool.push(`Alt trendi belirgin (2.5 üst ort. %${Math.round(avgOver)}).`);
+  else if (avgKg >= 58)  pool.push(`KG Var eğilimi öne çıkıyor (ort. %${Math.round(avgKg)}).`);
+  else pool.push('Over/BTTS istatistikleri dengede; her iki senaryo geçerli.');
+
+  const offset = hash % pool.length;
+  return [0, 1, 2].map(i => pool[(offset + i) % pool.length]);
+}
+
+export function getGuven(
+  hSt: MatchFormStats,
+  aSt: MatchFormStats,
+  h2hCount: number,
+  weatherRisk: boolean,
+): Level {
+  let s = 0;
+  if (hSt.total >= 7) s++;
+  if (aSt.total >= 7) s++;
+  if (h2hCount >= MIN_H2H) s++;
+  if (!weatherRisk)   s++;
+  if (s >= 4) return 'Yüksek';
+  if (s >= 2) return 'Orta';
+  return 'Düşük';
 }
 
 export function getWeatherComment(weatherData: any): { impact: Level; sentence: string } {

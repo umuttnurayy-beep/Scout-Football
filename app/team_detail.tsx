@@ -2,21 +2,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import { getSuperLigStandings, getStandings } from '../services/api';
+import { Standing, getSuperLigStandings, getStandings } from '../services/api';
 import { teamDataEmptyMessage } from '../utils/emptyStates';
-
-type Team = {
-  id?: number;
-  pos: number;
-  team: string;
-  played: number;
-  win: number;
-  draw: number;
-  loss: number;
-  gf: number;
-  ga: number;
-  pts: number;
-};
 
 export default function TeamDetailScreen() {
   const router = useRouter();
@@ -27,7 +14,7 @@ export default function TeamDetailScreen() {
   const fdId = parseInt(Array.isArray(params.fdId) ? params.fdId[0] : (params.fdId || '0'));
   const apiId = parseInt(Array.isArray(params.apiId) ? params.apiId[0] : (params.apiId || '0'));
 
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [teams, setTeams] = useState<Standing[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -82,7 +69,8 @@ export default function TeamDetailScreen() {
                     pathname: '/team_stats',
                     params: {
                       teamName: team.team,
-teamId: (team as any).teamId || team.id || 0,                      leagueName,
+                      teamId: team.teamId || 0,
+                      leagueName,
                       leagueFlag,
                       fdId,
                       apiId,

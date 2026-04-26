@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, AppState, Image, ScrollView, StatusBar, StyleSheet,
+  ActivityIndicator, AppState, FlatList, Image, ScrollView, StatusBar, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
@@ -100,6 +100,18 @@ type Metrics = {
   awayPos?: number;
   reason?: string;         // hasData=false ise neden
   summary: string;         // kart altındaki açıklama cümlesi
+};
+
+type ListItem = {
+  key: string;
+  type: 'section-header' | 'hero' | 'highlight' | 'day-summary' | 'match' | 'empty';
+  m?: Match;
+  metrics?: Metrics;
+  rank?: number;
+  title?: string;
+  sub?: string;
+  summary?: string;
+  filter?: string;
 };
 
 // ─── metrics engine ──────────────────────────────────────────────────────────
@@ -679,14 +691,57 @@ export default function HomeScreen() {
     [filteredMatches, metricsMap]
   );
 
-  const isScoutMode = activeFilter === 'Scout' && isToday(selectedDate) && sortedMatches.length > 0;
+  const listItems = useMemo<ListItem[]>(() => {
+    const scoutMode = activeFilter === 'Scout' && isToday(selectedDate) && sortedMatches.length > 0;
+    const items: ListItem[] = [];
 
-  const hero       = isScoutMode ? sortedMatches[0] : null;
-  const highlights = isScoutMode ? sortedMatches.slice(1, 4) : [];
-  const daySummary = isScoutMode ? buildDaySummary(Array.from(metricsMap.values())) : '';
-  const shownIds   = isScoutMode ? new Set([hero?.id, ...highlights.map(m => m.id)]) : new Set<string|number>();
-  const upcomingMatches = isScoutMode ? sortedMatches.filter(m => !m.finished) : [];
-  const finishedMatches = isScoutMode ? sortedMatches.filter(m => m.finished && !shownIds.has(m.id)) : [];
+    if (scoutMode) {
+      const hero = sortedMatches[0];
+      const highlights = sortedMatches.slice(1, 4);
+      const shownIds = new Set([hero?.id, ...highlights.map(m => m.id)]);
+      const upcoming = sortedMatches.filter(m => !m.finished);
+      const finished = sortedMatches.filter(m => m.finished && !shownIds.has(m.id));
+      const summary = buildDaySummary(Array.from(metricsMap.values()));
+
+      items.push({ key: 'h-gunun-maci', type: 'section-header', title: 'GÜNÜN MAÇI' });
+      items.push({ key: 'hero', type: 'hero', m: hero, metrics: metricsMap.get(hero.id) ?? NO_DATA });
+
+      if (highlights.length > 0) {
+        items.push({ key: 'h-highlights', type: 'section-header', title: 'GÜNÜN ÖNE ÇIKANLARI' });
+        highlights.forEach((m, i) => {
+          items.push({ key: `hl-${m.id}`, type: 'highlight', m, rank: i, metrics: metricsMap.get(m.id) ?? NO_DATA });
+        });
+      }
+
+      items.push({ key: 'day-summary', type: 'day-summary', summary });
+
+      if (finished.length > 0) {
+        items.push({ key: 'h-finished', type: 'section-header', title: 'TAMAMLANAN MAÇLAR' });
+        finished.forEach(m => {
+          items.push({ key: `fin-${m.id}`, type: 'match', m, metrics: metricsMap.get(m.id) ?? NO_DATA });
+        });
+      }
+
+      items.push({ key: 'h-upcoming', type: 'section-header', title: 'GÜNÜN KALAN MAÇLARI', sub: 'Scout skoruna göre sıralandı' });
+      upcoming.forEach(m => {
+        items.push({ key: `up-${m.id}`, type: 'match', m, metrics: metricsMap.get(m.id) ?? NO_DATA });
+      });
+    } else {
+      if (sortedMatches.length === 0) {
+        items.push({ key: 'empty', type: 'empty', filter: activeFilter });
+      } else {
+        const title = activeFilter !== 'Scout'
+          ? `${activeFilter.toUpperCase()} MAÇLARI`
+          : `${selectedDate.getDate()} ${MONTHS[selectedDate.getMonth()]} MAÇLARI`;
+        items.push({ key: 'h-list', type: 'section-header', title });
+        sortedMatches.forEach(m => {
+          items.push({ key: `m-${m.id}`, type: 'match', m, metrics: metricsMap.get(m.id) ?? NO_DATA });
+        });
+      }
+    }
+
+    return items;
+  }, [sortedMatches, metricsMap, activeFilter, selectedDate]);
 
   function goToMatch(m: Match) {
     if (m.leagueApiId === 203) {
@@ -711,6 +766,34 @@ export default function HomeScreen() {
         live: '0', score: m.score || '', finished: m.finished ? '1' : '0',
       },
     });
+  }
+
+  function renderListItem({ item }: { item: ListItem }) {
+    switch (item.type) {
+      case 'section-header':
+        return (
+          <View style={sc.sectionHeader}>
+            <Text style={[sc.sectionTitle, { color: c.textMuted }]}>{item.title}</Text>
+            {item.sub && <Text style={[sc.sectionSub, { color: c.textFaint }]}>{item.sub}</Text>}
+          </View>
+        );
+      case 'hero':
+        return (
+          <View style={{ paddingHorizontal: 14, marginBottom: 4 }}>
+            <HeroCard m={item.m!} metrics={item.metrics!} onPress={() => goToMatch(item.m!)} />
+          </View>
+        );
+      case 'highlight':
+        return <HighlightCard m={item.m!} rank={item.rank!} metrics={item.metrics!} onPress={() => goToMatch(item.m!)} />;
+      case 'day-summary':
+        return <DaySummaryCard summary={item.summary!} />;
+      case 'match':
+        return <MatchRow m={item.m!} metrics={item.metrics!} onPress={() => goToMatch(item.m!)} />;
+      case 'empty':
+        return <Text style={[styles.emptyText, { color: c.textMuted }]}>{matchListEmptyMessage(item.filter!)}</Text>;
+      default:
+        return null;
+    }
   }
 
   return (
@@ -770,87 +853,14 @@ export default function HomeScreen() {
       {loading ? (
         <ActivityIndicator style={{ marginTop: 40 }} color={c.primary} />
       ) : (
-        <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 24 }}>
-
-          {/* ── SCOUT MODU ── */}
-          {isScoutMode && hero && (() => {
-            const heroM = metricsMap.get(hero.id) ?? NO_DATA;
-            return (
-              <>
-                {/* 1. Hero */}
-                <View style={sc.sectionHeader}>
-                  <Text style={[sc.sectionTitle, { color: c.textMuted }]}>GÜNÜN MAÇI</Text>
-                </View>
-                <View style={{ paddingHorizontal: 14, marginBottom: 4 }}>
-                  <HeroCard m={hero} metrics={heroM} onPress={() => goToMatch(hero)} />
-                </View>
-
-                {/* 2. Günün Öne Çıkanları */}
-                {highlights.length > 0 && (
-                  <>
-                    <View style={sc.sectionHeader}>
-                      <Text style={[sc.sectionTitle, { color: c.textMuted }]}>GÜNÜN ÖNE ÇIKANLARI</Text>
-                    </View>
-                    {highlights.map((m, i) => {
-                      const mm = metricsMap.get(m.id) ?? NO_DATA;
-                      return <HighlightCard key={m.id} m={m} rank={i} metrics={mm} onPress={() => goToMatch(m)} />;
-                    })}
-                  </>
-                )}
-
-                {/* 3. Bugün Ne Bekleniyor? */}
-                <DaySummaryCard summary={daySummary} />
-
-                {/* 4. Tamamlanan Maçlar */}
-                {finishedMatches.length > 0 && (
-                  <>
-                    <View style={sc.sectionHeader}>
-                      <Text style={[sc.sectionTitle, { color: c.textMuted }]}>TAMAMLANAN MAÇLAR</Text>
-                    </View>
-                    {finishedMatches.map(m => {
-                      const mm = metricsMap.get(m.id) ?? NO_DATA;
-                      return <MatchRow key={m.id} m={m} metrics={mm} onPress={() => goToMatch(m)} />;
-                    })}
-                  </>
-                )}
-
-                {/* 5. Yaklaşan Maçlar */}
-                <View style={sc.sectionHeader}>
-                  <Text style={[sc.sectionTitle, { color: c.textMuted }]}>GÜNÜN KALAN MAÇLARI</Text>
-                  <Text style={[sc.sectionSub, { color: c.textFaint }]}>Scout skoruna göre sıralandı</Text>
-                </View>
-                {upcomingMatches.map(m => {
-                  const mm = metricsMap.get(m.id) ?? NO_DATA;
-                  return <MatchRow key={m.id} m={m} metrics={mm} onPress={() => goToMatch(m)} />;
-                })}
-              </>
-            );
-          })()}
-
-          {/* ── LİG FİLTRESİ / BAŞKA GÜN ── */}
-          {!isScoutMode && (
-            sortedMatches.length === 0 ? (
-              <Text style={[styles.emptyText, { color: c.textMuted }]}>
-                {matchListEmptyMessage(activeFilter)}
-              </Text>
-            ) : (
-              <>
-                <View style={sc.sectionHeader}>
-                  <Text style={[sc.sectionTitle, { color: c.textMuted }]}>
-                    {activeFilter !== 'Scout'
-                      ? `${activeFilter.toUpperCase()} MAÇLARI`
-                      : `${selectedDate.getDate()} ${MONTHS[selectedDate.getMonth()]} MAÇLARI`}
-                  </Text>
-                </View>
-                {sortedMatches.map(m => {
-                  const mm = metricsMap.get(m.id) ?? NO_DATA;
-                  return <MatchRow key={m.id} m={m} metrics={mm} onPress={() => goToMatch(m)} />;
-                })}
-              </>
-            )
-          )}
-
-        </ScrollView>
+        <FlatList
+          style={styles.scroll}
+          data={listItems}
+          keyExtractor={item => item.key}
+          renderItem={renderListItem}
+          contentContainerStyle={{ paddingBottom: 24 }}
+          removeClippedSubviews
+        />
       )}
 
       <View style={[styles.tabBar, { backgroundColor: c.surface, borderTopColor: c.border }]}>

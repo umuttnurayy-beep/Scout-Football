@@ -346,7 +346,6 @@ Bahis oranları için. `match_detail.tsx` içindeki `getOddsComment()` yorumu bu
 // Football-data.org
 getStandings(leagueId: number)            // LEAGUE_MAP ile apiId → fdId dönüşümü
 getTodayMatches(date?: string)
-getLiveMatches()
 getMatchStats(matchId: string)
 getH2H(matchId: string)
 getTeamForm(teamId: number)
@@ -406,7 +405,7 @@ Harici API'lere frontend'den **doğrudan istek atılmaz**. Her şey backend üze
 ### Cache Key Versiyonlama
 Cache'lenmiş boş veri sorunu yaşanırsa cache key'ine `_v2`, `_v3` gibi sürüm ekle.  
 Mevcut sürümler:
-- `standings_v3_{leagueId}`
+- `scout_standings_cache_v2` (AsyncStorage — frontend index.tsx; backend `/standings/:leagueId` → `standings_v3_{id}`)
 - `af_topscorers_v2_{leagueId}_{season}`
 - `af_leagueteams_v2_{leagueId}_{season}`
 - `superlig_standings_v1`, `superlig_matches_v1_{date}`, `superlig_scorers_v1`, `superlig_team_form_v1_{teamId}`, `superlig_players_v1_{teamId}`

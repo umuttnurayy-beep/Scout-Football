@@ -10,7 +10,10 @@ import { getCityForTeam, getSuperLigMatch, getSuperLigTeamForm, getWeather } fro
 import {
   ANALYSIS_DELTA as DELTA,
   Level,
+  MatchFormStats,
   Stil,
+  buildReasons,
+  getGuven,
   getPersona,
   pickFrom,
   shiftLevel,
@@ -33,72 +36,10 @@ const SL_BASE = { stil: 'Dengeli' as Stil, gol: 'Orta' as Level, tempo: 'Yüksek
 
 // ── Analysis Engine ────────────────────────────────────────────────────────
 
-function buildReasons(
-  home: string, away: string,
-  hSt: ReturnType<typeof calcFormStatsSL>,
-  aSt: ReturnType<typeof calcFormStatsSL>,
-  hFP: number, aFP: number,
-  h2hCount: number, hash: number,
-): string[] {
-  const hAtk = parseFloat(hSt.totalAvgGf as string);
-  const aAtk = parseFloat(aSt.totalAvgGf as string);
-  const hDef = parseFloat(hSt.totalAvgGa as string);
-  const aDef = parseFloat(aSt.totalAvgGa as string);
-  const pool: string[] = [];
-
-  if (Math.abs(hAtk - aAtk) < 0.25) {
-    pool.push(`İki takımın gol üretimi birbirine yakın (${hAtk} - ${aAtk} ort.).`);
-  } else {
-    const lead = hAtk > aAtk ? home : away;
-    pool.push(`${lead} gol ortalamasında önde (${Math.max(hAtk,aAtk).toFixed(1)} vs ${Math.min(hAtk,aAtk).toFixed(1)}).`);
-  }
-  if (Math.abs(hDef - aDef) < 0.25) {
-    pool.push('Savunma istatistikleri birbirine yakın; belirgin savunma avantajı yok.');
-  } else {
-    const better = hDef < aDef ? home : away;
-    pool.push(`${better} savunmada daha sağlam (${Math.min(hDef,aDef).toFixed(1)} vs ${Math.max(hDef,aDef).toFixed(1)} yenilen ort.).`);
-  }
-  if (Math.abs(hFP - aFP) <= 2) {
-    pool.push(`Son 5 maç form dengesi yakın (${hFP} - ${aFP} puan).`);
-  } else {
-    const fLead = hFP > aFP ? home : away;
-    pool.push(`${fLead} son 5 maçta daha istikrarlı (${Math.max(hFP,aFP)} puan vs ${Math.min(hFP,aFP)}).`);
-  }
-  if (h2hCount >= 3) {
-    pool.push(`H2H geçmişi ${h2hCount} maçlık veri sunuyor; tarihsel kalıplar da değerlendirildi.`);
-  } else {
-    pool.push('Doğrudan karşılaşma verisi sınırlı; sezon istatistikleri öne alındı.');
-  }
-  const avgOver = (hSt.over25Pct + aSt.over25Pct) / 2;
-  const avgKg   = (hSt.kgVarPct  + aSt.kgVarPct)  / 2;
-  if (avgOver >= 60) pool.push(`2.5 üst trendi tutarlı (ort. %${Math.round(avgOver)}).`);
-  else if (avgOver <= 35) pool.push(`Alt trendi belirgin (2.5 üst ort. %${Math.round(avgOver)}).`);
-  else if (avgKg >= 58)  pool.push(`KG Var eğilimi öne çıkıyor (ort. %${Math.round(avgKg)}).`);
-  else pool.push('Over/BTTS istatistikleri dengede; her iki senaryo geçerli.');
-
-  const offset = hash % pool.length;
-  return [0, 1, 2].map(i => pool[(offset + i) % pool.length]);
-}
-
-function getGuven(
-  hSt: ReturnType<typeof calcFormStatsSL>,
-  aSt: ReturnType<typeof calcFormStatsSL>,
-  h2hCount: number, weatherRisk: boolean,
-): Level {
-  let s = 0;
-  if (hSt.total >= 7) s++;
-  if (aSt.total >= 7) s++;
-  if (h2hCount >= 3)  s++;
-  if (!weatherRisk)   s++;
-  if (s >= 4) return 'Yüksek';
-  if (s >= 2) return 'Orta';
-  return 'Düşük';
-}
-
 function buildMatchAnalysis(
   home: string, away: string,
-  hSt: ReturnType<typeof calcFormStatsSL>,
-  aSt: ReturnType<typeof calcFormStatsSL>,
+  hSt: MatchFormStats,
+  aSt: MatchFormStats,
   hFP: number, aFP: number,
   h2hCount: number, weatherRisk: boolean, hasFormData: boolean,
 ): MatchAnalysis {
@@ -1078,4 +1019,3 @@ const scStyles = StyleSheet.create({
   nedenBox:    { marginTop:8, paddingTop:8, borderTopWidth:0.5, borderTopColor:'#ddd6ff' },
   nedenBullet: { fontSize:12, color:'#444', lineHeight:19, marginBottom:3 },
 });
-

@@ -34,7 +34,7 @@ type SubTab = typeof SUB_TABS[number]['key'];
 
 type Level    = 'Düşük' | 'Orta' | 'Yüksek';
 type League   = typeof leagues[0];
-type Standing = { pos: number; team: string; played: number; win: number; draw: number; loss: number; gf: number; ga: number; pts: number; };
+type Standing = { pos: number; team: string; teamId: number; played: number; win: number; draw: number; loss: number; gf: number; ga: number; pts: number; };
 type LeagueChar = {
   label: string; color: string; bg: string; traits: string[]; rec: string; ozet: string;
   gol: Level; tempo: Level; risk: Level; stil: string;
