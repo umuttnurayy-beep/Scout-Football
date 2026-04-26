@@ -882,11 +882,16 @@ app.get('/allsports/team-stats/:teamName', async (req, res) => {
   }
 });
 
-// ─── AllSports H2H Test ───────────────────────────────────────────────────────
-app.get('/allsports/h2h-test', async (req, res) => {
+// ─── AllSports H2H ────────────────────────────────────────────────────────────
+app.get('/allsports/h2h', async (req, res) => {
   const { home, away } = req.query;
   if (!home || !away) return res.status(400).json({ error: 'home ve away parametreleri gerekli' });
-  if (!ALLSPORTS_KEY) return res.json({ ok: false, error: 'ALLSPORTS_KEY tanımlı değil' });
+  if (!ALLSPORTS_KEY) return res.json([]);
+
+  const cacheKey = `allsports_h2h_v1_${home}_${away}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return res.json(cached);
+
   try {
     const [homeRes, awayRes] = await Promise.all([
       fetch(`${ALLSPORTS_BASE}?met=Teams&APIkey=${ALLSPORTS_KEY}&teamName=${encodeURIComponent(home)}`),
@@ -895,18 +900,33 @@ app.get('/allsports/h2h-test', async (req, res) => {
     const [homeData, awayData] = await Promise.all([homeRes.json(), awayRes.json()]);
     const homeTeam = (homeData.result || [])[0];
     const awayTeam = (awayData.result || [])[0];
-    if (!homeTeam || !awayTeam) return res.json({ ok: false, error: 'Takım bulunamadı', homeData, awayData });
+    if (!homeTeam || !awayTeam) return res.json([]);
 
     const h2hRes = await fetch(`${ALLSPORTS_BASE}?met=H2H&APIkey=${ALLSPORTS_KEY}&firstTeamId=${homeTeam.team_key}&secondTeamId=${awayTeam.team_key}`);
     const h2hData = await h2hRes.json();
-    res.json({
-      ok: true,
-      homeTeam: { id: homeTeam.team_key, name: homeTeam.team_name },
-      awayTeam: { id: awayTeam.team_key, name: awayTeam.team_name },
-      h2hRaw: h2hData,
-    });
+
+    const matches = (h2hData.result?.H2H || [])
+      .filter(m => m.event_status === 'Finished' && m.event_final_result)
+      .map(m => {
+        const parts = (m.event_final_result || '').split(' - ');
+        return {
+          date: m.event_date,
+          home: m.event_home_team,
+          away: m.event_away_team,
+          homeScore: parseInt(parts[0]) || 0,
+          awayScore: parseInt(parts[1]) || 0,
+          league: m.league_name,
+          team1Home: m.home_team_key === homeTeam.team_key,
+        };
+      })
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 12);
+
+    if (matches.length > 0) await setCache(cacheKey, matches, 6 * 60 * 60 * 1000);
+    res.json(matches);
   } catch (e) {
-    res.json({ ok: false, error: e.message });
+    console.error('/allsports/h2h hata:', e.message);
+    res.json([]);
   }
 });
 
