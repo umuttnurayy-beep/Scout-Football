@@ -245,6 +245,17 @@ function formatTime(utcDate: string) {
   return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
 }
 
+function formatSportsDbTime(date: string, time?: string | null) {
+  if (!time) return '?';
+  const d = new Date(`${date}T${time}Z`);
+  if (Number.isNaN(d.getTime())) return time.substring(0, 5);
+  return formatTime(d.toISOString());
+}
+
+function sportsDbUtcDate(date: string, time?: string | null) {
+  return `${date}T${time || '00:00:00'}Z`;
+}
+
 function isToday(date: Date) { return date.toDateString() === new Date().toDateString(); }
 
 function strHash(s: string): number {
@@ -310,17 +321,18 @@ function marqueeBonus(m: Match): number {
 function mapSLMatch(m: any): Match {
   const hasScore   = m.homeScore !== null && m.homeScore !== undefined;
   const isFinished = m.status === 'Match Finished' || hasScore;
+  const utcDate = sportsDbUtcDate(m.date, m.time);
   return {
     id:          parseInt(m.id) || strHash(m.home + m.away + m.date),
     leagueApiId: 203,
     league:      'Süper Lig',
     home:        m.home,
     away:        m.away,
-    time:        m.time ? m.time.substring(0, 5) : '?',
+    time:        formatSportsDbTime(m.date, m.time),
     score:       hasScore ? `${m.homeScore} - ${m.awayScore}` : null,
     finished:    isFinished,
     city:        getCityForTeam(m.home),
-    utcDate:     `${m.date}T${m.time || '00:00:00'}`,
+    utcDate,
     homeTeamId:  m.homeTeamId || 0,
     awayTeamId:  m.awayTeamId || 0,
   };
