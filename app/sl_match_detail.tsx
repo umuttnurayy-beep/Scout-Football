@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../context/ThemeContext';
-import { getCityForTeam, getSuperLigMatch, getSuperLigTeamForm, getWeather } from '../services/api';
+import { getAllSportsH2H, getCityForTeam, getSuperLigMatch, getSuperLigTeamForm, getWeather } from '../services/api';
 import {
   ANALYSIS_DELTA as DELTA,
   Level,
@@ -204,20 +204,17 @@ function getTeamStyle(stats: ReturnType<typeof calcFormStatsSL>): { label: strin
 
 // ── Commentary Helpers ─────────────────────────────────────────────────────
 
-function getH2HCommentSL(h2hData: any[], homeTeamId: number, home: string, away: string): string {
+function getH2HCommentSL(h2hData: any[], home: string, away: string): string {
   if (h2hData.length < 2) return 'Geçmiş karşılaşma sayısı sınırlı; bu veriye fazla ağırlık vermemek gerekebilir.';
   let hw=0,d=0,aw=0,totalG=0,cnt=0;
   h2hData.forEach((m: any) => {
     const fh=parseInt(m.homeScore), fa=parseInt(m.awayScore);
     if (isNaN(fh)||isNaN(fa)) return;
     cnt++; totalG+=fh+fa;
-    const isHomeTeamHome = m.homeTeamId === homeTeamId;
     if (fh > fa) {
-      if (isHomeTeamHome) hw++;
-      else aw++;
+      if (m.team1Home) hw++; else aw++;
     } else if (fh < fa) {
-      if (isHomeTeamHome) aw++;
-      else hw++;
+      if (m.team1Home) aw++; else hw++;
     }
     else d++;
   });
@@ -420,6 +417,7 @@ export default function SLMatchDetail() {
   const [homeForm,    setHomeForm]     = useState<any[]>([]);
   const [awayForm,    setAwayForm]     = useState<any[]>([]);
   const [weatherData, setWeatherData]  = useState<any>(null);
+  const [h2hMatches,  setH2HMatches]  = useState<any[]>([]);
   const [loading,     setLoading]      = useState(true);
   const [showNeden,   setShowNeden]    = useState(false);
 
@@ -429,16 +427,18 @@ export default function SLMatchDetail() {
     async function load() {
       setLoading(true);
       try {
-        const [ev, hf, af, weather] = await Promise.all([
+        const [ev, hf, af, weather, h2h] = await Promise.all([
           getSuperLigMatch(eventId),
           homeTeamId ? getSuperLigTeamForm(homeTeamId) : Promise.resolve([]),
           awayTeamId ? getSuperLigTeamForm(awayTeamId) : Promise.resolve([]),
           getWeather(city),
+          home && away ? getAllSportsH2H(home, away) : Promise.resolve([]),
         ]);
         setEvent(ev);
         setHomeForm(hf);
         setAwayForm(af);
         setWeatherData(weather);
+        setH2HMatches(h2h);
       } catch(e) { console.log('SLMatchDetail load hata:', e); }
       setLoading(false);
     }
@@ -478,10 +478,7 @@ export default function SLMatchDetail() {
     ...awayReds.map(e => ({ ...e, team:'away' as const, type:'red'    as const })),
   ].sort((a, b) => parseInt(a.minute) - parseInt(b.minute));
 
-  // H2H: find matches in home team's form history where opponent is away team
-  const h2hData = homeForm.filter(m =>
-    m.homeTeamId === awayTeamId || m.awayTeamId === awayTeamId
-  ).slice(-8);
+  const h2hData = h2hMatches;
 
   // Form stats
   const homeStats   = calcFormStatsSL(homeForm, homeTeamId);
@@ -515,7 +512,7 @@ export default function SLMatchDetail() {
   const weatherCom    = getWeatherComment(weatherData);
   const riskWarns     = getRiskWarnings(homeStats, awayStats, h2hData.length, analysis);
   const compareComment = hasFormData ? getCompareComment(homeStats, awayStats, home, away) : '';
-  const h2hComment     = getH2HCommentSL(h2hData, homeTeamId, home, away);
+  const h2hComment     = getH2HCommentSL(h2hData, home, away);
 
   if (loading) return <View style={styles.loaderContainer}><ActivityIndicator size="large" color={c.primary}/></View>;
 
@@ -819,7 +816,7 @@ export default function SLMatchDetail() {
           <Text style={[styles.insightText, { color: c.text }]}>{h2hComment}</Text>
         </View>
         {h2hData.length === 0 ? (
-          <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}><Text style={[styles.noDataText, { color: c.textSub }]}>Bu sezon karşılaşma kaydı bulunamadı.</Text></View>
+          <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}><Text style={[styles.noDataText, { color: c.textSub }]}>Geçmiş karşılaşma bulunamadı.</Text></View>
         ) : (
           <>
             {(() => {
@@ -827,13 +824,10 @@ export default function SLMatchDetail() {
               h2hData.forEach((m:any)=>{
                 const fh=parseInt(m.homeScore),fa=parseInt(m.awayScore);
                 if(isNaN(fh)||isNaN(fa))return;
-                const isHomeTeamHome = m.homeTeamId === homeTeamId;
                 if (fh > fa) {
-                  if (isHomeTeamHome) hw++;
-                  else aw++;
+                  if (m.team1Home) hw++; else aw++;
                 } else if (fh < fa) {
-                  if (isHomeTeamHome) aw++;
-                  else hw++;
+                  if (m.team1Home) aw++; else hw++;
                 }
                 else d++;
               });
@@ -853,7 +847,7 @@ export default function SLMatchDetail() {
               return (
                 <View key={i} style={[styles.h2hRow, { borderBottomColor: c.border }]}>
                   <View style={styles.h2hLeft}>
-                    <Text style={[styles.h2hDate, { color: c.textMuted }]}>{dateStr}</Text>
+                    <Text style={[styles.h2hDate, { color: c.textMuted }]}>{dateStr}{m.league ? ` · ${m.league}` : ''}</Text>
                     <Text style={[styles.h2hTeams, { color: c.text }]}>{m.home} - {m.away}</Text>
                   </View>
                   <Text style={[styles.h2hScore, { color: c.text }]}>{fh??'-'} – {fa??'-'}</Text>

@@ -390,6 +390,17 @@ export async function getAllSportsTeamStats(teamName: string): Promise<any> {
   }
 }
 
+export async function getAllSportsH2H(homeTeam: string, awayTeam: string): Promise<any[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/allsports/h2h?home=${encodeURIComponent(homeTeam)}&away=${encodeURIComponent(awayTeam)}`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.error('getAllSportsH2H hata:', e);
+    return [];
+  }
+}
+
 // --- Süper Lig (TheSportsDB) ---
 
 export async function getSuperLigStandings(): Promise<Standing[]> {
