@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, ScrollView, StyleSheet,
+  ActivityIndicator, Image, ScrollView, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
 import {
@@ -371,7 +371,10 @@ export default function TeamStatsScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={[styles.backBtn, { color: c.primary }]}>‹ Geri</Text>
         </TouchableOpacity>
-        <Text style={[styles.topbarTitle, { color: c.text }]}>{teamName}</Text>
+        <View style={styles.topbarCenter}>
+          <Image source={require('../assets/images/sf-logo.png')} style={styles.headerLogo} />
+          <Text style={[styles.topbarTitle, { color: c.text }]} numberOfLines={1}>{teamName}</Text>
+        </View>
         <View style={{ width: 60 }} />
       </View>
 
@@ -882,6 +885,8 @@ const styles = StyleSheet.create({
   container:           { flex: 1 },
   topbar:              { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingTop: 52, paddingBottom: 10, borderBottomWidth: 0.5 },
   backBtn:             { fontSize: 16, fontWeight: '500' },
+  topbarCenter:        { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  headerLogo:          { width: 28, height: 28, resizeMode: 'contain' },
   topbarTitle:         { fontSize: 14, fontWeight: '500' },
   scroll:              { flex: 1 },
   teamHeader:          { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderBottomWidth: 0.5 },

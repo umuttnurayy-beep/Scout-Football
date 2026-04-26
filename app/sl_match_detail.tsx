@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, ScrollView, StyleSheet, Text,
+  ActivityIndicator, Image, ScrollView, StyleSheet, Text,
   TouchableOpacity, View,
 } from 'react-native';
 import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-svg';
@@ -588,9 +588,12 @@ export default function SLMatchDetail() {
       {/* ── Topbar ── */}
       <View style={[styles.topbar, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
         <TouchableOpacity onPress={()=>router.back()}><Text style={[styles.backBtn, { color: c.primary }]}>‹ Geri</Text></TouchableOpacity>
-        <View style={{alignItems:'center'}}>
-          <Text style={[styles.topbarTitle, { color: c.text }]} numberOfLines={1}>{home} - {away}</Text>
-          <Text style={[styles.topbarSub, { color: c.textMuted }]}>Süper Lig</Text>
+        <View style={styles.topbarCenter}>
+          <Image source={require('../assets/images/sf-logo.png')} style={styles.headerLogo} />
+          <View style={{alignItems:'center'}}>
+            <Text style={[styles.topbarTitle, { color: c.text }]} numberOfLines={1}>{home} - {away}</Text>
+            <Text style={[styles.topbarSub, { color: c.textMuted }]}>Süper Lig</Text>
+          </View>
         </View>
         <View style={{width:60}}/>
       </View>
@@ -964,6 +967,8 @@ const styles = StyleSheet.create({
   loaderContainer:    { flex:1, justifyContent:'center', alignItems:'center' },
   topbar:             { flexDirection:'row', alignItems:'center', justifyContent:'space-between', paddingHorizontal:14, paddingTop:52, paddingBottom:10, borderBottomWidth:0.5, borderBottomColor:'#eee' },
   backBtn:            { fontSize:16, color:'#185FA5', fontWeight:'500' },
+  topbarCenter:       { flex:1, flexDirection:'row', alignItems:'center', justifyContent:'center', gap:6 },
+  headerLogo:         { width:28, height:28, resizeMode:'contain' },
   topbarTitle:        { fontSize:13, fontWeight:'500', color:'#111', textAlign:'center', maxWidth:200 },
   topbarSub:          { fontSize:11, color:'#888', textAlign:'center' },
   hero:               { padding:16, borderBottomWidth:0.5, borderBottomColor:'#eee' },

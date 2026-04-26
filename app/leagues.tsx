@@ -112,7 +112,7 @@ function TieCard({ tie, isFinal }: { tie: any; isFinal?: boolean }) {
             <Text style={[bkStyles.tbd, { color: c.textVeryFaint }]}>— : —</Text>
           )}
         </View>
-        <Text style={[bkStyles.teamName, { color: c.text, textAlign: 'right' }, awayWins && { color: '#F85149', fontWeight: '700' }]} numberOfLines={1}>
+        <Text style={[bkStyles.teamName, { color: c.text, textAlign: 'right' }, awayWins && { color: c.primary, fontWeight: '700' }]} numberOfLines={1}>
           {awayName}
         </Text>
       </View>
@@ -129,8 +129,8 @@ function TieCard({ tie, isFinal }: { tie: any; isFinal?: boolean }) {
       )}
 
       {winner ? (
-        <View style={[bkStyles.winnerBadge, { backgroundColor: homeWins ? c.primaryLight : '#3D1515' }]}>
-          <Text style={[bkStyles.winnerText, { color: homeWins ? c.primary : '#F85149' }]}>
+        <View style={[bkStyles.winnerBadge, { backgroundColor: c.primaryLight }]}>
+          <Text style={[bkStyles.winnerText, { color: c.primary }]}>
             {isFinal ? '🏆' : '✅'} {winner}
           </Text>
         </View>
