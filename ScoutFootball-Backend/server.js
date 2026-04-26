@@ -201,23 +201,6 @@ app.get('/matches', async (req, res) => {
   }
 });
 
-app.get('/live', async (req, res) => {
-  if (!FOOTBALL_DATA_KEY) return res.json([]);
-  const cached = await getCache('live');
-  if (cached) return res.json(cached);
-  try {
-    const response = await fetch(`${FOOTBALL_DATA_BASE}/matches?status=LIVE,IN_PLAY,PAUSED`, {
-      headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
-    });
-    const data = await response.json();
-    await setCache('live', data.matches || [], TTL.live);
-    res.json(data.matches || []);
-  } catch (e) {
-    console.error('/live hata:', e.message);
-    res.json([]);
-  }
-});
-
 app.get('/match/:matchId', async (req, res) => {
   const { matchId } = req.params;
   if (!FOOTBALL_DATA_KEY) return res.json(null);
@@ -1031,113 +1014,9 @@ async function sendPushNotifications(tokens, title, body) {
   }
 }
 
-// Takım adı normalizasyonu (Türkçe karakter)
-function normPush(s) {
-  return (s || '').toLowerCase()
-    .replace(/ç/g,'c').replace(/ş/g,'s').replace(/ğ/g,'g')
-    .replace(/ü/g,'u').replace(/ö/g,'o').replace(/ı/g,'i').replace(/İ/g,'i')
-    .replace(/[^a-z0-9]/g,'');
-}
-
-function teamMatchesPush(teamName, home, away) {
-  const n = normPush(teamName), h = normPush(home), a = normPush(away);
-  return h.includes(n) || a.includes(n) || n.includes(h) || n.includes(a);
-}
-
-// Günlük analiz bildirimi (saat 10:00 Türkiye = 07:00 UTC)
-async function sendDailyNotifications() {
-  if (!mongoConnected) return;
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    let matchCount = 0;
-    try {
-      const fd = await getCache(`matches_${today}`);
-      if (Array.isArray(fd)) matchCount += fd.filter(m => m.status !== 'FINISHED').length;
-    } catch {}
-    try {
-      const sl = await getCache(`superlig_matches_v1_${today}`);
-      if (Array.isArray(sl)) matchCount += sl.filter(m => !m.homeScore && m.homeScore !== 0).length;
-    } catch {}
-
-    const body = matchCount > 0
-      ? `Bugün ${matchCount} maç var. Scout analizini incele.`
-      : 'Bugünün maç programı hazır. Scout analizini incele.';
-
-    const dailyUsers   = await PushToken.find({ 'prefs.daily': true });
-    const featuredOnly = await PushToken.find({ 'prefs.featured': true, 'prefs.daily': { $ne: true } });
-
-    if (dailyUsers.length)
-      await sendPushNotifications(dailyUsers.map(d => d.token), 'Bugünün analizleri hazır ⚽', body);
-    if (featuredOnly.length)
-      await sendPushNotifications(featuredOnly.map(d => d.token), 'Günün öne çıkan maçı ⭐', body);
-
-    console.log(`Günlük bildirim: ${dailyUsers.length + featuredOnly.length} kullanıcı, ${matchCount} maç`);
-  } catch (e) {
-    console.error('Günlük bildirim hatası:', e.message);
-  }
-}
-
-// Maç hatırlatması: maçtan 30 dk önce (FD maçları — utcDate güvenilir)
-async function sendMatchReminders() {
-  if (!mongoConnected) return;
-  try {
-    const favUsers = await PushToken.find({ 'prefs.favTeam': true });
-    if (!favUsers.length) return;
-
-    const today = new Date().toISOString().split('T')[0];
-    let fdMatches = [];
-    try {
-      const cached = await getCache(`matches_${today}`);
-      if (Array.isArray(cached)) fdMatches = cached;
-    } catch {}
-
-    const now = new Date();
-    const upcoming = fdMatches.filter(m => {
-      if (!m.utcDate || m.status === 'FINISHED') return false;
-      const diff = (new Date(m.utcDate) - now) / 60000;
-      return diff >= 28 && diff <= 33; // 28-33 dk penceresi (her 5 dk check)
-    });
-
-    for (const m of upcoming) {
-      const home = m.homeTeam?.name || '';
-      const away = m.awayTeam?.name || '';
-      if (!home || !away) continue;
-      const interested = favUsers.filter(u =>
-        (u.watchedTeams || []).some(t => teamMatchesPush(t, home, away))
-      );
-      if (!interested.length) continue;
-      await sendPushNotifications(
-        interested.map(u => u.token),
-        '⚽ Maç başlamak üzere!',
-        `${home} - ${away} · 30 dakika kaldı`,
-      );
-      console.log(`Maç hatırlatması: ${home} - ${away}, ${interested.length} kullanıcı`);
-    }
-  } catch (e) {
-    console.error('Maç hatırlatma hatası:', e.message);
-  }
-}
-
-// Zamanlayıcı: her 30 saniyede kontrol et
-let lastDailyDate = '';
-setInterval(async () => {
-  if (!mongoConnected) return;
-  const now = new Date();
-  const h = now.getUTCHours();
-  const m = now.getUTCMinutes();
-  const today = now.toISOString().split('T')[0];
-
-  // 07:00-07:05 UTC (10:00-10:05 Türkiye) — günde bir kez
-  if (h === 7 && m < 5 && lastDailyDate !== today) {
-    lastDailyDate = today;
-    await sendDailyNotifications();
-  }
-
-  // Maç hatırlatması: her 5 dakikada bir (:00, :05, :10 ...)
-  if (m % 5 === 0) {
-    await sendMatchReminders();
-  }
-}, 30 * 1000);
+// Notification scheduling is handled locally in the mobile app. The backend
+// keeps token registration/status/test endpoints for diagnostics and future
+// server-side campaigns, but does not run automatic push cron jobs.
 
 // ─────────────────────────────────────────────────────────────────────────────
 

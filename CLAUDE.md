@@ -195,7 +195,6 @@ Bahis oranları için. `match_detail.tsx` içindeki `getOddsComment()` yorumu bu
 |---|---|---|---|
 | GET | `/standings/:leagueId` | Puan tablosu (ESPN fallback ile) | `standings_v3_{id}` |
 | GET | `/matches?date=` | Günlük maçlar | `matches_{date}` |
-| GET | `/live` | Canlı maçlar | `live` |
 | GET | `/match/:matchId` | Maç detay | `match_{id}` |
 | GET | `/h2h/:matchId` | H2H geçmişi | `h2h_{id}` |
 | GET | `/team/:teamId` | Takım + kadro | `team_{id}` |
@@ -481,5 +480,5 @@ Test: Expo Go uygulamasıyla QR kod taranır.
 - Hava sekmesi genişletmesi: o hava koşullarındaki takım performans geçmişi
 - Süper Lig takım listesinin dinamik çekilmesi (TheSportsDB `search_all_teams.php?l=Turkish Super Lig`) — böylece yeni sezon takımları otomatik gelir
 - API-Football (`RAPID_API_KEY`) aktifleştirilirse: takım detayları (kart, kale sıfır, sarı-kırmızı vb.) çok daha zengin hale gelir
-- Canlı maç polling: eski `/live` endpoint'i artık frontend'de kullanılmıyor; dakikalık maç dakikası / skor güncellemesi için canlı izleme eklenebilir
+- Bildirim zamanlaması mobil uygulamada lokal yapılır. Backend `register-token`, `push/status` ve korumalı `push/test` uçlarını tanı/gelecek kampanyalar için tutar; otomatik push cron çalıştırmaz.
 - Profile → "Son Bakılanlar" için takım başına hızlı kıyaslama grafikleri
