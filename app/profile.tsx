@@ -10,7 +10,6 @@ import { getSuperLigStandings, getSuperLigTeamForm, getStandings, getTeamForm } 
 import {
   DEFAULT_PREFS, NotifPrefs, cancelAllNotifications,
   loadNotifPrefs, registerPushToken, requestPermissions, saveNotifPrefs,
-  scheduleTestNotification,
 } from '../services/notifications';
 import { useTheme } from '../context/ThemeContext';
 
@@ -455,18 +454,6 @@ export default function ProfileScreen() {
     }
   }
 
-  async function sendTestNotification() {
-    const scheduled = await scheduleTestNotification();
-    if (!scheduled) {
-      Alert.alert(
-        'Bildirim izni gerekli',
-        'Test bildirimi göndermek için uygulama ayarlarından bildirim iznini etkinleştirin.',
-      );
-      return;
-    }
-    Alert.alert('Test planlandı', '5 saniye içinde bir test bildirimi gelmeli.');
-  }
-
   function goToTeamStats(team: FavTeam) {
     router.push({
       pathname: '/team_stats',
@@ -850,16 +837,6 @@ export default function ProfileScreen() {
               thumbColor={c.surface}
             />
           </View>
-
-          <View style={[styles.settingsDivider, { backgroundColor: c.borderLight }]} />
-
-          <TouchableOpacity style={styles.settingsRow} onPress={sendTestNotification}>
-            <View style={styles.notifLabelWrap}>
-              <Text style={[styles.settingsLabel, { color: c.text }]}>Test bildirimi</Text>
-              <Text style={[styles.notifSub, { color: c.textFaint }]}>5 saniye içinde deneme bildirimi gönder</Text>
-            </View>
-            <Text style={[styles.settingsValue, { color: c.primary }]}>Gönder ›</Text>
-          </TouchableOpacity>
 
         </View>
 
