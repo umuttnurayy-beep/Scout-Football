@@ -224,6 +224,7 @@ export default function TeamStatsScreen() {
 
   const displayForm = apiId === 203 ? slForm : recentForm;
   const activeSeasonStats = apiId === 203 ? slSeasonStats : seasonStats;
+  const lacksProviderTeamId = apiId !== 203 && !teamId;
 
   useEffect(() => {
     loadForm();
@@ -448,7 +449,11 @@ export default function TeamStatsScreen() {
               {(loadingForm || loadingAf) && displayForm.length === 0 ? (
                 <ActivityIndicator color={c.primary} />
               ) : displayForm.length === 0 ? (
-                <Text style={[styles.formNote, { color: c.textMuted }]}>{formDataEmptyMessage()}</Text>
+                <Text style={[styles.formNote, { color: c.textMuted }]}>
+                  {lacksProviderTeamId
+                    ? 'Bu lig kaynağında takım ID eşleşmesi olmadığı için son form verisi gösterilemiyor.'
+                    : formDataEmptyMessage()}
+                </Text>
               ) : (
                 <>
                   {displayForm.map((r, i) => (
@@ -584,7 +589,13 @@ export default function TeamStatsScreen() {
                 </View>
               </>
             ) : (
-              <Text style={[styles.noDataSmall, { color: c.textFaint }]}>Veri yükleniyor...</Text>
+              <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
+                <Text style={[styles.noDataText, { color: c.textSub }]}>
+                  {lacksProviderTeamId
+                    ? 'Bu lig kaynağında takım ID eşleşmesi olmadığı için maç bazlı detay verisi gösterilemiyor.'
+                    : 'Maç bazlı sezon detayı bulunamadı.'}
+                </Text>
+              </View>
             )}
 
             {/* KORNER & POSSESSION — AllSports */}
