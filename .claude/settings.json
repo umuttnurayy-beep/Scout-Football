@@ -43,7 +43,19 @@
       "Bash(pip install *)",
       "Bash(python -c ' *)",
       "Bash(eas build *)",
-      "Bash(npx eas-cli *)"
+      "Bash(npx eas-cli *)",
+      "Bash(curl -s \"https://site.api.espn.com/apis/v2/sports/soccer/uefa.europa/standings\")",
+      "Bash(curl -s \"https://site.api.espn.com/apis/v2/sports/soccer/uefa.conference/standings\")",
+      "Bash(curl -s \"https://site.api.espn.com/apis/v2/sports/soccer/uefa.conference/standings\" -L --compressed)",
+      "Bash(curl -s --compressed \"https://site.api.espn.com/apis/v2/sports/soccer/uefa.conference/standings\")",
+      "Bash(python3 -c \"import sys; data=sys.stdin.buffer.read\\(\\); print\\(data[:500]\\)\")",
+      "Bash(curl -s \"https://scoutfootball-backend-production.up.railway.app/sportsdb/standings/4481\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('count:', len\\(d\\)\\); print\\(json.dumps\\(d[:2], ensure_ascii=False\\)[:400] if d else 'empty'\\)\")",
+      "Bash(curl -s \"https://scoutfootball-backend-production.up.railway.app/health\")",
+      "Bash(curl -s \"https://www.thesportsdb.com/api/v1/json/123/lookuptable.php?l=4481&s=2025-2026\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(list\\(d.keys\\(\\)\\)\\); table=d.get\\('table'\\); print\\('table:', table\\)\")",
+      "Bash(curl -s \"https://www.thesportsdb.com/api/v1/json/123/lookuptable.php?l=4481&s=2024-2025\")",
+      "Bash(curl -s \"https://www.thesportsdb.com/api/v1/json/123/lookuptable.php?l=5071&s=2024-2025\")"
     ],
     "additionalDirectories": [
       "C:\\tmp"

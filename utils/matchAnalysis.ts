@@ -51,7 +51,7 @@ export function shiftLevel(l: Level, d: number): Level {
 }
 
 export function pickFrom<T>(arr: T[], hash: number): T {
-  return arr[Math.abs(hash) % arr.length];
+  return arr[hash % arr.length];
 }
 
 export function getPersona(stil: Stil, gol: Level, tempo: Level, risk: Level): string {

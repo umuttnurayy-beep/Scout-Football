@@ -508,7 +508,7 @@ export default function MatchDetail() {
   const home        = p('home');
   const away        = p('away');
   const league      = p('league');
-  const city        = p('city') || 'London';
+  const city        = p('city') || null;
   const matchId     = p('id');
   const utcDate     = p('utcDate');
   const leagueApiId = parseInt(p('leagueApiId') || '0');
@@ -540,7 +540,7 @@ export default function MatchDetail() {
     async function load(){
       setLoading(true);
       const [statsR,h2hR,weatherR,oddsR,hFormR,aFormR] = await Promise.allSettled([
-        getMatchStats(matchId),getH2H(matchId,finishedParam),getWeather(city),
+        getMatchStats(matchId),getH2H(matchId,finishedParam),city ? getWeather(city) : Promise.resolve(null),
         getOdds(home,away,leagueApiId),getTeamForm(homeTeamId),getTeamForm(awayTeamId),
       ]);
       setMatchData(statsR.status==='fulfilled'?statsR.value:null);

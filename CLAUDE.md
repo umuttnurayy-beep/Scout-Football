@@ -230,12 +230,23 @@ Bahis oranları için. `match_detail.tsx` içindeki `getOddsComment()` yorumu bu
 | GET | `/superlig/team-form/:teamId` | Takımın mevcut sezon maçları (form + sezon analizi için) |
 | GET | `/superlig/players/:teamId` | Takım kadrosu |
 | GET | `/superlig/scorers` | Gol krallığı (lig geneli) |
+| GET | `/superlig/match/:eventId` | Maç detayı (gol/kart timeline, `sl_match_detail.tsx` için) |
+
+### SportsDB — Avrupa Ligleri (Europa + Conference)
+
+| Method | Path | Açıklama |
+|---|---|---|
+| GET | `/sportsdb/league/:leagueId/matches?date=` | Tarihe göre maç listesi (Europa/Conference) |
+| GET | `/sportsdb/team-form/:leagueId/:teamId` | Takımın mevcut sezon form maçları |
+| GET | `/sportsdb/standings/:leagueId` | Puan tablosu |
+| GET | `/sportsdb/match/:eventId` | Maç detayı (`sl_match_detail.tsx` ile paylaşımlı) |
 
 ### AllSports (korner + possession)
 
 | Method | Path | Açıklama |
 |---|---|---|
 | GET | `/allsports/team-stats/:teamName` | Takım adına göre korner ve top hakimiyeti verileri |
+| GET | `/allsports/h2h?home=&away=` | İki takım arasında H2H korner/possession verileri |
 
 ### Diğer
 
@@ -273,7 +284,7 @@ Bahis oranları için. `match_detail.tsx` içindeki `getOddsComment()` yorumu bu
 - **Tek-scroll analiz sayfası** (sekme yok). Tepede skorboard/durum şeridi, sonra sıralı bölümler:
   - **MAÇ İSTATİSTİKLERİ** — iki takımın form kaynaklı avg. gol, W/D/L, over 2.5%, BTTS% vb. karşılaştırması.
   - **Radar grafiği** — `react-native-svg` ile 5 eksen: Hücum, Savunma, Form, Galibiyet, 2.5 Üst.
-  - **HAVA ETKİSİ** — `getCityForTeam()` ile şehir, WeatherAPI sonucu + etki yorumu.
+  - **HAVA ETKİSİ** — `getCityForTeam()` ile şehir (null dönerse bölüm gizlenir), WeatherAPI sonucu + etki yorumu.
   - **HAKEM** — `matchData.referees[0].name` + lig bazlı `getRefereeProfile()` yorumu.
   - **H2H — GEÇMİŞ KARŞILAŞMALAR** — son 10 karşılaşma kart listesi.
 - **Oranlar** ayrı bir bölüm değildir; `getOdds()` sonucu `getOddsComment()` içinde analiz metnine gömülür.
@@ -369,12 +380,20 @@ getSuperLigMatches(date?: string)         // tarihe göre maç listesi
 getSuperLigTeamForm(teamId: number)       // takımın son maçları
 getSuperLigPlayers(teamId: number)        // takım kadrosu
 getSuperLigScorers()                      // gol krallığı (lig geneli, takım bilgili)
+getSuperLigMatch(eventId: string)         // maç detayı (sl_match_detail için)
+
+// SportsDB — Europa / Conference League
+getSportsDbLeagueMatches(leagueId: number, date?: string)  // tarihe göre maç listesi
+getSportsDbTeamForm(leagueId: number, teamId: number)      // takımın form maçları
+getSportsDbStandings(leagueId: number)                     // puan tablosu
+getSportsDbMatch(eventId: string)                          // maç detayı
 
 // AllSports (korner + possession)
 getAllSportsTeamStats(teamName: string)
+getAllSportsH2H(homeTeam: string, awayTeam: string)  // H2H korner/possession
 
 // Yardımcılar
-getCityForTeam(teamName: string): string  // TEAM_CITIES map'inden şehir döner
+getCityForTeam(teamName: string): string | null  // TEAM_CITIES map'inden şehir; tanınmayan takım → null
 ```
 
 ---

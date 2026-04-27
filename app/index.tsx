@@ -16,7 +16,7 @@ import { matchListEmptyMessage } from '../utils/emptyStates';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
-const STANDINGS_CACHE_KEY = 'scout_standings_cache_v3';
+const STANDINGS_CACHE_KEY = 'scout_standings_cache_v4';
 
 const SUPPORTED_LEAGUES = [2021, 2014, 2002, 2019, 2015, 2001];
 const SPORTSDB_EXTRA_LEAGUES = [
@@ -93,7 +93,7 @@ type Match = {
   id: number; leagueApiId: number; league: string;
   home: string; away: string; time: string;
   score: string | null; finished: boolean;
-  city: string; utcDate: string;
+  city: string | null; utcDate: string;
   homeTeamId: number; awayTeamId: number;
 };
 
@@ -182,8 +182,13 @@ function getStandingNeighbors(standings: Standing[] | undefined, pos?: number) {
   };
 }
 
-function computeMetrics(home: Standing | null, away: Standing | null, standings?: Standing[]): Metrics {
-  if (!home || !away) return { ...NO_DATA, reason: 'Takım tablo satırı eşleşmedi' };
+function computeMetrics(home: Standing | null, away: Standing | null, standings?: Standing[], leagueApiId?: number): Metrics {
+  if (!home || !away) {
+    const reason = (!standings || standings.length === 0) && SPORTSDB_LEAGUE_IDS.includes(leagueApiId ?? -1)
+      ? 'Puan tablosu verisi yok'
+      : 'Takım tablo satırı eşleşmedi';
+    return { ...NO_DATA, reason };
+  }
   if (home.played < MIN_PLAYED || away.played < MIN_PLAYED) {
     return {
       ...NO_DATA,
@@ -687,7 +692,7 @@ export default function HomeScreen() {
       const rows = standingsMap[m.leagueApiId];
       const home = findStanding(rows, m.home, m.homeTeamId);
       const away = findStanding(rows, m.away, m.awayTeamId);
-      map.set(m.id, computeMetrics(home, away, rows));
+      map.set(m.id, computeMetrics(home, away, rows, m.leagueApiId));
     }
     return map;
   }, [matches, standingsMap]);

@@ -540,7 +540,7 @@ export default function SLMatchDetail() {
         matchLoader,
         homeFormLoader,
         awayFormLoader,
-        getWeather(city),
+        city ? getWeather(city) : Promise.resolve(null),
         home && away ? getAllSportsH2H(home, away) : Promise.resolve([]),
       ]);
       if (evR.status === 'fulfilled') setEvent(evR.value);
@@ -676,6 +676,15 @@ export default function SLMatchDetail() {
         </View>
         {venue&&<Text style={[styles.venueText, { color: c.textMuted }]}>🏟️ {venue}</Text>}
       </View>
+
+      {/* ── Sınırlı Veri Uyarısı (Europa/Conference) ── */}
+      {!isSuperLig && !hasFormData && (
+        <View style={[styles.limitedDataBanner, { backgroundColor: isDark ? '#1A1205' : '#FFF8E1', borderColor: isDark ? '#4A3600' : '#E6A817' }]}>
+          <Text style={[styles.limitedDataText, { color: isDark ? '#E3B341' : '#7A5700' }]}>
+            ⚠️ Bu lig için sezon form verisi sınırlı. Analiz genel lig profiline dayanıyor.
+          </Text>
+        </View>
+      )}
 
       {/* ── Scout Özeti ── */}
       <View style={[scStyles.card, { backgroundColor: scoutCardBg, borderBottomColor: scoutBorderCol }]}>
@@ -1090,6 +1099,8 @@ const styles = StyleSheet.create({
   confidenceBadge:    { borderRadius:20, paddingHorizontal:10, paddingVertical:3 },
   confidenceBadgeText:{ fontSize:11, fontWeight:'600' },
   venueText:          { fontSize:11, color:'#888', textAlign:'center', marginTop:4 },
+  limitedDataBanner:  { marginHorizontal:14, marginTop:10, marginBottom:2, padding:10, borderRadius:8, borderWidth:1 },
+  limitedDataText:    { fontSize:12, lineHeight:17 },
   scroll:             { flex:1 },
   sectionLabel:       { fontSize:11, color:'#888', fontWeight:'500', paddingHorizontal:14, paddingTop:14, paddingBottom:6, letterSpacing:0.5 },
   insightBox:         { marginHorizontal:14, marginBottom:10, padding:11, backgroundColor:'#f4f8ff', borderRadius:8, borderLeftWidth:3, borderLeftColor:'#185FA5', alignSelf:'stretch' },

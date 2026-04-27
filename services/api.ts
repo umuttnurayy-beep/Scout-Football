@@ -133,15 +133,15 @@ export const TEAM_CITIES: Record<string, string> = {
   'Çaykur': 'Rize',
 };
 
-export function getCityForTeam(teamName: string): string {
-  if (!teamName) return 'Istanbul';
+export function getCityForTeam(teamName: string): string | null {
+  if (!teamName) return null;
   for (const key of Object.keys(TEAM_CITIES)) {
     if (teamName.toLowerCase().includes(key.toLowerCase()) ||
         key.toLowerCase().includes(teamName.toLowerCase())) {
       return TEAM_CITIES[key];
     }
   }
-  return 'Istanbul';
+  return null;
 }
 
 export type Standing = {
@@ -155,6 +155,19 @@ export type Standing = {
   gf: number;
   ga: number;
   pts: number;
+};
+
+export type WeatherData = {
+  temp: number;
+  wind: number;
+  condition: string;
+  city?: string;
+};
+
+export type OddsData = {
+  home: string;
+  draw: string;
+  away: string;
 };
 
 export async function getStandings(leagueId: number): Promise<Standing[]> {
@@ -216,7 +229,7 @@ export async function getTeamForm(teamId: number): Promise<any[]> {
   }
 }
 
-export async function getWeather(city: string): Promise<any> {
+export async function getWeather(city: string): Promise<WeatherData | null> {
   try {
     const res = await fetch(`${BASE_URL}/weather?city=${encodeURIComponent(city)}`);
     const data = await res.json();
@@ -227,7 +240,7 @@ export async function getWeather(city: string): Promise<any> {
   }
 }
 
-export async function getOdds(homeTeam: string, awayTeam: string, leagueApiId: number): Promise<any> {
+export async function getOdds(homeTeam: string, awayTeam: string, leagueApiId: number): Promise<OddsData | null> {
   try {
     const sport = ODDS_LEAGUE_MAP[leagueApiId];
     if (!sport) return null;
@@ -278,7 +291,7 @@ export async function getOdds(homeTeam: string, awayTeam: string, leagueApiId: n
     }
 
     if (!bestHome) return null;
-    const odds = {
+    const odds: OddsData = {
       home: bestHome.toFixed(2),
       draw: bestDraw.toFixed(2),
       away: bestAway.toFixed(2),
