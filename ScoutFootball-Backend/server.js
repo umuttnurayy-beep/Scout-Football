@@ -817,7 +817,7 @@ app.get('/sportsdb/team-form/:leagueId/:teamId', async (req, res) => {
 app.get('/sportsdb/standings/:leagueId', async (req, res) => {
   const { leagueId } = req.params;
   const { season = SL_SEASON } = req.query;
-  const cacheKey = `sportsdb_standings_v1_${leagueId}_${season}`;
+  const cacheKey = `sportsdb_standings_v2_${leagueId}_${season}`;
   const cached = await getCache(cacheKey);
   if (cached) return res.json(cached);
   try {
@@ -855,6 +855,20 @@ app.get('/sportsdb/standings/:leagueId', async (req, res) => {
     res.json([]);
   } catch (e) {
     console.error('/sportsdb/standings hata:', e.message);
+    // TheSportsDB may return invalid JSON for some leagues — still try ESPN fallback
+    const espnSlug = SPORTSDB_TO_ESPN_SLUG[leagueId];
+    if (espnSlug) {
+      try {
+        console.log(`[sportsdb-standings] TheSportsDB error for ${leagueId}, trying ESPN (${espnSlug})`);
+        const espnResult = await fetchEspnStandings(espnSlug);
+        if (espnResult.length > 0) {
+          await setCache(cacheKey, espnResult, TTL.standings);
+          return res.json(espnResult);
+        }
+      } catch (e2) {
+        console.error('[sportsdb-standings] ESPN fallback error:', e2.message);
+      }
+    }
     res.json([]);
   }
 });
