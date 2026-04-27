@@ -19,6 +19,8 @@ const ODDS_LEAGUE_MAP: Record<number, string> = {
   2019: 'soccer_italy_serie_a',
   2015: 'soccer_france_ligue_one',
   2001: 'soccer_uefa_champs_league',
+  4481: 'soccer_uefa_europa_league',
+  5071: 'soccer_uefa_europa_conference_league',
 };
 
 export const TEAM_CITIES: Record<string, string> = {
@@ -466,6 +468,53 @@ export async function getSuperLigMatch(eventId: string): Promise<any | null> {
     return data || null;
   } catch (e) {
     console.error('getSuperLigMatch hata:', e);
+    return null;
+  }
+}
+
+export async function getSportsDbLeagueMatches(leagueId: number, date?: string): Promise<any[]> {
+  try {
+    const url = date
+      ? `${BASE_URL}/sportsdb/league/${leagueId}/matches?date=${date}`
+      : `${BASE_URL}/sportsdb/league/${leagueId}/matches`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.error('getSportsDbLeagueMatches hata:', e);
+    return [];
+  }
+}
+
+export async function getSportsDbTeamForm(leagueId: number, teamId: number): Promise<any[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/sportsdb/team-form/${leagueId}/${teamId}`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.error('getSportsDbTeamForm hata:', e);
+    return [];
+  }
+}
+
+export async function getSportsDbStandings(leagueId: number): Promise<Standing[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/sportsdb/standings/${leagueId}`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.error('getSportsDbStandings hata:', e);
+    return [];
+  }
+}
+
+export async function getSportsDbMatch(eventId: string): Promise<any | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/sportsdb/match/${eventId}`);
+    const data = await res.json();
+    return data || null;
+  } catch (e) {
+    console.error('getSportsDbMatch hata:', e);
     return null;
   }
 }

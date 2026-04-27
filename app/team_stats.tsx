@@ -8,7 +8,7 @@ import {
 import {
   getAfLeagueTeams, getAfTeamStats,
   getAllSportsTeamStats, getFdTeamData, getTeamForm, getTopScorers,
-  getSuperLigTeamForm, getSuperLigPlayers, getSuperLigScorers,
+  getSportsDbTeamForm, getSuperLigTeamForm, getSuperLigPlayers, getSuperLigScorers,
 } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
 import { formDataEmptyMessage } from '../utils/emptyStates';
@@ -222,16 +222,17 @@ export default function TeamStatsScreen() {
   const winPct = played > 0 ? Math.round((win / played) * 100) : 0;
   const initials = teamName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
 
-  const displayForm = apiId === 203 ? slForm : recentForm;
-  const activeSeasonStats = apiId === 203 ? slSeasonStats : seasonStats;
-  const lacksProviderTeamId = apiId !== 203 && !teamId;
+  const isSportsDbLeague = apiId === 203 || apiId === 4481 || apiId === 5071;
+  const displayForm = isSportsDbLeague ? slForm : recentForm;
+  const activeSeasonStats = isSportsDbLeague ? slSeasonStats : seasonStats;
+  const lacksProviderTeamId = !isSportsDbLeague && !teamId;
 
   useEffect(() => {
     loadForm();
     loadAfData();
     loadPlayers();
     loadAllSports();
-    if (apiId === 203) loadSLData();
+    if (isSportsDbLeague) loadSLData();
     if (teamId) recordRecentlyViewed();
     // Team route params are fixed for this screen instance.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -248,7 +249,7 @@ export default function TeamStatsScreen() {
   }
 
   async function loadForm() {
-    if (!teamId || apiId === 203) return;
+    if (!teamId || isSportsDbLeague) return;
     setLoadingForm(true);
     try {
       const matches = await getTeamForm(teamId);
@@ -270,7 +271,7 @@ export default function TeamStatsScreen() {
   }
 
   async function loadAfData() {
-    if (!apiId) return;
+    if (!apiId || isSportsDbLeague) return;
     setLoadingAf(true);
     try {
       const teams = await getAfLeagueTeams(apiId, 2024);
@@ -286,7 +287,7 @@ export default function TeamStatsScreen() {
   }
 
   async function loadPlayers() {
-    if (!teamId || !fdId) return;
+    if (!teamId || !fdId || isSportsDbLeague) return;
     setLoadingPlayers(true);
     try {
       const [teamData, scorers] = await Promise.all([
@@ -319,9 +320,9 @@ export default function TeamStatsScreen() {
     setLoadingPlayers(true);
     try {
       const [formMatches, players, allScorers] = await Promise.all([
-        getSuperLigTeamForm(teamId),
-        getSuperLigPlayers(teamId),
-        getSuperLigScorers(),
+        apiId === 203 ? getSuperLigTeamForm(teamId) : getSportsDbTeamForm(apiId, teamId),
+        apiId === 203 ? getSuperLigPlayers(teamId) : Promise.resolve([]),
+        apiId === 203 ? getSuperLigScorers() : Promise.resolve([]),
       ]);
 
       // Form hesapla
@@ -338,12 +339,16 @@ export default function TeamStatsScreen() {
       setSlPlayers(players);
 
       // Takıma özgü gol krallığı filtresi — diakriti eşleştirme
-      const normalTeamName = transliterate(teamName);
-      const teamScorers = allScorers.filter((s: any) =>
-        transliterate(s.team || '').includes(normalTeamName) ||
-        normalTeamName.includes(transliterate(s.team || ''))
-      );
-      setSlTeamScorers(teamScorers);
+      if (apiId === 203) {
+        const normalTeamName = transliterate(teamName);
+        const teamScorers = allScorers.filter((s: any) =>
+          transliterate(s.team || '').includes(normalTeamName) ||
+          normalTeamName.includes(transliterate(s.team || ''))
+        );
+        setSlTeamScorers(teamScorers);
+      } else {
+        setSlTeamScorers([]);
+      }
     } catch (e) {
       console.error('loadSLData hata:', e);
     }

@@ -39,6 +39,31 @@ interface MatchAnalysis {
   badgeLabel: string; badgeColor: string; badgeBg: string;
 }
 
+type ScoutHelpKey = 'stil' | 'gol' | 'tempo' | 'risk' | 'guven';
+
+const SCOUT_HELP: Record<ScoutHelpKey, { title: string; body: string }> = {
+  stil: {
+    title: 'Stil',
+    body: 'Maçın genel karakterini anlatır: daha hücumcu, savunmacı veya dengeli bir oyun beklenip beklenmediğini özetler.',
+  },
+  gol: {
+    title: 'Gol',
+    body: 'Maçın gol üretme potansiyelini gösterir. Takımların son dönem gol ve savunma profili birlikte okunur.',
+  },
+  tempo: {
+    title: 'Tempo',
+    body: 'Oyunun akış hızını anlatır. Pozisyon sıklığı, form ritmi ve maçın kopma ihtimali için kısa bir sinyaldir.',
+  },
+  risk: {
+    title: 'Risk',
+    body: 'Maçın ne kadar açık okunabildiğini gösterir. Değer yükseldikçe sonuç tarafında temkinli olmak gerekir.',
+  },
+  guven: {
+    title: 'Güven',
+    body: 'Scout yorumunun veri desteğini gösterir. Yüksekse özet daha sağlam sinyallere dayanır.',
+  },
+};
+
 // ── League Base Profiles ───────────────────────────────────────────────────
 
 const LEAGUE_BASE: Record<number, { stil: Stil; gol: Level; tempo: Level; risk: Level }> = {
@@ -84,11 +109,16 @@ function buildMatchAnalysis(
     tempo = tot >= 2.8 || avgO >= 58 ? 'Yüksek' : tot < 2.0 && avgO <= 40 ? 'Düşük' : 'Orta';
 
     const atkDiff = Math.abs(hAtk - aAtk);
-    const defDiff = Math.abs(hDef - aDef);
-    if (atkDiff > 0.5 || (atkDiff > 0.35 && defDiff > 0.35)) {
-      stil = hAtk > aAtk && hDef <= aDef ? 'Hücumcu' : 'Savunmacı';
-    } else if (hDef < 0.95 && aDef < 0.95) {
+    const bothAttackStrong = hAtk >= 1.4 && aAtk >= 1.4;
+    const bothDefStrong = hDef < 0.95 && aDef < 0.95;
+    if (gol === 'Yüksek' && tempo === 'Yüksek') {
+      stil = bothAttackStrong || avgO >= 62 ? 'Hücumcu' : 'Dengeli';
+    } else if (gol === 'Yüksek') {
+      stil = 'Dengeli';
+    } else if (bothDefStrong && avgO <= 45) {
       stil = 'Savunmacı';
+    } else if (atkDiff > 0.5 && (hAtk >= 1.4 || aAtk >= 1.4)) {
+      stil = 'Hücumcu';
     } else {
       stil = 'Dengeli';
     }
@@ -129,39 +159,13 @@ function buildMatchAnalysis(
 // ── Tag Color ──────────────────────────────────────────────────────────────
 
 function getTagColor(type: string, value: string, isDark: boolean): { bg: string; text: string } {
-  if (type === 'stil') {
-    if (value === 'Hücumcu')   return { bg: isDark ? '#2C0A0A' : '#FDE8E8', text: isDark ? '#F85149' : '#A32D2D' };
-    if (value === 'Savunmacı') return { bg: isDark ? '#0D2010' : '#E8F8F0', text: isDark ? '#3FB950' : '#27500A' };
-    return { bg: isDark ? '#0A1929' : '#E6F1FB', text: isDark ? '#58A6FF' : '#185FA5' };
-  }
-  if (type === 'risk' || type === 'guven') {
-    if (value === 'Yüksek') return type === 'risk'
-      ? { bg: isDark ? '#2C0A0A' : '#FDE8E8', text: isDark ? '#F85149' : '#A32D2D' }
-      : { bg: isDark ? '#0D2010' : '#E8F8F0', text: isDark ? '#3FB950' : '#27500A' };
-    if (value === 'Düşük')  return type === 'risk'
-      ? { bg: isDark ? '#0D2010' : '#E8F8F0', text: isDark ? '#3FB950' : '#27500A' }
-      : { bg: isDark ? '#2C0A0A' : '#FDE8E8', text: isDark ? '#F85149' : '#A32D2D' };
-    return { bg: isDark ? '#2A1F00' : '#FFF8E1', text: isDark ? '#E3B341' : '#7A5700' };
-  }
-  if (type === 'gol') {
-    if (value === 'Yüksek') return { bg: isDark ? '#2C0A0A' : '#FDE8E8', text: isDark ? '#F85149' : '#A32D2D' };
-    if (value === 'Düşük')  return { bg: isDark ? '#21262D' : '#f0f0f0', text: isDark ? '#8B949E' : '#555' };
-    return { bg: isDark ? '#2A1F00' : '#FFF8E1', text: isDark ? '#E3B341' : '#7A5700' };
-  }
-  // tempo
-  if (value === 'Yüksek') return { bg: isDark ? '#2A1F00' : '#FFF8E1', text: isDark ? '#E3B341' : '#7A5700' };
-  if (value === 'Düşük')  return { bg: isDark ? '#21262D' : '#f0f0f0', text: isDark ? '#8B949E' : '#555' };
-  return { bg: isDark ? '#0A1929' : '#E6F1FB', text: isDark ? '#58A6FF' : '#185FA5' };
-}
+  const high = { bg: isDark ? '#2C0A0A' : '#FDE8E8', text: isDark ? '#F85149' : '#A32D2D' };
+  const mid = { bg: isDark ? '#2A1F00' : '#FFF8E1', text: isDark ? '#E3B341' : '#7A5700' };
+  const low = { bg: isDark ? '#0D2010' : '#E8F8F0', text: isDark ? '#3FB950' : '#1B6B3A' };
 
-function TagPill({ label, type, value }: { label: string; type: string; value: string }) {
-  const { isDark } = useTheme();
-  const { bg, text } = getTagColor(type, value, isDark);
-  return (
-    <View style={{ backgroundColor: bg, paddingHorizontal: 11, paddingVertical: 5, borderRadius: 20, marginRight: 6 }}>
-      <Text style={{ fontSize: 11, fontWeight: '600', color: text }}>{label}</Text>
-    </View>
-  );
+  if (value === 'Yüksek' || value === 'Hücumcu') return high;
+  if (value === 'Düşük' || value === 'Savunmacı') return low;
+  return mid;
 }
 
 // ── Stat Helpers ───────────────────────────────────────────────────────────
@@ -297,7 +301,7 @@ function getOddsComment(oddsData: any, home: string, analysis: MatchAnalysis): s
   if (!mktFav) return 'Piyasa bu maçı dengeli görüyor; her iki taraf için benzer oranlar mevcut.';
   if (favOdd<=1.5) return `Piyasa ${mktFav} için çok güçlü favori konumu biçiyor (${favOdd}). Oran düşük, getiri sınırlı.`;
   if (favOdd<=2.0) return `Piyasa ${mktFav} takımını favori görüyor (${favOdd}). Form verisi bu tercihi ${analysis.risk==='Düşük'?'destekliyor':'kısmen destekliyor'}.`;
-  return `Piyasa ${mktFav} takımına hafif avantaj veriyor (${favOdd}). Form farkı bu kadar net değil; değer fırsatı olabilir.`;
+  return `Piyasa ${mktFav} takımını hafif öne çıkarıyor (${favOdd}). Form verisi bu avantajı aynı netlikte desteklemiyor; bu yüzden maç dengeli okunmalı.`;
 }
 
 function getWeatherComment(weatherData: any): { impact: Level; sentence: string } {
@@ -498,6 +502,7 @@ export default function MatchDetail() {
   const [awayForm,   setAwayForm]   = useState<any[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [showNeden,  setShowNeden]  = useState(false);
+  const [showScoutHelp, setShowScoutHelp] = useState<ScoutHelpKey | null>(null);
 
   const p = (k: string) => Array.isArray(params[k]) ? (params[k] as string[])[0] : ((params[k] as string) || '');
   const home        = p('home');
@@ -683,6 +688,8 @@ export default function MatchDetail() {
         <View style={{width:60}}/>
       </View>
 
+      <ScrollView style={[styles.scroll,{backgroundColor:c.bg}]}>
+
       {/* ── Hero ── */}
       <View style={[styles.hero,{backgroundColor:c.surface,borderBottomColor:c.border}]}>
         <View style={styles.teamsRow}>
@@ -727,6 +734,9 @@ export default function MatchDetail() {
               {color:analysis.guven==='Yüksek'?(isDark?'#3FB950':'#1B6B3A'):analysis.guven==='Düşük'?(isDark?'#F85149':'#A32D2D'):(isDark?'#E3B341':'#7A5700')}]}>
               {analysis.guven==='Yüksek'?'✅':analysis.guven==='Düşük'?'⚠️':'⚡'} Güven: {analysis.guven}
             </Text>
+            <TouchableOpacity onPress={()=>setShowScoutHelp(showScoutHelp==='guven'?null:'guven')} style={scStyles.inlineHelpBtn}>
+              <Text style={[scStyles.inlineHelpText,{color:analysis.guven==='Yüksek'?(isDark?'#3FB950':'#1B6B3A'):analysis.guven==='Düşük'?(isDark?'#F85149':'#A32D2D'):(isDark?'#E3B341':'#7A5700')}]}>{showScoutHelp==='guven'?'×':'?'}</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -737,14 +747,28 @@ export default function MatchDetail() {
             const label = key==='stil'?'Stil':key==='gol'?'Gol':key==='tempo'?'Tempo':'Risk';
             return(
               <View key={key} style={[scStyles.metricItem,{backgroundColor:bg}]}>
-                <Text style={[scStyles.metricLabel,{color:c.textMuted}]}>{label}</Text>
+                <View style={scStyles.metricLabelRow}>
+                  <Text style={[scStyles.metricLabel,{color:c.textMuted}]}>{label}</Text>
+                  <TouchableOpacity onPress={()=>setShowScoutHelp(showScoutHelp===key?null:key)} style={scStyles.metricHelpBtn}>
+                    <Text style={[scStyles.metricHelpText,{color:text}]}>{showScoutHelp===key?'×':'?'}</Text>
+                  </TouchableOpacity>
+                </View>
                 <Text style={[scStyles.metricVal,{color:text}]}>{val}</Text>
               </View>
             );
           })}
         </View>
 
-        <Text style={[scStyles.mediumText,{color:c.textSub}]}>{analysis.medium}</Text>
+        {showScoutHelp && (
+          <View style={[scStyles.helpBox,{backgroundColor:isDark?'rgba(255,255,255,0.04)':'rgba(255,255,255,0.68)',borderColor:isDark?'#2D2040':'#ddd6ff'}]}>
+            <Text style={[scStyles.helpText,{color:c.textSub}]}>
+              <Text style={[scStyles.helpStrong,{color:c.text}]}>{SCOUT_HELP[showScoutHelp].title}: </Text>
+              {SCOUT_HELP[showScoutHelp].body}
+            </Text>
+          </View>
+        )}
+
+        <Text style={[scStyles.mediumText,{color:c.textSub}]} numberOfLines={4}>{analysis.medium}</Text>
         {analysis.scoutPick ? (() => {
           const pickColor =
             analysis.scoutPick.tone === 'home' ? c.primary :
@@ -772,20 +796,6 @@ export default function MatchDetail() {
           </View>
         )}
       </View>
-
-      {/* ── Hızlı Etiketler ── */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}
-        style={[styles.tagsBar,{borderBottomColor:c.border,backgroundColor:c.surface}]} contentContainerStyle={styles.tagsBarContent}>
-        <TagPill type="stil"  value={analysis.stil}  label={`Stil: ${analysis.stil}`}/>
-        <TagPill type="gol"   value={analysis.gol}   label={`Gol: ${analysis.gol}`}/>
-        <TagPill type="tempo" value={analysis.tempo}  label={`Tempo: ${analysis.tempo}`}/>
-        <TagPill type="risk"  value={analysis.risk}   label={`Risk: ${analysis.risk}`}/>
-        <TagPill type="guven" value={analysis.guven}  label={`Güven: ${analysis.guven}`}/>
-        {analysis.gol==='Yüksek'&&<TagPill type="gol" value="Yüksek" label="2.5 Üst Eğilimi"/>}
-      </ScrollView>
-
-      {/* ── Main Scroll ── */}
-      <ScrollView style={[styles.scroll,{backgroundColor:c.bg}]}>
 
         {/* Canlı / Biten Maç İstatistikleri */}
         {matchData?.statistics?.length>0 && (() => {
@@ -1270,8 +1280,6 @@ const styles = StyleSheet.create({
   badgeLigaText:     { fontSize:11, color:'#0C447C' },
   confidenceBadge:   { borderRadius:20, paddingHorizontal:10, paddingVertical:3 },
   confidenceBadgeText:{ fontSize:11, fontWeight:'600' },
-  tagsBar:           { borderBottomWidth:0.5, borderBottomColor:'#eee', maxHeight:42 },
-  tagsBarContent:    { paddingHorizontal:14, paddingVertical:8, flexDirection:'row' },
   scroll:            { flex:1 },
   sectionLabel:      { fontSize:11, color:'#888', fontWeight:'500', paddingHorizontal:14, paddingTop:14, paddingBottom:6, letterSpacing:0.5 },
   insightBox:        { marginHorizontal:14, marginBottom:10, padding:11, backgroundColor:'#f4f8ff', borderRadius:8, borderLeftWidth:3, borderLeftColor:'#185FA5', alignSelf:'stretch' },
@@ -1344,20 +1352,28 @@ const styles = StyleSheet.create({
 });
 
 const scStyles = StyleSheet.create({
-  card:        { backgroundColor:'#f4f0ff', borderBottomWidth:0.5, borderBottomColor:'#ddd6ff', paddingHorizontal:14, paddingTop:12, paddingBottom:14 },
-  headerRow:   { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:10 },
+  card:        { backgroundColor:'#f4f0ff', borderBottomWidth:0.5, borderBottomColor:'#ddd6ff', paddingHorizontal:14, paddingTop:12, paddingBottom:12 },
+  headerRow:   { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:9 },
   headerLabel: { fontSize:11, fontWeight:'700', color:'#5b2d8e', letterSpacing:0.6 },
-  guvenPill:   { borderRadius:20, paddingHorizontal:9, paddingVertical:3 },
+  guvenPill:   { borderRadius:20, paddingLeft:9, paddingRight:5, paddingVertical:3, flexDirection:'row', alignItems:'center', gap:4 },
   guvenText:   { fontSize:10, fontWeight:'600' },
-  metricsRow:  { flexDirection:'row', gap:7, marginBottom:12 },
-  metricItem:  { flex:1, borderRadius:8, paddingVertical:8, paddingHorizontal:4, alignItems:'center' },
-  metricLabel: { fontSize:9, color:'#666', marginBottom:3 },
+  metricsRow:  { flexDirection:'row', gap:7, marginBottom:9 },
+  metricItem:  { flex:1, borderRadius:8, paddingVertical:7, paddingHorizontal:4, alignItems:'center' },
+  metricLabelRow: { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:3, marginBottom:3 },
+  metricLabel: { fontSize:9, color:'#666' },
   metricVal:   { fontSize:12, fontWeight:'700' },
-  mediumText:  { fontSize:12, color:'#333', lineHeight:18, marginBottom:10, fontStyle:'italic' },
-  pickBox:     { borderWidth:1, borderRadius:10, padding:10, marginBottom:10 },
-  pickKicker:  { fontSize:9, fontWeight:'800', letterSpacing:0.8, marginBottom:3 },
-  pickLabel:   { fontSize:14, fontWeight:'800', color:'#111', marginBottom:3 },
-  pickDetail:  { width:'100%', flexShrink:1, flexWrap:'wrap', fontSize:11, color:'#555', lineHeight:16 },
+  metricHelpBtn: { width:15, height:15, borderRadius:8, alignItems:'center', justifyContent:'center', backgroundColor:'rgba(255,255,255,0.12)' },
+  metricHelpText: { fontSize:10, fontWeight:'900', lineHeight:13 },
+  inlineHelpBtn: { width:16, height:16, borderRadius:8, alignItems:'center', justifyContent:'center', backgroundColor:'rgba(255,255,255,0.12)' },
+  inlineHelpText: { fontSize:10, fontWeight:'900', lineHeight:13 },
+  helpBox:     { borderWidth:0.5, borderRadius:10, padding:9, marginTop:-1, marginBottom:9 },
+  helpText:    { fontSize:11, lineHeight:16 },
+  helpStrong:  { fontWeight:'800' },
+  mediumText:  { fontSize:12, color:'#333', lineHeight:18, marginBottom:9, fontStyle:'italic' },
+  pickBox:     { borderWidth:1, borderRadius:10, padding:8, marginBottom:8 },
+  pickKicker:  { fontSize:8.5, fontWeight:'800', letterSpacing:0.7, marginBottom:2 },
+  pickLabel:   { fontSize:13, fontWeight:'800', color:'#111', marginBottom:2 },
+  pickDetail:  { width:'100%', flexShrink:1, flexWrap:'wrap', fontSize:10.5, color:'#555', lineHeight:15 },
   nedenBtn:    { alignSelf:'flex-start', paddingVertical:4 },
   nedenBtnText:{ fontSize:11, color:'#5b2d8e', fontWeight:'600' },
   nedenBox:    { marginTop:8, paddingTop:8, borderTopWidth:0.5, borderTopColor:'#ddd6ff' },

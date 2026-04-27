@@ -736,6 +736,127 @@ app.get('/superlig/match/:eventId', async (req, res) => {
   }
 });
 
+// Generic TheSportsDB league fixtures (Europa League, Conference League, etc.)
+app.get('/sportsdb/league/:leagueId/matches', async (req, res) => {
+  const { leagueId } = req.params;
+  const { date } = req.query;
+  const d = date || new Date().toISOString().split('T')[0];
+  const cacheKey = `sportsdb_matches_v1_${leagueId}_${d}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return res.json(cached);
+  try {
+    const r = await fetch(`${SPORTSDB_BASE}/eventsday.php?d=${d}&l=${leagueId}`);
+    const data = await r.json();
+    const events = data.events || [];
+    const result = events.map(e => ({
+      id:         e.idEvent,
+      home:       e.strHomeTeam,
+      away:       e.strAwayTeam,
+      homeScore:  (e.intHomeScore !== null && e.intHomeScore !== '') ? parseInt(e.intHomeScore) : null,
+      awayScore:  (e.intAwayScore !== null && e.intAwayScore !== '') ? parseInt(e.intAwayScore) : null,
+      date:       e.dateEvent,
+      time:       e.strTime,
+      status:     e.strStatus,
+      round:      e.intRound || e.strRound || null,
+      venue:      e.strVenue || null,
+      homeTeamId: parseInt(e.idHomeTeam) || 0,
+      awayTeamId: parseInt(e.idAwayTeam) || 0,
+    }));
+    const isPast = new Date(d) <= new Date();
+    if (result.length > 0) await setCache(cacheKey, result, isPast ? TTL.matches : TTL.standings);
+    res.json(result);
+  } catch (e) {
+    console.error('/sportsdb/league/:leagueId/matches hata:', e.message);
+    res.json([]);
+  }
+});
+
+app.get('/sportsdb/team-form/:leagueId/:teamId', async (req, res) => {
+  const { leagueId, teamId } = req.params;
+  const { season = SL_SEASON } = req.query;
+  const tid = parseInt(teamId);
+  if (!tid) return res.json([]);
+
+  const cacheKey = `sportsdb_form_v1_${leagueId}_${teamId}_${season}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return res.json(cached);
+  try {
+    const r = await fetch(`${SPORTSDB_BASE}/eventspastleague.php?l=${leagueId}&s=${season}`);
+    const data = await r.json();
+    const events = data.events || [];
+    const teamMatches = events
+      .filter(e =>
+        (parseInt(e.idHomeTeam) === tid || parseInt(e.idAwayTeam) === tid) &&
+        e.intHomeScore !== null && e.intHomeScore !== '' && e.intHomeScore !== undefined
+      )
+      .sort((a, b) => new Date(a.dateEvent) - new Date(b.dateEvent))
+      .map(e => ({
+        homeTeamId: parseInt(e.idHomeTeam),
+        awayTeamId: parseInt(e.idAwayTeam),
+        homeScore:  parseInt(e.intHomeScore),
+        awayScore:  parseInt(e.intAwayScore),
+        date:       e.dateEvent,
+        home:       e.strHomeTeam,
+        away:       e.strAwayTeam,
+      }));
+
+    if (teamMatches.length > 0) await setCache(cacheKey, teamMatches, TTL.teamStats);
+    res.json(teamMatches);
+  } catch (e) {
+    console.error('/sportsdb/team-form hata:', e.message);
+    res.json([]);
+  }
+});
+
+app.get('/sportsdb/standings/:leagueId', async (req, res) => {
+  const { leagueId } = req.params;
+  const { season = SL_SEASON } = req.query;
+  const cacheKey = `sportsdb_standings_v1_${leagueId}_${season}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return res.json(cached);
+  try {
+    const r = await fetch(`${SPORTSDB_BASE}/lookuptable.php?l=${leagueId}&s=${season}`);
+    const data = await r.json();
+    const table = data.table || [];
+    const result = table.map((row, idx) => ({
+      pos:    parseInt(row.intRank) || idx + 1,
+      team:   row.strTeam || '',
+      teamId: parseInt(row.idTeam) || 0,
+      played: parseInt(row.intPlayed) || 0,
+      win:    parseInt(row.intWin) || 0,
+      draw:   parseInt(row.intDraw) || 0,
+      loss:   parseInt(row.intLoss) || 0,
+      gf:     parseInt(row.intGoalsFor) || 0,
+      ga:     parseInt(row.intGoalsAgainst) || 0,
+      pts:    parseInt(row.intPoints) || 0,
+    })).filter(row => row.team);
+    if (result.length > 0) await setCache(cacheKey, result, TTL.standings);
+    res.json(result);
+  } catch (e) {
+    console.error('/sportsdb/standings hata:', e.message);
+    res.json([]);
+  }
+});
+
+app.get('/sportsdb/match/:eventId', async (req, res) => {
+  const { eventId } = req.params;
+  const cacheKey = `sportsdb_match_v1_${eventId}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return res.json(cached);
+  try {
+    const r = await fetch(`${SPORTSDB_BASE}/lookupevent.php?id=${eventId}`);
+    const data = await r.json();
+    const event = data?.events?.[0] || null;
+    if (!event) return res.json(null);
+    const isFinished = ['FT', 'AET', 'PEN', 'Match Finished'].includes(event.strStatus || '');
+    await setCache(cacheKey, event, isFinished ? TTL.h2h : TTL.matches);
+    res.json(event);
+  } catch (e) {
+    console.error('/sportsdb/match/:eventId hata:', e.message);
+    res.json(null);
+  }
+});
+
 // =====================
 // UCL KNOCKOUT BRACKET
 // =====================

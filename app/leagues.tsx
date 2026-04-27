@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import { getStandings, getSuperLigStandings, getUclKnockouts } from '../services/api';
+import { getSportsDbStandings, getStandings, getSuperLigStandings, getUclKnockouts } from '../services/api';
 import { leagueDataEmptyMessage } from '../utils/emptyStates';
 
 const leagues = [
@@ -13,7 +13,9 @@ const leagues = [
   { id: 4, apiId: 135, name: 'Serie A',     country: 'İtalya',    flag: '🇮🇹', season: '2025/26' },
   { id: 5, apiId: 61,  name: 'Ligue 1',     country: 'Fransa',    flag: '🇫🇷', season: '2025/26' },
   { id: 6, apiId: 2,   name: 'UCL',         country: 'Avrupa',    flag: '🌍', season: '2025/26' },
-  { id: 7, apiId: 203, name: 'Süper Lig',   country: 'Türkiye',   flag: '🇹🇷', season: '2025/26' },
+  { id: 7, apiId: 4481, name: 'Europa Lig', country: 'Avrupa',    flag: '🇪🇺', season: '2025/26' },
+  { id: 8, apiId: 5071, name: 'Konferans Lig', country: 'Avrupa', flag: '🇪🇺', season: '2025/26' },
+  { id: 9, apiId: 203, name: 'Süper Lig',   country: 'Türkiye',   flag: '🇹🇷', season: '2025/26' },
 ];
 
 const UCL_STAGES = [
@@ -311,7 +313,11 @@ export default function LeaguesScreen() {
   async function loadStandings(apiId: number) {
     setLoading(true);
     try {
-      const data = apiId === 203 ? await getSuperLigStandings() : await getStandings(apiId);
+      const data = apiId === 203
+        ? await getSuperLigStandings()
+        : apiId === 4481 || apiId === 5071
+          ? await getSportsDbStandings(apiId)
+          : await getStandings(apiId);
       setStandings(data && data.length > 0 ? data : []);
     } catch { setStandings([]); }
     setLoading(false);
