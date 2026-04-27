@@ -12,6 +12,8 @@ export interface MatchFormStats {
   homeWinPct?: number;
   awayWinPct?: number;
   totalWinPct?: number;
+  homePlayed?: number;
+  awayPlayed?: number;
 }
 
 export type FormTrend = { direction: 'up' | 'down' | 'stable'; pts5: number; ptsPrev: number };
@@ -27,6 +29,12 @@ export interface MotivationContext {
   homeBelowPts?: number;
   awayAbovePts?: number;
   awayBelowPts?: number;
+}
+
+export interface ScoutPick {
+  label: string;
+  detail: string;
+  tone: 'home' | 'away' | 'draw' | 'goals' | 'caution';
 }
 
 export const ANALYSIS_DELTA = [0, 0, 1, -1, 0, 0, 1, -1, 0, 0, 0];
@@ -146,8 +154,8 @@ export function buildReasons(
 
   const hHomeWin = hSt.homeWinPct ?? 0;
   const aAwayWin = aSt.awayWinPct ?? 0;
-  const hHomePlayed = (hSt as any).homePlayed ?? 0;
-  const aAwayPlayed = (aSt as any).awayPlayed ?? 0;
+  const hHomePlayed = hSt.homePlayed ?? 0;
+  const aAwayPlayed = aSt.awayPlayed ?? 0;
   if (hHomeWin >= 60) pool.push(home + ' kendi sahas\u0131nda g\u00fc\u00e7l\u00fc (%' + hHomeWin + ' i\u00e7 saha galibiyet, ' + (hHomePlayed || '?') + ' ma\u00e7).');
   if (aAwayWin >= 50) pool.push(away + ' deplasmanlar\u0131n\u0131 iyi y\u00f6netiyor (%' + aAwayWin + ' deplasman galibiyet, ' + (aAwayPlayed || '?') + ' ma\u00e7).');
 
@@ -172,6 +180,18 @@ export function buildReasons(
     }
   }
 
+  const hAttackEdge = hAtk - aDef;
+  const aAttackEdge = aAtk - hDef;
+  if (hAttackEdge >= 0.45 && aAttackEdge < 0.2) {
+    advanced.push(home + ' taraf\u0131nda h\u00fccum-savunma e\u015fle\u015fmesi daha net; rakip savunman\u0131n verdi\u011fi alan ev sahibinin gol \u00fcretimini destekliyor.');
+  } else if (aAttackEdge >= 0.45 && hAttackEdge < 0.2) {
+    advanced.push(away + ' taraf\u0131nda h\u00fccum-savunma e\u015fle\u015fmesi daha net; deplasman ekibinin gol tehdidi sezon verisiyle destekleniyor.');
+  } else if (hAttackEdge >= 0.35 && aAttackEdge >= 0.35) {
+    advanced.push('\u0130ki h\u00fccum hatt\u0131 da rakip savunman\u0131n \u00fczerinde sinyal veriyor; ilk gol ma\u00e7\u0131 h\u0131zl\u0131 bi\u00e7imde a\u00e7abilir.');
+  } else if (hAttackEdge <= -0.25 && aAttackEdge <= -0.25) {
+    advanced.push('H\u00fccum-savunma e\u015fle\u015fmesi iki taraf i\u00e7in de kolay alan g\u00f6stermiyor; pozisyon kalitesi skor hacmini s\u0131n\u0131rlayabilir.');
+  }
+
   if (hAtk >= 1.6 && aDef >= 1.4) {
     advanced.push(home + ' h\u00fccum \u00fcretimi ile ' + away + ' savunma k\u0131r\u0131lganl\u0131\u011f\u0131 ayn\u0131 y\u00f6ne i\u015faret ediyor; ev sahibi bask\u0131s\u0131 veriyle destekleniyor.');
   } else if (aAtk >= 1.6 && hDef >= 1.4) {
@@ -190,6 +210,15 @@ export function buildReasons(
     advanced.push('Gol beklentisi g\u00fc\u00e7l\u00fc, fakat son form dengesi yak\u0131n; taraf se\u00e7imi yerine ma\u00e7 temposu daha g\u00fcvenilir sinyal veriyor.');
   }
 
+  if (avgOver >= 58 && hFP >= 8 && aFP >= 8) {
+    advanced.push('Form puan\u0131 ve gol trendi ayn\u0131 anda y\u00fcksek; oyunun erken b\u00f6l\u00fcmde kilitli kalmas\u0131 halinde bile ikinci yar\u0131 temposu artabilir.');
+  } else if (avgOver <= 42 && hFP <= 5 && aFP <= 5) {
+    advanced.push('Hem form puan\u0131 hem gol trendi d\u00fc\u015f\u00fck; kontroll\u00fc ba\u015flang\u0131\u00e7 ve d\u00fc\u015f\u00fck riskli oyun plan\u0131 daha olas\u0131.');
+  } else if (Math.abs(hFP - aFP) >= 6 && avgOver <= 45) {
+    const formSide = hFP > aFP ? home : away;
+    advanced.push(formSide + ' formda \u00f6nde olsa da gol trendi d\u00fc\u015f\u00fck; avantaj daha \u00e7ok ma\u00e7 kontrol\u00fc \u00fczerinden okunmal\u0131.');
+  }
+
   if (Math.abs(hFP - aFP) <= 2 && Math.abs(hAtk - aAtk) < 0.3 && Math.abs(hDef - aDef) < 0.3) {
     advanced.push('Riskin ana nedeni iki tak\u0131m\u0131n form, h\u00fccum ve savunma \u00e7izgisinin birbirine yak\u0131n olmas\u0131; net taraf yorumu zay\u0131fl\u0131yor.');
   } else if (weatherRisk) {
@@ -200,7 +229,223 @@ export function buildReasons(
 
   const offset = hash % pool.length;
   const selected = [0, 1, 2].map(i => pool[(offset + i) % pool.length]);
-  return [...selected, ...advanced].slice(0, 8);
+  return [...new Set([...selected, ...advanced])].slice(0, 10);
+}
+
+export function buildScoutSummary(
+  home: string,
+  away: string,
+  hSt: MatchFormStats,
+  aSt: MatchFormStats,
+  hFP: number,
+  aFP: number,
+  h2hCount: number,
+  weatherRisk: boolean,
+  hash: number,
+  hTrend?: FormTrend | null,
+  aTrend?: FormTrend | null,
+): string {
+  const hAtk = parseFloat(hSt.totalAvgGf as string);
+  const aAtk = parseFloat(aSt.totalAvgGf as string);
+  const hDef = parseFloat(hSt.totalAvgGa as string);
+  const aDef = parseFloat(aSt.totalAvgGa as string);
+  const avgOver = (hSt.over25Pct + aSt.over25Pct) / 2;
+  const avgKg = (hSt.kgVarPct + aSt.kgVarPct) / 2;
+  const hHomeWin = hSt.homeWinPct ?? 0;
+  const aAwayWin = aSt.awayWinPct ?? 0;
+  const hHomePlayed = hSt.homePlayed ?? 0;
+  const aAwayPlayed = aSt.awayPlayed ?? 0;
+  const totalSample = Math.min(hSt.total, aSt.total);
+  const hMove = hTrend ? hTrend.pts5 - hTrend.ptsPrev : 0;
+  const aMove = aTrend ? aTrend.pts5 - aTrend.ptsPrev : 0;
+  const lines: string[] = [];
+
+  if (hAtk >= 1.7 && aAtk >= 1.7 && hDef >= 1.3 && aDef >= 1.3) {
+    lines.push('\u0130ki tak\u0131m da h\u00fccumda \u00fcretken ama savunmada a\u00e7\u0131k veriyor. Bu profil, ma\u00e7\u0131 tek tarafl\u0131 tahminden \u00e7ok tempo ve gol senaryosu \u00fczerinden okumay\u0131 daha mant\u0131kl\u0131 k\u0131l\u0131yor.');
+  }
+  if (hAtk - aDef >= 0.45 && hFP >= aFP) {
+    lines.push(home + ' i\u00e7in h\u00fccum e\u015fle\u015fmesi olumlu: kendi gol ortalamas\u0131, ' + away + ' savunmas\u0131n\u0131n verdi\u011fi ortalaman\u0131n \u00fczerinde kal\u0131yor. Ev sahibi \u00f6ne ge\u00e7erse ma\u00e7 kontrol\u00fcn\u00fc alabilir.');
+  }
+  if (aAtk - hDef >= 0.45 && aFP >= hFP) {
+    lines.push(away + ' deplasmanda gol tehdidi ta\u015f\u0131yor; h\u00fccum \u00fcretimi ' + home + ' savunma verisiyle e\u015fle\u015fince ge\u00e7i\u015f oyunu ve ikinci toplar kritik hale geliyor.');
+  }
+  if (hDef <= 1.0 && aDef <= 1.0 && avgOver <= 45) {
+    lines.push('Savunma verileri iki tarafta da g\u00fc\u00e7l\u00fc ve 2.5 \u00fcst trendi s\u0131n\u0131rl\u0131. Bu nedenle ma\u00e7\u0131n ilk b\u00f6l\u00fcm\u00fcnde sab\u0131r, duran top ve tek hata senaryosu \u00f6ne \u00e7\u0131k\u0131yor.');
+  }
+  if (Math.abs(hFP - aFP) <= 2 && Math.abs(hAtk - aAtk) < 0.3 && Math.abs(hDef - aDef) < 0.3) {
+    lines.push('Tak\u0131mlar\u0131n form, h\u00fccum ve savunma \u00e7izgisi birbirine yak\u0131n. Bu tip e\u015fle\u015fmede net taraf yorumu zay\u0131flar; ilk gol ve oyun i\u00e7i momentum daha belirleyici olur.');
+  }
+  if (hTrend && aTrend && Math.abs(hMove - aMove) >= 5) {
+    const side = hMove > aMove ? home : away;
+    lines.push(side + ' son d\u00f6nem ivmesinde belirgin ayr\u0131\u015f\u0131yor. Sezon ortalamas\u0131 tek ba\u015f\u0131na yeterli de\u011fil; g\u00fcncel form bu ma\u00e7\u0131n ana okuma katman\u0131.');
+  }
+  if (hHomeWin >= 60 && hHomePlayed >= 4 && aAwayWin <= 35 && aAwayPlayed >= 4) {
+    lines.push(home + ' i\u00e7 sahada g\u00fc\u00e7l\u00fc, ' + away + ' deplasmanda daha k\u0131r\u0131lgan g\u00f6r\u00fcn\u00fcyor. \u0130\u00e7 saha etkisi bu ma\u00e7ta sadece psikolojik de\u011fil, say\u0131sal olarak da destekleniyor.');
+  } else if (aAwayWin >= 50 && aAwayPlayed >= 4) {
+    lines.push(away + ' deplasman performans\u0131yla oyunda kalabilecek bir profil \u00e7iziyor. Ev sahibi bask\u0131 kursa bile deplasman taraf\u0131n\u0131n puan \u00e7\u0131karma ihtimali veride kar\u015f\u0131l\u0131k buluyor.');
+  }
+  if (avgOver >= 60 && avgKg >= 55) {
+    lines.push('Gol trendi ve KG Var oran\u0131 ayn\u0131 y\u00f6nde. Bu tablo, ma\u00e7\u0131n sadece a\u00e7\u0131lmas\u0131n\u0131 de\u011fil iki taraf\u0131n da skora katk\u0131 verme ihtimalini g\u00fc\u00e7lendiriyor.');
+  } else if (avgOver >= 60 && avgKg <= 45) {
+    lines.push('2.5 \u00fcst e\u011filimi g\u00fc\u00e7l\u00fc fakat KG Var ayn\u0131 \u015fiddette destek vermiyor. Goll\u00fc ama tek taraf\u0131n daha bask\u0131n oldu\u011fu senaryo da dikkate al\u0131nmal\u0131.');
+  } else if (avgOver <= 40 && avgKg >= 55) {
+    lines.push('Toplam gol trendi d\u00fc\u015f\u00fck olsa da KG Var canl\u0131 kal\u0131yor. Bu profil 1-1 gibi dar skorlu, dengeli bir ma\u00e7 ihtimalini y\u00fckseltir.');
+  }
+
+  const main = lines.length > 0 ? lines[hash % lines.length] : 'Veriler tek bir y\u00f6ne sert bi\u00e7imde akm\u0131yor; form, gol profili ve savunma dengesi birlikte okunmal\u0131. Ma\u00e7\u0131n k\u0131r\u0131lma an\u0131 b\u00fcy\u00fck olas\u0131l\u0131kla ilk gol veya tempo de\u011fi\u015fimi olacak.';
+  const outlook: string[] = [];
+
+  if (totalSample < 6) {
+    outlook.push('Yine de y\u00fczdeler keskin bir h\u00fck\u00fcmden \u00e7ok ma\u00e7 senaryosu olarak okunmal\u0131.');
+  } else if (avgOver >= 58 && avgKg >= 55) {
+    outlook.push('\u00d6ne \u00e7\u0131kan okuma: iki taraf\u0131n da skora katk\u0131 verebildi\u011fi hareketli bir ma\u00e7.');
+  } else if (avgOver <= 42) {
+    outlook.push('\u00d6ne \u00e7\u0131kan okuma: sab\u0131rl\u0131 ba\u015flang\u0131\u00e7 ve d\u00fc\u015f\u00fck tempolu skor ak\u0131\u015f\u0131.');
+  } else if (Math.abs(hFP - aFP) <= 2) {
+    outlook.push('\u00d6ne \u00e7\u0131kan okuma: dengeli oyun, ilk gol\u00fcn psikolojik etkisi ve ikinci yar\u0131 ayarlar\u0131.');
+  } else {
+    const side = hFP > aFP ? home : away;
+    outlook.push('\u00d6ne \u00e7\u0131kan okuma: ' + side + ' form avantaj\u0131n\u0131 oyun kontrol\u00fcne \u00e7evirebilirse ma\u00e7\u0131 kendi ritmine alabilir.');
+  }
+  if (weatherRisk) {
+    outlook.push('Hava ko\u015fulu riski pas kalitesi ve ritimde sapma yaratabilir.');
+  }
+
+  return main + ' ' + outlook.slice(0, 2).join(' ');
+}
+
+export function buildScoutPick(
+  home: string,
+  away: string,
+  hSt: MatchFormStats,
+  aSt: MatchFormStats,
+  hFP: number,
+  aFP: number,
+  h2hCount: number,
+  weatherRisk: boolean,
+): ScoutPick {
+  const hAtk = parseFloat(hSt.totalAvgGf as string);
+  const aAtk = parseFloat(aSt.totalAvgGf as string);
+  const hDef = parseFloat(hSt.totalAvgGa as string);
+  const aDef = parseFloat(aSt.totalAvgGa as string);
+  const avgOver = (hSt.over25Pct + aSt.over25Pct) / 2;
+  const avgKg = (hSt.kgVarPct + aSt.kgVarPct) / 2;
+  const hHomeWin = hSt.homeWinPct ?? 0;
+  const aAwayWin = aSt.awayWinPct ?? 0;
+  const sample = Math.min(hSt.total, aSt.total);
+  const lowConfidence = sample < 5 || weatherRisk || h2hCount < 2;
+
+  if (lowConfidence) {
+    return {
+      label: 'Temkinli okuma',
+      detail: 'Veri zemini tam güçlü değil; taraf seçimi yerine maç içi ritim ve ilk 20 dakika daha belirleyici.',
+      tone: 'caution',
+    };
+  }
+
+  if (avgOver >= 62 && avgKg >= 55 && hAtk >= 1.4 && aAtk >= 1.4) {
+    return {
+      label: 'Gollü senaryo',
+      detail: 'Gol trendi ve iki takımın üretimi aynı yöne bakıyor; maçın açılma ihtimali daha güçlü.',
+      tone: 'goals',
+    };
+  }
+
+  if (avgOver <= 40 && Math.abs(hFP - aFP) <= 3) {
+    return {
+      label: 'Dengeli / düşük tempo',
+      detail: 'Form farkı sınırlı ve gol trendi düşük; dar skor veya beraberlik senaryosu öne çıkıyor.',
+      tone: 'draw',
+    };
+  }
+
+  const homeEdge = (hFP - aFP) + (hAtk - aDef) * 3 + (hHomeWin >= 55 ? 2 : 0);
+  const awayEdge = (aFP - hFP) + (aAtk - hDef) * 3 + (aAwayWin >= 45 ? 2 : 0);
+  if (homeEdge >= awayEdge + 4) {
+    return {
+      label: home + ' tarafı',
+      detail: 'Form, iç saha ve hücum-savunma eşleşmesi ev sahibi lehine daha net sinyal veriyor.',
+      tone: 'home',
+    };
+  }
+  if (awayEdge >= homeEdge + 4) {
+    return {
+      label: away + ' tarafı',
+      detail: 'Form ve deplasman üretimi, konuk ekibin oyunda kalma hatta sonuç alma ihtimalini güçlendiriyor.',
+      tone: 'away',
+    };
+  }
+
+  return {
+    label: 'Dengeli maç',
+    detail: 'Taraf sinyalleri birbirini kesiyor; en güçlü okuma ilk gol ve oyun ritminin sonucu belirlemesi.',
+    tone: 'draw',
+  };
+}
+
+export function buildMatchCharacterDetail(
+  home: string,
+  away: string,
+  hSt: MatchFormStats,
+  aSt: MatchFormStats,
+  hFP: number,
+  aFP: number,
+  hash: number,
+  hStyleLabel?: string,
+  aStyleLabel?: string,
+  hTrend?: FormTrend | null,
+  aTrend?: FormTrend | null,
+): string {
+  const hAtk = parseFloat(hSt.totalAvgGf as string);
+  const aAtk = parseFloat(aSt.totalAvgGf as string);
+  const hDef = parseFloat(hSt.totalAvgGa as string);
+  const aDef = parseFloat(aSt.totalAvgGa as string);
+  const avgOver = (hSt.over25Pct + aSt.over25Pct) / 2;
+  const avgKg = (hSt.kgVarPct + aSt.kgVarPct) / 2;
+  const hHomeWin = hSt.homeWinPct ?? 0;
+  const aAwayWin = aSt.awayWinPct ?? 0;
+  const hMove = hTrend ? hTrend.pts5 - hTrend.ptsPrev : 0;
+  const aMove = aTrend ? aTrend.pts5 - aTrend.ptsPrev : 0;
+  const candidates: string[] = [];
+
+  if (hStyleLabel && aStyleLabel && hStyleLabel !== aStyleLabel) {
+    candidates.push(home + ' daha ' + hStyleLabel.toLowerCase() + ' bir profil verirken ' + away + ' ' + aStyleLabel.toLowerCase() + ' tarafta kal\u0131yor. Bu fark, ma\u00e7\u0131n ritmini kimin kendi oyununa \u00e7ekece\u011fini belirleyebilir.');
+  } else if (hStyleLabel && aStyleLabel) {
+    candidates.push('\u0130ki tak\u0131m da benzer bir ' + hStyleLabel.toLowerCase() + ' profil \u00e7iziyor. Bu durumda karakter fark\u0131ndan \u00e7ok uygulama kalitesi ve ilk gol\u00fcn zaman\u0131 belirleyici olur.');
+  }
+
+  if (hAtk >= 1.6 && aDef >= 1.4 && aAtk < 1.5) {
+    candidates.push(home + ' oyunu rakip yar\u0131 alana y\u0131kabilecek veriye sahip. ' + away + ' savunmas\u0131 bask\u0131 alt\u0131nda fazla alan verirse ma\u00e7 karakteri ev sahibi kontrol\u00fcne d\u00f6nebilir.');
+  }
+  if (aAtk >= 1.6 && hDef >= 1.4 && hAtk < 1.5) {
+    candidates.push(away + ' ge\u00e7i\u015f ve bitiricilik taraf\u0131nda tehdit \u00fcretiyor. ' + home + ' topa sahip olsa bile savunma arkas\u0131 ko\u015fular ma\u00e7\u0131n karakterini de\u011fi\u015ftirebilir.');
+  }
+  if (hDef <= 1.0 && aDef <= 1.0 && avgOver <= 45) {
+    candidates.push('Bu e\u015fle\u015fme savunma disiplini \u00fczerinden okunuyor. \u0130ki taraf da kolay alan vermedi\u011fi i\u00e7in ma\u00e7\u0131n karakteri sab\u0131r, duran top ve ikinci top m\u00fccadelesine yak\u0131n.');
+  }
+  if (hAtk >= 1.7 && aAtk >= 1.7 && avgKg >= 55) {
+    candidates.push('H\u00fccum profilleri birbirini besliyor: iki taraf da skor \u00fcretme kapasitesine sahip. Bu nedenle ma\u00e7 karakteri kapal\u0131 bir bekleyi\u015ften \u00e7ok kar\u015f\u0131l\u0131kl\u0131 cevaplara a\u00e7\u0131k.');
+  }
+  if (avgOver >= 60 && avgKg <= 45) {
+    candidates.push('Gol hacmi y\u00fcksek g\u00f6r\u00fcnse de iki taraf\u0131n da skora ortak olaca\u011f\u0131 garanti de\u011fil. Karakter olarak tek taraf\u0131n bask\u0131nla\u015ft\u0131\u011f\u0131, kopmaya a\u00e7\u0131k bir oyun ihtimali var.');
+  }
+  if (Math.abs(hFP - aFP) <= 2 && Math.abs(hAtk - aAtk) < 0.3) {
+    candidates.push('Form ve h\u00fccum seviyesi yak\u0131n oldu\u011fu i\u00e7in ma\u00e7 karakteri dengeli kalmaya yatk\u0131n. Bu tabloda tempo k\u0131r\u0131lmas\u0131 genellikle bireysel hata veya erken golle gelir.');
+  }
+  if (Math.abs(hMove - aMove) >= 5) {
+    const side = hMove > aMove ? home : away;
+    candidates.push(side + ' g\u00fcncel ivme taraf\u0131nda daha diri. Bu, sezon ortalamas\u0131ndan ba\u011f\u0131ms\u0131z olarak ma\u00e7\u0131n psikolojik ve fiziksel ritmini etkileyebilir.');
+  }
+  if (hHomeWin >= 60 && aAwayWin <= 35) {
+    candidates.push(home + ' i\u00e7 saha etkisiyle daha bask\u0131n ba\u015flamaya aday. ' + away + ' ilk b\u00f6l\u00fcm\u00fc hasars\u0131z ge\u00e7erse oyun dengesi daha kontroll\u00fc hale gelebilir.');
+  } else if (aAwayWin >= 50) {
+    candidates.push(away + ' deplasmanda kolay da\u011f\u0131lan bir profil de\u011fil. Bu nedenle ma\u00e7 karakteri ev sahibi bask\u0131s\u0131na kar\u015f\u0131 diren\u00e7 ve ge\u00e7i\u015f tehdidi \u00fczerinden \u015fekillenebilir.');
+  }
+
+  if (candidates.length === 0) {
+    return 'Ma\u00e7 karakteri tek bir uca yaslanm\u0131yor. Tak\u0131mlar\u0131n form ve profil verileri dengeli oldu\u011fu i\u00e7in oyun ak\u0131\u015f\u0131n\u0131 ilk gol, tempo tercihi ve savunma konsantrasyonu belirleyecek.';
+  }
+  return candidates[hash % candidates.length];
 }
 
 

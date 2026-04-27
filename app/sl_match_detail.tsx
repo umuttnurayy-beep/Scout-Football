@@ -11,8 +11,12 @@ import {
   ANALYSIS_DELTA as DELTA,
   Level,
   MatchFormStats,
+  ScoutPick,
   Stil,
+  buildMatchCharacterDetail,
   buildReasons,
+  buildScoutPick,
+  buildScoutSummary,
   getHomeAwayComment,
   getGuven,
   getMotivationComment,
@@ -28,6 +32,7 @@ import { MEDIUM_BANK, SHORT_BANK } from '../utils/matchTextBanks';
 interface MatchAnalysis {
   stil: Stil; gol: Level; tempo: Level; risk: Level; guven: Level;
   short: string; medium: string; reasons: string[];
+  scoutPick: ScoutPick | null;
   badgeLabel: string; badgeColor: string; badgeBg: string;
 }
 
@@ -84,12 +89,16 @@ function buildMatchAnalysis(
   const guven   = hasFormData ? getGuven(hSt, aSt, h2hCount, weatherRisk) : 'Düşük';
   const persona = getPersonaEnriched(stil, gol, tempo, risk, hasFormData ? hSt : undefined, hasFormData ? aSt : undefined, hTrend, aTrend);
   const short   = pickFrom(SHORT_BANK[persona]  || SHORT_BANK.dengeli,  hash + 5);
-  const medium  = pickFrom(MEDIUM_BANK[persona] || MEDIUM_BANK.dengeli, hash + 13);
+  const bankMedium = pickFrom(MEDIUM_BANK[persona] || MEDIUM_BANK.dengeli, hash + 13);
+  const medium  = hasFormData
+    ? buildScoutSummary(home, away, hSt, aSt, hFP, aFP, h2hCount, weatherRisk, hash + 13, hTrend, aTrend)
+    : bankMedium;
   const reasons = hasFormData
     ? buildReasons(home, away, hSt, aSt, hFP, aFP, h2hCount, hash + 17, hTrend, aTrend, weatherRisk)
     : ['Veri henüz yüklenmedi; form verileri değerlendirmeye alınamadı.',
        'Lig profili baz alınarak tahmin üretildi.',
        'Sonuçlar genel eğilimi yansıtmakla birlikte maç bazlı doğrulanmadı.'];
+  const scoutPick = hasFormData ? buildScoutPick(home, away, hSt, aSt, hFP, aFP, h2hCount, weatherRisk) : null;
 
   let badgeLabel: string, badgeColor: string, badgeBg: string;
   if (risk === 'Düşük' && guven !== 'Düşük') {
@@ -100,7 +109,7 @@ function buildMatchAnalysis(
     badgeLabel = '⚖️ Dengeli'; badgeColor = '#7A5700'; badgeBg = '#FFF8E1';
   }
 
-  return { stil, gol, tempo, risk, guven, short, medium, reasons, badgeLabel, badgeColor, badgeBg };
+  return { stil, gol, tempo, risk, guven, short, medium, reasons, scoutPick, badgeLabel, badgeColor, badgeBg };
 }
 
 // ── Tag Color ──────────────────────────────────────────────────────────────
@@ -493,6 +502,7 @@ export default function SLMatchDetail() {
   const awayBelowPts = parseInt(p('awayBelowPts') || '0') || undefined;
   const timeParam  = p('time');
   const scoreParam = p('score');
+  const finishedParam = p('finished') === '1';
 
   const [event,       setEvent]       = useState<any>(null);
   const [homeForm,    setHomeForm]     = useState<any[]>([]);
@@ -532,6 +542,12 @@ export default function SLMatchDetail() {
   const isFinished = ['FT', 'AET', 'PEN', 'Match Finished'].includes(event?.strStatus || '');
   const isLive     = event?.strStatus === 'In Progress' || event?.strStatus === 'HT';
   const hasScore   = homeScore !== null && awayScore !== null;
+  const [routeHomeScore, routeAwayScore] = scoreParam ? scoreParam.split(/\s*[-:]\s*/) : [];
+  const hasRouteScore = finishedParam && routeHomeScore !== undefined && routeAwayScore !== undefined;
+  const displayHomeScore = hasScore ? homeScore : routeHomeScore;
+  const displayAwayScore = hasScore ? awayScore : routeAwayScore;
+  const shouldShowScore = hasScore || hasRouteScore;
+  const shouldShowFinished = isFinished || (finishedParam && !isLive);
   const venue      = event?.strVenue || null;
   const round      = event?.intRound ? `${event.intRound}. Hafta` : null;
   const refName    = event?.strReferee || '';
@@ -571,6 +587,9 @@ export default function SLMatchDetail() {
   const hLeadsRadar   = homeRadar.reduce((s,v)=>s+v,0) >= awayRadar.reduce((s,v)=>s+v,0);
   const hStyle        = hasFormData ? getTeamStyle(homeStats) : null;
   const aStyle        = hasFormData ? getTeamStyle(awayStats)  : null;
+  const characterDetail = hasFormData
+    ? buildMatchCharacterDetail(home, away, homeStats, awayStats, homeFormPts, awayFormPts, strHash(home + away + 'character'), hStyle?.label, aStyle?.label, homeTrend, awayTrend)
+    : '';
   const refProfile    = refName ? getRefereeProfile(refName) : null;
   const weatherCom    = getWeatherComment(weatherData);
   const riskWarns     = getRiskWarnings(homeStats, awayStats, h2hData.length, analysis);
@@ -610,15 +629,15 @@ export default function SLMatchDetail() {
         <View style={styles.teamsRow}>
           <Text style={[styles.teamNameLeft, { color: c.text }]}  numberOfLines={1}>{home}</Text>
           <View style={styles.vsBlock}>
-            {hasScore ? (
+            {shouldShowScore ? (
               <>
-                <Text style={[styles.vsScore, { color: c.text }]}>{homeScore} : {awayScore}</Text>
-                {isFinished&&<Text style={[styles.vsStatusLabel, { color: c.textMuted }]}>MS</Text>}
+                <Text style={[styles.vsScore, { color: c.text }]}>{displayHomeScore} : {displayAwayScore}</Text>
+                {shouldShowFinished&&<Text style={[styles.vsStatusLabel, { color: c.textMuted }]}>MS</Text>}
                 {isLive&&<Text style={[styles.vsStatusLabel,{color:c.loss}]}>CANLI</Text>}
-                {!isFinished&&!isLive&&<Text style={[styles.vsStatusLabel, { color: c.textMuted }]}>devam ediyor</Text>}
+                {!shouldShowFinished&&!isLive&&<Text style={[styles.vsStatusLabel, { color: c.textMuted }]}>devam ediyor</Text>}
               </>
             ) : (
-              <Text style={[styles.vsTime, { color: c.text }]}>{timeParam || scoreParam || '–'}</Text>
+              <Text style={[styles.vsTime, { color: c.text }]}>{timeParam || '–'}</Text>
             )}
             {matchDate ? (
               <Text style={[styles.vsLabel, { color: c.textMuted }]}>{matchDate}</Text>
@@ -664,6 +683,21 @@ export default function SLMatchDetail() {
           })}
         </View>
         <Text style={[scStyles.mediumText, { color: c.textSub }]}>{analysis.medium}</Text>
+        {analysis.scoutPick ? (() => {
+          const pickColor =
+            analysis.scoutPick.tone === 'home' ? c.primary :
+            analysis.scoutPick.tone === 'away' ? c.loss :
+            analysis.scoutPick.tone === 'goals' ? (isDark ? '#E3B341' : '#B7791F') :
+            analysis.scoutPick.tone === 'caution' ? (isDark ? '#F85149' : '#A32D2D') :
+            scoutPurple;
+          return (
+            <View style={[scStyles.pickBox,{backgroundColor:isDark?'rgba(255,255,255,0.04)':'rgba(255,255,255,0.72)',borderColor:pickColor}]}>
+              <Text style={[scStyles.pickKicker,{color:pickColor}]}>SCOUT PICK</Text>
+              <Text style={[scStyles.pickLabel,{color:c.text}]}>{analysis.scoutPick.label}</Text>
+              <Text style={[scStyles.pickDetail,{color:c.textSub}]}>{analysis.scoutPick.detail}</Text>
+            </View>
+          );
+        })() : null}
         <TouchableOpacity onPress={()=>setShowNeden(v=>!v)} style={scStyles.nedenBtn}>
           <Text style={[scStyles.nedenBtnText, { color: scoutPurple }]}>{showNeden?'▲ Kapat':'▼ Neden? — Gerekçeleri göster'}</Text>
         </TouchableOpacity>
@@ -979,7 +1013,7 @@ export default function SLMatchDetail() {
               ))}
             </View>
             <View style={[styles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
-              <Text style={[styles.insightText, { color: c.text }]}>{analysis.medium}</Text>
+              <Text style={[styles.insightText, { color: c.text }]}>{characterDetail}</Text>
             </View>
           </>
         ) : (
@@ -1037,8 +1071,8 @@ const styles = StyleSheet.create({
   tagsBarContent:     { paddingHorizontal:14, paddingVertical:8, flexDirection:'row' },
   scroll:             { flex:1 },
   sectionLabel:       { fontSize:11, color:'#888', fontWeight:'500', paddingHorizontal:14, paddingTop:14, paddingBottom:6, letterSpacing:0.5 },
-  insightBox:         { marginHorizontal:14, marginBottom:10, padding:11, backgroundColor:'#f4f8ff', borderRadius:8, borderLeftWidth:3, borderLeftColor:'#185FA5' },
-  insightText:        { fontSize:12, color:'#1a3a5c', lineHeight:17 },
+  insightBox:         { marginHorizontal:14, marginBottom:10, padding:11, backgroundColor:'#f4f8ff', borderRadius:8, borderLeftWidth:3, borderLeftColor:'#185FA5', alignSelf:'stretch' },
+  insightText:        { width:'100%', flexShrink:1, flexWrap:'wrap', fontSize:12, color:'#1a3a5c', lineHeight:17 },
   radarLegendRow:     { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8, paddingBottom:4 },
   radarDot:           { width:10, height:10, borderRadius:5 },
   radarLegendText:    { fontSize:11, color:'#555' },
@@ -1113,6 +1147,10 @@ const scStyles = StyleSheet.create({
   metricLabel: { fontSize:9, color:'#666', marginBottom:3 },
   metricVal:   { fontSize:12, fontWeight:'700' },
   mediumText:  { fontSize:12, color:'#333', lineHeight:18, marginBottom:10, fontStyle:'italic' },
+  pickBox:     { borderWidth:1, borderRadius:10, padding:10, marginBottom:10 },
+  pickKicker:  { fontSize:9, fontWeight:'800', letterSpacing:0.8, marginBottom:3 },
+  pickLabel:   { fontSize:14, fontWeight:'800', color:'#111', marginBottom:3 },
+  pickDetail:  { width:'100%', flexShrink:1, flexWrap:'wrap', fontSize:11, color:'#555', lineHeight:16 },
   nedenBtn:    { alignSelf:'flex-start', paddingVertical:4 },
   nedenBtnText:{ fontSize:11, color:'#5b2d8e', fontWeight:'600' },
   nedenBox:    { marginTop:8, paddingTop:8, borderTopWidth:0.5, borderTopColor:'#ddd6ff' },

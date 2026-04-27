@@ -7,9 +7,9 @@ import { API_BASE_URL } from './config';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type NotifPrefs = {
-  daily: boolean;    // "Bugünün analizleri hazır" — saat 10:00
+  daily: boolean;    // "Bugünün analizleri hazır" — saat 12:00
   favTeam: boolean;  // Favori + watchlist takımları, maçtan 30 dk önce
-  featured: boolean; // Günün öne çıkan maçı — saat 10:00
+  featured: boolean; // Günün öne çıkan maçı — saat 12:00
 };
 
 export type WatchedMatch = {
@@ -31,6 +31,7 @@ const DAILY_ID     = 'scout_daily';
 const FEATURED_ID  = 'scout_featured';
 const MATCH_PREFIX = 'scout_match_';
 const BASE_URL     = API_BASE_URL;
+const DAILY_NOTIFICATION_HOUR = 12;
 
 export const DEFAULT_PREFS: NotifPrefs = {
   daily: false, favTeam: false, featured: false,
@@ -111,17 +112,17 @@ export async function registerPushToken(
       }),
     });
   } catch (e) {
-    console.log('registerPushToken hata:', e);
+    console.error('registerPushToken hata:', e);
   }
 }
 
 // ── Time helpers ──────────────────────────────────────────────────────────────
 
-// Saat 10:00'a kadar saniye — geçtiyse null döner
-function secondsUntilTen(): number | null {
+// Günlük bildirim saatine kadar saniye — geçtiyse null döner
+function secondsUntilDailyNotification(): number | null {
   const now = new Date();
   const target = new Date();
-  target.setHours(10, 0, 0, 0);
+  target.setHours(DAILY_NOTIFICATION_HOUR, 0, 0, 0);
   const diff = Math.floor((target.getTime() - now.getTime()) / 1000);
   return diff > 30 ? diff : null;
 }
@@ -165,9 +166,9 @@ export async function scheduleNotifications(
     }
   }
 
-  const baseSeconds = secondsUntilTen();
+  const baseSeconds = secondsUntilDailyNotification();
 
-  // 1. Günlük analiz — saat 10:00 (henüz geçmediyse)
+  // 1. Günlük analiz — saat 12:00 (henüz geçmediyse)
   if (prefs.daily && baseSeconds !== null) {
     let body = `Bugün ${data.matchCount} maç var.`;
     if (data.scoutPick) {
@@ -185,7 +186,7 @@ export async function scheduleNotifications(
     await Notifications.cancelScheduledNotificationAsync(DAILY_ID);
   }
 
-  // 2. Öne çıkan maç — saat 10:00, yalnızca daily kapalıysa ayrı gönderilir
+  // 2. Öne çıkan maç — saat 12:00, yalnızca daily kapalıysa ayrı gönderilir
   if (prefs.featured && !prefs.daily && data.scoutPick && baseSeconds !== null) {
     const { home, away } = data.scoutPick;
     await Notifications.scheduleNotificationAsync({

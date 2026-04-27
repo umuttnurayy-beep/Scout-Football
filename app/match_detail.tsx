@@ -11,8 +11,12 @@ import {
   ANALYSIS_DELTA as DELTA,
   Level,
   MatchFormStats,
+  ScoutPick,
   Stil,
+  buildMatchCharacterDetail,
   buildReasons,
+  buildScoutPick,
+  buildScoutSummary,
   getDeepH2HStats,
   getDrawAnalysis,
   getFormTrend,
@@ -31,6 +35,7 @@ import { MEDIUM_BANK, SHORT_BANK } from '../utils/matchTextBanks';
 interface MatchAnalysis {
   stil: Stil; gol: Level; tempo: Level; risk: Level; guven: Level;
   short: string; medium: string; reasons: string[];
+  scoutPick: ScoutPick | null;
   badgeLabel: string; badgeColor: string; badgeBg: string;
 }
 
@@ -98,12 +103,16 @@ function buildMatchAnalysis(
   const guven   = hasFormData ? getGuven(hSt, aSt, h2hCount, weatherRisk) : 'Düşük';
   const persona = getPersonaEnriched(stil, gol, tempo, risk, hasFormData ? hSt : undefined, hasFormData ? aSt : undefined, hTrend, aTrend);
   const short   = pickFrom(SHORT_BANK[persona]  || SHORT_BANK.dengeli,  hash + 5);
-  const medium  = pickFrom(MEDIUM_BANK[persona] || MEDIUM_BANK.dengeli, hash + 13);
+  const bankMedium = pickFrom(MEDIUM_BANK[persona] || MEDIUM_BANK.dengeli, hash + 13);
+  const medium  = hasFormData
+    ? buildScoutSummary(home, away, hSt, aSt, hFP, aFP, h2hCount, weatherRisk, hash + 13, hTrend, aTrend)
+    : bankMedium;
   const reasons = hasFormData
     ? buildReasons(home, away, hSt, aSt, hFP, aFP, h2hCount, hash + 17, hTrend, aTrend, weatherRisk)
     : ['Veri henüz yüklenmedi; form ve H2H verileri değerlendirmeye alınamadı.',
        'Lig profili baz alınarak tahmin üretildi.',
        'Sonuçlar genel eğilimi yansıtmakla birlikte maç bazlı doğrulanmadı.'];
+  const scoutPick = hasFormData ? buildScoutPick(home, away, hSt, aSt, hFP, aFP, h2hCount, weatherRisk) : null;
 
   let badgeLabel: string, badgeColor: string, badgeBg: string;
   if (risk === 'Düşük' && guven !== 'Düşük') {
@@ -114,7 +123,7 @@ function buildMatchAnalysis(
     badgeLabel = '⚖️ Dengeli'; badgeColor = '#7A5700'; badgeBg = '#FFF8E1';
   }
 
-  return { stil, gol, tempo, risk, guven, short, medium, reasons, badgeLabel, badgeColor, badgeBg };
+  return { stil, gol, tempo, risk, guven, short, medium, reasons, scoutPick, badgeLabel, badgeColor, badgeBg };
 }
 
 // ── Tag Color ──────────────────────────────────────────────────────────────
@@ -555,8 +564,11 @@ export default function MatchDetail() {
   else if (isLive) {
     if (fullHome!=null)                 { displayHome=fullHome; displayAway=fullAway; }
     else if (halfHome!=null)            { displayHome=halfHome; displayAway=halfAway; }
-  } else if (isFromLive&&scoreParam) {
-    displayHome=scoreParam.split(' - ')[0]; displayAway=scoreParam.split(' - ')[1];
+  } else if ((finishedParam || isFromLive) && scoreParam) {
+    const [routeHomeScore, routeAwayScore] = scoreParam.split(/\s*[-:]\s*/);
+    if (routeHomeScore !== undefined && routeAwayScore !== undefined) {
+      displayHome=routeHomeScore; displayAway=routeAwayScore;
+    }
   }
   const hasScore = displayHome !== null;
   const refName  = matchData?.referees?.[0]?.name || '';
@@ -590,6 +602,9 @@ export default function MatchDetail() {
   const hLeadsRadar= homeRadar.reduce((s,v)=>s+v,0)>=awayRadar.reduce((s,v)=>s+v,0);
   const hStyle = hasFormData ? getTeamStyle(homeStats) : null;
   const aStyle = hasFormData ? getTeamStyle(awayStats)  : null;
+  const characterDetail = hasFormData
+    ? buildMatchCharacterDetail(home, away, homeStats, awayStats, homeFormPts, awayFormPts, strHash(home + away + 'character'), hStyle?.label, aStyle?.label, homeTrend, awayTrend)
+    : '';
   const refProfile= refName ? getRefereeProfile(refName,leagueApiId) : null;
   const weatherCom= getWeatherComment(weatherData);
   const riskWarns = getRiskWarnings(homeStats,awayStats,h2hData.length,analysis);
@@ -730,6 +745,21 @@ export default function MatchDetail() {
         </View>
 
         <Text style={[scStyles.mediumText,{color:c.textSub}]}>{analysis.medium}</Text>
+        {analysis.scoutPick ? (() => {
+          const pickColor =
+            analysis.scoutPick.tone === 'home' ? c.primary :
+            analysis.scoutPick.tone === 'away' ? c.loss :
+            analysis.scoutPick.tone === 'goals' ? (isDark ? '#E3B341' : '#B7791F') :
+            analysis.scoutPick.tone === 'caution' ? (isDark ? '#F85149' : '#A32D2D') :
+            (isDark ? '#C19BFF' : '#5b2d8e');
+          return (
+            <View style={[scStyles.pickBox,{backgroundColor:isDark?'rgba(255,255,255,0.04)':'rgba(255,255,255,0.72)',borderColor:pickColor}]}>
+              <Text style={[scStyles.pickKicker,{color:pickColor}]}>SCOUT PICK</Text>
+              <Text style={[scStyles.pickLabel,{color:c.text}]}>{analysis.scoutPick.label}</Text>
+              <Text style={[scStyles.pickDetail,{color:c.textSub}]}>{analysis.scoutPick.detail}</Text>
+            </View>
+          );
+        })() : null}
 
         <TouchableOpacity onPress={()=>setShowNeden(v=>!v)} style={scStyles.nedenBtn}>
           <Text style={[scStyles.nedenBtnText,{color:isDark?'#C19BFF':'#5b2d8e'}]}>{showNeden?'▲ Kapat':'▼ Neden? — Gerekçeleri göster'}</Text>
@@ -1005,7 +1035,7 @@ export default function MatchDetail() {
                   </View>
                   <View style={{paddingHorizontal:12,paddingBottom:10,backgroundColor:c.surface}}>
                     <View style={[{padding:8,borderRadius:6},hasValue?{backgroundColor:isDark?'#0D2010':'#f0fff4',borderWidth:0.5,borderColor:c.win}:{backgroundColor:c.surfaceAlt}]}>
-                      <Text style={{fontSize:11,color:hasValue?c.win:c.textMuted,lineHeight:16}}>{hasValue?`💡 ${valueText}`:valueText}</Text>
+                      <Text style={{fontSize:11,color:hasValue?c.win:c.textMuted,lineHeight:16,flexShrink:1,flexWrap:'wrap',width:'100%'}}>{hasValue?`💡 ${valueText}`:valueText}</Text>
                     </View>
                   </View>
                 </View>
@@ -1173,7 +1203,7 @@ export default function MatchDetail() {
             </View>
             <View style={[styles.insightBox,ts.insightBox]}>
               <Text style={[styles.insightText,ts.insightText]}>
-                {analysis.medium}
+                {characterDetail}
               </Text>
             </View>
           </>
@@ -1244,8 +1274,8 @@ const styles = StyleSheet.create({
   tagsBarContent:    { paddingHorizontal:14, paddingVertical:8, flexDirection:'row' },
   scroll:            { flex:1 },
   sectionLabel:      { fontSize:11, color:'#888', fontWeight:'500', paddingHorizontal:14, paddingTop:14, paddingBottom:6, letterSpacing:0.5 },
-  insightBox:        { marginHorizontal:14, marginBottom:10, padding:11, backgroundColor:'#f4f8ff', borderRadius:8, borderLeftWidth:3, borderLeftColor:'#185FA5' },
-  insightText:       { fontSize:12, color:'#1a3a5c', lineHeight:17 },
+  insightBox:        { marginHorizontal:14, marginBottom:10, padding:11, backgroundColor:'#f4f8ff', borderRadius:8, borderLeftWidth:3, borderLeftColor:'#185FA5', alignSelf:'stretch' },
+  insightText:       { width:'100%', flexShrink:1, flexWrap:'wrap', fontSize:12, color:'#1a3a5c', lineHeight:17 },
   radarLegendRow:    { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8, paddingBottom:4 },
   radarDot:          { width:10, height:10, borderRadius:5 },
   radarLegendText:   { fontSize:11, color:'#555' },
@@ -1324,6 +1354,10 @@ const scStyles = StyleSheet.create({
   metricLabel: { fontSize:9, color:'#666', marginBottom:3 },
   metricVal:   { fontSize:12, fontWeight:'700' },
   mediumText:  { fontSize:12, color:'#333', lineHeight:18, marginBottom:10, fontStyle:'italic' },
+  pickBox:     { borderWidth:1, borderRadius:10, padding:10, marginBottom:10 },
+  pickKicker:  { fontSize:9, fontWeight:'800', letterSpacing:0.8, marginBottom:3 },
+  pickLabel:   { fontSize:14, fontWeight:'800', color:'#111', marginBottom:3 },
+  pickDetail:  { width:'100%', flexShrink:1, flexWrap:'wrap', fontSize:11, color:'#555', lineHeight:16 },
   nedenBtn:    { alignSelf:'flex-start', paddingVertical:4 },
   nedenBtnText:{ fontSize:11, color:'#5b2d8e', fontWeight:'600' },
   nedenBox:    { marginTop:8, paddingTop:8, borderTopWidth:0.5, borderTopColor:'#ddd6ff' },

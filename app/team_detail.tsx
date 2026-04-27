@@ -31,7 +31,7 @@ export default function TeamDetailScreen() {
         : await getStandings(apiId);
       setTeams(data || []);
     } catch (e) {
-      console.log('loadTeams hata:', e);
+      console.error('loadTeams hata:', e);
       setTeams([]);
     }
     setLoading(false);

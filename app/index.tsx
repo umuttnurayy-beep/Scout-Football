@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { type Href, useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, AppState, FlatList, Image, ScrollView, StatusBar, StyleSheet,
@@ -632,7 +632,7 @@ export default function HomeScreen() {
         setMatches([...mainMatches, ...slData.map(mapSLMatch)]);
       }
     } catch (e) {
-      console.log('loadMatches hata:', e);
+      console.error('loadMatches hata:', e);
     }
     setLoading(false);
   }
@@ -790,17 +790,18 @@ export default function HomeScreen() {
       awayBelowPts: metrics?.awayBelowPts != null ? String(metrics.awayBelowPts) : '',
     };
     if (m.leagueApiId === 203) {
-      router.push({
-        pathname: '/sl_match_detail' as any,
+      const slMatchHref: Href = {
+        pathname: '/sl_match_detail',
         params: {
           eventId: String(m.id),
           home: m.home, away: m.away,
           homeTeamId: String(m.homeTeamId),
           awayTeamId: String(m.awayTeamId),
-          time: m.time, score: m.score || '',
+          time: m.time, score: m.score || '', finished: m.finished ? '1' : '0',
           ...metricParams,
         },
-      });
+      };
+      router.push(slMatchHref);
       return;
     }
     router.push({

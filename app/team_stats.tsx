@@ -264,7 +264,7 @@ export default function TeamStatsScreen() {
       setRecentForm(form);
       setSeasonStats(calcSeasonStats(matches, teamId));
     } catch (e) {
-      console.log('loadForm hata:', e);
+      console.error('loadForm hata:', e);
     }
     setLoadingForm(false);
   }
@@ -280,7 +280,7 @@ export default function TeamStatsScreen() {
         setAfTeamStats(stats);
       }
     } catch (e) {
-      console.log('loadAfData hata:', e);
+      console.error('loadAfData hata:', e);
     }
     setLoadingAf(false);
   }
@@ -299,7 +299,7 @@ export default function TeamStatsScreen() {
       );
       setFdScorers(teamScorers);
     } catch (e) {
-      console.log('loadPlayers hata:', e);
+      console.error('loadPlayers hata:', e);
     }
     setLoadingPlayers(false);
   }
@@ -309,7 +309,7 @@ export default function TeamStatsScreen() {
       const data = await getAllSportsTeamStats(teamName);
       setAllSportsStats(data);
     } catch (e) {
-      console.log('loadAllSports hata:', e);
+      console.error('loadAllSports hata:', e);
     }
   }
 
@@ -345,7 +345,7 @@ export default function TeamStatsScreen() {
       );
       setSlTeamScorers(teamScorers);
     } catch (e) {
-      console.log('loadSLData hata:', e);
+      console.error('loadSLData hata:', e);
     }
     setLoadingForm(false);
     setLoadingPlayers(false);
