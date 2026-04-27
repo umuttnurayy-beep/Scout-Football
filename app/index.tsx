@@ -21,20 +21,18 @@ const STANDINGS_CACHE_KEY = 'scout_standings_cache_v4';
 const SUPPORTED_LEAGUES = [2021, 2014, 2002, 2019, 2015, 2001];
 const SPORTSDB_EXTRA_LEAGUES = [
   { id: 4481, name: 'Europa Lig' },
-  { id: 5071, name: 'Konferans Lig' },
 ];
 const SPORTSDB_LEAGUE_IDS = SPORTSDB_EXTRA_LEAGUES.map(l => l.id);
 
 const LEAGUE_NAMES: Record<number, string> = {
   2021: 'Premier Lig', 2014: 'La Liga', 2002: 'Bundesliga',
   2019: 'Serie A', 2015: 'Ligue 1', 2001: 'UCL', 203: 'Süper Lig',
-  4481: 'Europa Lig', 5071: 'Konferans Lig',
+  4481: 'Europa Lig',
 };
 
 const LEAGUE_WEIGHT: Record<number, number> = {
   2001: 30,  // UCL
   4481: 24,  // Europa League
-  5071: 17,  // Conference League
   2021: 26,  // Premier Lig
   2014: 26,  // La Liga
   2002: 22,  // Bundesliga
@@ -77,7 +75,6 @@ const LIG_FILTERS = [
   { label: 'Ligue 1',     id: 2015 },
   { label: 'UCL',         id: 2001 },
   { label: 'Europa Lig',  id: 4481 },
-  { label: 'Konferans',   id: 5071 },
   { label: 'Süper Lig',   id: 203  },
 ];
 

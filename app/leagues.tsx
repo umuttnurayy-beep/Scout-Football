@@ -14,8 +14,7 @@ const leagues = [
   { id: 5, apiId: 61,  name: 'Ligue 1',     country: 'Fransa',    flag: '🇫🇷', season: '2025/26' },
   { id: 6, apiId: 2,   name: 'UCL',         country: 'Avrupa',    flag: '🌍', season: '2025/26' },
   { id: 7, apiId: 4481, name: 'Europa Lig', country: 'Avrupa',    flag: '🇪🇺', season: '2025/26' },
-  { id: 8, apiId: 5071, name: 'Konferans Lig', country: 'Avrupa', flag: '🇪🇺', season: '2025/26' },
-  { id: 9, apiId: 203, name: 'Süper Lig',   country: 'Türkiye',   flag: '🇹🇷', season: '2025/26' },
+  { id: 8, apiId: 203, name: 'Süper Lig',   country: 'Türkiye',   flag: '🇹🇷', season: '2025/26' },
 ];
 
 const UCL_STAGES = [
@@ -315,7 +314,7 @@ export default function LeaguesScreen() {
     try {
       const data = apiId === 203
         ? await getSuperLigStandings()
-        : apiId === 4481 || apiId === 5071
+        : apiId === 4481
           ? await getSportsDbStandings(apiId)
           : await getStandings(apiId);
       setStandings(data && data.length > 0 ? data : []);
@@ -702,7 +701,7 @@ export default function LeaguesScreen() {
                       <View style={styles.legendBox}>
                         <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: '#185FA5' }]} /><Text style={[styles.legendText, { color: c.textMuted }]}>Şampiyonlar Ligi</Text></View>
                         <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: '#E6A817' }]} /><Text style={[styles.legendText, { color: c.textMuted }]}>Avrupa Ligi</Text></View>
-                        <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: '#27AE60' }]} /><Text style={[styles.legendText, { color: c.textMuted }]}>Konferans Ligi</Text></View>
+
                         {activeLeague.apiId === 203 && (
                           <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: '#C0392B' }]} /><Text style={[styles.legendText, { color: c.textMuted }]}>Küme Düşme</Text></View>
                         )}

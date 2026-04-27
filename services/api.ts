@@ -20,7 +20,6 @@ const ODDS_LEAGUE_MAP: Record<number, string> = {
   2015: 'soccer_france_ligue_one',
   2001: 'soccer_uefa_champs_league',
   4481: 'soccer_uefa_europa_league',
-  5071: 'soccer_uefa_europa_conference_league',
 };
 
 export const TEAM_CITIES: Record<string, string> = {

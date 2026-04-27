@@ -28,7 +28,7 @@ export default function TeamDetailScreen() {
     try {
       const data = apiId === 203
         ? await getSuperLigStandings()
-        : apiId === 4481 || apiId === 5071
+        : apiId === 4481
           ? await getSportsDbStandings(apiId)
         : await getStandings(apiId);
       setTeams(data || []);

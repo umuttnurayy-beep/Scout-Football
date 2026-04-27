@@ -222,7 +222,7 @@ export default function TeamStatsScreen() {
   const winPct = played > 0 ? Math.round((win / played) * 100) : 0;
   const initials = teamName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
 
-  const isSportsDbLeague = apiId === 203 || apiId === 4481 || apiId === 5071;
+  const isSportsDbLeague = apiId === 203 || apiId === 4481;
   const displayForm = isSportsDbLeague ? slForm : recentForm;
   const activeSeasonStats = isSportsDbLeague ? slSeasonStats : seasonStats;
   const lacksProviderTeamId = !isSportsDbLeague && !teamId;

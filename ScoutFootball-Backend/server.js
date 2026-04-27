@@ -109,10 +109,9 @@ const FD_TO_ESPN_SLUG = {
   '2001': 'uefa.champions', // UCL
 };
 
-// ESPN fallback for SportsDB leagues (Europa / Conference League standings)
+// ESPN fallback for SportsDB leagues (Europa League standings)
 const SPORTSDB_TO_ESPN_SLUG = {
   '4481': 'uefa.europa',    // UEFA Europa League
-  '5071': 'uefa.conference',// UEFA Conference League
 };
 
 async function fetchEspnStandings(slug) {
@@ -742,7 +741,7 @@ app.get('/superlig/match/:eventId', async (req, res) => {
   }
 });
 
-// Generic TheSportsDB league fixtures (Europa League, Conference League, etc.)
+// Generic TheSportsDB league fixtures (Europa League, etc.)
 app.get('/sportsdb/league/:leagueId/matches', async (req, res) => {
   const { leagueId } = req.params;
   const { date } = req.query;

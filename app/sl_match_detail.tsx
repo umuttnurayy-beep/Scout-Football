@@ -677,7 +677,7 @@ export default function SLMatchDetail() {
         {venue&&<Text style={[styles.venueText, { color: c.textMuted }]}>🏟️ {venue}</Text>}
       </View>
 
-      {/* ── Sınırlı Veri Uyarısı (Europa/Conference) ── */}
+      {/* ── Sınırlı Veri Uyarısı (Europa Lig) ── */}
       {!isSuperLig && !hasFormData && (
         <View style={[styles.limitedDataBanner, { backgroundColor: isDark ? '#1A1205' : '#FFF8E1', borderColor: isDark ? '#4A3600' : '#E6A817' }]}>
           <Text style={[styles.limitedDataText, { color: isDark ? '#E3B341' : '#7A5700' }]}>
