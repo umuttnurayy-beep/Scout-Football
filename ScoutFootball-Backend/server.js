@@ -109,6 +109,12 @@ const FD_TO_ESPN_SLUG = {
   '2001': 'uefa.champions', // UCL
 };
 
+// ESPN fallback for SportsDB leagues (Europa / Conference League standings)
+const SPORTSDB_TO_ESPN_SLUG = {
+  '4481': 'uefa.europa',    // UEFA Europa League
+  '5071': 'uefa.conference',// UEFA Conference League
+};
+
 async function fetchEspnStandings(slug) {
   const res = await fetch(`https://site.api.espn.com/apis/v2/sports/soccer/${slug}/standings`);
   const data = await res.json();
@@ -830,8 +836,23 @@ app.get('/sportsdb/standings/:leagueId', async (req, res) => {
       ga:     parseInt(row.intGoalsAgainst) || 0,
       pts:    parseInt(row.intPoints) || 0,
     })).filter(row => row.team);
-    if (result.length > 0) await setCache(cacheKey, result, TTL.standings);
-    res.json(result);
+    if (result.length > 0) {
+      await setCache(cacheKey, result, TTL.standings);
+      return res.json(result);
+    }
+
+    // TheSportsDB returned empty — try ESPN free API as fallback
+    const espnSlug = SPORTSDB_TO_ESPN_SLUG[leagueId];
+    if (espnSlug) {
+      console.log(`[sportsdb-standings] TheSportsDB empty for ${leagueId}, trying ESPN (${espnSlug})`);
+      const espnResult = await fetchEspnStandings(espnSlug);
+      if (espnResult.length > 0) {
+        await setCache(cacheKey, espnResult, TTL.standings);
+        return res.json(espnResult);
+      }
+    }
+
+    res.json([]);
   } catch (e) {
     console.error('/sportsdb/standings hata:', e.message);
     res.json([]);
