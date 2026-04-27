@@ -260,11 +260,11 @@ app.get('/team/:teamId', async (req, res) => {
 app.get('/team/:teamId/matches', async (req, res) => {
   const { teamId } = req.params;
   if (!FOOTBALL_DATA_KEY) return res.json([]);
-  const cacheKey = `team_matches_${teamId}`;
+  const cacheKey = `team_matches_season_v2_${teamId}`;
   const cached = await getCache(cacheKey);
   if (cached) return res.json(cached);
   try {
-    const response = await fetch(`${FOOTBALL_DATA_BASE}/teams/${teamId}/matches?status=FINISHED&limit=10&season=2025`, {
+    const response = await fetch(`${FOOTBALL_DATA_BASE}/teams/${teamId}/matches?status=FINISHED&limit=50&season=2025`, {
       headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
     });
     const data = await response.json();
@@ -604,12 +604,12 @@ app.get('/superlig/team-form/:teamId', async (req, res) => {
   const tid = parseInt(teamId);
   if (!tid) return res.json([]);
 
-  const cacheKey = `superlig_form_v2_${teamId}`;
+  const cacheKey = `superlig_form_season_v3_${teamId}`;
   const cached = await getCache(cacheKey);
   if (cached) return res.json(cached);
   try {
-    // Fetch last 15 rounds in parallel to collect last 5 team matches
-    const roundNums = Array.from({ length: 15 }, (_, i) => 38 - i); // 38..24
+    // Fetch all rounds so form cards can calculate current-season home/away splits.
+    const roundNums = Array.from({ length: 38 }, (_, i) => i + 1);
     const roundResults = await Promise.all(
       roundNums.map(r =>
         fetch(`${SPORTSDB_BASE}/eventsround.php?id=${SL_LEAGUE_ID}&r=${r}&s=${SL_SEASON}`)
@@ -626,7 +626,6 @@ app.get('/superlig/team-form/:teamId', async (req, res) => {
         e.intHomeScore !== null && e.intHomeScore !== '' && e.intHomeScore !== undefined
       )
       .sort((a, b) => new Date(a.dateEvent) - new Date(b.dateEvent))
-      .slice(-5)
       .map(e => ({
         homeTeamId: parseInt(e.idHomeTeam),
         awayTeamId: parseInt(e.idAwayTeam),

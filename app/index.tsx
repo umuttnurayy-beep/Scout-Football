@@ -98,6 +98,16 @@ type Metrics = {
   tempo: number;           // toplam gol ortalaması (iki takım birleşik)
   homePos?: number;        // lig sırası (prestij bonusu için)
   awayPos?: number;
+  homePts?: number;
+  awayPts?: number;
+  homePlayed?: number;
+  awayPlayed?: number;
+  leaderPts?: number;
+  totalTeams?: number;
+  homeAbovePts?: number;
+  homeBelowPts?: number;
+  awayAbovePts?: number;
+  awayBelowPts?: number;
   reason?: string;         // hasData=false ise neden
   summary: string;         // kart altındaki açıklama cümlesi
 };
@@ -154,7 +164,15 @@ const NO_DATA: Metrics = {
   summary: 'Analiz için sezon verisi henüz mevcut değil.',
 };
 
-function computeMetrics(home: Standing | null, away: Standing | null): Metrics {
+function getStandingNeighbors(standings: Standing[] | undefined, pos?: number) {
+  if (!standings || !pos) return { abovePts: undefined, belowPts: undefined };
+  return {
+    abovePts: standings.find(s => s.pos === pos - 1)?.pts,
+    belowPts: standings.find(s => s.pos === pos + 1)?.pts,
+  };
+}
+
+function computeMetrics(home: Standing | null, away: Standing | null, standings?: Standing[]): Metrics {
   if (!home || !away) return { ...NO_DATA, reason: 'Takım tablo satırı eşleşmedi' };
   if (home.played < MIN_PLAYED || away.played < MIN_PLAYED) {
     return {
@@ -181,6 +199,9 @@ function computeMetrics(home: Standing | null, away: Standing | null): Metrics {
   const tempo = (home.gf + home.ga + away.gf + away.ga) / (home.played + away.played);
 
   const round1 = (n: number) => Math.round(n * 10) / 10;
+  const leaderPts = standings?.reduce((max, s) => Math.max(max, s.pts), 0);
+  const homeNeighbors = getStandingNeighbors(standings, home.pos);
+  const awayNeighbors = getStandingNeighbors(standings, away.pos);
 
   return {
     hasData: true,
@@ -192,6 +213,16 @@ function computeMetrics(home: Standing | null, away: Standing | null): Metrics {
     tempo: round1(tempo),
     homePos: home.pos,
     awayPos: away.pos,
+    homePts: home.pts,
+    awayPts: away.pts,
+    homePlayed: home.played,
+    awayPlayed: away.played,
+    leaderPts,
+    totalTeams: standings?.length,
+    homeAbovePts: homeNeighbors.abovePts,
+    homeBelowPts: homeNeighbors.belowPts,
+    awayAbovePts: awayNeighbors.abovePts,
+    awayBelowPts: awayNeighbors.belowPts,
     summary: buildMatchSummary({ expectedGoals, favorite, confidence, tempo, homePpg, awayPpg }),
   };
 }
@@ -612,7 +643,7 @@ export default function HomeScreen() {
       const rows = standingsMap[m.leagueApiId];
       const home = findStanding(rows, m.home, m.homeTeamId);
       const away = findStanding(rows, m.away, m.awayTeamId);
-      map.set(m.id, computeMetrics(home, away));
+      map.set(m.id, computeMetrics(home, away, rows));
     }
     return map;
   }, [matches, standingsMap]);
@@ -743,7 +774,21 @@ export default function HomeScreen() {
     return items;
   }, [sortedMatches, metricsMap, activeFilter, selectedDate]);
 
-  function goToMatch(m: Match) {
+  function goToMatch(m: Match, metrics?: Metrics) {
+    const metricParams = {
+      homePos: metrics?.homePos != null ? String(metrics.homePos) : '',
+      awayPos: metrics?.awayPos != null ? String(metrics.awayPos) : '',
+      homePts: metrics?.homePts != null ? String(metrics.homePts) : '',
+      awayPts: metrics?.awayPts != null ? String(metrics.awayPts) : '',
+      homePlayed: metrics?.homePlayed != null ? String(metrics.homePlayed) : '',
+      awayPlayed: metrics?.awayPlayed != null ? String(metrics.awayPlayed) : '',
+      leaderPts: metrics?.leaderPts != null ? String(metrics.leaderPts) : '',
+      totalTeams: metrics?.totalTeams != null ? String(metrics.totalTeams) : '',
+      homeAbovePts: metrics?.homeAbovePts != null ? String(metrics.homeAbovePts) : '',
+      homeBelowPts: metrics?.homeBelowPts != null ? String(metrics.homeBelowPts) : '',
+      awayAbovePts: metrics?.awayAbovePts != null ? String(metrics.awayAbovePts) : '',
+      awayBelowPts: metrics?.awayBelowPts != null ? String(metrics.awayBelowPts) : '',
+    };
     if (m.leagueApiId === 203) {
       router.push({
         pathname: '/sl_match_detail' as any,
@@ -753,6 +798,7 @@ export default function HomeScreen() {
           homeTeamId: String(m.homeTeamId),
           awayTeamId: String(m.awayTeamId),
           time: m.time, score: m.score || '',
+          ...metricParams,
         },
       });
       return;
@@ -764,6 +810,7 @@ export default function HomeScreen() {
         leagueApiId: m.leagueApiId, city: m.city, utcDate: m.utcDate,
         homeTeamId: m.homeTeamId, awayTeamId: m.awayTeamId,
         live: '0', score: m.score || '', finished: m.finished ? '1' : '0',
+        ...metricParams,
       },
     });
   }
@@ -780,15 +827,15 @@ export default function HomeScreen() {
       case 'hero':
         return (
           <View style={{ paddingHorizontal: 14, marginBottom: 4 }}>
-            <HeroCard m={item.m!} metrics={item.metrics!} onPress={() => goToMatch(item.m!)} />
+            <HeroCard m={item.m!} metrics={item.metrics!} onPress={() => goToMatch(item.m!, item.metrics)} />
           </View>
         );
       case 'highlight':
-        return <HighlightCard m={item.m!} rank={item.rank!} metrics={item.metrics!} onPress={() => goToMatch(item.m!)} />;
+        return <HighlightCard m={item.m!} rank={item.rank!} metrics={item.metrics!} onPress={() => goToMatch(item.m!, item.metrics)} />;
       case 'day-summary':
         return <DaySummaryCard summary={item.summary!} />;
       case 'match':
-        return <MatchRow m={item.m!} metrics={item.metrics!} onPress={() => goToMatch(item.m!)} />;
+        return <MatchRow m={item.m!} metrics={item.metrics!} onPress={() => goToMatch(item.m!, item.metrics)} />;
       case 'empty':
         return <Text style={[styles.emptyText, { color: c.textMuted }]}>{matchListEmptyMessage(item.filter!)}</Text>;
       default:

@@ -193,7 +193,7 @@ function getLeagueCharacter(avgGoals: number, drawRate: number, isDark = false):
   } else if (avgGoals < 2.0 && drawRate >= 0.28) {
     label = 'Savunma & Sıkışık'; ({ color, bg } = cp('green', isDark));
     traits = ['Az gol, beraberlik eğilimi yüksek', 'Alt 2.5 çok sık', 'Favori avantajı sınırlı'];
-    rec  = 'Alt 2.5, çift şans (1X/X2) bahisleri değerli';
+    rec  = 'Alt 2.5 ve çift şans senaryoları veriyle uyumlu';
     ozet = 'Sıkı savunma anlayışı ve yüksek beraberlik oranıyla öne çıkan bir lig. Sürpriz sonuçlar sık yaşanıyor.';
   } else if (avgGoals < 2.0) {
     label = 'Savunma Ağırlıklı'; ({ color, bg } = cp('green', isDark));
@@ -539,7 +539,7 @@ export default function LeaguesScreen() {
                   <Text style={[styles.sectionLabel, { color: c.textMuted }]}>ÖNE ÇIKAN PROFİLLER</Text>
                   {([
                     mostGoals    ? { icon: '⚽', label: 'En Golcü',        team: mostGoals,    stat: (mostGoals.gf / Math.max(mostGoals.played, 1)).toFixed(1) + ' gol/maç',           insight: 'Over 2.5 eğilimi güçlü; rakip kale her an tehlikede.' }           : null,
-                    bestDef      ? { icon: '🛡️', label: 'En İyi Savunma', team: bestDef,      stat: (bestDef.ga  / Math.max(bestDef.played,   1)).toFixed(1) + ' yenilen/maç',        insight: 'Kale sıfır potansiyeli yüksek; alt bahisler için referans.' }        : null,
+                    bestDef      ? { icon: '🛡️', label: 'En İyi Savunma', team: bestDef,      stat: (bestDef.ga  / Math.max(bestDef.played,   1)).toFixed(1) + ' yenilen/maç',        insight: 'Kale sıfır potansiyeli yüksek; düşük skorlu senaryolar için referans.' }        : null,
                     mostTempo    ? { icon: '⚡', label: 'En Tempolu',       team: mostTempo,    stat: ((mostTempo.gf + mostTempo.ga) / Math.max(mostTempo.played, 1)).toFixed(1) + ' gol/maç', insight: 'Bu takımın maçları over eğilimi için en güçlü adaylar.' } : null,
                     bestWinRate  ? { icon: '📈', label: 'En Formda',        team: bestWinRate,  stat: Math.round(bestWinRate.win / Math.max(bestWinRate.played, 1) * 100) + '% galibiyet', insight: 'Tutarlı profil — tahmin edilebilir, güvenilir seçenek.' } : null,
                     surpriseTeam ? { icon: '🌀', label: 'Sürpriz',          team: surpriseTeam, stat: surpriseTeam.pos + '. sıra · ' + (surpriseTeam.gf / Math.max(surpriseTeam.played, 1)).toFixed(1) + ' gol/maç', insight: 'Sıralama beklenenden üst — dikkatle izlenmeyi hak ediyor.' } : null,
@@ -797,7 +797,7 @@ export default function LeaguesScreen() {
                         <Text style={[stStyles.insightText, { color: c.text }]}>
                           En golcü {attackTop[0].team}, maç başı {attackTop[0].gfPer.toFixed(1)} golle ligin hücum motorunu temsil ediyor.
                         </Text>
-                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Yüksek hücum gücü, over 2.5 ve KG-var bahislerinde güçlü bir ipucu sunar.</Text>
+                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Yüksek hücum gücü, 2.5 üst ve KG-var senaryolarında güçlü bir ipucu sunar.</Text>
                       </View>
                     )}
                     {attackTop.map((row, i) => {
@@ -826,7 +826,7 @@ export default function LeaguesScreen() {
                         <Text style={[stStyles.insightText, { color: c.text }]}>
                           {defTop[0].team} maç başı yalnızca {defTop[0].gaPer.toFixed(1)} gol yiyor — ligin en sağlam savunması.
                         </Text>
-                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Az gol yiyen takımlar, alt 2.5 ve kale sıfır bahislerinde güvenilir referans noktasıdır.</Text>
+                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Az gol yiyen takımlar, alt 2.5 ve kale sıfır senaryolarında güvenilir referans noktasıdır.</Text>
                       </View>
                     )}
                     {defTop.map((row, i) => {
@@ -886,7 +886,7 @@ export default function LeaguesScreen() {
                         <Text style={[stStyles.insightText, { color: c.text }]}>
                           {drawTop[0].team} bu sezon en sık beraberlik oynayan takım — {drawTop[0].draw} kez eşit bitti, sonuç belirsizliği yüksek.
                         </Text>
-                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Beraberlik eğilimi yüksek takımlar çift şans ve beraberlik bahislerinde değer yaratabilir.</Text>
+                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Beraberlik eğilimi yüksek takımlar sonuç belirsizliği ve çift ihtimal senaryolarında öne çıkar.</Text>
                       </View>
                     )}
                     {drawTop.map((row, i) => {

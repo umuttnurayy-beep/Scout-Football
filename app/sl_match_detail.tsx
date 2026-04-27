@@ -13,8 +13,10 @@ import {
   MatchFormStats,
   Stil,
   buildReasons,
+  getHomeAwayComment,
   getGuven,
-  getPersona,
+  getMotivationComment,
+  getPersonaEnriched,
   pickFrom,
   shiftLevel,
   strHash,
@@ -42,6 +44,8 @@ function buildMatchAnalysis(
   aSt: MatchFormStats,
   hFP: number, aFP: number,
   h2hCount: number, weatherRisk: boolean, hasFormData: boolean,
+  hTrend?: { direction: 'up' | 'down' | 'stable'; pts5: number; ptsPrev: number } | null,
+  aTrend?: { direction: 'up' | 'down' | 'stable'; pts5: number; ptsPrev: number } | null,
 ): MatchAnalysis {
   const hash = strHash(home + away);
   let stil:  Stil  = SL_BASE.stil;
@@ -78,11 +82,11 @@ function buildMatchAnalysis(
   }
 
   const guven   = hasFormData ? getGuven(hSt, aSt, h2hCount, weatherRisk) : 'Düşük';
-  const persona = getPersona(stil, gol, tempo, risk);
+  const persona = getPersonaEnriched(stil, gol, tempo, risk, hasFormData ? hSt : undefined, hasFormData ? aSt : undefined, hTrend, aTrend);
   const short   = pickFrom(SHORT_BANK[persona]  || SHORT_BANK.dengeli,  hash + 5);
   const medium  = pickFrom(MEDIUM_BANK[persona] || MEDIUM_BANK.dengeli, hash + 13);
   const reasons = hasFormData
-    ? buildReasons(home, away, hSt, aSt, hFP, aFP, h2hCount, hash + 17)
+    ? buildReasons(home, away, hSt, aSt, hFP, aFP, h2hCount, hash + 17, hTrend, aTrend, weatherRisk)
     : ['Veri henüz yüklenmedi; form verileri değerlendirmeye alınamadı.',
        'Lig profili baz alınarak tahmin üretildi.',
        'Sonuçlar genel eğilimi yansıtmakla birlikte maç bazlı doğrulanmadı.'];
@@ -179,8 +183,9 @@ function calcFormStatsSL(matches: any[], teamId: number) {
 }
 
 function calcFormPointsSL(matches: any[], teamId: number): number {
-  return matches
+  return [...matches]
     .filter((m: any) => !isNaN(parseInt(m.homeScore)))
+    .sort((a: any, b: any) => new Date(a.date || a.dateEvent || 0).getTime() - new Date(b.date || b.dateEvent || 0).getTime())
     .slice(-5)
     .reduce((pts: number, m: any) => {
       const isHome = m.homeTeamId === teamId;
@@ -226,6 +231,78 @@ function getH2HCommentSL(h2hData: any[], home: string, away: string): string {
   if (parseFloat(avgG)>=3.0) return `Geçmiş karşılaşmalar genellikle gollü geçmiş (ort. ${avgG} gol). Bu desen bu maç için de geçerli olabilir.`;
   if (parseFloat(avgG)<1.8)  return `Geçmiş karşılaşmalar genellikle az gollü geçmiş (ort. ${avgG} gol). Savunma öne çıkabilir.`;
   return `Geçmiş karşılaşmalar dengeli bir tablo çiziyor (${hw}G / ${d}B / ${aw}M, ort. ${avgG} gol).`;
+}
+
+function getFormTrendSL(
+  matches: any[],
+  teamId: number,
+): { direction: 'up' | 'down' | 'stable'; pts5: number; ptsPrev: number } | null {
+  const finished = [...matches.filter((m: any) => !isNaN(parseInt(m.homeScore)))]
+    .sort((a, b) => new Date(a.date || a.dateEvent || 0).getTime() - new Date(b.date || b.dateEvent || 0).getTime());
+  if (finished.length < 6) return null;
+
+  const recent5 = finished.slice(-5);
+  const prev5 = finished.slice(-10, -5);
+  const calcPts = (list: any[]) => list.reduce((pts: number, m: any) => {
+    const isHome = m.homeTeamId === teamId;
+    const gf = isHome ? parseInt(m.homeScore) : parseInt(m.awayScore);
+    const ga = isHome ? parseInt(m.awayScore) : parseInt(m.homeScore);
+    return pts + (gf > ga ? 3 : gf === ga ? 1 : 0);
+  }, 0);
+
+  const pts5 = calcPts(recent5);
+  const ptsPrev = prev5.length > 0 ? calcPts(prev5) : pts5;
+  const diff = pts5 - ptsPrev;
+  return { direction: diff >= 3 ? 'up' : diff <= -3 ? 'down' : 'stable', pts5, ptsPrev };
+}
+
+function getDeepH2HStatsSL(
+  h2hData: any[],
+  home: string,
+  away: string,
+): { over25Pct: number; bttsPct: number; trendDir: 'home' | 'away' | 'balanced'; deepComment: string } | null {
+  const valid = h2hData.filter((m: any) => !isNaN(parseInt(m.homeScore)) && !isNaN(parseInt(m.awayScore)));
+  if (valid.length < 3) return null;
+
+  let over25 = 0, btts = 0;
+  valid.forEach((m: any) => {
+    const fh = parseInt(m.homeScore), fa = parseInt(m.awayScore);
+    if (fh + fa > 2.5) over25++;
+    if (fh > 0 && fa > 0) btts++;
+  });
+
+  const over25Pct = Math.round((over25 / valid.length) * 100);
+  const bttsPct = Math.round((btts / valid.length) * 100);
+  const recent3 = [...valid]
+    .sort((a, b) => new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime())
+    .slice(-3);
+
+  let homeWins = 0, awayWins = 0;
+  recent3.forEach((m: any) => {
+    const fh = parseInt(m.homeScore), fa = parseInt(m.awayScore);
+    if (fh === fa) return;
+    const team1Won = m.team1Home ? fh > fa : fa > fh;
+    if (team1Won) homeWins++;
+    else awayWins++;
+  });
+
+  const trendDir: 'home' | 'away' | 'balanced' = homeWins >= 2 ? 'home' : awayWins >= 2 ? 'away' : 'balanced';
+  const trendText = trendDir === 'home'
+    ? `Son 3 H2H'de ${home} üstün.`
+    : trendDir === 'away'
+      ? `Son 3 H2H'de ${away} üstün.`
+      : 'Son 3 H2H dengeli geçmiş.';
+
+  const parts: string[] = [];
+  if (over25Pct >= 65) parts.push(`Geçmiş ${valid.length} maçın %${over25Pct}'i 2.5 üst bitti; bu eşleşmede gol eğilimi güçlü.`);
+  else if (over25Pct <= 35) parts.push(`Geçmiş ${valid.length} maçın yalnızca %${over25Pct}'i 2.5 üst bitti; tarihsel olarak daha kontrollü bir profil var.`);
+  else parts.push(`H2H 2.5 üst oranı %${over25Pct}; net üst/alt eğilimi yok.`);
+
+  if (bttsPct >= 65) parts.push(`KG Var oranı yüksek (%${bttsPct}); iki tarafın da gol bulduğu senaryo destekleniyor.`);
+  else if (bttsPct <= 30) parts.push(`KG Var oranı düşük (%${bttsPct}); taraflardan biri çoğu maçta skoru kapatmış.`);
+
+  parts.push(trendText);
+  return { over25Pct, bttsPct, trendDir, deepComment: parts.join(' ') };
 }
 
 function getCompareComment(
@@ -284,24 +361,13 @@ function getRefereeProfile(refName: string) {
   const faulLabel  = ['toleranslı','dengeli','titiz'][(hash>>2)%3];
   const akis       = (hash>>4)%2===0?'akıcı':'duraksatıcı';
   let narrative = '';
-  if (kartBase===0) narrative='Fiziksel temasa karşı toleranslı. Sınırda mücadeleler genellikle uyarı almadan geçer.';
-  else if (kartBase===2) narrative='Ligin fiziksel yapısına rağmen kurallara sıkı bağlı. Görece yüksek kart ortalaması bekleniyor.';
-  else narrative='Lig karakteriyle uyumlu dengeli yönetim. Aşırı faullere hızlı tepki veriyor.';
+  if (kartBase===0) narrative='Lig karakteri ve hakem ismine göre oluşturulan model profili daha toleranslı bir yönetime işaret ediyor; gerçek maç içi kararlar değişebilir.';
+  else if (kartBase===2) narrative='Model profili daha sıkı bir yönetim ihtimalini öne çıkarıyor; bu gerçek kart ortalaması değil, temkinli okunmalı.';
+  else narrative='Model profili dengeli yönetime işaret ediyor. Kart ve faul yorumu gerçek hakem istatistiği değil, yardımcı sinyal olarak okunmalı.';
   return { kart:kartLabels[kartBase], kartColor:kartColors[kartBase], kartEmoji:kartEmoji[kartBase], faul:faulLabel, akis, narrative };
 }
 
 // ── Event Parsing (TheSportsDB) ────────────────────────────────────────────
-
-function parseEvents(raw?: string | null): { minute: string; player: string }[] {
-  if (!raw) return [];
-  return raw
-    .split(';')
-    .map(s => {
-      const m = s.match(/(\d+[+]?\d*)':(.+)/);
-      return m ? { minute: m[1], player: m[2].trim() } : null;
-    })
-    .filter((x): x is { minute: string; player: string } => x !== null);
-}
 
 // ── Visual Components ──────────────────────────────────────────────────────
 
@@ -343,7 +409,10 @@ function RadarChart({ homeVals, awayVals, labels }: { homeVals: number[]; awayVa
 
 function FormHeatRowSL({ matches, teamId, label }: { matches: any[]; teamId: number; label: string }) {
   const { colors: fc } = useTheme();
-  const last5 = matches.filter((m: any) => !isNaN(parseInt(m.homeScore))).slice(-5);
+  const last5 = [...matches]
+    .filter((m: any) => !isNaN(parseInt(m.homeScore)))
+    .sort((a: any, b: any) => new Date(a.date || a.dateEvent || 0).getTime() - new Date(b.date || b.dateEvent || 0).getTime())
+    .slice(-5);
   if (last5.length === 0) return null;
   return (
     <View style={fStyles.row}>
@@ -410,6 +479,18 @@ export default function SLMatchDetail() {
   const away       = p('away');
   const homeTeamId = parseInt(p('homeTeamId') || '0');
   const awayTeamId = parseInt(p('awayTeamId') || '0');
+  const homePos    = parseInt(p('homePos') || '0') || undefined;
+  const awayPos    = parseInt(p('awayPos') || '0') || undefined;
+  const homePts    = parseInt(p('homePts') || '0') || undefined;
+  const awayPts    = parseInt(p('awayPts') || '0') || undefined;
+  const homePlayed = parseInt(p('homePlayed') || '0') || undefined;
+  const awayPlayed = parseInt(p('awayPlayed') || '0') || undefined;
+  const leaderPts  = parseInt(p('leaderPts') || '0') || undefined;
+  const totalTeams = parseInt(p('totalTeams') || '0') || undefined;
+  const homeAbovePts = parseInt(p('homeAbovePts') || '0') || undefined;
+  const homeBelowPts = parseInt(p('homeBelowPts') || '0') || undefined;
+  const awayAbovePts = parseInt(p('awayAbovePts') || '0') || undefined;
+  const awayBelowPts = parseInt(p('awayBelowPts') || '0') || undefined;
   const timeParam  = p('time');
   const scoreParam = p('score');
 
@@ -458,24 +539,6 @@ export default function SLMatchDetail() {
     ? new Date(event.dateEvent).toLocaleDateString('tr-TR', { day:'numeric', month:'long', year:'numeric' })
     : '';
 
-  // Events from TheSportsDB
-  const homeGoals   = parseEvents(event?.strHomeGoalDetails);
-  const awayGoals   = parseEvents(event?.strAwayGoalDetails);
-  const homeYellows = parseEvents(event?.strHomeYellowCards);
-  const awayYellows = parseEvents(event?.strAwayYellowCards);
-  const homeReds    = parseEvents(event?.strHomeRedCards);
-  const awayReds    = parseEvents(event?.strAwayRedCards);
-  const hasEvents   = homeGoals.length+awayGoals.length+homeYellows.length+awayYellows.length+homeReds.length+awayReds.length > 0;
-
-  const timeline = [
-    ...homeGoals.map(e => ({ ...e, team:'home' as const, type:'goal'   as const })),
-    ...awayGoals.map(e => ({ ...e, team:'away' as const, type:'goal'   as const })),
-    ...homeYellows.map(e => ({ ...e, team:'home' as const, type:'yellow' as const })),
-    ...awayYellows.map(e => ({ ...e, team:'away' as const, type:'yellow' as const })),
-    ...homeReds.map(e => ({ ...e, team:'home' as const, type:'red'    as const })),
-    ...awayReds.map(e => ({ ...e, team:'away' as const, type:'red'    as const })),
-  ].sort((a, b) => parseInt(a.minute) - parseInt(b.minute));
-
   const h2hData = h2hMatches;
 
   // Form stats
@@ -486,7 +549,9 @@ export default function SLMatchDetail() {
   const hasFormData = homeStats.total > 0 && awayStats.total > 0;
 
   const weatherRisk = !!weatherData && (weatherData.wind>35 || /rain|shower|drizzle/.test((weatherData.condition||'').toLowerCase()));
-  const analysis    = buildMatchAnalysis(home, away, homeStats, awayStats, homeFormPts, awayFormPts, h2hData.length, weatherRisk, hasFormData);
+  const homeTrend   = hasFormData ? getFormTrendSL(homeForm, homeTeamId) : null;
+  const awayTrend   = hasFormData ? getFormTrendSL(awayForm, awayTeamId) : null;
+  const analysis    = buildMatchAnalysis(home, away, homeStats, awayStats, homeFormPts, awayFormPts, h2hData.length, weatherRisk, hasFormData, homeTrend, awayTrend);
 
   const homeRadar = [
     Math.min(parseFloat(homeStats.totalAvgGf)/3, 1),
@@ -509,14 +574,20 @@ export default function SLMatchDetail() {
   const refProfile    = refName ? getRefereeProfile(refName) : null;
   const weatherCom    = getWeatherComment(weatherData);
   const riskWarns     = getRiskWarnings(homeStats, awayStats, h2hData.length, analysis);
-  const compareComment = hasFormData ? getCompareComment(homeStats, awayStats, home, away) : '';
-  const h2hComment     = getH2HCommentSL(h2hData, home, away);
+  const compareComment    = hasFormData ? getCompareComment(homeStats, awayStats, home, away) : '';
+  const h2hComment        = getH2HCommentSL(h2hData, home, away);
+  const homeAwayComment   = hasFormData ? getHomeAwayComment(homeStats, awayStats, home, away) : '';
+  const deepH2H           = getDeepH2HStatsSL(h2hData, home, away);
+  const motivationComment = getMotivationComment(homePos, awayPos, 203, {
+    homePts, awayPts, homePlayed, awayPlayed, leaderPts, totalTeams,
+    homeAbovePts, homeBelowPts, awayAbovePts, awayBelowPts,
+  });
 
-  if (loading) return <View style={styles.loaderContainer}><ActivityIndicator size="large" color={c.primary}/></View>;
+  if (loading) return <View style={[styles.loaderContainer, { backgroundColor: c.bg }]}><ActivityIndicator size="large" color={c.primary}/></View>;
 
-  const scoutCardBg    = isDark ? '#1E0F3D' : '#f4f0ff';
-  const scoutBorderCol = isDark ? '#2D1B5E' : '#ddd6ff';
-  const scoutPurple    = isDark ? '#A371F7' : '#5b2d8e';
+  const scoutCardBg    = isDark ? '#1A1228' : '#f4f0ff';
+  const scoutBorderCol = isDark ? '#2D2040' : '#ddd6ff';
+  const scoutPurple    = isDark ? '#C19BFF' : '#5b2d8e';
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
@@ -607,7 +678,7 @@ export default function SLMatchDetail() {
 
       {/* ── Hızlı Etiketler ── */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false}
-        style={[styles.tagsBar, { borderBottomColor: c.border }]} contentContainerStyle={styles.tagsBarContent}>
+        style={[styles.tagsBar, { borderBottomColor: c.border, backgroundColor: c.surface }]} contentContainerStyle={styles.tagsBarContent}>
         <TagPill type="stil"  value={analysis.stil}  label={`Stil: ${analysis.stil}`}/>
         <TagPill type="gol"   value={analysis.gol}   label={`Gol: ${analysis.gol}`}/>
         <TagPill type="tempo" value={analysis.tempo}  label={`Tempo: ${analysis.tempo}`}/>
@@ -619,48 +690,10 @@ export default function SLMatchDetail() {
       {/* ── Main Scroll ── */}
       <ScrollView style={styles.scroll}>
 
-        {/* Maç Olayları (TheSportsDB gol/kart detayları) */}
-        {isFinished && (
-          <>
-            <Text style={[styles.sectionLabel, { color: c.textMuted }]}>MAÇ OLAYLARI</Text>
-            {!hasEvents ? (
-              <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}><Text style={[styles.noDataText, { color: c.textSub }]}>Olay detayı bu maç için mevcut değil.</Text></View>
-            ) : (
-              <>
-                <View style={styles.statLegend}>
-                  <Text style={[styles.legendHome, { color: c.primary }]}>{home}</Text>
-                  <Text style={[styles.legendAway, { color: c.loss }]}>{away}</Text>
-                </View>
-                {timeline.map((ev, i) => {
-                  const isHome = ev.team === 'home';
-                  const icon = ev.type==='goal'?'⚽':ev.type==='yellow'?'🟨':'🟥';
-                  return (
-                    <View key={i} style={[styles.eventRow, isHome?styles.eventLeft:styles.eventRight]}>
-                      {isHome ? (
-                        <>
-                          <Text style={[styles.eventPlayer, { color: c.text }]} numberOfLines={1}>{ev.player}</Text>
-                          <Text style={[styles.eventMin, { color: c.textMuted }]}>{`${ev.minute}'`}</Text>
-                          <Text style={styles.eventIcon}>{icon}</Text>
-                        </>
-                      ) : (
-                        <>
-                          <Text style={styles.eventIcon}>{icon}</Text>
-                          <Text style={[styles.eventMin, { color: c.textMuted }]}>{`${ev.minute}'`}</Text>
-                          <Text style={[styles.eventPlayer, { color: c.text }, {textAlign:'right'}]} numberOfLines={1}>{ev.player}</Text>
-                        </>
-                      )}
-                    </View>
-                  );
-                })}
-              </>
-            )}
-          </>
-        )}
-
         {/* Performans Profili (Radar) */}
-        {hasFormData && (
+        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>PERFORMANS PROFİLİ</Text>
+        {hasFormData ? (
           <>
-            <Text style={[styles.sectionLabel, { color: c.textMuted }]}>PERFORMANS PROFİLİ</Text>
             <View style={styles.radarLegendRow}>
               <View style={[styles.radarDot,{backgroundColor:hLeadsRadar?NEON:c.primary}]}/>
               <Text style={[styles.radarLegendText,{ color: c.textSub },hLeadsRadar&&{color:NEON,fontWeight:'600'}]}>{home}</Text>
@@ -678,12 +711,16 @@ export default function SLMatchDetail() {
               </Text>
             </View>
           </>
+        ) : (
+          <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
+            <Text style={[styles.noDataText, { color: c.textSub }]}>Bu maç için performans verisi yüklenemedi.</Text>
+          </View>
         )}
 
         {/* Takım Karşılaştırması */}
-        {hasFormData && (
+        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>TAKIM KARŞILAŞTIRMASI</Text>
+        {hasFormData ? (
           <>
-            <Text style={[styles.sectionLabel, { color: c.textMuted }]}>TAKIM KARŞILAŞTIRMASI</Text>
             <View style={styles.compareHeader}>
               <Text style={[styles.compareTeam,{color:c.primary}]} numberOfLines={1}>{home}</Text>
               <View style={{width:100}}/>
@@ -695,8 +732,8 @@ export default function SLMatchDetail() {
             <CompareRow label="Son 5 (puan)"          homeVal={homeFormPts}                  awayVal={awayFormPts}/>
             <CompareRow label="2.5 Üst %"            homeVal={`${homeStats.over25Pct}%`}   awayVal={`${awayStats.over25Pct}%`}/>
             <CompareRow label="KG Var %"             homeVal={`${homeStats.kgVarPct}%`}    awayVal={`${awayStats.kgVarPct}%`}/>
-            <CompareRow label="İç Saha Galibiyet %"  homeVal={`${homeStats.homeWinPct}%`}  awayVal={`${awayStats.homeWinPct}%`}/>
-            <CompareRow label="Deplasman Galibiyet %" homeVal={`${homeStats.awayWinPct}%`} awayVal={`${awayStats.awayWinPct}%`}/>
+            <CompareRow label="İç Saha Galibiyet %"  homeVal={`${homeStats.homeWinPct}% (${homeStats.homePlayed})`}  awayVal={`${awayStats.homeWinPct}% (${awayStats.homePlayed})`}/>
+            <CompareRow label="Deplasman Galibiyet %" homeVal={`${homeStats.awayWinPct}% (${homeStats.awayPlayed})`} awayVal={`${awayStats.awayWinPct}% (${awayStats.awayPlayed})`}/>
             <View style={[styles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
               <Text style={[styles.insightText, { color: c.text }]}>{compareComment}</Text>
             </View>
@@ -705,11 +742,46 @@ export default function SLMatchDetail() {
             <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SON FORM  (İ = İç Saha · D = Deplasman)</Text>
             <FormHeatRowSL matches={homeForm} teamId={homeTeamId} label={home}/>
             <FormHeatRowSL matches={awayForm} teamId={awayTeamId}  label={away}/>
+            {(homeTrend || awayTrend) && (() => {
+              const trendIcon = (d: 'up'|'down'|'stable') => d === 'up' ? '▲' : d === 'down' ? '▼' : '—';
+              const trendColor = (d: 'up'|'down'|'stable') => d === 'up' ? (isDark ? '#3FB950' : '#27500A') : d === 'down' ? (isDark ? '#F85149' : '#A32D2D') : (isDark ? '#8B949E' : '#888');
+              return (
+                <View style={{flexDirection:'row',gap:8,paddingHorizontal:14,marginTop:8,marginBottom:2}}>
+                  {[{label:home,trend:homeTrend},{label:away,trend:awayTrend}].map(({label,trend},i)=>{
+                    if (!trend) return null;
+                    const col = trendColor(trend.direction);
+                    return (
+                      <View key={i} style={{flex:1,backgroundColor:c.surfaceAlt,borderRadius:8,padding:10,borderWidth:0.5,borderColor:c.border}}>
+                        <Text style={{fontSize:10,color:c.textMuted,marginBottom:3}} numberOfLines={1}>{label}</Text>
+                        <Text style={{fontSize:18,fontWeight:'700',color:col}}>{trendIcon(trend.direction)} {trend.direction==='up'?'Yükselişte':trend.direction==='down'?'Düşüşte':'Stabil'}</Text>
+                        <Text style={{fontSize:10,color:c.textFaint,marginTop:2}}>Son 5: {trend.pts5} puan · Önceki 5: {trend.ptsPrev} puan</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              );
+            })()}
           </>
+        ) : (
+          <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
+            <Text style={[styles.noDataText, { color: c.textSub }]}>Bu maç için karşılaştırma ve form verisi yüklenemedi.</Text>
+          </View>
+        )}
+
+        {/* İç Saha / Deplasman Analizi */}
+        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>İÇ SAHA / DEPLASMAN ANALİZİ</Text>
+        {hasFormData ? (
+          <View style={[styles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
+            <Text style={[styles.insightText, { color: c.text }]}>{homeAwayComment}</Text>
+          </View>
+        ) : (
+          <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
+            <Text style={[styles.noDataText, { color: c.textSub }]}>İç saha / deplasman verisi yüklenemedi.</Text>
+          </View>
         )}
 
         {/* Scout Tahmini */}
-        {hasFormData && (() => {
+        {hasFormData ? (() => {
           const rawH=(homeStats.homeWinPct*0.55+homeStats.totalWinPct*0.45)*0.85;
           const rawA=(awayStats.awayWinPct*0.55+awayStats.totalWinPct*0.45)*0.85;
           const rawD=Math.max(8,100-rawH-rawA), rawTot=rawH+rawD+rawA;
@@ -742,13 +814,20 @@ export default function SLMatchDetail() {
               </View>
             </>
           );
-        })()}
+        })() : (
+          <>
+            <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SCOUT TAHMİNİ</Text>
+            <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
+              <Text style={[styles.noDataText, { color: c.textSub }]}>Tahmin için yeterli form verisi bulunamadı.</Text>
+            </View>
+          </>
+        )}
 
         {/* Hava Etkisi */}
         <Text style={[styles.sectionLabel, { color: c.textMuted }]}>HAVA ETKİSİ</Text>
         {weatherData ? (
           <>
-            <View style={[styles.weatherCard, { backgroundColor: isDark ? '#0D1F3C' : '#f0f6ff' }]}>
+            <View style={[styles.weatherCard, { backgroundColor: isDark ? '#0A1929' : '#f0f6ff' }]}>
               <Text style={[styles.weatherCity, { color: c.textMuted }]}>{weatherData.city}</Text>
               <Text style={styles.weatherIcon}>{weatherData.temp>25?'☀️':weatherData.temp>15?'⛅':weatherData.temp>5?'🌥️':'❄️'}</Text>
               <Text style={[styles.weatherTemp, { color: c.text }]}>{weatherData.temp}°C</Text>
@@ -761,8 +840,8 @@ export default function SLMatchDetail() {
             <View style={{flexDirection:'row',gap:8,paddingHorizontal:14,marginBottom:6}}>
               {[
                 {icon:'🌧️',label:'Yağmur',level:/rain|shower|drizzle/.test((weatherData.condition||'').toLowerCase())?'orta':'yok',color:'#42A5F5'},
-                {icon:'💨',label:'Rüzgar',level:weatherData.wind>40?'yüksek':weatherData.wind>25?'orta':'düşük',color:weatherData.wind>40?'#E65100':weatherData.wind>25?'#FF8F00':c.textVeryFaint},
-                {icon:'🌡️',label:'Sıcaklık',level:weatherData.temp>28||weatherData.temp<5?'orta':'düşük',color:weatherData.temp>28||weatherData.temp<5?'#6A1B9A':c.textVeryFaint},
+                {icon:'💨',label:'Rüzgar',level:weatherData.wind>40?'yüksek':weatherData.wind>25?'orta':'düşük',color:weatherData.wind>40?'#E65100':weatherData.wind>25?'#FF8F00':c.textFaint},
+                {icon:'🌡️',label:'Sıcaklık',level:weatherData.temp>28||weatherData.temp<5?'orta':'düşük',color:weatherData.temp>28||weatherData.temp<5?'#6A1B9A':c.textFaint},
               ].map(item=>(
                 <View key={item.label} style={[styles.impactBadge,{ backgroundColor: c.surfaceAlt, borderColor:item.color}]}>
                   <Text style={styles.impactIcon}>{item.icon}</Text>
@@ -787,7 +866,7 @@ export default function SLMatchDetail() {
             <View style={[styles.refCard, { backgroundColor: c.surfaceAlt }]}>
               <Text style={styles.refIcon}>🧑‍⚖️</Text>
               <Text style={[styles.refName, { color: c.text }]}>{refName}</Text>
-              <Text style={[styles.refSub, { color: c.textMuted }]}>Süper Lig · Maç Hakemi</Text>
+              <Text style={[styles.refSub, { color: c.textMuted }]}>Süper Lig · Model hakem profili</Text>
             </View>
             <View style={{flexDirection:'row',gap:8,paddingHorizontal:14,marginBottom:6}}>
               <View style={[styles.refTagPill,{backgroundColor:refProfile.kartColor+'18',borderColor:refProfile.kartColor+'60'}]}>
@@ -813,6 +892,25 @@ export default function SLMatchDetail() {
         <View style={[styles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
           <Text style={[styles.insightText, { color: c.text }]}>{h2hComment}</Text>
         </View>
+        {deepH2H && (
+          <>
+            <View style={{flexDirection:'row',gap:8,paddingHorizontal:14,marginBottom:6}}>
+              {[
+                {label:'2.5 Üst',val:`%${deepH2H.over25Pct}`,color:deepH2H.over25Pct>=60?(isDark?'#F85149':'#A32D2D'):deepH2H.over25Pct<=35?(isDark?'#3FB950':'#27500A'):(isDark?'#E3B341':'#7A5700')},
+                {label:'KG Var',val:`%${deepH2H.bttsPct}`,color:deepH2H.bttsPct>=60?(isDark?'#F85149':'#A32D2D'):deepH2H.bttsPct<=30?(isDark?'#3FB950':'#27500A'):(isDark?'#E3B341':'#7A5700')},
+                {label:'Son Trend',val:deepH2H.trendDir==='home'?'🏠 Ev üstün':deepH2H.trendDir==='away'?'✈️ Dep. üstün':'⚖️ Dengeli',color:c.textSub},
+              ].map((item,i)=>(
+                <View key={i} style={{flex:1,backgroundColor:c.surfaceAlt,borderRadius:8,padding:9,alignItems:'center',borderWidth:0.5,borderColor:c.border}}>
+                  <Text style={{fontSize:10,color:c.textMuted,marginBottom:3}}>{item.label}</Text>
+                  <Text style={{fontSize:15,fontWeight:'700',color:item.color}} numberOfLines={1}>{item.val}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={[styles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
+              <Text style={[styles.insightText, { color: c.text }]}>{deepH2H.deepComment}</Text>
+            </View>
+          </>
+        )}
         {h2hData.length === 0 ? (
           <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}><Text style={[styles.noDataText, { color: c.textSub }]}>Geçmiş karşılaşma bulunamadı.</Text></View>
         ) : (
@@ -855,10 +953,22 @@ export default function SLMatchDetail() {
           </>
         )}
 
+        {/* Motivasyon Faktörü */}
+        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>MOTİVASYON FAKTÖRÜ</Text>
+        {motivationComment ? (
+          <View style={[styles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: isDark ? '#E3B341' : '#E6A817' }]}>
+            <Text style={[styles.insightText, { color: isDark ? '#E3B341' : '#7A5700', fontWeight:'600' }]}>🏆 {motivationComment}</Text>
+          </View>
+        ) : (
+          <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
+            <Text style={[styles.noDataText, { color: c.textSub }]}>Bu maçta belirgin bir motivasyon faktörü tespit edilmedi.</Text>
+          </View>
+        )}
+
         {/* Maç Karakteri Detayı */}
-        {hasFormData && hStyle && aStyle && (
+        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>MAÇ KARAKTERİ DETAYI</Text>
+        {hasFormData && hStyle && aStyle ? (
           <>
-            <Text style={[styles.sectionLabel, { color: c.textMuted }]}>MAÇ KARAKTERİ DETAYI</Text>
             <View style={{flexDirection:'row',gap:10,paddingHorizontal:14,marginBottom:10}}>
               {[{team:home,style:hStyle},{team:away,style:aStyle}].map(({team,style},i)=>(
                 <View key={i} style={[styles.styleBadge, { backgroundColor: c.surface, borderColor:style.color }]}>
@@ -872,6 +982,10 @@ export default function SLMatchDetail() {
               <Text style={[styles.insightText, { color: c.text }]}>{analysis.medium}</Text>
             </View>
           </>
+        ) : (
+          <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
+            <Text style={[styles.noDataText, { color: c.textSub }]}>Maç karakteri için yeterli form verisi bulunamadı.</Text>
+          </View>
         )}
 
         {/* Risk & Uyarı */}
@@ -944,13 +1058,6 @@ const styles = StyleSheet.create({
   statLegend:         { flexDirection:'row', justifyContent:'space-between', paddingHorizontal:14, marginBottom:4 },
   legendHome:         { fontSize:11, color:'#185FA5', fontWeight:'500' },
   legendAway:         { fontSize:11, color:'#A32D2D', fontWeight:'500' },
-  // Events
-  eventRow:           { flexDirection:'row', alignItems:'center', paddingHorizontal:14, paddingVertical:6, gap:6 },
-  eventLeft:          { justifyContent:'flex-start' },
-  eventRight:         { justifyContent:'flex-end' },
-  eventIcon:          { fontSize:16, width:22, textAlign:'center' },
-  eventMin:           { fontSize:12, color:'#888', width:34, textAlign:'center' },
-  eventPlayer:        { fontSize:13, color:'#1a1a2e', flex:1 },
   // Scout odds
   scoutOddsCard:      { marginHorizontal:14, marginBottom:4, borderRadius:12, borderWidth:1, borderColor:'#C8DAFF', backgroundColor:'#EBF3FF', overflow:'hidden' },
   scoutOddsHeader:    { flexDirection:'row', justifyContent:'space-between', alignItems:'center', paddingHorizontal:14, paddingTop:12, paddingBottom:8 },

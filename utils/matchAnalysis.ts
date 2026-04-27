@@ -9,6 +9,24 @@ export interface MatchFormStats {
   totalAvgGa: string | number;
   over25Pct: number;
   kgVarPct: number;
+  homeWinPct?: number;
+  awayWinPct?: number;
+  totalWinPct?: number;
+}
+
+export type FormTrend = { direction: 'up' | 'down' | 'stable'; pts5: number; ptsPrev: number };
+
+export interface MotivationContext {
+  homePts?: number;
+  awayPts?: number;
+  homePlayed?: number;
+  awayPlayed?: number;
+  leaderPts?: number;
+  totalTeams?: number;
+  homeAbovePts?: number;
+  homeBelowPts?: number;
+  awayAbovePts?: number;
+  awayBelowPts?: number;
 }
 
 export const ANALYSIS_DELTA = [0, 0, 1, -1, 0, 0, 1, -1, 0, 0, 0];
@@ -37,6 +55,37 @@ export function getPersona(stil: Stil, gol: Level, tempo: Level, risk: Level): s
   return 'dengeli';
 }
 
+// Persona enrichment with additional form-based signals
+export function getPersonaEnriched(
+  stil: Stil, gol: Level, tempo: Level, risk: Level,
+  hSt?: MatchFormStats,
+  aSt?: MatchFormStats,
+  hTrend?: FormTrend | null,
+  aTrend?: FormTrend | null,
+): string {
+  if (hSt && aSt) {
+    const hAtk = parseFloat(hSt.totalAvgGf as string);
+    const aAtk = parseFloat(aSt.totalAvgGf as string);
+    const hDef = parseFloat(hSt.totalAvgGa as string);
+    const aDef = parseFloat(aSt.totalAvgGa as string);
+    const hHomeWin = hSt.homeWinPct ?? 0;
+    const aAwayWin = aSt.awayWinPct ?? 0;
+    const hTrendMove = hTrend ? hTrend.pts5 - hTrend.ptsPrev : 0;
+    const aTrendMove = aTrend ? aTrend.pts5 - aTrend.ptsPrev : 0;
+    const hasFormTurn =
+      (hTrend?.direction === 'up' && aTrend?.direction === 'down') ||
+      (hTrend?.direction === 'down' && aTrend?.direction === 'up') ||
+      Math.abs(hTrendMove - aTrendMove) >= 5;
+
+    // Both teams attack and concede a lot — open goalfest
+    if (hAtk >= 1.8 && aAtk >= 1.8 && hDef >= 1.5 && aDef >= 1.5) return 'gol_savasi';
+    if (hasFormTurn) return 'form_donusu';
+    // Strong home fortress vs weak traveler
+    if (hHomeWin >= 65 && aAwayWin <= 28) return 'ev_kalesi';
+  }
+  return getPersona(stil, gol, tempo, risk);
+}
+
 export function getTagColor(type: string, value: string, isDark: boolean): { bg: string; text: string } {
   if (type === 'stil') {
     if (value === 'Hücumcu')   return { bg: isDark ? '#2C0A0A' : '#FDE8E8', text: isDark ? '#F85149' : '#A32D2D' };
@@ -54,6 +103,9 @@ export function buildReasons(
   aSt: MatchFormStats,
   hFP: number, aFP: number,
   h2hCount: number, hash: number,
+  hTrend?: FormTrend | null,
+  aTrend?: FormTrend | null,
+  weatherRisk = false,
 ): string[] {
   const hAtk = parseFloat(hSt.totalAvgGf as string);
   const aAtk = parseFloat(aSt.totalAvgGf as string);
@@ -62,38 +114,95 @@ export function buildReasons(
   const pool: string[] = [];
 
   if (Math.abs(hAtk - aAtk) < 0.25) {
-    pool.push(`İki takımın gol üretimi birbirine yakın (${hAtk} - ${aAtk} ort.).`);
+    pool.push('\u0130ki tak\u0131m\u0131n gol \u00fcretimi birbirine yak\u0131n (' + hAtk + ' - ' + aAtk + ' ort.).');
   } else {
     const lead = hAtk > aAtk ? home : away;
-    pool.push(`${lead} gol ortalamasında önde (${Math.max(hAtk,aAtk).toFixed(1)} vs ${Math.min(hAtk,aAtk).toFixed(1)}).`);
+    pool.push(lead + ' gol ortalamas\u0131nda \u00f6nde (' + Math.max(hAtk, aAtk).toFixed(1) + ' vs ' + Math.min(hAtk, aAtk).toFixed(1) + ').');
   }
   if (Math.abs(hDef - aDef) < 0.25) {
-    pool.push('Savunma istatistikleri birbirine yakın; belirgin savunma avantajı yok.');
+    pool.push('Savunma istatistikleri birbirine yak\u0131n; belirgin savunma avantaj\u0131 yok.');
   } else {
     const better = hDef < aDef ? home : away;
-    pool.push(`${better} savunmada daha sağlam (${Math.min(hDef,aDef).toFixed(1)} vs ${Math.max(hDef,aDef).toFixed(1)} yenilen ort.).`);
+    pool.push(better + ' savunmada daha sa\u011flam (' + Math.min(hDef, aDef).toFixed(1) + ' vs ' + Math.max(hDef, aDef).toFixed(1) + ' yenilen ort.).');
   }
   if (Math.abs(hFP - aFP) <= 2) {
-    pool.push(`Son 5 maç form dengesi yakın (${hFP} - ${aFP} puan).`);
+    pool.push('Son 5 ma\u00e7 form dengesi yak\u0131n (' + hFP + ' - ' + aFP + ' puan).');
   } else {
     const fLead = hFP > aFP ? home : away;
-    pool.push(`${fLead} son 5 maçta daha istikrarlı (${Math.max(hFP,aFP)} puan vs ${Math.min(hFP,aFP)}).`);
+    pool.push(fLead + ' son 5 ma\u00e7ta daha istikrarl\u0131 (' + Math.max(hFP, aFP) + ' puan vs ' + Math.min(hFP, aFP) + ').');
   }
   if (h2hCount >= MIN_H2H) {
-    pool.push(`H2H geçmişi ${h2hCount} maçlık veri sunuyor; tarihsel kalıplar da değerlendirildi.`);
+    pool.push('H2H ge\u00e7mi\u015fi ' + h2hCount + ' ma\u00e7l\u0131k veri sunuyor; tarihsel kal\u0131plar da de\u011ferlendirildi.');
   } else {
-    pool.push('Doğrudan karşılaşma verisi sınırlı; sezon istatistikleri öne alındı.');
+    pool.push('Do\u011frudan kar\u015f\u0131la\u015fma verisi s\u0131n\u0131rl\u0131; sezon istatistikleri \u00f6ne al\u0131nd\u0131.');
   }
+
   const avgOver = (hSt.over25Pct + aSt.over25Pct) / 2;
-  const avgKg   = (hSt.kgVarPct  + aSt.kgVarPct)  / 2;
-  if (avgOver >= 60) pool.push(`2.5 üst trendi tutarlı (ort. %${Math.round(avgOver)}).`);
-  else if (avgOver <= 35) pool.push(`Alt trendi belirgin (2.5 üst ort. %${Math.round(avgOver)}).`);
-  else if (avgKg >= 58)  pool.push(`KG Var eğilimi öne çıkıyor (ort. %${Math.round(avgKg)}).`);
-  else pool.push('Over/BTTS istatistikleri dengede; her iki senaryo geçerli.');
+  const avgKg = (hSt.kgVarPct + aSt.kgVarPct) / 2;
+  if (avgOver >= 60) pool.push('2.5 \u00fcst trendi tutarl\u0131 (ort. %' + Math.round(avgOver) + ').');
+  else if (avgOver <= 35) pool.push('Alt trendi belirgin (2.5 \u00fcst ort. %' + Math.round(avgOver) + ').');
+  else if (avgKg >= 58) pool.push('KG Var e\u011filimi \u00f6ne \u00e7\u0131k\u0131yor (ort. %' + Math.round(avgKg) + ').');
+  else pool.push('Over/BTTS istatistikleri dengede; her iki senaryo ge\u00e7erli.');
+
+  const hHomeWin = hSt.homeWinPct ?? 0;
+  const aAwayWin = aSt.awayWinPct ?? 0;
+  const hHomePlayed = (hSt as any).homePlayed ?? 0;
+  const aAwayPlayed = (aSt as any).awayPlayed ?? 0;
+  if (hHomeWin >= 60) pool.push(home + ' kendi sahas\u0131nda g\u00fc\u00e7l\u00fc (%' + hHomeWin + ' i\u00e7 saha galibiyet, ' + (hHomePlayed || '?') + ' ma\u00e7).');
+  if (aAwayWin >= 50) pool.push(away + ' deplasmanlar\u0131n\u0131 iyi y\u00f6netiyor (%' + aAwayWin + ' deplasman galibiyet, ' + (aAwayPlayed || '?') + ' ma\u00e7).');
+
+  const advanced: string[] = [];
+  const totalSample = Math.min(hSt.total, aSt.total);
+  if (totalSample < 6) {
+    advanced.push('\u00d6rneklem s\u0131n\u0131rl\u0131 (' + home + ': ' + hSt.total + ', ' + away + ': ' + aSt.total + ' ma\u00e7); y\u00fczdeler tek ba\u015f\u0131na g\u00fc\u00e7l\u00fc sinyal say\u0131lmamal\u0131.');
+  } else if ((hHomeWin >= 80 && hHomePlayed > 0 && hHomePlayed < 4) || (aAwayWin >= 80 && aAwayPlayed > 0 && aAwayPlayed < 4)) {
+    advanced.push('\u0130\u00e7 saha/deplasman y\u00fczdesi y\u00fcksek g\u00f6r\u00fcnse de ma\u00e7 say\u0131s\u0131 d\u00fc\u015f\u00fck; bu veri form sinyali olarak temkinli okunmal\u0131.');
+  } else {
+    advanced.push('Form \u00f6rneklemi yeterli seviyede (' + home + ': ' + hSt.total + ', ' + away + ': ' + aSt.total + ' ma\u00e7); oranlar daha sa\u011fl\u0131kl\u0131 okunabilir.');
+  }
+
+  if (hTrend && aTrend) {
+    const hMove = hTrend.pts5 - hTrend.ptsPrev;
+    const aMove = aTrend.pts5 - aTrend.ptsPrev;
+    if (Math.abs(hMove - aMove) >= 5) {
+      const lead = hMove > aMove ? home : away;
+      advanced.push(lead + ' momentum taraf\u0131nda ayr\u0131\u015f\u0131yor; son 5 / \u00f6nceki 5 fark\u0131 ma\u00e7\u0131n g\u00fcncel form okumas\u0131n\u0131 de\u011fi\u015ftiriyor.');
+    } else if (hTrend.direction !== 'stable' || aTrend.direction !== 'stable') {
+      advanced.push('Form trendi dengeli de\u011fil: ' + home + ' ' + hTrend.pts5 + '-' + hTrend.ptsPrev + ', ' + away + ' ' + aTrend.pts5 + '-' + aTrend.ptsPrev + ' puan \u00e7izgisinde.');
+    }
+  }
+
+  if (hAtk >= 1.6 && aDef >= 1.4) {
+    advanced.push(home + ' h\u00fccum \u00fcretimi ile ' + away + ' savunma k\u0131r\u0131lganl\u0131\u011f\u0131 ayn\u0131 y\u00f6ne i\u015faret ediyor; ev sahibi bask\u0131s\u0131 veriyle destekleniyor.');
+  } else if (aAtk >= 1.6 && hDef >= 1.4) {
+    advanced.push(away + ' h\u00fccum \u00fcretimi ile ' + home + ' savunma k\u0131r\u0131lganl\u0131\u011f\u0131 e\u015fle\u015fiyor; deplasman gol tehdidi g\u00f6z ard\u0131 edilmemeli.');
+  } else if (hDef <= 1.0 && aAtk <= 1.2) {
+    advanced.push(home + ' savunmas\u0131 ile ' + away + ' h\u00fccum \u00fcretimi aras\u0131ndaki e\u015fle\u015fme daha kontroll\u00fc bir deplasman performans\u0131na i\u015faret ediyor.');
+  } else if (aDef <= 1.0 && hAtk <= 1.2) {
+    advanced.push(away + ' savunmas\u0131 ile ' + home + ' h\u00fccum \u00fcretimi aras\u0131ndaki e\u015fle\u015fme ev sahibi \u00fcretimini s\u0131n\u0131rlayabilir.');
+  }
+
+  if (avgOver >= 60 && avgKg <= 45) {
+    advanced.push('Gol trendi y\u00fcksek olsa da KG Var taraf\u0131 ayn\u0131 g\u00fc\u00e7te destek vermiyor; skor tek tarafl\u0131 a\u00e7\u0131lma senaryosu da masada.');
+  } else if (avgOver <= 40 && avgKg >= 58) {
+    advanced.push('2.5 \u00fcst d\u00fc\u015f\u00fck kal\u0131rken KG Var e\u011filimi canl\u0131; 1-1 gibi dar skorlu senaryolar veriyle uyumlu.');
+  } else if (avgOver >= 60 && Math.abs(hFP - aFP) <= 2) {
+    advanced.push('Gol beklentisi g\u00fc\u00e7l\u00fc, fakat son form dengesi yak\u0131n; taraf se\u00e7imi yerine ma\u00e7 temposu daha g\u00fcvenilir sinyal veriyor.');
+  }
+
+  if (Math.abs(hFP - aFP) <= 2 && Math.abs(hAtk - aAtk) < 0.3 && Math.abs(hDef - aDef) < 0.3) {
+    advanced.push('Riskin ana nedeni iki tak\u0131m\u0131n form, h\u00fccum ve savunma \u00e7izgisinin birbirine yak\u0131n olmas\u0131; net taraf yorumu zay\u0131fl\u0131yor.');
+  } else if (weatherRisk) {
+    advanced.push('Hava ko\u015fulu riski model g\u00fcvenini d\u00fc\u015f\u00fcr\u00fcyor; pas kalitesi ve oyun ritmi form verisinden sapabilir.');
+  } else if (h2hCount < MIN_H2H) {
+    advanced.push('H2H verisi az oldu\u011fu i\u00e7in tarihsel e\u015fle\u015fme yerine sezon/form metrikleri daha bask\u0131n kullan\u0131ld\u0131.');
+  }
 
   const offset = hash % pool.length;
-  return [0, 1, 2].map(i => pool[(offset + i) % pool.length]);
+  const selected = [0, 1, 2].map(i => pool[(offset + i) % pool.length]);
+  return [...selected, ...advanced].slice(0, 8);
 }
+
 
 export function getGuven(
   hSt: MatchFormStats,
@@ -129,4 +238,282 @@ export function getWeatherComment(weatherData: any): { impact: Level; sentence: 
     impact: 'Düşük',
     sentence: 'Hava koşulları futbol için uygun; maç karakterini belirleyecek ana unsur takım formu olacak.',
   };
+}
+
+// ── New helper functions ────────────────────────────────────────────────────
+
+// Home / Away split narrative
+export function getHomeAwayComment(
+  hSt: MatchFormStats,
+  aSt: MatchFormStats,
+  home: string,
+  away: string,
+): string {
+  const hHomeWin = hSt.homeWinPct ?? 0;
+  const aAwayWin = aSt.awayWinPct ?? 0;
+  const hTotal   = hSt.totalWinPct ?? 0;
+  const homeAdv  = hHomeWin - hTotal;
+
+  if (hHomeWin >= 65 && aAwayWin <= 28) {
+    return `${home} kendi sahasında son derece güçlü (%${hHomeWin} iç saha galibiyet); ${away} ise deplasmanlarını zorlu geçiriyor (%${aAwayWin}). İç saha avantajı bu maçta belirleyici rol üstlenebilir.`;
+  }
+  if (hHomeWin >= 65) {
+    return `${home} iç sahada belirgin üstünlük sağlıyor (%${hHomeWin} galibiyet). Kendi tribününde oynamak onlar için ciddi bir güç kaynağı.`;
+  }
+  if (homeAdv >= 20) {
+    return `${home} genel ortalamaya (%${hTotal}) kıyasla iç sahada çok daha başarılı (%${hHomeWin}). Seyirci desteği performansı belirgin şekilde yukarı çekiyor.`;
+  }
+  if (aAwayWin >= 50) {
+    return `${away} deplasmanlarını güçlü yönetiyor (%${aAwayWin} galibiyet). Deplasman baskısını nötralize edebilecek kapasitede.`;
+  }
+  if (hHomeWin <= 30 && aAwayWin <= 30) {
+    return 'Her iki takım da ev/deplasman ayrımı gözetmeksizin düşük kazanma oranlarına sahip; iç saha avantajı bu maçta belirleyici olmayabilir.';
+  }
+  return `İç saha / deplasman performansları dengeli: ${home} %${hHomeWin} iç saha, ${away} %${aAwayWin} deplasman galibiyet oranıyla geliyor.`;
+}
+
+// Form trend: last 5 vs prior 5 matches
+export function getFormTrend(
+  matches: any[],
+  teamId: number,
+): FormTrend | null {
+  const finished = [...matches.filter((m: any) => m.score?.fullTime?.home != null)].sort(
+    (a, b) => new Date(a.utcDate ?? 0).getTime() - new Date(b.utcDate ?? 0).getTime(),
+  );
+  if (finished.length < 6) return null;
+
+  const recent5  = finished.slice(-5);
+  const prev5    = finished.slice(-10, -5);
+
+  const calcPts = (ms: any[]) => ms.reduce((pts: number, m: any) => {
+    const isHome = m.homeTeam?.id === teamId;
+    const gf = isHome ? m.score.fullTime.home : m.score.fullTime.away;
+    const ga = isHome ? m.score.fullTime.away : m.score.fullTime.home;
+    return pts + (gf > ga ? 3 : gf === ga ? 1 : 0);
+  }, 0);
+
+  const pts5    = calcPts(recent5);
+  const ptsPrev = prev5.length > 0 ? calcPts(prev5) : pts5;
+  const diff    = pts5 - ptsPrev;
+
+  return {
+    direction: diff >= 3 ? 'up' : diff <= -3 ? 'down' : 'stable',
+    pts5,
+    ptsPrev,
+  };
+}
+
+function getSeasonTotalMatches(totalTeams?: number, leagueApiId?: number): number | null {
+  if (leagueApiId === 2001) return 8;
+  if (!totalTeams || totalTeams < 4) return null;
+  return (totalTeams - 1) * 2;
+}
+
+function getRemainingMatches(played?: number, totalTeams?: number, leagueApiId?: number): number | null {
+  const total = getSeasonTotalMatches(totalTeams, leagueApiId);
+  if (total == null || played == null) return null;
+  return Math.max(0, total - played);
+}
+
+function canReachTarget(pts?: number, played?: number, targetPts?: number, totalTeams?: number, leagueApiId?: number): boolean {
+  if (pts == null || played == null || targetPts == null) return true;
+  const remaining = getRemainingMatches(played, totalTeams, leagueApiId);
+  if (remaining == null) return true;
+  return pts + remaining * 3 >= targetPts;
+}
+
+function hasMeaningfulGap(
+  pts?: number,
+  played?: number,
+  abovePts?: number,
+  belowPts?: number,
+  totalTeams?: number,
+  leagueApiId?: number,
+): boolean {
+  if (pts == null || played == null) return false;
+  const remaining = getRemainingMatches(played, totalTeams, leagueApiId);
+  if (remaining == null || remaining > 3) return false;
+  const maxGain = remaining * 3;
+  const cannotClimb = abovePts != null && pts + maxGain < abovePts;
+  const cannotFall = belowPts != null && belowPts + maxGain < pts;
+  return cannotClimb && cannotFall;
+}
+
+// Motivation commentary based on standings position and reachable targets.
+export function getMotivationComment(
+  homePos?: number,
+  awayPos?: number,
+  leagueApiId?: number,
+  context: MotivationContext = {},
+): string | null {
+  if (!homePos || !awayPos) return null;
+  const isUcl = leagueApiId === 2001;
+  const {
+    homePts, awayPts, homePlayed, awayPlayed, leaderPts, totalTeams,
+    homeAbovePts, homeBelowPts, awayAbovePts, awayBelowPts,
+  } = context;
+  const homeCanCatchLeader = homePos === 1 || canReachTarget(homePts, homePlayed, leaderPts, totalTeams, leagueApiId);
+  const awayCanCatchLeader = awayPos === 1 || canReachTarget(awayPts, awayPlayed, leaderPts, totalTeams, leagueApiId);
+  const homeSettled = hasMeaningfulGap(homePts, homePlayed, homeAbovePts, homeBelowPts, totalTeams, leagueApiId);
+  const awaySettled = hasMeaningfulGap(awayPts, awayPlayed, awayAbovePts, awayBelowPts, totalTeams, leagueApiId);
+  const bottomStart = totalTeams && totalTeams >= 18 ? totalTeams - 3 : 17;
+
+  if (isUcl) {
+    if (homePos <= 8 && awayPos <= 8) {
+      return 'İki takım da UCL lig aşamasında ilk 8 hattında (' + homePos + '. vs ' + awayPos + '.). Direkt tur avantajı için puanlar değerli; tempo artabilir.';
+    }
+    if (homePos <= 8 || awayPos <= 8) {
+      const side = homePos <= 8 ? 'Ev sahibi' : 'Deplasman takımı';
+      const pos = homePos <= 8 ? homePos : awayPos;
+      return side + " UCL'de ilk 8 hattında (" + pos + '). Direkt üst tur avantajını koruma motivasyonu öne çıkıyor.';
+    }
+    if (homePos >= 9 && homePos <= 24 && awayPos >= 9 && awayPos <= 24) {
+      return 'İki takım da UCL play-off hattında (' + homePos + '. vs ' + awayPos + '.). Sıralama avantajı ve eşleşme kalitesi için her puan değerli.';
+    }
+    if (homePos > 24 || awayPos > 24) {
+      const side = homePos > 24 ? 'Ev sahibi' : 'Deplasman takımı';
+      const pos = homePos > 24 ? homePos : awayPos;
+      return side + " UCL'de eleme hattının dışında (" + pos + '). Puan ihtiyacı motivasyonu belirgin biçimde artırıyor.';
+    }
+  }
+
+  if (homePos <= 3 && awayPos <= 3) {
+    if (homeCanCatchLeader || awayCanCatchLeader) {
+      return 'İki takım da puan tablosunun zirvesinde (' + homePos + '. vs ' + awayPos + '). Liderlik/şampiyonluk hattı matematiksel olarak açıksa bu puanlar sezonun üst sırasını doğrudan etkileyebilir.';
+    }
+    return 'İki takım da üst sırada (' + homePos + '. vs ' + awayPos + '), ancak liderlik hedefi matematiksel olarak sınırlı görünüyor. Motivasyon daha çok sıralamayı koruma ve prestij tarafında.';
+  }
+  if (homePos <= 2) {
+    if (homeCanCatchLeader) {
+      return 'Ev sahibi lider grupta (' + homePos + '). Liderlik/şampiyonluk hedefi matematiksel olarak açıksa bu puan sezonun üst hattını şekillendirebilir.';
+    }
+    return 'Ev sahibi ' + homePos + '. sırada; lideri yakalama alanı sınırlı görünüyor. Motivasyon daha çok konumunu koruma ve sezonu güçlü bitirme tarafında.';
+  }
+  if (awayPos <= 2) {
+    if (awayCanCatchLeader) {
+      return 'Deplasman takımı lider grupta (' + awayPos + '). Liderlik/şampiyonluk hedefi matematiksel olarak açıksa puan ihtiyacı oyun planını daha atak hale getirebilir.';
+    }
+    return 'Deplasman takımı ' + awayPos + '. sırada; lideri yakalama alanı sınırlı görünüyor. Bu nedenle motivasyon daha çok mevcut konumu koruma ve prestij tarafında.';
+  }
+  if (homePos >= bottomStart && awayPos >= bottomStart) {
+    return 'Her iki takım da alt sıra baskısında (' + homePos + '. vs ' + awayPos + '). Bu tür maçlarda stres ve hata olasılığı artabilir.';
+  }
+  if (homePos >= bottomStart) {
+    return 'Ev sahibi alt sıra baskısında (' + homePos + '). Kendi sahasındaki puan ihtiyacı oyun planını daha cesur hale getirebilir.';
+  }
+  if (awayPos >= bottomStart) {
+    return 'Deplasman takımı alt sıra baskısıyla geliyor (' + awayPos + '). Puan ihtiyacı beklenmedik sonuç ihtimalini artırabilir.';
+  }
+  if (homeSettled && awaySettled) {
+    return 'Puan tablosunda iki tarafın da yakın hedef alanı daralmış görünüyor. Motivasyon daha çok prestij, rotasyon ve sezonu iyi bitirme üzerinden okunmalı.';
+  }
+  if (homePos >= 4 && homePos <= 7 && awayPos >= 4 && awayPos <= 7) {
+    return 'İki takım da Avrupa kupası sınırında yarışıyor (' + homePos + '. vs ' + awayPos + '). Bu eşleşme sezon sonu tablosunu doğrudan etkileyebilir.';
+  }
+  if (homePos >= 4 && homePos <= 7) {
+    return 'Ev sahibi Avrupa kupası sınırında (' + homePos + '). Bu puan sezon sonu hedeflerini belirleyebilir.';
+  }
+  if (awayPos >= 4 && awayPos <= 7) {
+    return 'Deplasman takımı Avrupa kupası için mücadele ediyor (' + awayPos + '). Sonuç odaklı, kompakt bir oyun planı öne çıkabilir.';
+  }
+  return null;
+}
+
+// Deep H2H analysis — over2.5%, BTTS%, recent trend, streak
+export function getDeepH2HStats(
+  h2hData: any[],
+  home: string,
+  away: string,
+  homeTeamId?: number,
+): { over25Pct: number; bttsPct: number; trendDir: 'home' | 'away' | 'balanced'; recentTrend: string; deepComment: string } | null {
+  const valid = h2hData.filter(
+    (m: any) => m.score?.fullTime?.home != null && m.score?.fullTime?.away != null,
+  );
+  if (valid.length < 3) return null;
+
+  let over25 = 0, btts = 0;
+  valid.forEach((m: any) => {
+    const fh = m.score.fullTime.home, fa = m.score.fullTime.away;
+    if (fh + fa > 2.5) over25++;
+    if (fh > 0 && fa > 0) btts++;
+  });
+
+  const over25Pct = Math.round((over25 / valid.length) * 100);
+  const bttsPct   = Math.round((btts  / valid.length) * 100);
+
+  // Sort ascending by date so slice(-3) always gives the 3 most recent matches
+  // (football-data.org head2head may return newest-first)
+  const sorted = [...valid].sort(
+    (a, b) => new Date(a.utcDate ?? 0).getTime() - new Date(b.utcDate ?? 0).getTime(),
+  );
+  const recent3 = sorted.slice(-3);
+  let rHw = 0, rAw = 0;
+  recent3.forEach((m: any) => {
+    const fh = m.score.fullTime.home, fa = m.score.fullTime.away;
+    // homeTeamId > 0 guard: id=0 would never match any real team
+    const h2hHomeName = m.homeTeam?.name ?? '';
+    const isHomeTeam = (homeTeamId != null && homeTeamId > 0)
+      ? m.homeTeam?.id === homeTeamId
+      : (m.homeTeam?.shortName === home || (h2hHomeName.length > 0 && (h2hHomeName.includes(home) || home.includes(h2hHomeName))));
+    if (fh > fa) { isHomeTeam ? rHw++ : rAw++; }
+    else if (fa > fh) { isHomeTeam ? rAw++ : rHw++; }
+  });
+
+  const trendDir: 'home' | 'away' | 'balanced' = rHw >= 2 ? 'home' : rAw >= 2 ? 'away' : 'balanced';
+  let recentTrend: string;
+  if (rHw >= 2) recentTrend = `Son 3 H2H'de ${home} üstün`;
+  else if (rAw >= 2) recentTrend = `Son 3 H2H'de ${away} üstün`;
+  else recentTrend = 'Son 3 H2H dengeli geçmiş';
+
+  // Compose deep comment
+  const parts: string[] = [];
+
+  if (over25Pct >= 65) {
+    parts.push(`Geçmiş ${valid.length} karşılaşmanın %${over25Pct}'i 2.5 üst bitti — tarihsel gol eğilimi güçlü.`);
+  } else if (over25Pct <= 35) {
+    parts.push(`Geçmiş ${valid.length} maçın yalnızca %${over25Pct}'i 2.5 üst bitti — alt senaryo tarihsel destek buluyor.`);
+  } else {
+    parts.push(`H2H'de 2.5 üst oranı %${over25Pct} — ne net üst ne de alt eğilimi var.`);
+  }
+
+  if (bttsPct >= 65) {
+    parts.push(`KG Var oranı yüksek (%${bttsPct}) — iki takımın da kalesine gol bulmak tarihsel olarak mümkün.`);
+  } else if (bttsPct <= 30) {
+    parts.push(`KG Var nadir (%${bttsPct}) — takımlardan biri çoğunlukla kalesini gole kapatmış.`);
+  }
+
+  parts.push(recentTrend + '.');
+
+  return { over25Pct, bttsPct, trendDir, recentTrend, deepComment: parts.join(' ') };
+}
+
+// Draw odds analysis
+export function getDrawAnalysis(
+  oddsData: any,
+  hSt: MatchFormStats,
+  aSt: MatchFormStats,
+): string {
+  if (!oddsData) return '';
+  const dO = parseFloat(oddsData.draw) || 0;
+  if (!dO) return '';
+  const hO = parseFloat(oddsData.home) || 0;
+  const aO = parseFloat(oddsData.away) || 0;
+
+  const avgOver = (hSt.over25Pct + aSt.over25Pct) / 2;
+  const avgKg   = (hSt.kgVarPct  + aSt.kgVarPct)  / 2;
+  const impliedDraw = hO && aO
+    ? Math.round((1 / dO) / ((1 / hO) + (1 / dO) + (1 / aO)) * 100)
+    : Math.round((1 / dO) * 100);
+  const probabilityLabel = hO && aO ? 'normalize piyasa payı' : 'ham piyasa ihtimali';
+
+  if (dO <= 2.8 && avgOver <= 45) {
+    return 'Piyasa beraberliği güçlü ihtimal olarak görüyor (' + dO + '; ' + probabilityLabel + ' %' + impliedDraw + '). Düşük gol eğilimi bu senaryoyu destekliyor.';
+  }
+  if (dO <= 2.8 && avgOver >= 60) {
+    return 'Piyasa beraberliğine %' + impliedDraw + ' pay verirken, iki takımın yüksek gol ortalaması maçın açılma ihtimalini de canlı tutuyor.';
+  }
+  if (dO >= 3.5 && avgKg >= 55) {
+    return 'Piyasa beraberliği uzak ihtimal sayıyor (' + dO + '). KG Var eğilimi de skor hareketi beklentisini güçlendiriyor.';
+  }
+  return 'Beraberlik oranı ' + dO + ' - ' + probabilityLabel + ' %' + impliedDraw + '. Dengeli bir karşılaşma sinyali.';
 }

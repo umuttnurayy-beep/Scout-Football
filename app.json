@@ -11,14 +11,12 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.umutnuray.scoutfootball",
-      "buildNumber": "1",
       "config": {
         "usesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.umutnuray.scoutfootball",
-      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#0D1117",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

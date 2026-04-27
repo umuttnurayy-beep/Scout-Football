@@ -134,7 +134,7 @@ TheSportsDB takım ID'leri frontend'de hard-coded (bkz. `profile.tsx` → `LEAGU
 |---|---|---|
 | League standings | `GET /superlig/standings` | Puan tablosu |
 | League events (by date) | `GET /superlig/matches?date=YYYY-MM-DD` | Tarihe göre maç listesi |
-| Team last events | `GET /superlig/team-form/:teamId` | Takımın son maçları (form hesabı için) |
+| Team season events | `GET /superlig/team-form/:teamId` | Takımın mevcut sezon maçları (form + iç/dış saha hesabı için) |
 | Team players | `GET /superlig/players/:teamId` | Takım kadrosu |
 | League scorers | `GET /superlig/scorers` | Gol krallığı (lig geneli) |
 
@@ -198,7 +198,7 @@ Bahis oranları için. `match_detail.tsx` içindeki `getOddsComment()` yorumu bu
 | GET | `/match/:matchId` | Maç detay | `match_{id}` |
 | GET | `/h2h/:matchId` | H2H geçmişi | `h2h_{id}` |
 | GET | `/team/:teamId` | Takım + kadro | `team_{id}` |
-| GET | `/team/:teamId/matches` | Takım son maçları | `team_matches_{id}` |
+| GET | `/team/:teamId/matches` | Takım mevcut sezon maçları | `team_matches_season_v2_{id}` |
 | GET | `/scorers/:leagueId` | Gol krallığı | `scorers_{id}` |
 
 ### Hava + Oranlar
@@ -227,7 +227,7 @@ Bahis oranları için. `match_detail.tsx` içindeki `getOddsComment()` yorumu bu
 |---|---|---|
 | GET | `/superlig/standings` | Puan tablosu |
 | GET | `/superlig/matches?date=YYYY-MM-DD` | Tarihe göre Süper Lig maçları (ana ekranda kullanılır) |
-| GET | `/superlig/team-form/:teamId` | Takımın son maçları (form + sezon analizi için) |
+| GET | `/superlig/team-form/:teamId` | Takımın mevcut sezon maçları (form + sezon analizi için) |
 | GET | `/superlig/players/:teamId` | Takım kadrosu |
 | GET | `/superlig/scorers` | Gol krallığı (lig geneli) |
 
@@ -407,7 +407,7 @@ Mevcut sürümler:
 - `scout_standings_cache_v2` (AsyncStorage — frontend index.tsx; backend `/standings/:leagueId` → `standings_v3_{id}`)
 - `af_topscorers_v2_{leagueId}_{season}`
 - `af_leagueteams_v2_{leagueId}_{season}`
-- `superlig_standings_v1`, `superlig_matches_v1_{date}`, `superlig_scorers_v1`, `superlig_team_form_v1_{teamId}`, `superlig_players_v1_{teamId}`
+- `superlig_standings_v1`, `superlig_matches_v1_{date}`, `superlig_scorers_v1`, `superlig_form_season_v3_{teamId}`, `superlig_players_v1_{teamId}`
 
 ### Backend'e Yeni Endpoint Ekleme
 1. `server.js`'e endpoint ekle

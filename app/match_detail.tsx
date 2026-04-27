@@ -13,8 +13,13 @@ import {
   MatchFormStats,
   Stil,
   buildReasons,
+  getDeepH2HStats,
+  getDrawAnalysis,
+  getFormTrend,
   getGuven,
-  getPersona,
+  getHomeAwayComment,
+  getMotivationComment,
+  getPersonaEnriched,
   pickFrom,
   shiftLevel,
   strHash,
@@ -51,6 +56,8 @@ function buildMatchAnalysis(
   aSt: MatchFormStats,
   hFP: number, aFP: number,
   h2hCount: number, weatherRisk: boolean, hasFormData: boolean,
+  hTrend?: { direction: 'up' | 'down' | 'stable'; pts5: number; ptsPrev: number } | null,
+  aTrend?: { direction: 'up' | 'down' | 'stable'; pts5: number; ptsPrev: number } | null,
 ): MatchAnalysis {
   const base = LEAGUE_BASE[leagueApiId] ?? { stil: 'Dengeli' as Stil, gol: 'Orta' as Level, tempo: 'Orta' as Level, risk: 'Orta' as Level };
   const hash = strHash(home + away);
@@ -89,11 +96,11 @@ function buildMatchAnalysis(
   }
 
   const guven   = hasFormData ? getGuven(hSt, aSt, h2hCount, weatherRisk) : 'Düşük';
-  const persona = getPersona(stil, gol, tempo, risk);
+  const persona = getPersonaEnriched(stil, gol, tempo, risk, hasFormData ? hSt : undefined, hasFormData ? aSt : undefined, hTrend, aTrend);
   const short   = pickFrom(SHORT_BANK[persona]  || SHORT_BANK.dengeli,  hash + 5);
   const medium  = pickFrom(MEDIUM_BANK[persona] || MEDIUM_BANK.dengeli, hash + 13);
   const reasons = hasFormData
-    ? buildReasons(home, away, hSt, aSt, hFP, aFP, h2hCount, hash + 17)
+    ? buildReasons(home, away, hSt, aSt, hFP, aFP, h2hCount, hash + 17, hTrend, aTrend, weatherRisk)
     : ['Veri henüz yüklenmedi; form ve H2H verileri değerlendirmeye alınamadı.',
        'Lig profili baz alınarak tahmin üretildi.',
        'Sonuçlar genel eğilimi yansıtmakla birlikte maç bazlı doğrulanmadı.'];
@@ -191,8 +198,9 @@ function calcFormStats(matches: any[], teamId: number) {
 }
 
 function calcFormPoints(matches: any[], teamId: number): number {
-  return matches
+  return [...matches]
     .filter((m:any)=>m.score?.fullTime?.home!=null)
+    .sort((a:any,b:any)=>new Date(a.utcDate??0).getTime()-new Date(b.utcDate??0).getTime())
     .slice(-5)
     .reduce((pts:number,m:any)=>{
       const isHome=m.homeTeam?.id===teamId;
@@ -329,17 +337,17 @@ function getRefereeProfile(refName: string, leagueApiId: number) {
 
   let narrative='';
   if (physLgs.includes(leagueApiId)) {
-    if (kartBase===0) narrative='Fiziksel temasa karşı toleranslı. Sınırda mücadeleler genellikle uyarı almadan geçer.';
-    else if (kartBase===2) narrative='Ligin fiziksel yapısına rağmen kurallara sıkı bağlı. Görece yüksek kart ortalaması bekleniyor.';
-    else narrative='Lig karakteriyle uyumlu dengeli yönetim. Aşırı faullere hızlı tepki veriyor.';
+    if (kartBase===0) narrative='Lig karakteri ve hakem ismine göre oluşturulan model profili daha toleranslı bir yönetime işaret ediyor; gerçek maç içi kararlar değişebilir.';
+    else if (kartBase===2) narrative='Model profili daha sıkı bir yönetim ihtimalini öne çıkarıyor; bu gerçek kart ortalaması değil, temkinli okunmalı.';
+    else narrative='Model profili dengeli yönetime işaret ediyor. Kart ve faul yorumu gerçek hakem istatistiği değil, yardımcı sinyal olarak okunmalı.';
   } else if (techLgs.includes(leagueApiId)) {
-    if (kartBase===2) narrative='Teknik ligin hassas pozisyonlarını doğru değerlendiriyor. Kart eşiği düşük.';
-    else if (kartBase===0) narrative='Teknik bir ligde görece serbest yönetim. Oyun akışını bölmemek öncelikli.';
-    else narrative='Standart profil. Duruma göre esneklik gösteriyor.';
+    if (kartBase===2) narrative='Model profili teknik maçlarda daha düşük kart eşiği ihtimalini öne çıkarıyor.';
+    else if (kartBase===0) narrative='Model profili oyunun akışına daha fazla izin veren bir yönetim ihtimalini gösteriyor.';
+    else narrative='Model profili standart ve esnek bir yönetim ihtimaline işaret ediyor.';
   } else {
-    if (kartBase===0) narrative='Oyun akışını öncelik belirliyor; küçük ihlallere tolerans var.';
-    else if (kartBase===2) narrative='Kart eşiği düşük. Sert girişlere sıfır tolerans; takımlar ihtiyatlı olmalı.';
-    else narrative='Dengeli profil. Büyük maçlarda kontrolü elde tutmayı tercih ediyor.';
+    if (kartBase===0) narrative='Model profili oyun akışına daha fazla izin verilebileceğini gösteriyor; küçük temaslarda tolerans ihtimali var.';
+    else if (kartBase===2) narrative='Model profili daha düşük kart eşiği ihtimalini öne çıkarıyor; takımların sert temaslarda dikkatli olması gerekir.';
+    else narrative='Model profili dengeli bir yönetim ihtimaline işaret ediyor; büyük maç temposunda kontrol arayışı öne çıkabilir.';
   }
 
   return { kart:kartLabels[kartBase], kartColor:kartColors[kartBase], kartEmoji:kartEmoji[kartBase], faul:faulLabel, akis, narrative };
@@ -411,7 +419,10 @@ function RadarChart({homeVals,awayVals,labels}:{homeVals:number[];awayVals:numbe
 
 function FormHeatRow({matches,teamId,label}:{matches:any[];teamId:number;label:string}){
   const { colors: fc } = useTheme();
-  const last5=matches.filter((m:any)=>m.score?.fullTime?.home!=null).slice(-5);
+  const last5=[...matches]
+    .filter((m:any)=>m.score?.fullTime?.home!=null)
+    .sort((a:any,b:any)=>new Date(a.utcDate??0).getTime()-new Date(b.utcDate??0).getTime())
+    .slice(-5);
   if(last5.length===0) return null;
   return (
     <View style={fStyles.row}>
@@ -493,6 +504,18 @@ export default function MatchDetail() {
   const scoreParam     = p('score');
   const isFromLive     = liveParam === '1';
   const finishedParam  = p('finished') === '1';
+  const homePos        = parseInt(p('homePos') || '0') || undefined;
+  const awayPos        = parseInt(p('awayPos') || '0') || undefined;
+  const homePts        = parseInt(p('homePts') || '0') || undefined;
+  const awayPts        = parseInt(p('awayPts') || '0') || undefined;
+  const homePlayed     = parseInt(p('homePlayed') || '0') || undefined;
+  const awayPlayed     = parseInt(p('awayPlayed') || '0') || undefined;
+  const leaderPts      = parseInt(p('leaderPts') || '0') || undefined;
+  const totalTeams     = parseInt(p('totalTeams') || '0') || undefined;
+  const homeAbovePts   = parseInt(p('homeAbovePts') || '0') || undefined;
+  const homeBelowPts   = parseInt(p('homeBelowPts') || '0') || undefined;
+  const awayAbovePts   = parseInt(p('awayAbovePts') || '0') || undefined;
+  const awayBelowPts   = parseInt(p('awayBelowPts') || '0') || undefined;
 
   const matchDate = utcDate ? new Date(utcDate).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'}) : '';
   const matchTime = utcDate ? new Date(utcDate).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}) : '';
@@ -545,7 +568,9 @@ export default function MatchDetail() {
   const hasFormData= homeStats.total>0 && awayStats.total>0;
 
   const weatherRisk= !!weatherData&&(weatherData.wind>35||/rain|shower|drizzle/.test((weatherData.condition||'').toLowerCase()));
-  const analysis   = buildMatchAnalysis(home,away,leagueApiId,homeStats,awayStats,homeFormPts,awayFormPts,h2hData.length,weatherRisk,hasFormData);
+  const homeTrend  = hasFormData ? getFormTrend(homeForm, homeTeamId) : null;
+  const awayTrend  = hasFormData ? getFormTrend(awayForm, awayTeamId) : null;
+  const analysis   = buildMatchAnalysis(home,away,leagueApiId,homeStats,awayStats,homeFormPts,awayFormPts,h2hData.length,weatherRisk,hasFormData,homeTrend,awayTrend);
 
   const homeRadar=[
     Math.min(parseFloat(homeStats.totalAvgGf)/3,1),
@@ -568,9 +593,16 @@ export default function MatchDetail() {
   const refProfile= refName ? getRefereeProfile(refName,leagueApiId) : null;
   const weatherCom= getWeatherComment(weatherData);
   const riskWarns = getRiskWarnings(homeStats,awayStats,h2hData.length,analysis);
-  const compareComment= hasFormData?getCompareComment(homeStats,awayStats,home,away):'';
-  const h2hComment    = getH2HComment(h2hData,home,away);
-  const oddsComment   = getOddsComment(oddsData,home,analysis);
+  const compareComment    = hasFormData ? getCompareComment(homeStats, awayStats, home, away) : '';
+  const h2hComment        = getH2HComment(h2hData, home, away);
+  const oddsComment       = getOddsComment(oddsData, home, analysis);
+  const homeAwayComment   = hasFormData ? getHomeAwayComment(homeStats, awayStats, home, away) : '';
+  const deepH2H           = getDeepH2HStats(h2hData, home, away, homeTeamId);
+  const motivationComment = getMotivationComment(homePos, awayPos, leagueApiId, {
+    homePts, awayPts, homePlayed, awayPlayed, leaderPts, totalTeams,
+    homeAbovePts, homeBelowPts, awayAbovePts, awayBelowPts,
+  });
+  const drawAnalysis      = hasFormData ? getDrawAnalysis(oddsData, homeStats, awayStats) : '';
 
   const ts = {
     insightBox:      { backgroundColor: isDark ? '#0D2038' : '#f4f8ff', borderLeftColor: c.primary },
@@ -591,9 +623,9 @@ export default function MatchDetail() {
     scoutColBorder:  { borderLeftColor: c.border },
     scoutVal:        { color: c.text },
     scoutLabel:      { color: c.textMuted },
-    bahisBtn:        { backgroundColor: c.surfaceAlt, borderColor: c.border },
-    bahisType:       { color: c.textMuted },
-    bahisOdd:        { color: c.text },
+    marketBtn:       { backgroundColor: c.surfaceAlt, borderColor: c.border },
+    marketType:      { color: c.textMuted },
+    marketOdd:       { color: c.text },
     weatherCard:     { backgroundColor: isDark ? '#0A1929' : '#f0f6ff' },
     weatherCity:     { color: c.textMuted },
     weatherTemp:     { color: c.text },
@@ -793,9 +825,9 @@ export default function MatchDetail() {
         })()}
 
         {/* Performans Profili */}
-        {hasFormData && (
+        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>PERFORMANS PROFİLİ</Text>
+        {hasFormData ? (
           <>
-            <Text style={[styles.sectionLabel,{color:c.textMuted}]}>PERFORMANS PROFİLİ</Text>
             <View style={styles.radarLegendRow}>
               <View style={[styles.radarDot,{backgroundColor:hLeadsRadar?NEON:'#185FA5'}]}/>
               <Text style={[styles.radarLegendText,{color:c.textSub},hLeadsRadar&&{color:NEON,fontWeight:'600'}]}>{home}</Text>
@@ -813,12 +845,16 @@ export default function MatchDetail() {
               </Text>
             </View>
           </>
+        ) : (
+          <View style={[styles.noDataBox,ts.noDataBox]}>
+            <Text style={[styles.noDataText,ts.noDataText]}>Bu maç için performans verisi yüklenemedi.</Text>
+          </View>
         )}
 
         {/* Takım Karşılaştırması */}
-        {hasFormData && (
+        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>TAKIM KARŞILAŞTIRMASI</Text>
+        {hasFormData ? (
           <>
-            <Text style={[styles.sectionLabel,{color:c.textMuted}]}>TAKIM KARŞILAŞTIRMASI</Text>
             <View style={styles.compareHeader}>
               <Text style={[styles.compareTeam,{color:c.primary}]} numberOfLines={1}>{home}</Text>
               <View style={{width:100}}/>
@@ -830,17 +866,61 @@ export default function MatchDetail() {
             <CompareRow label="Son 5 (puan)"          homeVal={homeFormPts}                  awayVal={awayFormPts}/>
             <CompareRow label="2.5 Üst %"            homeVal={`${homeStats.over25Pct}%`}   awayVal={`${awayStats.over25Pct}%`}/>
             <CompareRow label="KG Var %"             homeVal={`${homeStats.kgVarPct}%`}    awayVal={`${awayStats.kgVarPct}%`}/>
-            <CompareRow label="İç Saha Galibiyet %"  homeVal={`${homeStats.homeWinPct}%`}  awayVal={`${awayStats.homeWinPct}%`}/>
-            <CompareRow label="Deplasman Galibiyet %" homeVal={`${homeStats.awayWinPct}%`} awayVal={`${awayStats.awayWinPct}%`}/>
+            <CompareRow label="İç Saha Galibiyet %"  homeVal={`${homeStats.homeWinPct}% (${homeStats.homePlayed})`}  awayVal={`${awayStats.homeWinPct}% (${awayStats.homePlayed})`}/>
+            <CompareRow label="Deplasman Galibiyet %" homeVal={`${homeStats.awayWinPct}% (${homeStats.awayPlayed})`} awayVal={`${awayStats.awayWinPct}% (${awayStats.awayPlayed})`}/>
             <View style={[styles.insightBox,ts.insightBox]}>
               <Text style={[styles.insightText,ts.insightText]}>{compareComment}</Text>
             </View>
+          </>
+        ) : (
+          <View style={[styles.noDataBox,ts.noDataBox]}>
+            <Text style={[styles.noDataText,ts.noDataText]}>Bu maç için karşılaştırma verisi yüklenemedi.</Text>
+          </View>
+        )}
 
-            {/* Son Form */}
-            <Text style={[styles.sectionLabel,{color:c.textMuted}]}>SON FORM  (İ = İç Saha · D = Deplasman)</Text>
+        {/* Son Form */}
+        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>SON FORM  (İ = İç Saha · D = Deplasman)</Text>
+        {hasFormData ? (
+          <>
             <FormHeatRow matches={homeForm} teamId={homeTeamId} label={home}/>
             <FormHeatRow matches={awayForm} teamId={awayTeamId}  label={away}/>
+            {/* Form Trend */}
+            {(homeTrend || awayTrend) && (() => {
+              const trendIcon = (d: 'up'|'down'|'stable') => d==='up'?'▲':d==='down'?'▼':'—';
+              const trendColor = (d: 'up'|'down'|'stable') => d==='up'?(isDark?'#3FB950':'#27500A'):d==='down'?(isDark?'#F85149':'#A32D2D'):(isDark?'#8B949E':'#888');
+              return (
+                <View style={{flexDirection:'row',gap:8,paddingHorizontal:14,marginTop:8,marginBottom:2}}>
+                  {[{label:home,trend:homeTrend},{label:away,trend:awayTrend}].map(({label,trend},i)=>{
+                    if(!trend) return null;
+                    const col = trendColor(trend.direction);
+                    return (
+                      <View key={i} style={{flex:1,backgroundColor:c.surfaceAlt,borderRadius:8,padding:10,borderWidth:0.5,borderColor:c.border}}>
+                        <Text style={{fontSize:10,color:c.textMuted,marginBottom:3}} numberOfLines={1}>{label}</Text>
+                        <Text style={{fontSize:18,fontWeight:'700',color:col}}>{trendIcon(trend.direction)} {trend.direction==='up'?'Yükselişte':trend.direction==='down'?'Düşüşte':'Stabil'}</Text>
+                        <Text style={{fontSize:10,color:c.textFaint,marginTop:2}}>Son 5: {trend.pts5} puan · Önceki 5: {trend.ptsPrev} puan</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              );
+            })()}
           </>
+        ) : (
+          <View style={[styles.noDataBox,ts.noDataBox]}>
+            <Text style={[styles.noDataText,ts.noDataText]}>Bu maç için form verisi yüklenemedi.</Text>
+          </View>
+        )}
+
+        {/* İç Saha / Deplasman Analizi */}
+        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>İÇ SAHA / DEPLASMAN ANALİZİ</Text>
+        {hasFormData ? (
+          <View style={[styles.insightBox,ts.insightBox]}>
+            <Text style={[styles.insightText,ts.insightText]}>{homeAwayComment}</Text>
+          </View>
+        ) : (
+          <View style={[styles.noDataBox,ts.noDataBox]}>
+            <Text style={[styles.noDataText,ts.noDataText]}>İç saha / deplasman verisi yüklenemedi.</Text>
+          </View>
         )}
 
         {/* Oran + Yorum */}
@@ -882,13 +962,13 @@ export default function MatchDetail() {
               {[
                 {label:home,val:oddsData.home},{label:'Berabere',val:oddsData.draw},{label:away,val:oddsData.away}
               ].map((btn,i)=>(
-                <View key={i} style={[styles.bahisBtn,ts.bahisBtn]}>
-                  <Text style={[styles.bahisType,ts.bahisType]} numberOfLines={1}>{btn.label}</Text>
-                  <Text style={[styles.bahisOdd,ts.bahisOdd]}>{btn.val}</Text>
+                <View key={i} style={[styles.marketBtn,ts.marketBtn]}>
+                  <Text style={[styles.marketType,ts.marketType]} numberOfLines={1}>{btn.label}</Text>
+                  <Text style={[styles.marketOdd,ts.marketOdd]}>{btn.val}</Text>
                 </View>
               ))}
             </View>
-            {/* Bahisçi vs Scout */}
+            {/* Piyasa vs Scout */}
             {hasFormData && (() => {
               const hO=parseFloat(oddsData.home)||0,dO=parseFloat(oddsData.draw)||0,aO=parseFloat(oddsData.away)||0;
               if(!hO||!dO||!aO) return null;
@@ -903,9 +983,9 @@ export default function MatchDetail() {
               const hasValue=maxDiff>9;
               const valueText=hasValue
                 ?(Math.abs(diffH)>=Math.abs(diffA)
-                  ?(diffH>0?`${home} formuna göre değer taşıyor (%${Math.abs(diffH)} fark)`:`${home} oranı form tahminine göre düşük`)
-                  :(diffA>0?`${away} formuna göre değer taşıyor (%${Math.abs(diffA)} fark)`:`${away} oranı form tahminine göre düşük`))
-                :'Piyasa ve form tahmini dengede — belirgin değer farkı yok';
+                  ?(diffH>0?`${home} form tahmininde piyasadan ayrışıyor (%${Math.abs(diffH)} fark)`:`${home} piyasa payı form tahminine göre yüksek`)
+                  :(diffA>0?`${away} form tahmininde piyasadan ayrışıyor (%${Math.abs(diffA)} fark)`:`${away} piyasa payı form tahminine göre yüksek`))
+                :'Piyasa ve form tahmini dengede; belirgin ayrışma yok';
               const cols2=[{label:home,imp:impH,our:ourH},{label:'Berabere',imp:impD,our:ourD},{label:away,imp:impA,our:ourA}];
               return(
                 <View style={{marginHorizontal:14,marginBottom:4,borderWidth:0.5,borderColor:c.border,borderRadius:10,overflow:'hidden'}}>
@@ -938,6 +1018,11 @@ export default function MatchDetail() {
         <View style={[styles.insightBox,ts.insightBox]}>
           <Text style={[styles.insightText,ts.insightText]}>{oddsComment}</Text>
         </View>
+        {drawAnalysis ? (
+          <View style={[styles.insightBox,ts.insightBox,{marginTop:0}]}>
+            <Text style={[styles.insightText,ts.insightText]}>🤝 {drawAnalysis}</Text>
+          </View>
+        ) : null}
 
         {/* Hava Etkisi */}
         <Text style={[styles.sectionLabel,{color:c.textMuted}]}>HAVA ETKİSİ</Text>
@@ -982,7 +1067,7 @@ export default function MatchDetail() {
             <View style={[styles.refCard,ts.refCard]}>
               <Text style={styles.refIcon}>🧑‍⚖️</Text>
               <Text style={[styles.refName,ts.refName]}>{refName}</Text>
-              <Text style={[styles.refSub,ts.refSub]}>{league} · Maç Hakemi</Text>
+              <Text style={[styles.refSub,ts.refSub]}>{league} · Model hakem profili</Text>
             </View>
             <View style={{flexDirection:'row',gap:8,paddingHorizontal:14,marginBottom:6}}>
               <View style={[styles.refTagPill,{backgroundColor:refProfile.kartColor+'18',borderColor:refProfile.kartColor+'60'}]}>
@@ -1010,6 +1095,25 @@ export default function MatchDetail() {
         <View style={[styles.insightBox,ts.insightBox]}>
           <Text style={[styles.insightText,ts.insightText]}>{h2hComment}</Text>
         </View>
+        {deepH2H && (
+          <>
+            <View style={{flexDirection:'row',gap:8,paddingHorizontal:14,marginBottom:6}}>
+              {[
+                {label:'2.5 Üst',val:`%${deepH2H.over25Pct}`,color:deepH2H.over25Pct>=60?(isDark?'#F85149':'#A32D2D'):deepH2H.over25Pct<=35?(isDark?'#3FB950':'#27500A'):(isDark?'#E3B341':'#7A5700')},
+                {label:'KG Var',val:`%${deepH2H.bttsPct}`,color:deepH2H.bttsPct>=60?(isDark?'#F85149':'#A32D2D'):deepH2H.bttsPct<=30?(isDark?'#3FB950':'#27500A'):(isDark?'#E3B341':'#7A5700')},
+                {label:'Son Trend',val:deepH2H.trendDir==='home'?'🏠 Ev üstün':deepH2H.trendDir==='away'?'✈️ Dep. üstün':'⚖️ Dengeli',color:c.textSub},
+              ].map((item,i)=>(
+                <View key={i} style={{flex:1,backgroundColor:c.surfaceAlt,borderRadius:8,padding:9,alignItems:'center',borderWidth:0.5,borderColor:c.border}}>
+                  <Text style={{fontSize:10,color:c.textMuted,marginBottom:3}}>{item.label}</Text>
+                  <Text style={{fontSize:15,fontWeight:'700',color:item.color}} numberOfLines={1}>{item.val}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={[styles.insightBox,ts.insightBox]}>
+              <Text style={[styles.insightText,ts.insightText]}>{deepH2H.deepComment}</Text>
+            </View>
+          </>
+        )}
         {h2hData.length===0 ? (
           <View style={[styles.noDataBox,ts.noDataBox]}><Text style={[styles.noDataText,ts.noDataText]}>H2H verisi bulunamadı.</Text></View>
         ) : (
@@ -1019,7 +1123,7 @@ export default function MatchDetail() {
               h2hData.forEach((m:any)=>{
                 const fh=m.score?.fullTime?.home,fa=m.score?.fullTime?.away;
                 if(fh==null||fa==null)return;
-                const ih=m.homeTeam?.shortName===home||m.homeTeam?.name?.includes(home);
+                const ih=homeTeamId>0?m.homeTeam?.id===homeTeamId:(m.homeTeam?.shortName===home||m.homeTeam?.name?.includes(home));
                 if (fh > fa) {
                   if (ih) hw++;
                   else aw++;
@@ -1053,9 +1157,9 @@ export default function MatchDetail() {
         )}
 
         {/* Maç Karakteri Detayı */}
-        {hasFormData && hStyle && aStyle && (
+        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>MAÇ KARAKTERİ DETAYI</Text>
+        {hasFormData && hStyle && aStyle ? (
           <>
-            <Text style={[styles.sectionLabel,{color:c.textMuted}]}>MAÇ KARAKTERİ DETAYI</Text>
             <View style={{flexDirection:'row',gap:10,paddingHorizontal:14,marginBottom:10}}>
               {[
                 {team:home,style:hStyle},{team:away,style:aStyle}
@@ -1073,6 +1177,22 @@ export default function MatchDetail() {
               </Text>
             </View>
           </>
+        ) : (
+          <View style={[styles.noDataBox,ts.noDataBox]}>
+            <Text style={[styles.noDataText,ts.noDataText]}>Maç karakteri için yeterli form verisi bulunamadı.</Text>
+          </View>
+        )}
+
+        {/* Motivasyon Faktörü */}
+        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>MOTİVASYON FAKTÖRÜ</Text>
+        {motivationComment ? (
+          <View style={[styles.insightBox,ts.insightBox,{borderLeftColor:isDark?'#E3B341':'#E6A817',borderLeftWidth:3}]}>
+            <Text style={[styles.insightText,{color:isDark?'#E3B341':'#7A5700',fontWeight:'600'}]}>🏆 {motivationComment}</Text>
+          </View>
+        ) : (
+          <View style={[styles.noDataBox,ts.noDataBox]}>
+            <Text style={[styles.noDataText,ts.noDataText]}>Bu maçta belirgin bir motivasyon faktörü tespit edilmedi.</Text>
+          </View>
         )}
 
         {/* Risk & Uyarı */}
@@ -1160,9 +1280,9 @@ const styles = StyleSheet.create({
   scoutOddsVal:      { fontSize:20, fontWeight:'700', color:'#111', marginBottom:8 },
   scoutOddsBarWrap:  { width:'80%', height:4, backgroundColor:'#eee', borderRadius:2, overflow:'hidden' },
   scoutOddsBarFill:  { height:'100%', borderRadius:2 },
-  bahisBtn:          { flex:1, backgroundColor:'#f8f8f8', borderRadius:8, padding:10, alignItems:'center', borderWidth:0.5, borderColor:'#eee' },
-  bahisType:         { fontSize:10, color:'#888', marginBottom:4, textAlign:'center' },
-  bahisOdd:          { fontSize:18, fontWeight:'600', color:'#111' },
+  marketBtn:         { flex:1, backgroundColor:'#f8f8f8', borderRadius:8, padding:10, alignItems:'center', borderWidth:0.5, borderColor:'#eee' },
+  marketType:        { fontSize:10, color:'#888', marginBottom:4, textAlign:'center' },
+  marketOdd:         { fontSize:18, fontWeight:'600', color:'#111' },
   weatherCard:       { margin:14, marginBottom:10, backgroundColor:'#f0f6ff', borderRadius:12, padding:20, alignItems:'center' },
   weatherCity:       { fontSize:13, color:'#888', marginBottom:4 },
   weatherIcon:       { fontSize:40, marginBottom:4 },
