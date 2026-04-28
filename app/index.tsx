@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import {
-  getCityForTeam, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, Standing,
+  getAllSportsH2H, getCityForTeam, getH2H, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, Standing,
 } from '../services/api';
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
 import { matchListEmptyMessage } from '../utils/emptyStates';
@@ -113,9 +113,10 @@ type Metrics = {
 
 type ListItem = {
   key: string;
-  type: 'section-header' | 'hero' | 'highlight' | 'day-summary' | 'match' | 'empty';
+  type: 'section-header' | 'hero' | 'highlight' | 'day-summary' | 'match' | 'single-insight' | 'single-trends' | 'single-h2h' | 'tomorrow-featured' | 'empty' | 'empty-scout';
   m?: Match;
   metrics?: Metrics;
+  h2h?: any[];
   rank?: number;
   title?: string;
   sub?: string;
@@ -144,8 +145,12 @@ const TEAM_ALIASES: Record<string, string> = {
   'man city':            'manchester city',
   'man utd':             'manchester united',
   'manchester utd':      'manchester united',
+  'bayern':              'bayern munich',
+  'bayern munchen':      'bayern munich',
+  'fc bayern munchen':   'bayern munich',
   'bvb':                 'borussia dortmund',
   'dortmund':            'borussia dortmund',
+  'atleti':              'atletico madrid',
   'sp lisbon':           'sporting cp',
   'sporting lisbon':     'sporting cp',
   'leverkusen':          'bayer leverkusen',
@@ -456,6 +461,10 @@ function buildVisibleMatches(data: any[], slData: any[]) {
   return [...mainMatches, ...superLigMatches];
 }
 
+function uniqueLeagueIds(matches: Match[]) {
+  return [...new Set(matches.map(m => m.leagueApiId).filter(Boolean))];
+}
+
 function favoriteText(m: Match, metrics: Metrics): string {
   if (!metrics.hasData) return '';
   if (metrics.favorite === 'balanced') return 'Dengeli eşleşme';
@@ -467,6 +476,50 @@ function favoriteText(m: Match, metrics: Metrics): string {
 
 function expectedLine(metrics: Metrics): string {
   return `Beklenen ~${metrics.expectedGoals.toFixed(1)} gol`;
+}
+
+function levelFromExpectedGoals(value: number) {
+  if (value >= 2.8) return 'Yüksek';
+  if (value <= 2.0) return 'Düşük';
+  return 'Orta';
+}
+
+function riskFromMetrics(metrics: Metrics) {
+  if (!metrics.hasData) return 'Orta';
+  if (metrics.confidence === 'high') return 'Düşük';
+  if (metrics.confidence === 'low') return 'Yüksek';
+  return 'Orta';
+}
+
+function confidenceText(metrics: Metrics) {
+  if (!metrics.hasData) return 'Sınırlı';
+  if (metrics.confidence === 'high') return 'Yüksek';
+  if (metrics.confidence === 'medium') return 'Orta';
+  return 'Düşük';
+}
+
+function trendBarPercent(value: string) {
+  if (value === 'Yüksek') return 82;
+  if (value === 'Düşük') return 36;
+  if (value === 'Sınırlı') return 34;
+  return 58;
+}
+
+function singleMatchScoutText(m: Match, metrics: Metrics) {
+  if (!metrics.hasData) return `${m.home} - ${m.away} için sezon verisi sınırlı. Ana okuma maç ritmi ve ilk bölüm temposu üzerinden yapılmalı.`;
+  const fav = favoriteText(m, metrics).toLowerCase();
+  const tempo = metrics.expectedGoals >= 2.8 ? 'yüksek tempo' : metrics.expectedGoals <= 2.0 ? 'kontrollü tempo' : 'orta tempo';
+  return `${m.home} - ${m.away} eşleşmesi ${tempo} profili sunuyor. ${expectedLine(metrics)} ve ${fav} sinyali öne çıkıyor.`;
+}
+
+function readH2HMatch(match: any) {
+  const home = match.home || match.homeTeam?.shortName || match.homeTeam?.name || '';
+  const away = match.away || match.awayTeam?.shortName || match.awayTeam?.name || '';
+  const homeScore = match.homeScore ?? match.score?.fullTime?.home;
+  const awayScore = match.awayScore ?? match.score?.fullTime?.away;
+  const rawDate = match.date || match.utcDate;
+  const date = rawDate ? new Date(rawDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+  return { home, away, homeScore, awayScore, date };
 }
 
 function HeroCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress: () => void }) {
@@ -507,6 +560,211 @@ function HeroCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
         <Text style={sc.heroSummary}>{metrics.summary}</Text>
       )}
     </TouchableOpacity>
+  );
+}
+
+function MiniMetric({ icon, label, value, tone }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string; tone?: 'hot' | 'cool' | 'warn' }) {
+  const { colors: c, isDark } = useTheme();
+  const color = tone === 'hot' ? c.primary : tone === 'warn' ? (isDark ? '#E3B341' : '#B7791F') : c.textSub;
+  return (
+    <View style={[sc.miniMetric, { borderColor: c.border, backgroundColor: c.surfaceAlt }]}>
+      <Ionicons name={icon} size={18} color={color} />
+      <Text style={[sc.miniMetricLabel, { color: c.textMuted }]}>{label}</Text>
+      <Text style={[sc.miniMetricValue, { color }]}>{value}</Text>
+    </View>
+  );
+}
+
+function SingleInsightCard({ m, metrics }: { m: Match; metrics: Metrics }) {
+  const { colors: c } = useTheme();
+  return (
+    <View style={[sc.singlePanel, { backgroundColor: c.surface, borderColor: c.cardBorder }]}>
+      <View style={sc.singleTitleRow}>
+        <Ionicons name="sparkles-outline" size={17} color={c.primary} />
+        <Text style={[sc.singleTitle, { color: c.primary }]}>SCOUT NE DİYOR?</Text>
+      </View>
+      <Text style={[sc.singleText, { color: c.text }]}>{singleMatchScoutText(m, metrics)}</Text>
+      <View style={sc.singleMetrics}>
+        <MiniMetric icon="flash-outline" label="Tempo" value={levelFromExpectedGoals(metrics.expectedGoals)} tone="hot" />
+        <MiniMetric icon="stats-chart-outline" label="Gol Bek." value={levelFromExpectedGoals(metrics.expectedGoals)} tone="hot" />
+        <MiniMetric icon="shield-outline" label="Risk" value={riskFromMetrics(metrics)} tone="warn" />
+      </View>
+    </View>
+  );
+}
+
+function ProgressRow({ label, value, percent }: { label: string; value: string; percent: number }) {
+  const { colors: c } = useTheme();
+  return (
+    <View style={sc.progressRow}>
+      <View style={sc.progressTop}>
+        <Text style={[sc.progressLabel, { color: c.text }]}>{label}</Text>
+        <Text style={[sc.progressValue, { color: c.text }]}>{value}</Text>
+      </View>
+      <View style={[sc.progressTrack, { backgroundColor: c.borderLight }]}>
+        <View style={[sc.progressFill, { width: `${Math.max(8, Math.min(100, percent))}%`, backgroundColor: c.primary }]} />
+      </View>
+    </View>
+  );
+}
+
+function SingleTrendsCard({ m, metrics }: { m: Match; metrics: Metrics }) {
+  const { colors: c } = useTheme();
+  const goalLevel = levelFromExpectedGoals(metrics.expectedGoals);
+  const sideValue = metrics.hasData ? favoriteText(m, metrics) : 'Belirsiz';
+  const confidence = confidenceText(metrics);
+  return (
+    <View style={[sc.trendPanel, { backgroundColor: c.surface, borderColor: c.cardBorder }]}>
+      <View style={sc.singleTitleRow}>
+        <Ionicons name="analytics-outline" size={17} color={c.primary} />
+        <Text style={[sc.singleTitle, { color: c.primary }]}>MAÇ TRENDLERİ</Text>
+      </View>
+      <ProgressRow label="Gol çizgisi" value={`~${metrics.expectedGoals.toFixed(1)} gol · ${goalLevel}`} percent={trendBarPercent(goalLevel)} />
+      <ProgressRow label="Taraf okuması" value={sideValue || 'Dengeli'} percent={metrics.favorite === 'balanced' ? 52 : 70} />
+      <ProgressRow label="Veri güveni" value={confidence} percent={trendBarPercent(confidence)} />
+      <Text style={[sc.trendFoot, { color: c.textMuted }]}>Beklenen gol, lig tablosu ve form eşleşmesinden türetilen özet sinyal.</Text>
+    </View>
+  );
+}
+
+function SingleH2HCard({ h2h }: { h2h: any[] }) {
+  const { colors: c } = useTheme();
+  const rows = h2h.slice(0, 3).map(readH2HMatch);
+  return (
+    <View style={[sc.h2hPanel, { backgroundColor: c.surface, borderColor: c.cardBorder }]}>
+      <View style={sc.singleTitleRow}>
+        <Ionicons name="time-outline" size={17} color={c.primary} />
+        <Text style={[sc.singleTitle, { color: c.primary }]}>SON 3 H2H</Text>
+      </View>
+      {rows.length === 0 ? (
+        <Text style={[sc.h2hEmpty, { color: c.textMuted }]}>Bu eşleşme için yakın geçmiş verisi sınırlı.</Text>
+      ) : rows.map((row, i) => (
+        <View key={`${row.date}-${i}`} style={[sc.h2hMiniRow, { borderTopColor: c.borderLight }]}>
+          <View style={sc.h2hMiniTeams}>
+            <Text style={[sc.h2hMiniDate, { color: c.textMuted }]}>{row.date}</Text>
+            <Text style={[sc.h2hMiniText, { color: c.text }]} numberOfLines={1}>{row.home} - {row.away}</Text>
+          </View>
+          <Text style={[sc.h2hMiniScore, { color: c.text }]}>{row.homeScore ?? '-'} - {row.awayScore ?? '-'}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function TomorrowFeaturedCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress: () => void }) {
+  const { colors: c } = useTheme();
+  return (
+    <TouchableOpacity style={[sc.tomorrowCard, { backgroundColor: c.surface, borderColor: c.cardBorder }]} onPress={onPress} activeOpacity={0.86}>
+      <View style={sc.hlTop}>
+        <View style={sc.singleTitleRow}>
+          <Ionicons name="star-outline" size={17} color="#E3B341" />
+          <Text style={[sc.singleTitle, { color: '#E3B341' }]}>SONRAKİ GÜN ÖNE ÇIKAN</Text>
+        </View>
+        <Text style={[sc.hlLeague, { color: c.primary }]}>{m.league}</Text>
+      </View>
+      <View style={sc.hlTeams}>
+        <Text style={[sc.hlTeam, { color: c.text }]} numberOfLines={1}>{m.home}</Text>
+        <Text style={[sc.hlTime, { color: c.text }]}>{m.finished && m.score ? m.score : m.time}</Text>
+        <Text style={[sc.hlTeam, { color: c.text, textAlign: 'right' }]} numberOfLines={1}>{m.away}</Text>
+      </View>
+      <Text style={[sc.hlMetric, { color: c.primary }]}>{metrics.hasData ? `${expectedLine(metrics)} · ${favoriteText(m, metrics)}` : metrics.summary}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function EmptyActionCard({
+  icon,
+  title,
+  text,
+  accent,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  text: string;
+  accent: string;
+  onPress: () => void;
+}) {
+  const { colors: c } = useTheme();
+  return (
+    <TouchableOpacity style={[sc.emptyAction, { backgroundColor: c.surface, borderColor: c.cardBorder }]} onPress={onPress} activeOpacity={0.86}>
+      <View style={[sc.emptyActionIcon, { borderColor: accent }]}>
+        <Ionicons name={icon} size={22} color={accent} />
+      </View>
+      <View style={sc.emptyActionText}>
+        <Text style={[sc.emptyActionTitle, { color: accent }]}>{title}</Text>
+        <Text style={[sc.emptyActionBody, { color: c.text }]}>{text}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={22} color={c.textMuted} />
+    </TouchableOpacity>
+  );
+}
+
+function EmptyScoutState({
+  selectedDate,
+  preview,
+  onNextDate,
+  onRefresh,
+  onOpenLeagues,
+  onOpenStats,
+  onOpenMatch,
+}: {
+  selectedDate: Date;
+  preview: { m: Match; metrics: Metrics } | null;
+  onNextDate: () => void;
+  onRefresh: () => void;
+  onOpenLeagues: () => void;
+  onOpenStats: () => void;
+  onOpenMatch: () => void;
+}) {
+  const { colors: c } = useTheme();
+  const dateText = `${selectedDate.getDate()} ${MONTHS[selectedDate.getMonth()]}`;
+  return (
+    <View style={sc.emptyScoutWrap}>
+      <View style={sc.emptyHero}>
+        <Ionicons name="calendar-clear-outline" size={58} color={c.primary} />
+        <Text style={[sc.emptyHeroTitle, { color: c.text }]}>Bu tarihte maç bulunamadı</Text>
+        <Text style={[sc.emptyHeroText, { color: c.textMuted }]}>Seçili liglerde {dateText} için maç görünmüyor.</Text>
+        <View style={sc.emptyHeroActions}>
+          <TouchableOpacity style={[sc.emptyPrimaryBtn, { borderColor: c.primary }]} onPress={onNextDate}>
+            <Ionicons name="calendar-outline" size={17} color={c.primary} />
+            <Text style={[sc.emptyPrimaryText, { color: c.primary }]}>Sonraki maç gününe git</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[sc.emptyIconBtn, { borderColor: c.border }]} onPress={onRefresh}>
+            <Ionicons name="refresh" size={18} color={c.textSub} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={sc.sectionHeader}>
+        <Text style={[sc.sectionTitle, { color: c.textMuted }]}>KEŞFET & ANALİZ ET</Text>
+      </View>
+
+      {preview && (
+        <TomorrowFeaturedCard m={preview.m} metrics={preview.metrics} onPress={onOpenMatch} />
+      )}
+      <EmptyActionCard
+        icon="trophy-outline"
+        title="LİGLERE GÖZ AT"
+        text="Puan tabloları, takım profilleri ve lig genel görünümünü incele."
+        accent={c.primary}
+        onPress={onOpenLeagues}
+      />
+      <EmptyActionCard
+        icon="stats-chart-outline"
+        title="İSTATİSTİKLERİ KEŞFET"
+        text="Gol, form ve takım trendlerini maç olmayan günlerde değerlendirebilirsin."
+        accent="#8B5CF6"
+        onPress={onOpenStats}
+      />
+      <View style={[sc.emptyNote, { backgroundColor: c.surface, borderColor: c.cardBorder }]}>
+        <View style={sc.singleTitleRow}>
+          <Ionicons name="chatbubble-outline" size={18} color={c.primary} />
+          <Text style={[sc.singleTitle, { color: c.primary }]}>SCOUT NOTU</Text>
+        </View>
+        <Text style={[sc.emptyNoteText, { color: c.text }]}>Maç olmayan günlerde en sağlıklı hazırlık, lig formunu ve takım trendlerini izlemek. Yeni maçlar yayınlandığında ana ekran otomatik olarak yeniden anlam kazanır.</Text>
+      </View>
+    </View>
   );
 }
 
@@ -590,6 +848,8 @@ export default function HomeScreen() {
   const [activeFilter, setActiveFilter] = useState<string>('Scout');
   const [matches, setMatches]           = useState<Match[]>([]);
   const [standingsMap, setStandingsMap] = useState<Record<number, Standing[]>>({});
+  const [nextDayPreview, setNextDayPreview] = useState<{ m: Match; metrics: Metrics } | null>(null);
+  const [singleH2H, setSingleH2H] = useState<any[]>([]);
   const [loading, setLoading]           = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const dateList          = getDateList();
@@ -632,6 +892,27 @@ export default function HomeScreen() {
     }, [selectedDate])
   );
 
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSingleH2H() {
+      if (activeFilter !== 'Scout' || matches.length !== 1) {
+        setSingleH2H([]);
+        return;
+      }
+      const match = matches[0];
+      try {
+        const data = match.leagueApiId === 203
+          ? await getAllSportsH2H(match.home, match.away)
+          : await getH2H(String(match.id), match.finished);
+        if (!cancelled) setSingleH2H((data || []).slice(0, 3));
+      } catch {
+        if (!cancelled) setSingleH2H([]);
+      }
+    }
+    loadSingleH2H();
+    return () => { cancelled = true; };
+  }, [activeFilter, matches]);
+
   async function loadMatches(date: Date, silent = false) {
     const requestId = ++loadSeq.current;
     if (!silent) setLoading(true);
@@ -667,7 +948,15 @@ export default function HomeScreen() {
           if (missingLeagues.some((x, i) => missingResults[i]?.length > 0)) {
             AsyncStorage.setItem(STANDINGS_CACHE_KEY, JSON.stringify({ cacheDate: dateStr, data: updatedMap })).catch(() => {});
           }
-          setMatches(buildVisibleMatches(data, slData));
+          const visible = buildVisibleMatches(data, slData);
+          const rowsMap = await ensureStandingsForMatches(visible, dateStr, requestId, updatedMap);
+          if (requestId !== loadSeq.current) return;
+          setMatches(visible);
+          if (visible.length === 1) {
+            void loadNextDayPreview(date, requestId, rowsMap);
+          } else {
+            setNextDayPreview(null);
+          }
         } else {
           // İlk yükleme: maç + standings birlikte çek, cache'e kaydet
           const [data, slData, fdResults, slStandings] = await Promise.all([
@@ -683,7 +972,15 @@ export default function HomeScreen() {
           if (slStandings?.length > 0) map[203] = slStandings;
           AsyncStorage.setItem(STANDINGS_CACHE_KEY, JSON.stringify({ cacheDate: dateStr, data: map })).catch(() => {});
           setStandingsMap(map);
-          setMatches(buildVisibleMatches(data, slData));
+          const visible = buildVisibleMatches(data, slData);
+          const rowsMap = await ensureStandingsForMatches(visible, dateStr, requestId, map);
+          if (requestId !== loadSeq.current) return;
+          setMatches(visible);
+          if (visible.length === 1) {
+            void loadNextDayPreview(date, requestId, rowsMap);
+          } else {
+            setNextDayPreview(null);
+          }
         }
       } else {
         // Güncelle / sessiz yenileme: sadece maç skorları güncellenir, standings sabit kalır
@@ -691,12 +988,79 @@ export default function HomeScreen() {
           getTodayMatches(dateStr), getSuperLigMatches(dateStr),
         ]);
         if (requestId !== loadSeq.current) return;
-        setMatches(buildVisibleMatches(data, slData));
+        const visible = buildVisibleMatches(data, slData);
+        const rowsMap = await ensureStandingsForMatches(visible, dateStr, requestId, standingsMap);
+        if (requestId !== loadSeq.current) return;
+        setMatches(visible);
+        if (visible.length === 1) {
+          void loadNextDayPreview(date, requestId, rowsMap);
+        } else {
+          setNextDayPreview(null);
+        }
       }
     } catch (e) {
       console.error('loadMatches hata:', e);
     }
     if (requestId === loadSeq.current) setLoading(false);
+  }
+
+  useEffect(() => {
+    if (activeFilter !== 'Scout' || matches.length > 0) return;
+    const requestId = loadSeq.current;
+    void loadNextDayPreview(selectedDate, requestId, standingsMap);
+    // Only refresh empty-state preview when the selected day/filter emptiness changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFilter, matches.length, selectedDate]);
+
+  async function loadNextDayPreview(date: Date, requestId: number, rowsMap: Record<number, Standing[]>) {
+    const next = new Date(date);
+    next.setDate(next.getDate() + 1);
+    const nextStr = formatDateParam(next);
+    try {
+      const [data, slData] = await Promise.all([
+        getTodayMatches(nextStr),
+        getSuperLigMatches(nextStr),
+      ]);
+      if (requestId !== loadSeq.current) return;
+      const visible = buildVisibleMatches(data, slData);
+      if (visible.length === 0) {
+        setNextDayPreview(null);
+        return;
+      }
+      const ranked = visible
+        .map(m => {
+          const rows = rowsMap[m.leagueApiId];
+          const home = findStanding(rows, m.home, m.homeTeamId);
+          const away = findStanding(rows, m.away, m.awayTeamId);
+          const metrics = computeMetrics(home, away, rows, m.leagueApiId);
+          return { m, metrics };
+        })
+        .sort((a, b) => scoutScore(b.m, b.metrics) - scoutScore(a.m, a.metrics));
+      setNextDayPreview(ranked[0]);
+    } catch {
+      if (requestId === loadSeq.current) setNextDayPreview(null);
+    }
+  }
+
+  async function ensureStandingsForMatches(visible: Match[], dateStr: string, requestId: number, baseMap: Record<number, Standing[]>) {
+    const missing = uniqueLeagueIds(visible).filter(leagueApiId => !baseMap[leagueApiId]?.length);
+    if (missing.length === 0) return baseMap;
+
+    const leagueRows = await Promise.all(missing.map(async leagueApiId => {
+      if (leagueApiId === 203) return [leagueApiId, await getSuperLigStandings()] as const;
+      const cfg = STANDINGS_LEAGUES.find(item => item.leagueApiId === leagueApiId);
+      if (!cfg) return [leagueApiId, [] as Standing[]] as const;
+      return [leagueApiId, await getStandings(cfg.apiId)] as const;
+    }));
+    if (requestId !== loadSeq.current) return baseMap;
+
+    const updated = { ...baseMap };
+    leagueRows.forEach(([leagueApiId, rows]) => {
+      if (rows.length > 0) updated[leagueApiId] = rows;
+    });
+    setStandingsMap(updated);
+    AsyncStorage.setItem(STANDINGS_CACHE_KEY, JSON.stringify({ cacheDate: dateStr, data: updated })).catch(() => {});
+    return updated;
   }
 
   const metricsMap = useMemo(() => {
@@ -785,7 +1149,7 @@ export default function HomeScreen() {
   );
 
   const listItems = useMemo<ListItem[]>(() => {
-    const scoutMode = activeFilter === 'Scout' && isToday(selectedDate) && sortedMatches.length > 0;
+    const scoutMode = activeFilter === 'Scout' && sortedMatches.length > 0;
     const items: ListItem[] = [];
 
     if (scoutMode) {
@@ -798,6 +1162,17 @@ export default function HomeScreen() {
 
       items.push({ key: 'h-gunun-maci', type: 'section-header', title: 'GÜNÜN MAÇI' });
       items.push({ key: 'hero', type: 'hero', m: hero, metrics: metricsMap.get(hero.id) ?? NO_DATA });
+
+      if (sortedMatches.length === 1) {
+        const heroMetrics = metricsMap.get(hero.id) ?? NO_DATA;
+        items.push({ key: 'single-insight', type: 'single-insight', m: hero, metrics: heroMetrics });
+        items.push({ key: 'single-trends', type: 'single-trends', m: hero, metrics: heroMetrics });
+        items.push({ key: 'single-h2h', type: 'single-h2h', h2h: singleH2H });
+        if (nextDayPreview && nextDayPreview.m.id !== hero.id) {
+          items.push({ key: 'tomorrow-featured', type: 'tomorrow-featured', m: nextDayPreview.m, metrics: nextDayPreview.metrics });
+        }
+        return items;
+      }
 
       if (highlights.length > 0) {
         items.push({ key: 'h-highlights', type: 'section-header', title: 'GÜNÜN ÖNE ÇIKANLARI' });
@@ -821,7 +1196,7 @@ export default function HomeScreen() {
       });
     } else {
       if (sortedMatches.length === 0) {
-        items.push({ key: 'empty', type: 'empty', filter: activeFilter });
+        items.push({ key: 'empty', type: activeFilter === 'Scout' ? 'empty-scout' : 'empty', filter: activeFilter });
       } else {
         const title = activeFilter !== 'Scout'
           ? `${activeFilter.toUpperCase()} MAÇLARI`
@@ -834,7 +1209,7 @@ export default function HomeScreen() {
     }
 
     return items;
-  }, [sortedMatches, metricsMap, activeFilter, selectedDate]);
+  }, [sortedMatches, metricsMap, activeFilter, selectedDate, nextDayPreview, singleH2H]);
 
   function goToMatch(m: Match, metrics?: Metrics) {
     const metricParams = {
@@ -881,6 +1256,17 @@ export default function HomeScreen() {
     });
   }
 
+  function goToNextPreviewDate() {
+    if (!nextDayPreview) {
+      const next = new Date(selectedDate);
+      next.setDate(next.getDate() + 1);
+      setSelectedDate(next);
+      return;
+    }
+    const nextDate = new Date(nextDayPreview.m.utcDate);
+    setSelectedDate(new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate()));
+  }
+
   function renderListItem({ item }: { item: ListItem }) {
     switch (item.type) {
       case 'section-header':
@@ -902,6 +1288,26 @@ export default function HomeScreen() {
         return <DaySummaryCard summary={item.summary!} />;
       case 'match':
         return <MatchRow m={item.m!} metrics={item.metrics!} onPress={() => goToMatch(item.m!, item.metrics)} />;
+      case 'single-insight':
+        return <SingleInsightCard m={item.m!} metrics={item.metrics!} />;
+      case 'single-trends':
+        return <SingleTrendsCard m={item.m!} metrics={item.metrics!} />;
+      case 'single-h2h':
+        return <SingleH2HCard h2h={item.h2h || []} />;
+      case 'tomorrow-featured':
+        return <TomorrowFeaturedCard m={item.m!} metrics={item.metrics!} onPress={() => goToMatch(item.m!, item.metrics)} />;
+      case 'empty-scout':
+        return (
+          <EmptyScoutState
+            selectedDate={selectedDate}
+            preview={nextDayPreview}
+            onNextDate={goToNextPreviewDate}
+            onRefresh={() => loadMatches(selectedDate)}
+            onOpenLeagues={() => router.push('/leagues')}
+            onOpenStats={() => router.push('/stats')}
+            onOpenMatch={() => nextDayPreview && goToMatch(nextDayPreview.m, nextDayPreview.metrics)}
+          />
+        );
       case 'empty':
         return <Text style={[styles.emptyText, { color: c.textMuted }]}>{matchListEmptyMessage(item.filter!)}</Text>;
       default:
@@ -1051,6 +1457,51 @@ const sc = StyleSheet.create({
   heroMetricPrimary: { fontSize: 13, fontWeight: '700', color: '#fff' },
   heroMetricDot:     { fontSize: 13, color: 'rgba(255,255,255,0.5)', paddingHorizontal: 6 },
   heroSummary:       { fontSize: 12, color: 'rgba(255,255,255,0.82)', lineHeight: 17, marginTop: 10 },
+
+  singlePanel:    { marginHorizontal: 14, marginTop: 8, marginBottom: 8, padding: 14, borderRadius: 12, borderWidth: 1 },
+  singlePanelLeft:{ flex: 1, minWidth: 0 },
+  singleTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  singleTitle:    { fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
+  singleText:     { fontSize: 13, lineHeight: 20, marginTop: 10 },
+  singleMetrics:  { flexDirection: 'row', gap: 8, marginTop: 12 },
+  miniMetric:     { flex: 1, minHeight: 58, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 7 },
+  miniMetricLabel:{ fontSize: 10, marginTop: 5, textAlign: 'center' },
+  miniMetricValue:{ fontSize: 13, fontWeight: '800', marginTop: 4, textAlign: 'center' },
+
+  trendPanel:     { marginHorizontal: 14, marginBottom: 8, padding: 14, borderRadius: 12, borderWidth: 1 },
+  progressRow:    { marginTop: 12 },
+  progressTop:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 },
+  progressLabel:  { fontSize: 12 },
+  progressValue:  { fontSize: 12, fontWeight: '800' },
+  progressTrack:  { height: 6, borderRadius: 999, overflow: 'hidden' },
+  progressFill:   { height: 6, borderRadius: 999 },
+  trendFoot:      { fontSize: 11, marginTop: 12 },
+
+  h2hPanel:       { marginHorizontal: 14, marginBottom: 8, padding: 14, borderRadius: 12, borderWidth: 1 },
+  h2hEmpty:       { fontSize: 12, lineHeight: 18, marginTop: 10 },
+  h2hMiniRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 0.5, paddingTop: 10, marginTop: 10, gap: 10 },
+  h2hMiniTeams:   { flex: 1, minWidth: 0 },
+  h2hMiniDate:    { fontSize: 10, marginBottom: 3 },
+  h2hMiniText:    { fontSize: 12, fontWeight: '600' },
+  h2hMiniScore:   { fontSize: 14, fontWeight: '800' },
+
+  tomorrowCard:   { marginHorizontal: 14, marginBottom: 10, padding: 14, borderRadius: 12, borderWidth: 1 },
+
+  emptyScoutWrap: { paddingTop: 34, paddingBottom: 14 },
+  emptyHero:      { alignItems: 'center', paddingHorizontal: 24, marginBottom: 20 },
+  emptyHeroTitle: { fontSize: 19, fontWeight: '800', marginTop: 12, textAlign: 'center' },
+  emptyHeroText:  { fontSize: 13, lineHeight: 19, marginTop: 8, textAlign: 'center' },
+  emptyHeroActions:{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18 },
+  emptyPrimaryBtn:{ minHeight: 44, borderWidth: 1, borderRadius: 10, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  emptyPrimaryText:{ fontSize: 13, fontWeight: '800' },
+  emptyIconBtn:   { width: 44, height: 44, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  emptyAction:    { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, borderWidth: 1, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  emptyActionIcon:{ width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  emptyActionText:{ flex: 1, minWidth: 0 },
+  emptyActionTitle:{ fontSize: 11, fontWeight: '800', letterSpacing: 0.5, marginBottom: 5 },
+  emptyActionBody:{ fontSize: 13, lineHeight: 18 },
+  emptyNote:      { marginHorizontal: 14, marginBottom: 10, borderRadius: 12, borderWidth: 1, padding: 14 },
+  emptyNoteText:  { fontSize: 13, lineHeight: 19, marginTop: 9 },
 
   hlCard:        { marginHorizontal: 14, marginBottom: 8, backgroundColor: '#fff', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#E4EEF8', borderLeftWidth: 3 },
   hlTop:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
