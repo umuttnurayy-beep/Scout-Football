@@ -664,12 +664,23 @@ export default function HomeScreen() {
         } catch {}
 
         if (map) {
-          // Cache var: maçları çek, standings'i cache'ten göster + eksik ligleri arka planda yenile
-          const [data, slData, sportsDbResults] = await Promise.all([
-            getTodayMatches(dateStr), getSuperLigMatches(dateStr),
+          // Cache var: eksik ligleri maçlarla aynı anda çek (background race condition'ı önlemek için)
+          const missingLeagues = STANDINGS_LEAGUES.filter(({ leagueApiId }) => !map![leagueApiId]?.length);
+          const [data, slData, sportsDbResults, ...missingResults] = await Promise.all([
+            getTodayMatches(dateStr),
+            getSuperLigMatches(dateStr),
             Promise.all(SPORTSDB_EXTRA_LEAGUES.map(l => getSportsDbLeagueMatches(l.id, dateStr))),
+            ...missingLeagues.map(({ apiId }) => getStandings(apiId)),
           ]);
-          setStandingsMap(map);
+          // Eksik ligleri cache'e ekle
+          const updatedMap = { ...map };
+          missingLeagues.forEach((x, i) => {
+            if (missingResults[i]?.length > 0) updatedMap[x.leagueApiId] = missingResults[i];
+          });
+          setStandingsMap(updatedMap);
+          if (missingLeagues.some((x, i) => missingResults[i]?.length > 0)) {
+            AsyncStorage.setItem(STANDINGS_CACHE_KEY, JSON.stringify({ cacheDate: dateStr, data: updatedMap })).catch(() => {});
+          }
           const mainMatches = data
             .filter((m: any) => SUPPORTED_LEAGUES.includes(m.competition?.id))
             .map(mapMatch);
@@ -677,20 +688,6 @@ export default function HomeScreen() {
             (sportsDbResults[i] || []).map((m: any) => mapSportsDbMatch(m, l.id, l.name))
           );
           setMatches([...mainMatches, ...slData.map(mapSLMatch), ...extraMatches]);
-          // Boş veya eksik ligleri arka planda yenile
-          const missingLeagues = STANDINGS_LEAGUES.filter(({ leagueApiId }) => !map![leagueApiId]?.length);
-          if (missingLeagues.length > 0) {
-            Promise.all(missingLeagues.map(({ apiId }) => getStandings(apiId)))
-              .then(results => {
-                const patch: Record<number, Standing[]> = {};
-                missingLeagues.forEach((x, i) => { if (results[i]?.length > 0) patch[x.leagueApiId] = results[i]; });
-                if (Object.keys(patch).length > 0) {
-                  const updated = { ...map!, ...patch };
-                  setStandingsMap(updated);
-                  AsyncStorage.setItem(STANDINGS_CACHE_KEY, JSON.stringify({ cacheDate: dateStr, data: updated })).catch(() => {});
-                }
-              }).catch(() => {});
-          }
         } else {
           // İlk yükleme: maç + standings birlikte çek, cache'e kaydet
           const [data, slData, sportsDbResults, fdResults, slStandings, sportsDbStandings] = await Promise.all([
