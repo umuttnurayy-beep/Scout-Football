@@ -200,8 +200,13 @@ app.get('/matches', async (req, res) => {
       headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
     });
     const data = await response.json();
-    await setCache(cacheKey, data.matches || [], TTL.matches);
-    res.json(data.matches || []);
+    const matches = Array.isArray(data.matches) ? data.matches : [];
+    const renderableMatches = matches.filter(m =>
+      (m.homeTeam?.shortName || m.homeTeam?.name) &&
+      (m.awayTeam?.shortName || m.awayTeam?.name)
+    );
+    await setCache(cacheKey, renderableMatches, TTL.matches);
+    res.json(renderableMatches);
   } catch (e) {
     console.error('/matches hata:', e.message);
     apiError(res, 502, 'upstream_error', e.message, []);

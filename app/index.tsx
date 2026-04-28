@@ -441,6 +441,21 @@ function mapMatch(m: any): Match {
 
 // ─── components ──────────────────────────────────────────────────────────────
 
+function isRenderableMatch(m: Match) {
+  return Boolean(m.home?.trim() && m.away?.trim() && m.time && m.league);
+}
+
+function buildVisibleMatches(data: any[], slData: any[]) {
+  const mainMatches = data
+    .filter((m: any) => SUPPORTED_LEAGUES.includes(m.competition?.id))
+    .map(mapMatch)
+    .filter(isRenderableMatch);
+  const superLigMatches = slData
+    .map(mapSLMatch)
+    .filter(isRenderableMatch);
+  return [...mainMatches, ...superLigMatches];
+}
+
 function favoriteText(m: Match, metrics: Metrics): string {
   if (!metrics.hasData) return '';
   if (metrics.favorite === 'balanced') return 'Dengeli eşleşme';
@@ -579,6 +594,7 @@ export default function HomeScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const dateList          = getDateList();
   const initialFocusDone  = useRef(false);
+  const loadSeq           = useRef(0);
 
   useEffect(() => {
     loadMatches(selectedDate);
@@ -617,6 +633,7 @@ export default function HomeScreen() {
   );
 
   async function loadMatches(date: Date, silent = false) {
+    const requestId = ++loadSeq.current;
     if (!silent) setLoading(true);
     try {
       const dateStr = formatDateParam(date);
@@ -640,6 +657,7 @@ export default function HomeScreen() {
             getSuperLigMatches(dateStr),
             ...missingLeagues.map(({ apiId }) => getStandings(apiId)),
           ]);
+          if (requestId !== loadSeq.current) return;
           // Eksik ligleri cache'e ekle
           const updatedMap = { ...map };
           missingLeagues.forEach((x, i) => {
@@ -649,10 +667,7 @@ export default function HomeScreen() {
           if (missingLeagues.some((x, i) => missingResults[i]?.length > 0)) {
             AsyncStorage.setItem(STANDINGS_CACHE_KEY, JSON.stringify({ cacheDate: dateStr, data: updatedMap })).catch(() => {});
           }
-          const mainMatches = data
-            .filter((m: any) => SUPPORTED_LEAGUES.includes(m.competition?.id))
-            .map(mapMatch);
-          setMatches([...mainMatches, ...slData.map(mapSLMatch)]);
+          setMatches(buildVisibleMatches(data, slData));
         } else {
           // İlk yükleme: maç + standings birlikte çek, cache'e kaydet
           const [data, slData, fdResults, slStandings] = await Promise.all([
@@ -661,31 +676,27 @@ export default function HomeScreen() {
             Promise.all(STANDINGS_LEAGUES.map(({ apiId }) => getStandings(apiId))),
             getSuperLigStandings(),
           ]);
+          if (requestId !== loadSeq.current) return;
           map = {};
           // Yalnızca dolu standings'i kaydet — boşları cache'e yazma
           STANDINGS_LEAGUES.forEach((x, i) => { if (fdResults[i]?.length > 0) map![x.leagueApiId] = fdResults[i]; });
           if (slStandings?.length > 0) map[203] = slStandings;
           AsyncStorage.setItem(STANDINGS_CACHE_KEY, JSON.stringify({ cacheDate: dateStr, data: map })).catch(() => {});
           setStandingsMap(map);
-          const mainMatches = data
-            .filter((m: any) => SUPPORTED_LEAGUES.includes(m.competition?.id))
-            .map(mapMatch);
-          setMatches([...mainMatches, ...slData.map(mapSLMatch)]);
+          setMatches(buildVisibleMatches(data, slData));
         }
       } else {
         // Güncelle / sessiz yenileme: sadece maç skorları güncellenir, standings sabit kalır
         const [data, slData] = await Promise.all([
           getTodayMatches(dateStr), getSuperLigMatches(dateStr),
         ]);
-        const mainMatches = data
-          .filter((m: any) => SUPPORTED_LEAGUES.includes(m.competition?.id))
-          .map(mapMatch);
-        setMatches([...mainMatches, ...slData.map(mapSLMatch)]);
+        if (requestId !== loadSeq.current) return;
+        setMatches(buildVisibleMatches(data, slData));
       }
     } catch (e) {
       console.error('loadMatches hata:', e);
     }
-    setLoading(false);
+    if (requestId === loadSeq.current) setLoading(false);
   }
 
   const metricsMap = useMemo(() => {
