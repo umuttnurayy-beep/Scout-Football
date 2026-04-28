@@ -336,11 +336,48 @@ export function buildScoutPick(
   const lowConfidence = sample < 5 || weatherRisk || h2hCount < 2;
   const overLabel = Math.round(avgOver);
   const kgLabel = Math.round(avgKg);
+  const homeEdge = (hFP - aFP) + (hAtk - aDef) * 3 + (hHomeWin >= 55 ? 2 : 0);
+  const awayEdge = (aFP - hFP) + (aAtk - hDef) * 3 + (aAwayWin >= 45 ? 2 : 0);
 
   if (lowConfidence) {
+    if (avgOver >= 58 || hAtk + aAtk >= 2.6) {
+      return {
+        label: '1.5 Üst radarı',
+        detail: `Veri güveni sınırlı, bu yüzden 2.5 üst yerine daha düşük gol çizgisi mantıklı. İlk 15 dakikada tempo ve şut hacmi oluşursa 1.5 üst desteklenir.`,
+        tone: 'goals',
+      };
+    }
+    if (avgOver <= 42 || hAtk + aAtk <= 2.0) {
+      return {
+        label: 'Alt 3.5 güvenli çizgi',
+        detail: `Örneklem sınırlı ama gol profili patlayıcı görünmüyor: 2.5 üst ortalaması %${overLabel}. Tempo yükselmezse alt çizgisi daha dengeli okuma verir.`,
+        tone: 'draw',
+      };
+    }
+    if (homeEdge >= awayEdge + 3) {
+      return {
+        label: '1X güvenlik tarafı',
+        detail: `${home} tarafında hafif üstünlük var, fakat veri direkt MS 1 için yeterince güçlü değil. Çift şans daha temkinli market okuması.`,
+        tone: 'home',
+      };
+    }
+    if (awayEdge >= homeEdge + 3) {
+      return {
+        label: 'X2 güvenlik tarafı',
+        detail: `${away} oyunda kalma tarafında hafif sinyal veriyor. Veri sınırlı olduğu için direkt MS 2 yerine X2 daha kontrollü yaklaşım.`,
+        tone: 'away',
+      };
+    }
+    if (avgKg >= 52) {
+      return {
+        label: 'KG Var için canlı teyit',
+        detail: `KG Var ortalaması %${kgLabel}; maç önü güven düşük olsa da iki tarafın skor bulma ihtimali tamamen kapalı değil. Erken tempo oluşursa bu market izlenebilir.`,
+        tone: 'goals',
+      };
+    }
     return {
-      label: 'Canlı teyit bekler',
-      detail: 'Veri güveni sınırlı. Maç önü taraf seçimi yerine ilk 15-20 dakikadaki tempo, pres ve şut hacmi görülmeli.',
+      label: 'Taraf yerine canlı gol pazarı',
+      detail: 'Veri güveni düşük ve taraf sinyalleri net değil. İlk bölümde tempo oluşursa gol pazarı, durağan başlangıçta alt çizgisi daha mantıklı okunur.',
       tone: 'caution',
     };
   }
@@ -377,8 +414,6 @@ export function buildScoutPick(
     };
   }
 
-  const homeEdge = (hFP - aFP) + (hAtk - aDef) * 3 + (hHomeWin >= 55 ? 2 : 0);
-  const awayEdge = (aFP - hFP) + (aAtk - hDef) * 3 + (aAwayWin >= 45 ? 2 : 0);
   if (homeEdge >= awayEdge + 7) {
     return {
       label: 'MS 1 eğilimi',
