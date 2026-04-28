@@ -16,6 +16,7 @@ import { matchListEmptyMessage } from '../utils/emptyStates';
 // ─── constants ───────────────────────────────────────────────────────────────
 
 const STANDINGS_CACHE_KEY = 'scout_standings_cache_v5';
+const FEATURED_MATCH_CACHE_KEY = 'scout_featured_match_cache_v1';
 
 const SUPPORTED_LEAGUES = [2021, 2014, 2002, 2019, 2015, 2001];
 const LEAGUE_NAMES: Record<number, string> = {
@@ -74,6 +75,7 @@ const MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl',
 
 // standings'ten anlamlı metrik üretmek için minimum oynanmış maç sayısı
 const MIN_PLAYED = 3;
+const NEXT_MATCH_LOOKAHEAD_DAYS = 7;
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -123,6 +125,8 @@ type ListItem = {
   summary?: string;
   filter?: string;
 };
+
+type FeaturedMatchCache = Record<string, number>;
 
 // ─── metrics engine ──────────────────────────────────────────────────────────
 
@@ -658,7 +662,7 @@ function TomorrowFeaturedCard({ m, metrics, onPress }: { m: Match; metrics: Metr
       <View style={sc.hlTop}>
         <View style={sc.singleTitleRow}>
           <Ionicons name="star-outline" size={17} color="#E3B341" />
-          <Text style={[sc.singleTitle, { color: '#E3B341' }]}>SONRAKİ GÜN ÖNE ÇIKAN</Text>
+          <Text style={[sc.singleTitle, { color: '#E3B341' }]}>YAKLAŞAN ÖNE ÇIKAN</Text>
         </View>
         <Text style={[sc.hlLeague, { color: c.primary }]}>{m.league}</Text>
       </View>
@@ -850,11 +854,20 @@ export default function HomeScreen() {
   const [standingsMap, setStandingsMap] = useState<Record<number, Standing[]>>({});
   const [nextDayPreview, setNextDayPreview] = useState<{ m: Match; metrics: Metrics } | null>(null);
   const [singleH2H, setSingleH2H] = useState<any[]>([]);
+  const [featuredMatchCache, setFeaturedMatchCache] = useState<FeaturedMatchCache>({});
   const [loading, setLoading]           = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const dateList          = getDateList();
   const initialFocusDone  = useRef(false);
   const loadSeq           = useRef(0);
+
+  useEffect(() => {
+    AsyncStorage.getItem(FEATURED_MATCH_CACHE_KEY)
+      .then(raw => {
+        if (raw) setFeaturedMatchCache(JSON.parse(raw));
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     loadMatches(selectedDate);
@@ -1013,30 +1026,34 @@ export default function HomeScreen() {
   }, [activeFilter, matches.length, selectedDate]);
 
   async function loadNextDayPreview(date: Date, requestId: number, rowsMap: Record<number, Standing[]>) {
-    const next = new Date(date);
-    next.setDate(next.getDate() + 1);
-    const nextStr = formatDateParam(next);
     try {
-      const [data, slData] = await Promise.all([
-        getTodayMatches(nextStr),
-        getSuperLigMatches(nextStr),
-      ]);
-      if (requestId !== loadSeq.current) return;
-      const visible = buildVisibleMatches(data, slData);
-      if (visible.length === 0) {
-        setNextDayPreview(null);
+      for (let offset = 1; offset <= NEXT_MATCH_LOOKAHEAD_DAYS; offset += 1) {
+        const next = new Date(date);
+        next.setDate(next.getDate() + offset);
+        const nextStr = formatDateParam(next);
+        const [data, slData] = await Promise.all([
+          getTodayMatches(nextStr),
+          getSuperLigMatches(nextStr),
+        ]);
+        if (requestId !== loadSeq.current) return;
+        const visible = buildVisibleMatches(data, slData);
+        if (visible.length === 0) continue;
+
+        const completeRowsMap = await ensureStandingsForMatches(visible, nextStr, requestId, rowsMap);
+        if (requestId !== loadSeq.current) return;
+        const ranked = visible
+          .map(m => {
+            const rows = completeRowsMap[m.leagueApiId];
+            const home = findStanding(rows, m.home, m.homeTeamId);
+            const away = findStanding(rows, m.away, m.awayTeamId);
+            const metrics = computeMetrics(home, away, rows, m.leagueApiId);
+            return { m, metrics };
+          })
+          .sort((a, b) => scoutScore(b.m, b.metrics) - scoutScore(a.m, a.metrics));
+        setNextDayPreview(ranked[0]);
         return;
       }
-      const ranked = visible
-        .map(m => {
-          const rows = rowsMap[m.leagueApiId];
-          const home = findStanding(rows, m.home, m.homeTeamId);
-          const away = findStanding(rows, m.away, m.awayTeamId);
-          const metrics = computeMetrics(home, away, rows, m.leagueApiId);
-          return { m, metrics };
-        })
-        .sort((a, b) => scoutScore(b.m, b.metrics) - scoutScore(a.m, a.metrics));
-      setNextDayPreview(ranked[0]);
+      if (requestId === loadSeq.current) setNextDayPreview(null);
     } catch {
       if (requestId === loadSeq.current) setNextDayPreview(null);
     }
@@ -1148,22 +1165,42 @@ export default function HomeScreen() {
     [filteredMatches, metricsMap]
   );
 
+  const featuredMatches = useMemo(() => {
+    if (activeFilter !== 'Scout' || sortedMatches.length === 0) return sortedMatches;
+    const dateKey = formatDateParam(selectedDate);
+    const cacheKey = `${dateKey}:Scout`;
+    const cachedId = featuredMatchCache[cacheKey];
+    const cached = sortedMatches.find(m => m.id === cachedId);
+    if (!cached) return sortedMatches;
+    return [cached, ...sortedMatches.filter(m => m.id !== cached.id)];
+  }, [activeFilter, sortedMatches, selectedDate, featuredMatchCache]);
+
+  useEffect(() => {
+    if (activeFilter !== 'Scout' || sortedMatches.length === 0) return;
+    const dateKey = formatDateParam(selectedDate);
+    const cacheKey = `${dateKey}:Scout`;
+    if (featuredMatchCache[cacheKey]) return;
+    const nextCache = { ...featuredMatchCache, [cacheKey]: sortedMatches[0].id };
+    setFeaturedMatchCache(nextCache);
+    AsyncStorage.setItem(FEATURED_MATCH_CACHE_KEY, JSON.stringify(nextCache)).catch(() => {});
+  }, [activeFilter, sortedMatches, selectedDate, featuredMatchCache]);
+
   const listItems = useMemo<ListItem[]>(() => {
-    const scoutMode = activeFilter === 'Scout' && sortedMatches.length > 0;
+    const scoutMode = activeFilter === 'Scout' && featuredMatches.length > 0;
     const items: ListItem[] = [];
 
     if (scoutMode) {
-      const hero = sortedMatches[0];
-      const highlights = sortedMatches.slice(1, 4);
+      const hero = featuredMatches[0];
+      const highlights = featuredMatches.slice(1, 4);
       const shownIds = new Set([hero?.id, ...highlights.map(m => m.id)]);
-      const upcoming = sortedMatches.filter(m => !m.finished);
-      const finished = sortedMatches.filter(m => m.finished && !shownIds.has(m.id));
+      const upcoming = featuredMatches.filter(m => !m.finished);
+      const finished = featuredMatches.filter(m => m.finished && !shownIds.has(m.id));
       const summary = buildDaySummary(Array.from(metricsMap.values()));
 
       items.push({ key: 'h-gunun-maci', type: 'section-header', title: 'GÜNÜN MAÇI' });
       items.push({ key: 'hero', type: 'hero', m: hero, metrics: metricsMap.get(hero.id) ?? NO_DATA });
 
-      if (sortedMatches.length === 1) {
+      if (featuredMatches.length === 1) {
         const heroMetrics = metricsMap.get(hero.id) ?? NO_DATA;
         items.push({ key: 'single-insight', type: 'single-insight', m: hero, metrics: heroMetrics });
         items.push({ key: 'single-trends', type: 'single-trends', m: hero, metrics: heroMetrics });
@@ -1209,7 +1246,7 @@ export default function HomeScreen() {
     }
 
     return items;
-  }, [sortedMatches, metricsMap, activeFilter, selectedDate, nextDayPreview, singleH2H]);
+  }, [featuredMatches, sortedMatches, metricsMap, activeFilter, selectedDate, nextDayPreview, singleH2H]);
 
   function goToMatch(m: Match, metrics?: Metrics) {
     const metricParams = {
@@ -1370,14 +1407,16 @@ export default function HomeScreen() {
       </ScrollView>
 
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={c.primary} />
+        <View style={styles.loadingArea}>
+          <ActivityIndicator color={c.primary} />
+        </View>
       ) : (
         <FlatList
           style={styles.scroll}
           data={listItems}
           keyExtractor={item => item.key}
           renderItem={renderListItem}
-          contentContainerStyle={{ paddingBottom: 24 }}
+          contentContainerStyle={{ paddingBottom: 116 }}
           removeClippedSubviews
         />
       )}
@@ -1431,8 +1470,9 @@ const styles = StyleSheet.create({
   scoutPillText:      { fontSize: 13, color: '#185FA5', fontWeight: '700' },
   scoutPillTextActive:{ color: '#fff' },
   scroll:             { flex: 1 },
+  loadingArea:        { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 116 },
   emptyText:          { textAlign: 'center', color: '#888', marginTop: 40, fontSize: 13 },
-  tabBar:             { flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: '#eee', paddingBottom: 20, backgroundColor: '#fff' },
+  tabBar:             { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: '#eee', paddingBottom: 20, backgroundColor: '#fff' },
   tab:                { flex: 1, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', gap: 3 },
   tabText:            { fontSize: 12, color: '#888' },
   tabActive:          { color: '#185FA5', fontWeight: '500' },
