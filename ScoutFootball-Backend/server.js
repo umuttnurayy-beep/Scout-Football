@@ -139,6 +139,111 @@ async function fetchEspnStandings(slug) {
   });
 }
 
+function hasMatchTeamNames(match) {
+  return Boolean(
+    (match.homeTeam?.shortName || match.homeTeam?.name) &&
+    (match.awayTeam?.shortName || match.awayTeam?.name)
+  );
+}
+
+function formatDateForEspn(date) {
+  return date.replace(/-/g, '');
+}
+
+function minutesBetweenDates(a, b) {
+  const aTime = new Date(a).getTime();
+  const bTime = new Date(b).getTime();
+  if (Number.isNaN(aTime) || Number.isNaN(bTime)) return Number.POSITIVE_INFINITY;
+  return Math.abs(aTime - bTime) / 60000;
+}
+
+function mapEspnStatusToFootballData(event) {
+  const state = event.status?.type?.state;
+  const completed = event.status?.type?.completed;
+  if (completed) return 'FINISHED';
+  if (state === 'in') return 'IN_PLAY';
+  return 'TIMED';
+}
+
+function mapEspnTeam(competitor, fallback) {
+  const team = competitor?.team || {};
+  const name = team.displayName || team.name || team.shortDisplayName || fallback;
+  return {
+    id: parseInt(team.id) || 0,
+    name,
+    shortName: team.shortDisplayName || team.name || name,
+    tla: team.abbreviation || '',
+    crest: team.logo || team.logos?.[0]?.href || null,
+  };
+}
+
+function mapEspnEventToFootballDataMatch(event, date) {
+  const competition = event.competitions?.[0] || {};
+  const competitors = competition.competitors || [];
+  const home = competitors.find(c => c.homeAway === 'home');
+  const away = competitors.find(c => c.homeAway === 'away');
+  const homeScore = home?.score !== undefined ? parseInt(home.score) : null;
+  const awayScore = away?.score !== undefined ? parseInt(away.score) : null;
+  const status = mapEspnStatusToFootballData(event);
+
+  return {
+    area: { id: 2077, name: 'Europe', code: 'EUR', flag: 'https://crests.football-data.org/EUR.svg' },
+    competition: { id: 2001, name: 'UEFA Champions League', code: 'CL', type: 'CUP', emblem: 'https://crests.football-data.org/CL.png' },
+    season: { startDate: `${CURRENT_FOOTBALL_SEASON}-07-01`, endDate: `${Number(CURRENT_FOOTBALL_SEASON) + 1}-06-30`, winner: null },
+    id: parseInt(event.id) || 0,
+    utcDate: event.date || competition.date || `${date}T00:00:00Z`,
+    status,
+    matchday: event.season?.type || null,
+    stage: event.season?.slug?.toUpperCase()?.replace(/-/g, '_') || null,
+    group: null,
+    lastUpdated: new Date().toISOString(),
+    homeTeam: mapEspnTeam(home, 'Home'),
+    awayTeam: mapEspnTeam(away, 'Away'),
+    score: {
+      winner: null,
+      duration: 'REGULAR',
+      fullTime: {
+        home: status === 'FINISHED' ? homeScore : null,
+        away: status === 'FINISHED' ? awayScore : null,
+      },
+      halfTime: { home: null, away: null },
+    },
+    odds: {},
+    referees: [],
+  };
+}
+
+async function fetchEspnScoreboardMatches(slug, date) {
+  const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard?dates=${formatDateForEspn(date)}`);
+  const data = await response.json();
+  const events = Array.isArray(data.events) ? data.events : [];
+  return events.map(event => mapEspnEventToFootballDataMatch(event, date));
+}
+
+async function repairFootballDataMatches(matches, date) {
+  const needsUclRepair = matches.some(m => m.competition?.id === 2001 && !hasMatchTeamNames(m));
+  if (!needsUclRepair) return matches;
+
+  try {
+    const espnMatches = await fetchEspnScoreboardMatches('uefa.champions', date);
+    if (espnMatches.length === 0) return matches;
+
+    return matches.map(match => {
+      if (match.competition?.id !== 2001 || hasMatchTeamNames(match)) return match;
+      const fallback = espnMatches.find(candidate => minutesBetweenDates(candidate.utcDate, match.utcDate) <= 120);
+      if (!fallback || !hasMatchTeamNames(fallback)) return match;
+      return {
+        ...match,
+        homeTeam: { ...fallback.homeTeam, id: match.homeTeam?.id || fallback.homeTeam.id },
+        awayTeam: { ...fallback.awayTeam, id: match.awayTeam?.id || fallback.awayTeam.id },
+      };
+    });
+  } catch (e) {
+    console.error('[matches] UCL ESPN repair failed:', e.message);
+    return matches;
+  }
+}
+
 app.get('/standings/:leagueId', async (req, res) => {
   const { leagueId } = req.params;
   if (!FOOTBALL_DATA_KEY) return missingConfig(res, 'FOOTBALL_DATA_KEY', []);
@@ -201,10 +306,8 @@ app.get('/matches', async (req, res) => {
     });
     const data = await response.json();
     const matches = Array.isArray(data.matches) ? data.matches : [];
-    const renderableMatches = matches.filter(m =>
-      (m.homeTeam?.shortName || m.homeTeam?.name) &&
-      (m.awayTeam?.shortName || m.awayTeam?.name)
-    );
+    const repairedMatches = await repairFootballDataMatches(matches, today);
+    const renderableMatches = repairedMatches.filter(hasMatchTeamNames);
     await setCache(cacheKey, renderableMatches, TTL.matches);
     res.json(renderableMatches);
   } catch (e) {
@@ -429,10 +532,6 @@ async function fetchSuperLigSeasonEvents() {
   const events = Array.isArray(data.events) ? data.events : [];
   if (events.length > 0) await setCache(cacheKey, events, TTL.seasonFixtures);
   return events;
-}
-
-function formatDateForEspn(date) {
-  return date.replace(/-/g, '');
 }
 
 function timeFromIso(isoDate) {
