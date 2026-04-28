@@ -30,6 +30,7 @@ const PREFS_KEY    = 'scout_notif_prefs_v2';
 const DAILY_ID     = 'scout_daily';
 const FEATURED_ID  = 'scout_featured';
 const MATCH_PREFIX = 'scout_match_';
+const SCOUT_NOTIFICATION_IDS = [DAILY_ID, FEATURED_ID];
 const BASE_URL     = API_BASE_URL;
 const DAILY_NOTIFICATION_HOUR = 12;
 
@@ -80,7 +81,16 @@ export async function requestPermissions(): Promise<boolean> {
 }
 
 export async function cancelAllNotifications(): Promise<void> {
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  await cancelScoutNotifications();
+}
+
+async function cancelScoutNotifications(): Promise<void> {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  await Promise.all(
+    scheduled
+      .filter(n => SCOUT_NOTIFICATION_IDS.includes(n.identifier) || n.identifier.startsWith(MATCH_PREFIX))
+      .map(n => Notifications.cancelScheduledNotificationAsync(n.identifier)),
+  );
 }
 
 export async function registerPushToken(
@@ -151,7 +161,7 @@ export async function scheduleNotifications(
   const anyEnabled = prefs.daily || prefs.favTeam || prefs.featured;
 
   if (!anyEnabled) {
-    await Notifications.cancelAllScheduledNotificationsAsync();
+    await cancelScoutNotifications();
     return;
   }
 

@@ -9,6 +9,13 @@ npm install
 npx expo start
 ```
 
+Local API/staging overrides can be supplied with Expo public env vars:
+
+```bash
+EXPO_PUBLIC_API_BASE_URL=http://localhost:3000
+EXPO_PUBLIC_FOOTBALL_SEASON=2025
+```
+
 ## Checks
 
 ```bash
@@ -39,3 +46,4 @@ eas build --profile production --platform all --auto-submit
 ## Backend
 
 Railway uses the `ScoutFootball-Backend` directory from this repository. Required service variables are documented in `ScoutFootball-Backend/.env.example`.
+Diagnostic endpoints such as `/push/status` require `DIAGNOSTICS_SECRET` via the `x-diagnostics-secret` header.

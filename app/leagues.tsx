@@ -3,7 +3,8 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import { getSportsDbStandings, getStandings, getSuperLigStandings, getUclKnockouts } from '../services/api';
+import { CURRENT_FOOTBALL_SEASON, DISPLAY_FOOTBALL_SEASON } from '../constants/seasons';
+import { getStandings, getSuperLigStandings, getUclKnockouts } from '../services/api';
 import { leagueDataEmptyMessage } from '../utils/emptyStates';
 
 const leagues = [
@@ -13,9 +14,13 @@ const leagues = [
   { id: 4, apiId: 135, name: 'Serie A',     country: 'İtalya',    flag: '🇮🇹', season: '2025/26' },
   { id: 5, apiId: 61,  name: 'Ligue 1',     country: 'Fransa',    flag: '🇫🇷', season: '2025/26' },
   { id: 6, apiId: 2,   name: 'UCL',         country: 'Avrupa',    flag: '🌍', season: '2025/26' },
-  { id: 7, apiId: 4481, name: 'Europa Lig', country: 'Avrupa',    flag: '🇪🇺', season: '2025/26' },
-  { id: 8, apiId: 203, name: 'Süper Lig',   country: 'Türkiye',   flag: '🇹🇷', season: '2025/26' },
+  { id: 7, apiId: 203, name: 'Süper Lig',   country: 'Türkiye',   flag: '🇹🇷', season: '2025/26' },
 ];
+
+const configuredLeagues = leagues.map(league => ({
+  ...league,
+  season: DISPLAY_FOOTBALL_SEASON,
+}));
 
 const UCL_STAGES = [
   { key: 'KNOCKOUT_ROUND_PLAY_OFF', label: 'Play-off'     },
@@ -34,7 +39,7 @@ const SUB_TABS = [
 type SubTab = typeof SUB_TABS[number]['key'];
 
 type Level    = 'Düşük' | 'Orta' | 'Yüksek';
-type League   = typeof leagues[0];
+type League   = typeof configuredLeagues[0];
 type Standing = { pos: number; team: string; teamId: number; played: number; win: number; draw: number; loss: number; gf: number; ga: number; pts: number; };
 type LeagueChar = {
   label: string; color: string; bg: string; traits: string[]; rec: string; ozet: string;
@@ -295,7 +300,7 @@ function getBadgeStyle(pos: number, total: number, apiId: number) {
 export default function LeaguesScreen() {
   const router = useRouter();
   const { colors: c, isDark } = useTheme();
-  const [activeLeague, setActiveLeague] = useState<League>(leagues[0]);
+  const [activeLeague, setActiveLeague] = useState<League>(configuredLeagues[0]);
   const [subTab, setSubTab]             = useState<SubTab>('genel');
   const [uclView, setUclView]           = useState<'standings' | 'bracket'>('standings');
   const [activeStage, setActiveStage]   = useState(UCL_STAGES[1].key);
@@ -314,9 +319,7 @@ export default function LeaguesScreen() {
     try {
       const data = apiId === 203
         ? await getSuperLigStandings()
-        : apiId === 4481
-          ? await getSportsDbStandings(apiId)
-          : await getStandings(apiId);
+        : await getStandings(apiId);
       setStandings(data && data.length > 0 ? data : []);
     } catch { setStandings([]); }
     setLoading(false);
@@ -324,7 +327,7 @@ export default function LeaguesScreen() {
 
   async function loadKnockouts() {
     try {
-      const data = await getUclKnockouts(2025);
+      const data = await getUclKnockouts(CURRENT_FOOTBALL_SEASON);
       setKnockouts(data);
     } catch { setKnockouts(null); }
   }
@@ -383,7 +386,7 @@ export default function LeaguesScreen() {
       <ScrollView horizontal showsHorizontalScrollIndicator={false}
         style={[styles.leagueNav, { borderBottomColor: c.border, backgroundColor: c.surface }]}
         contentContainerStyle={{ paddingHorizontal: 14 }}>
-        {leagues.map(l => (
+        {configuredLeagues.map(l => (
           <TouchableOpacity key={l.id}
             style={[styles.leaguePill, { borderColor: c.border }, activeLeague.id === l.id && styles.leaguePillActive]}
             onPress={() => setActiveLeague(l)}>

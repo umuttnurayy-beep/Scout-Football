@@ -11,8 +11,7 @@ const leagues = [
   { id: 4, apiId: 135, fdId: 2019, name: 'Serie A',     country: 'İtalya',    flag: '🇮🇹' },
   { id: 5, apiId: 61,  fdId: 2015, name: 'Ligue 1',     country: 'Fransa',    flag: '🇫🇷' },
   { id: 6, apiId: 2,   fdId: 2001, name: 'UCL',         country: 'Avrupa',    flag: '🌍' },
-  { id: 7, apiId: 4481, fdId: 0,   name: 'Europa Lig',  country: 'Avrupa',    flag: '🇪🇺' },
-  { id: 8, apiId: 203, fdId: 0,    name: 'Süper Lig',   country: 'Türkiye',   flag: '🇹🇷' },
+  { id: 7, apiId: 203, fdId: 0,    name: 'Süper Lig',   country: 'Türkiye',   flag: '🇹🇷' },
 ];
 
 export default function StatsScreen() {

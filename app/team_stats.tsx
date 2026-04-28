@@ -6,11 +6,11 @@ import {
   Text, TouchableOpacity, View,
 } from 'react-native';
 import {
-  getAfLeagueTeams, getAfTeamStats,
   getAllSportsTeamStats, getFdTeamData, getTeamForm, getTopScorers,
-  getSportsDbTeamForm, getSuperLigTeamForm, getSuperLigPlayers, getSuperLigScorers,
+  getSuperLigTeamForm, getSuperLigPlayers, getSuperLigScorers,
 } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
+import { DISPLAY_FOOTBALL_SEASON } from '../constants/seasons';
 import { formDataEmptyMessage } from '../utils/emptyStates';
 
 const AF_POSITION_MAP: Record<string, string> = {
@@ -50,11 +50,6 @@ function teamsMatch(a: string, b: string): boolean {
   const na = normalizeTeamName(a);
   const nb = normalizeTeamName(b);
   return na === nb || na.includes(nb) || nb.includes(na);
-}
-
-function sumCards(cardsObj: any): number {
-  if (!cardsObj) return 0;
-  return Object.values(cardsObj).reduce((s: number, v: any) => s + (v?.total || 0), 0);
 }
 
 function calcSeasonStats(matches: any[], teamId: number) {
@@ -199,10 +194,6 @@ export default function TeamStatsScreen() {
   const [seasonStats, setSeasonStats] = useState<any>(null);
   const [loadingForm, setLoadingForm] = useState(false);
 
-  // Geçen sezon AF detayları (2024)
-  const [afTeamStats, setAfTeamStats] = useState<any>(null);
-  const [loadingAf,   setLoadingAf]   = useState(false);
-
   // Kadro + golcüler (football-data.org, güncel sezon)
   const [fdSquad,      setFdSquad]      = useState<any[]>([]);
   const [fdScorers,    setFdScorers]    = useState<any[]>([]);
@@ -222,14 +213,13 @@ export default function TeamStatsScreen() {
   const winPct = played > 0 ? Math.round((win / played) * 100) : 0;
   const initials = teamName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
 
-  const isSportsDbLeague = apiId === 203 || apiId === 4481;
+  const isSportsDbLeague = apiId === 203;
   const displayForm = isSportsDbLeague ? slForm : recentForm;
   const activeSeasonStats = isSportsDbLeague ? slSeasonStats : seasonStats;
   const lacksProviderTeamId = !isSportsDbLeague && !teamId;
 
   useEffect(() => {
     loadForm();
-    loadAfData();
     loadPlayers();
     loadAllSports();
     if (isSportsDbLeague) loadSLData();
@@ -270,22 +260,6 @@ export default function TeamStatsScreen() {
     setLoadingForm(false);
   }
 
-  async function loadAfData() {
-    if (!apiId || isSportsDbLeague) return;
-    setLoadingAf(true);
-    try {
-      const teams = await getAfLeagueTeams(apiId, 2024);
-      const afTeam = teams.find((t: any) => teamsMatch(t.name, teamName));
-      if (afTeam) {
-        const stats = await getAfTeamStats(apiId, afTeam.id, 2024);
-        setAfTeamStats(stats);
-      }
-    } catch (e) {
-      console.error('loadAfData hata:', e);
-    }
-    setLoadingAf(false);
-  }
-
   async function loadPlayers() {
     if (!teamId || !fdId || isSportsDbLeague) return;
     setLoadingPlayers(true);
@@ -320,7 +294,7 @@ export default function TeamStatsScreen() {
     setLoadingPlayers(true);
     try {
       const [formMatches, players, allScorers] = await Promise.all([
-        apiId === 203 ? getSuperLigTeamForm(teamId) : getSportsDbTeamForm(apiId, teamId),
+        getSuperLigTeamForm(teamId),
         apiId === 203 ? getSuperLigPlayers(teamId) : Promise.resolve([]),
         apiId === 203 ? getSuperLigScorers() : Promise.resolve([]),
       ]);
@@ -391,7 +365,7 @@ export default function TeamStatsScreen() {
           </View>
           <View>
             <Text style={[styles.teamTitle, { color: c.text }]}>{teamName}</Text>
-            <Text style={[styles.teamSub, { color: c.textMuted }]}>{leagueFlag} {leagueName} · 2025/26</Text>
+            <Text style={[styles.teamSub, { color: c.textMuted }]}>{leagueFlag} {leagueName} · {DISPLAY_FOOTBALL_SEASON}</Text>
           </View>
         </View>
 
@@ -451,7 +425,7 @@ export default function TeamStatsScreen() {
             {/* SON FORM — üste taşındı */}
             <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SON FORM</Text>
             <View style={styles.formRow}>
-              {(loadingForm || loadingAf) && displayForm.length === 0 ? (
+              {loadingForm && displayForm.length === 0 ? (
                 <ActivityIndicator color={c.primary} />
               ) : displayForm.length === 0 ? (
                 <Text style={[styles.formNote, { color: c.textMuted }]}>
@@ -636,31 +610,6 @@ export default function TeamStatsScreen() {
                       <Text style={[styles.statLbl, { color: c.textMuted }]}>Ort. Possession</Text>
                     </View>
                   )}
-                </View>
-              </>
-            )}
-
-            {/* GEÇEN SEZON DETAY — AF 2024 */}
-            {afTeamStats && (
-              <>
-                <Text style={[styles.sectionLabel, { color: c.textMuted }]}>GEÇEN SEZON DETAY (2024/25)</Text>
-                <View style={styles.statGrid}>
-                  <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
-                    <Text style={[styles.statVal, { color: c.text }]}>{afTeamStats.clean_sheet?.total ?? '-'}</Text>
-                    <Text style={[styles.statLbl, { color: c.textMuted }]}>Kalesini sıfır</Text>
-                  </View>
-                  <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
-                    <Text style={[styles.statVal, { color: c.text }]}>{afTeamStats.failed_to_score?.total ?? '-'}</Text>
-                    <Text style={[styles.statLbl, { color: c.textMuted }]}>Gol atamadı</Text>
-                  </View>
-                  <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
-                    <Text style={[styles.statVal, { color: c.text }]}>{sumCards(afTeamStats.cards?.yellow)}</Text>
-                    <Text style={[styles.statLbl, { color: c.textMuted }]}>Sarı kart</Text>
-                  </View>
-                  <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
-                    <Text style={[styles.statVal, { color: c.text }]}>{sumCards(afTeamStats.cards?.red)}</Text>
-                    <Text style={[styles.statLbl, { color: c.textMuted }]}>Kırmızı kart</Text>
-                  </View>
                 </View>
               </>
             )}

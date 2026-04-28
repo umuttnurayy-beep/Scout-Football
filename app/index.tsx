@@ -8,8 +8,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import {
-  getCityForTeam, getSportsDbLeagueMatches, getSportsDbStandings, getStandings, getSuperLigMatches, getSuperLigStandings,
-  getTodayMatches, Standing,
+  getCityForTeam, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, Standing,
 } from '../services/api';
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
 import { matchListEmptyMessage } from '../utils/emptyStates';
@@ -19,20 +18,13 @@ import { matchListEmptyMessage } from '../utils/emptyStates';
 const STANDINGS_CACHE_KEY = 'scout_standings_cache_v5';
 
 const SUPPORTED_LEAGUES = [2021, 2014, 2002, 2019, 2015, 2001];
-const SPORTSDB_EXTRA_LEAGUES = [
-  { id: 4481, name: 'Europa Lig' },
-];
-const SPORTSDB_LEAGUE_IDS = SPORTSDB_EXTRA_LEAGUES.map(l => l.id);
-
 const LEAGUE_NAMES: Record<number, string> = {
   2021: 'Premier Lig', 2014: 'La Liga', 2002: 'Bundesliga',
   2019: 'Serie A', 2015: 'Ligue 1', 2001: 'UCL', 203: 'Süper Lig',
-  4481: 'Europa Lig',
 };
 
 const LEAGUE_WEIGHT: Record<number, number> = {
   2001: 30,  // UCL
-  4481: 24,  // Europa League
   2021: 26,  // Premier Lig
   2014: 26,  // La Liga
   2002: 22,  // Bundesliga
@@ -74,7 +66,6 @@ const LIG_FILTERS = [
   { label: 'Serie A',     id: 2019 },
   { label: 'Ligue 1',     id: 2015 },
   { label: 'UCL',         id: 2001 },
-  { label: 'Europa Lig',  id: 4481 },
   { label: 'Süper Lig',   id: 203  },
 ];
 
@@ -214,9 +205,7 @@ function getStandingNeighbors(standings: Standing[] | undefined, pos?: number) {
 
 function computeMetrics(home: Standing | null, away: Standing | null, standings?: Standing[], leagueApiId?: number): Metrics {
   if (!home || !away) {
-    const reason = (!standings || standings.length === 0) && SPORTSDB_LEAGUE_IDS.includes(leagueApiId ?? -1)
-      ? 'Puan tablosu verisi yok'
-      : 'Takım tablo satırı eşleşmedi';
+    const reason = 'Takım tablo satırı eşleşmedi';
     return { ...NO_DATA, reason };
   }
   if (home.played < MIN_PLAYED || away.played < MIN_PLAYED) {
@@ -419,26 +408,6 @@ function mapSLMatch(m: any): Match {
     id:          parseInt(m.id) || strHash(m.home + m.away + m.date),
     leagueApiId: 203,
     league:      'Süper Lig',
-    home:        m.home,
-    away:        m.away,
-    time:        formatSportsDbTime(m.date, m.time),
-    score:       hasScore ? `${m.homeScore} - ${m.awayScore}` : null,
-    finished:    isFinished,
-    city:        getCityForTeam(m.home),
-    utcDate,
-    homeTeamId:  m.homeTeamId || 0,
-    awayTeamId:  m.awayTeamId || 0,
-  };
-}
-
-function mapSportsDbMatch(m: any, leagueApiId: number, leagueName: string): Match {
-  const hasScore = m.homeScore !== null && m.homeScore !== undefined;
-  const isFinished = m.status === 'Match Finished' || hasScore;
-  const utcDate = sportsDbUtcDate(m.date, m.time);
-  return {
-    id:          parseInt(m.id) || strHash(`${leagueApiId}_${m.home}_${m.away}_${m.date}`),
-    leagueApiId,
-    league:      leagueName,
     home:        m.home,
     away:        m.away,
     time:        formatSportsDbTime(m.date, m.time),
@@ -666,10 +635,9 @@ export default function HomeScreen() {
         if (map) {
           // Cache var: eksik ligleri maçlarla aynı anda çek (background race condition'ı önlemek için)
           const missingLeagues = STANDINGS_LEAGUES.filter(({ leagueApiId }) => !map![leagueApiId]?.length);
-          const [data, slData, sportsDbResults, ...missingResults] = await Promise.all([
+          const [data, slData, ...missingResults] = await Promise.all([
             getTodayMatches(dateStr),
             getSuperLigMatches(dateStr),
-            Promise.all(SPORTSDB_EXTRA_LEAGUES.map(l => getSportsDbLeagueMatches(l.id, dateStr))),
             ...missingLeagues.map(({ apiId }) => getStandings(apiId)),
           ]);
           // Eksik ligleri cache'e ekle
@@ -684,48 +652,35 @@ export default function HomeScreen() {
           const mainMatches = data
             .filter((m: any) => SUPPORTED_LEAGUES.includes(m.competition?.id))
             .map(mapMatch);
-          const extraMatches = SPORTSDB_EXTRA_LEAGUES.flatMap((l, i) =>
-            (sportsDbResults[i] || []).map((m: any) => mapSportsDbMatch(m, l.id, l.name))
-          );
-          setMatches([...mainMatches, ...slData.map(mapSLMatch), ...extraMatches]);
+          setMatches([...mainMatches, ...slData.map(mapSLMatch)]);
         } else {
           // İlk yükleme: maç + standings birlikte çek, cache'e kaydet
-          const [data, slData, sportsDbResults, fdResults, slStandings, sportsDbStandings] = await Promise.all([
+          const [data, slData, fdResults, slStandings] = await Promise.all([
             getTodayMatches(dateStr),
             getSuperLigMatches(dateStr),
-            Promise.all(SPORTSDB_EXTRA_LEAGUES.map(l => getSportsDbLeagueMatches(l.id, dateStr))),
             Promise.all(STANDINGS_LEAGUES.map(({ apiId }) => getStandings(apiId))),
             getSuperLigStandings(),
-            Promise.all(SPORTSDB_EXTRA_LEAGUES.map(l => getSportsDbStandings(l.id))),
           ]);
           map = {};
           // Yalnızca dolu standings'i kaydet — boşları cache'e yazma
           STANDINGS_LEAGUES.forEach((x, i) => { if (fdResults[i]?.length > 0) map![x.leagueApiId] = fdResults[i]; });
           if (slStandings?.length > 0) map[203] = slStandings;
-          SPORTSDB_EXTRA_LEAGUES.forEach((x, i) => { if (sportsDbStandings[i]?.length > 0) map![x.id] = sportsDbStandings[i]; });
           AsyncStorage.setItem(STANDINGS_CACHE_KEY, JSON.stringify({ cacheDate: dateStr, data: map })).catch(() => {});
           setStandingsMap(map);
           const mainMatches = data
             .filter((m: any) => SUPPORTED_LEAGUES.includes(m.competition?.id))
             .map(mapMatch);
-          const extraMatches = SPORTSDB_EXTRA_LEAGUES.flatMap((l, i) =>
-            (sportsDbResults[i] || []).map((m: any) => mapSportsDbMatch(m, l.id, l.name))
-          );
-          setMatches([...mainMatches, ...slData.map(mapSLMatch), ...extraMatches]);
+          setMatches([...mainMatches, ...slData.map(mapSLMatch)]);
         }
       } else {
         // Güncelle / sessiz yenileme: sadece maç skorları güncellenir, standings sabit kalır
-        const [data, slData, sportsDbResults] = await Promise.all([
+        const [data, slData] = await Promise.all([
           getTodayMatches(dateStr), getSuperLigMatches(dateStr),
-          Promise.all(SPORTSDB_EXTRA_LEAGUES.map(l => getSportsDbLeagueMatches(l.id, dateStr))),
         ]);
         const mainMatches = data
           .filter((m: any) => SUPPORTED_LEAGUES.includes(m.competition?.id))
           .map(mapMatch);
-        const extraMatches = SPORTSDB_EXTRA_LEAGUES.flatMap((l, i) =>
-          (sportsDbResults[i] || []).map((m: any) => mapSportsDbMatch(m, l.id, l.name))
-        );
-        setMatches([...mainMatches, ...slData.map(mapSLMatch), ...extraMatches]);
+        setMatches([...mainMatches, ...slData.map(mapSLMatch)]);
       }
     } catch (e) {
       console.error('loadMatches hata:', e);
@@ -886,7 +841,7 @@ export default function HomeScreen() {
       awayBelowPts: metrics?.awayBelowPts != null ? String(metrics.awayBelowPts) : '',
       leagueAvg: metrics?.leagueAvg != null ? String(metrics.leagueAvg) : '',
     };
-    if (m.leagueApiId === 203 || SPORTSDB_LEAGUE_IDS.includes(m.leagueApiId)) {
+    if (m.leagueApiId === 203) {
       const slMatchHref: Href = {
         pathname: '/sl_match_detail',
         params: {

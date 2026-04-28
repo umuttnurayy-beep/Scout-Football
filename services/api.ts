@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CURRENT_FOOTBALL_SEASON } from '../constants/seasons';
 import { API_BASE_URL } from './config';
 
 const BASE_URL = API_BASE_URL;
@@ -19,7 +20,6 @@ const ODDS_LEAGUE_MAP: Record<number, string> = {
   2019: 'soccer_italy_serie_a',
   2015: 'soccer_france_ligue_one',
   2001: 'soccer_uefa_champs_league',
-  4481: 'soccer_uefa_europa_league',
 };
 
 export const TEAM_CITIES: Record<string, string> = {
@@ -169,13 +169,48 @@ export type OddsData = {
   away: string;
 };
 
+type ApiEnvelope<T> = {
+  ok?: boolean;
+  data?: T;
+  error?: { code?: string; message?: string };
+};
+
+function unwrapApiData<T>(payload: T | ApiEnvelope<T>): T {
+  if (payload && typeof payload === 'object' && 'ok' in payload && 'data' in payload) {
+    return (payload as ApiEnvelope<T>).data as T;
+  }
+  return payload as T;
+}
+
+async function readApiJson<T>(res: Response, fallback: T): Promise<T> {
+  const payload = unwrapApiData<T>(await res.json());
+  return payload ?? fallback;
+}
+
+function arrayOrEmpty<T = any>(value: unknown): T[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function isStanding(value: unknown): value is Standing {
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Partial<Standing>;
+  return typeof row.team === 'string' &&
+    typeof row.pos === 'number' &&
+    typeof row.played === 'number' &&
+    typeof row.pts === 'number';
+}
+
+function standingsOrEmpty(value: unknown): Standing[] {
+  return arrayOrEmpty<unknown>(value).filter(isStanding);
+}
+
 export async function getStandings(leagueId: number): Promise<Standing[]> {
   try {
     const fdId = LEAGUE_MAP[leagueId];
     if (!fdId) return [];
     const res = await fetch(`${BASE_URL}/standings/${fdId}`);
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    const data = await readApiJson<Standing[]>(res, []);
+    return standingsOrEmpty(data);
   } catch (e) {
     console.error('getStandings hata:', e);
     return [];
@@ -186,8 +221,8 @@ export async function getTodayMatches(date?: string): Promise<any[]> {
   try {
     const url = date ? `${BASE_URL}/matches?date=${date}` : `${BASE_URL}/matches`;
     const res = await fetch(url);
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    const data = await readApiJson<any[]>(res, []);
+    return arrayOrEmpty(data);
   } catch (e) {
     console.error('getTodayMatches hata:', e);
     return [];
@@ -197,7 +232,7 @@ export async function getTodayMatches(date?: string): Promise<any[]> {
 export async function getMatchStats(matchId: string): Promise<any> {
   try {
     const res = await fetch(`${BASE_URL}/match/${matchId}`);
-    const data = await res.json();
+    const data = await readApiJson<any | null>(res, null);
     return data || null;
   } catch (e) {
     console.error('getMatchStats hata:', e);
@@ -209,8 +244,8 @@ export async function getH2H(matchId: string, isFinished?: boolean): Promise<any
   try {
     const url = isFinished ? `${BASE_URL}/h2h/${matchId}?finished=1` : `${BASE_URL}/h2h/${matchId}`;
     const res = await fetch(url);
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    const data = await readApiJson<any[]>(res, []);
+    return arrayOrEmpty(data);
   } catch (e) {
     console.error('getH2H hata:', e);
     return [];
@@ -220,8 +255,8 @@ export async function getH2H(matchId: string, isFinished?: boolean): Promise<any
 export async function getTeamForm(teamId: number): Promise<any[]> {
   try {
     const res = await fetch(`${BASE_URL}/team/${teamId}/matches`);
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    const data = await readApiJson<any[]>(res, []);
+    return arrayOrEmpty(data);
   } catch (e) {
     console.error('getTeamForm hata:', e);
     return [];
@@ -231,7 +266,7 @@ export async function getTeamForm(teamId: number): Promise<any[]> {
 export async function getWeather(city: string): Promise<WeatherData | null> {
   try {
     const res = await fetch(`${BASE_URL}/weather?city=${encodeURIComponent(city)}`);
-    const data = await res.json();
+    const data = await readApiJson<WeatherData | null>(res, null);
     return data || null;
   } catch (e) {
     console.error('getWeather hata:', e);
@@ -257,7 +292,7 @@ export async function getOdds(homeTeam: string, awayTeam: string, leagueApiId: n
     } catch (_) {}
 
     const res = await fetch(`${BASE_URL}/odds?sport=${sport}`);
-    const data = await res.json();
+    const data = await readApiJson<any[]>(res, []);
     if (!Array.isArray(data)) return null;
 
     function normalize(s: string) {
@@ -308,66 +343,10 @@ export async function getOdds(homeTeam: string, awayTeam: string, leagueApiId: n
 export async function getTopScorers(leagueId: number): Promise<any[]> {
   try {
     const res = await fetch(`${BASE_URL}/scorers/${leagueId}`);
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    const data = await readApiJson<any[]>(res, []);
+    return arrayOrEmpty(data);
   } catch (e) {
     console.error('getTopScorers hata:', e);
-    return [];
-  }
-}
-
-// --- API-Football fonksiyonları ---
-
-export async function getAfLeagueTeams(leagueId: number, season = 2025): Promise<any[]> {
-  try {
-    const res = await fetch(`${BASE_URL}/af/league-teams/${leagueId}?season=${season}`);
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
-  } catch (e) {
-    console.error('getAfLeagueTeams hata:', e);
-    return [];
-  }
-}
-
-export async function getAfTeamStats(leagueId: number, afTeamId: number, season = 2025): Promise<any> {
-  try {
-    const res = await fetch(`${BASE_URL}/af/team-stats/${leagueId}/${afTeamId}?season=${season}`);
-    return await res.json() || null;
-  } catch (e) {
-    console.error('getAfTeamStats hata:', e);
-    return null;
-  }
-}
-
-export async function getAfTopScorers(leagueId: number, season = 2025): Promise<any[]> {
-  try {
-    const res = await fetch(`${BASE_URL}/af/topscorers/${leagueId}?season=${season}`);
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
-  } catch (e) {
-    console.error('getAfTopScorers hata:', e);
-    return [];
-  }
-}
-
-export async function getAfTopAssists(leagueId: number, season = 2025): Promise<any[]> {
-  try {
-    const res = await fetch(`${BASE_URL}/af/topassists/${leagueId}?season=${season}`);
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
-  } catch (e) {
-    console.error('getAfTopAssists hata:', e);
-    return [];
-  }
-}
-
-export async function getAfSquad(afTeamId: number): Promise<any[]> {
-  try {
-    const res = await fetch(`${BASE_URL}/af/squad/${afTeamId}`);
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
-  } catch (e) {
-    console.error('getAfSquad hata:', e);
     return [];
   }
 }
@@ -375,7 +354,7 @@ export async function getAfSquad(afTeamId: number): Promise<any[]> {
 export async function getFdTeamData(teamId: number): Promise<any> {
   try {
     const res = await fetch(`${BASE_URL}/team/${teamId}`);
-    const data = await res.json();
+    const data = await readApiJson<any | null>(res, null);
     return data || null;
   } catch (e) {
     console.error('getFdTeamData hata:', e);
@@ -383,10 +362,10 @@ export async function getFdTeamData(teamId: number): Promise<any> {
   }
 }
 
-export async function getUclKnockouts(season = 2025): Promise<any> {
+export async function getUclKnockouts(season = CURRENT_FOOTBALL_SEASON): Promise<any> {
   try {
     const res = await fetch(`${BASE_URL}/ucl/knockouts?season=${season}`);
-    return await res.json() || null;
+    return await readApiJson<any | null>(res, null) || null;
   } catch (e) {
     console.error('getUclKnockouts hata:', e);
     return null;
@@ -396,7 +375,7 @@ export async function getUclKnockouts(season = 2025): Promise<any> {
 export async function getAllSportsTeamStats(teamName: string): Promise<any> {
   try {
     const res = await fetch(`${BASE_URL}/allsports/team-stats/${encodeURIComponent(teamName)}`);
-    const data = await res.json();
+    const data = await readApiJson<any | null>(res, null);
     return data || null;
   } catch (e) {
     console.error('getAllSportsTeamStats hata:', e);
@@ -407,8 +386,8 @@ export async function getAllSportsTeamStats(teamName: string): Promise<any> {
 export async function getAllSportsH2H(homeTeam: string, awayTeam: string): Promise<any[]> {
   try {
     const res = await fetch(`${BASE_URL}/allsports/h2h?home=${encodeURIComponent(homeTeam)}&away=${encodeURIComponent(awayTeam)}`);
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    const data = await readApiJson<any[]>(res, []);
+    return arrayOrEmpty(data);
   } catch (e) {
     console.error('getAllSportsH2H hata:', e);
     return [];
@@ -420,8 +399,8 @@ export async function getAllSportsH2H(homeTeam: string, awayTeam: string): Promi
 export async function getSuperLigStandings(): Promise<Standing[]> {
   try {
     const res = await fetch(`${BASE_URL}/superlig/standings`);
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    const data = await readApiJson<Standing[]>(res, []);
+    return standingsOrEmpty(data);
   } catch (e) {
     console.error('getSuperLigStandings hata:', e);
     return [];
@@ -432,8 +411,8 @@ export async function getSuperLigMatches(date?: string): Promise<any[]> {
   try {
     const url = date ? `${BASE_URL}/superlig/matches?date=${date}` : `${BASE_URL}/superlig/matches`;
     const res = await fetch(url);
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    const data = await readApiJson<any[]>(res, []);
+    return arrayOrEmpty(data);
   } catch (e) {
     console.error('getSuperLigMatches hata:', e);
     return [];
@@ -443,8 +422,8 @@ export async function getSuperLigMatches(date?: string): Promise<any[]> {
 export async function getSuperLigTeamForm(teamId: number): Promise<any[]> {
   try {
     const res = await fetch(`${BASE_URL}/superlig/team-form/${teamId}`);
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    const data = await readApiJson<any[]>(res, []);
+    return arrayOrEmpty(data);
   } catch (e) {
     console.error('getSuperLigTeamForm hata:', e);
     return [];
@@ -454,8 +433,8 @@ export async function getSuperLigTeamForm(teamId: number): Promise<any[]> {
 export async function getSuperLigPlayers(teamId: number): Promise<any[]> {
   try {
     const res = await fetch(`${BASE_URL}/superlig/players/${teamId}`);
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    const data = await readApiJson<any[]>(res, []);
+    return arrayOrEmpty(data);
   } catch (e) {
     console.error('getSuperLigPlayers hata:', e);
     return [];
@@ -465,8 +444,8 @@ export async function getSuperLigPlayers(teamId: number): Promise<any[]> {
 export async function getSuperLigScorers(): Promise<any[]> {
   try {
     const res = await fetch(`${BASE_URL}/superlig/scorers`);
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    const data = await readApiJson<any[]>(res, []);
+    return arrayOrEmpty(data);
   } catch (e) {
     console.error('getSuperLigScorers hata:', e);
     return [];
@@ -476,7 +455,7 @@ export async function getSuperLigScorers(): Promise<any[]> {
 export async function getSuperLigMatch(eventId: string): Promise<any | null> {
   try {
     const res = await fetch(`${BASE_URL}/superlig/match/${eventId}`);
-    const data = await res.json();
+    const data = await readApiJson<any | null>(res, null);
     return data || null;
   } catch (e) {
     console.error('getSuperLigMatch hata:', e);
@@ -484,49 +463,3 @@ export async function getSuperLigMatch(eventId: string): Promise<any | null> {
   }
 }
 
-export async function getSportsDbLeagueMatches(leagueId: number, date?: string): Promise<any[]> {
-  try {
-    const url = date
-      ? `${BASE_URL}/sportsdb/league/${leagueId}/matches?date=${date}`
-      : `${BASE_URL}/sportsdb/league/${leagueId}/matches`;
-    const res = await fetch(url);
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
-  } catch (e) {
-    console.error('getSportsDbLeagueMatches hata:', e);
-    return [];
-  }
-}
-
-export async function getSportsDbTeamForm(leagueId: number, teamId: number): Promise<any[]> {
-  try {
-    const res = await fetch(`${BASE_URL}/sportsdb/team-form/${leagueId}/${teamId}`);
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
-  } catch (e) {
-    console.error('getSportsDbTeamForm hata:', e);
-    return [];
-  }
-}
-
-export async function getSportsDbStandings(leagueId: number): Promise<Standing[]> {
-  try {
-    const res = await fetch(`${BASE_URL}/sportsdb/standings/${leagueId}`);
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
-  } catch (e) {
-    console.error('getSportsDbStandings hata:', e);
-    return [];
-  }
-}
-
-export async function getSportsDbMatch(eventId: string): Promise<any | null> {
-  try {
-    const res = await fetch(`${BASE_URL}/sportsdb/match/${eventId}`);
-    const data = await res.json();
-    return data || null;
-  } catch (e) {
-    console.error('getSportsDbMatch hata:', e);
-    return null;
-  }
-}

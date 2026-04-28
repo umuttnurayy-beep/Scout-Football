@@ -2,7 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import { Standing, getSportsDbStandings, getSuperLigStandings, getStandings } from '../services/api';
+import { Standing, getSuperLigStandings, getStandings } from '../services/api';
 import { teamDataEmptyMessage } from '../utils/emptyStates';
 
 export default function TeamDetailScreen() {
@@ -28,8 +28,6 @@ export default function TeamDetailScreen() {
     try {
       const data = apiId === 203
         ? await getSuperLigStandings()
-        : apiId === 4481
-          ? await getSportsDbStandings(apiId)
         : await getStandings(apiId);
       setTeams(data || []);
     } catch (e) {

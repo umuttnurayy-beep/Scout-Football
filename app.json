@@ -82,6 +82,9 @@
     },
     "extra": {
       "router": {},
+      "apiBaseUrl": "https://scoutfootball-backend-production.up.railway.app",
+      "footballSeason": "2025",
+      "displayFootballSeason": "2025/26",
       "eas": {
         "projectId": "82f6a1df-704f-4f50-b813-3bc9b2e33e4e"
       }

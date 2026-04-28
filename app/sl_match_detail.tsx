@@ -7,8 +7,7 @@ import {
 import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../context/ThemeContext';
 import {
-  getAllSportsH2H, getCityForTeam, getSportsDbMatch, getSportsDbStandings,
-  getSportsDbTeamForm, getSuperLigMatch, getSuperLigTeamForm, getWeather,
+  getAllSportsH2H, getCityForTeam, getSuperLigMatch, getSuperLigTeamForm, getWeather,
 } from '../services/api';
 import {
   ANALYSIS_DELTA as DELTA,
@@ -563,19 +562,19 @@ export default function SLMatchDetail() {
   const [showScoutHelp, setShowScoutHelp] = useState<ScoutHelpKey | null>(null);
 
   const city = getCityForTeam(home);
-  const isSuperLig = leagueApiId === 203;
+  const isSuperLig = true;
 
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const matchLoader = isSuperLig ? getSuperLigMatch(eventId) : getSportsDbMatch(eventId);
+      const matchLoader = getSuperLigMatch(eventId);
       const homeFormLoader = homeTeamId
-        ? (isSuperLig ? getSuperLigTeamForm(homeTeamId) : getSportsDbTeamForm(leagueApiId, homeTeamId))
+        ? getSuperLigTeamForm(homeTeamId)
         : Promise.resolve([]);
       const awayFormLoader = awayTeamId
-        ? (isSuperLig ? getSuperLigTeamForm(awayTeamId) : getSportsDbTeamForm(leagueApiId, awayTeamId))
+        ? getSuperLigTeamForm(awayTeamId)
         : Promise.resolve([]);
-      const standingsLoader = !isSuperLig ? getSportsDbStandings(leagueApiId) : Promise.resolve([]);
+      const standingsLoader = Promise.resolve([]);
       const [evR, hfR, afR, weatherR, h2hR, stR] = await Promise.allSettled([
         matchLoader,
         homeFormLoader,
@@ -726,7 +725,6 @@ export default function SLMatchDetail() {
         {venue&&<Text style={[styles.venueText, { color: c.textMuted }]}>🏟️ {venue}</Text>}
       </View>
 
-      {/* ── Veri Uyarısı (Europa Lig) ── */}
       {!isSuperLig && usingStandingsFallback && (
         <View style={[styles.limitedDataBanner, { backgroundColor: isDark ? '#0D1A10' : '#EAF7ED', borderColor: isDark ? '#1A4A25' : '#27AE60' }]}>
           <Text style={[styles.limitedDataText, { color: isDark ? '#3FB950' : '#1B6B3A' }]}>
