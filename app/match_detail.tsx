@@ -488,6 +488,19 @@ const cStyles=StyleSheet.create({
   winnerAway:{fontWeight:'700',fontSize:16},
 });
 
+// ── UCL Knockout Motivation ────────────────────────────────────────────────
+
+const UCL_LEAGUE_PHASE_STAGES = new Set(['LEAGUE_PHASE', 'GROUP_STAGE']);
+
+function getUclKnockoutMotivation(stage: string): string {
+  if (stage === 'FINAL') return 'Şampiyonlar Ligi FİNALİ — galip gelen Avrupa\'nın şampiyonu. İki takım da tüm sezonun birikimini bu geceye yatırıyor; maksimum motivasyon garanti.';
+  if (stage === 'SEMI_FINALS') return 'UCL Yarı Finali — bir final bileti için tek eleme maçı. Lig fazı sıralaması bu aşamada anlamsız; sahada hayatta kalmak tek hedef.';
+  if (stage === 'QUARTER_FINALS') return 'UCL Çeyrek Finali — eleme aşaması. Bu noktaya gelen her takım sezonun en yüksek motivasyonuyla sahaya çıkıyor.';
+  if (stage === 'ROUND_OF_16') return 'UCL Son 16 — lig fazı bitti, eleme başladı. Her iki taraf da çeyrek finale geçmek için tam güçle oynayacak.';
+  if (stage === 'KNOCKOUT_ROUND_PLAY_OFF') return 'UCL Play-off — Son 16 bileti için tek eleme. Bu aşamada lig tablosu değil, bu geceki performans belirleyici.';
+  return 'UCL eleme aşaması — kazanan tur atlıyor. İki takım da maksimum motivasyonla sahaya çıkıyor.';
+}
+
 // ── Main Screen ────────────────────────────────────────────────────────────
 
 export default function MatchDetail() {
@@ -618,10 +631,13 @@ export default function MatchDetail() {
   const oddsComment       = getOddsComment(oddsData, home, analysis);
   const homeAwayComment   = hasFormData ? getHomeAwayComment(homeStats, awayStats, home, away) : '';
   const deepH2H           = getDeepH2HStats(h2hData, home, away, homeTeamId);
-  const motivationComment = getMotivationComment(homePos, awayPos, leagueApiId, {
-    homePts, awayPts, homePlayed, awayPlayed, leaderPts, totalTeams,
-    homeAbovePts, homeBelowPts, awayAbovePts, awayBelowPts,
-  });
+  const isUclKnockout = leagueApiId === 2001 && matchData?.stage && !UCL_LEAGUE_PHASE_STAGES.has(matchData.stage);
+  const motivationComment = isUclKnockout
+    ? getUclKnockoutMotivation(matchData.stage)
+    : getMotivationComment(homePos, awayPos, leagueApiId, {
+        homePts, awayPts, homePlayed, awayPlayed, leaderPts, totalTeams,
+        homeAbovePts, homeBelowPts, awayAbovePts, awayBelowPts,
+      });
   const drawAnalysis      = hasFormData ? getDrawAnalysis(oddsData, homeStats, awayStats) : '';
 
   const ts = {
