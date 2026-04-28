@@ -139,8 +139,31 @@ function normalizeTeam(name: string): string {
   return name.toLowerCase()
     .replace(/[çÇ]/g, 'c').replace(/[şŞ]/g, 's').replace(/[ğĞ]/g, 'g')
     .replace(/[üÜ]/g, 'u').replace(/[öÖ]/g, 'o').replace(/[ıİ]/g, 'i')
+    // Avrupa aksanları — lig puan tablolarında ESPN vs football-data.org isim uyumsuzluğunu önler
+    .replace(/[éèêë]/g, 'e').replace(/[áàâä]/g, 'a').replace(/[íìîï]/g, 'i')
+    .replace(/[óòôõ]/g, 'o').replace(/[úùû]/g, 'u').replace(/ñ/g, 'n').replace(/ß/g, 's')
     .replace(/\s+/g, ' ').trim();
 }
+
+// football-data.org shortName → ESPN displayName eşleştirmesi yapılamayan bilinen takımlar
+const TEAM_ALIASES: Record<string, string> = {
+  'paris sg':            'paris saint-germain',
+  'psg':                 'paris saint-germain',
+  'inter':               'internazionale',
+  'man city':            'manchester city',
+  'man utd':             'manchester united',
+  'manchester utd':      'manchester united',
+  'bvb':                 'borussia dortmund',
+  'dortmund':            'borussia dortmund',
+  'sp lisbon':           'sporting cp',
+  'sporting lisbon':     'sporting cp',
+  'leverkusen':          'bayer leverkusen',
+  'brugge':              'club brugge',
+  'eintr. frankfurt':    'eintracht frankfurt',
+  'rb leipzig':          'rasenballsport leipzig',
+  'newcastle':           'newcastle united',
+  'atletico madrid':     'atletico madrid',
+};
 
 function findStanding(standings: Standing[] | undefined, teamName: string, teamId: number): Standing | null {
   if (!standings || standings.length === 0) return null;
@@ -150,12 +173,21 @@ function findStanding(standings: Standing[] | undefined, teamName: string, teamI
   }
   const target = normalizeTeam(teamName);
   if (!target) return null;
-  const exact = standings.find(s => normalizeTeam(s.team) === target);
-  if (exact) return exact;
-  return standings.find(s => {
-    const norm = normalizeTeam(s.team);
-    return norm.includes(target) || target.includes(norm);
-  }) || null;
+  // Alias varsa genişletilmiş hedef listesiyle ara
+  const alias = TEAM_ALIASES[target];
+  const targets = alias ? [target, alias] : [target];
+  for (const t of targets) {
+    const exact = standings.find(s => normalizeTeam(s.team) === t);
+    if (exact) return exact;
+  }
+  for (const t of targets) {
+    const partial = standings.find(s => {
+      const norm = normalizeTeam(s.team);
+      return norm.includes(t) || t.includes(norm);
+    });
+    if (partial) return partial;
+  }
+  return null;
 }
 
 function hasUsableStandingsMap(map: Record<number, Standing[]> | null): map is Record<number, Standing[]> {
