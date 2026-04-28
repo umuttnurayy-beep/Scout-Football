@@ -88,6 +88,7 @@ function buildMatchAnalysis(
   h2hCount: number, weatherRisk: boolean, hasFormData: boolean,
   hTrend?: { direction: 'up' | 'down' | 'stable'; pts5: number; ptsPrev: number } | null,
   aTrend?: { direction: 'up' | 'down' | 'stable'; pts5: number; ptsPrev: number } | null,
+  leagueAvg: number = 1.5,
 ): MatchAnalysis {
   const base = LEAGUE_BASE[leagueApiId] ?? { stil: 'Dengeli' as Stil, gol: 'Orta' as Level, tempo: 'Orta' as Level, risk: 'Orta' as Level };
   const hash = strHash(home + away);
@@ -102,7 +103,8 @@ function buildMatchAnalysis(
     const aAtk = parseFloat(aSt.totalAvgGf as string);
     const hDef = parseFloat(hSt.totalAvgGa as string);
     const aDef = parseFloat(aSt.totalAvgGa as string);
-    const tot  = hAtk + aAtk;
+    const la   = leagueAvg > 0 ? leagueAvg : 1.5;
+    const tot  = (hAtk * aDef + aAtk * hDef) / la;
     const avgO = (hSt.over25Pct + aSt.over25Pct) / 2;
 
     gol   = tot >= 3.0 || avgO >= 62 ? 'Yüksek' : tot < 1.8 || avgO <= 35 ? 'Düşük' : 'Orta';
@@ -543,6 +545,7 @@ export default function MatchDetail() {
   const homeBelowPts   = parseInt(p('homeBelowPts') || '0') || undefined;
   const awayAbovePts   = parseInt(p('awayAbovePts') || '0') || undefined;
   const awayBelowPts   = parseInt(p('awayBelowPts') || '0') || undefined;
+  const leagueAvgParam = parseFloat(p('leagueAvg') || '0') || 1.5;
 
   const matchDate = utcDate ? new Date(utcDate).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'}) : '';
   const matchTime = utcDate ? new Date(utcDate).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}) : '';
@@ -600,7 +603,7 @@ export default function MatchDetail() {
   const weatherRisk= !!weatherData&&(weatherData.wind>35||/rain|shower|drizzle/.test((weatherData.condition||'').toLowerCase()));
   const homeTrend  = hasFormData ? getFormTrend(homeForm, homeTeamId) : null;
   const awayTrend  = hasFormData ? getFormTrend(awayForm, awayTeamId) : null;
-  const analysis   = buildMatchAnalysis(home,away,leagueApiId,homeStats,awayStats,homeFormPts,awayFormPts,h2hData.length,weatherRisk,hasFormData,homeTrend,awayTrend);
+  const analysis   = buildMatchAnalysis(home,away,leagueApiId,homeStats,awayStats,homeFormPts,awayFormPts,h2hData.length,weatherRisk,hasFormData,homeTrend,awayTrend,leagueAvgParam);
 
   const homeRadar=[
     Math.min(parseFloat(homeStats.totalAvgGf)/3,1),

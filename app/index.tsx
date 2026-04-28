@@ -96,7 +96,8 @@ type Match = {
 
 type Metrics = {
   hasData: boolean;
-  expectedGoals: number;   // toplam beklenen gol (xG proxy)
+  expectedGoals: number;   // toplam beklenen gol (Poisson xG)
+  leagueAvg: number;       // lig ortalaması gol/takım/maç (Poisson normalize için)
   homePpg: number;         // puan / maç
   awayPpg: number;
   diff: number;            // homePpg - awayPpg
@@ -164,7 +165,7 @@ function hasUsableStandingsMap(map: Record<number, Standing[]> | null): map is R
 }
 
 const NO_DATA: Metrics = {
-  hasData: false, expectedGoals: 0,
+  hasData: false, expectedGoals: 0, leagueAvg: 1.5,
   homePpg: 0, awayPpg: 0, diff: 0, favorite: 'balanced',
   confidence: 'low', tempo: 0,
   reason: 'Sezon verisi bulunamadı',
@@ -194,12 +195,16 @@ function computeMetrics(home: Standing | null, away: Standing | null, standings?
     };
   }
 
+  const totalGf     = standings?.reduce((s, r) => s + (r.gf || 0), 0) ?? 0;
+  const totalPlayed = standings?.reduce((s, r) => s + (r.played || 0), 0) ?? 0;
+  const leagueAvg   = totalPlayed > 0 ? totalGf / totalPlayed : 1.5;
+
   const homeAtk = home.gf / home.played;
   const homeDef = home.ga / home.played;
   const awayAtk = away.gf / away.played;
   const awayDef = away.ga / away.played;
 
-  const expectedGoals = (homeAtk + awayDef) / 2 + (awayAtk + homeDef) / 2;
+  const expectedGoals = (homeAtk * awayDef + awayAtk * homeDef) / leagueAvg;
 
   const homePpg = home.pts / home.played;
   const awayPpg = away.pts / away.played;
@@ -218,6 +223,7 @@ function computeMetrics(home: Standing | null, away: Standing | null, standings?
   return {
     hasData: true,
     expectedGoals: round1(expectedGoals),
+    leagueAvg: round1(leagueAvg),
     homePpg: round1(homePpg),
     awayPpg: round1(awayPpg),
     diff: round1(diff),
@@ -849,6 +855,7 @@ export default function HomeScreen() {
       homeBelowPts: metrics?.homeBelowPts != null ? String(metrics.homeBelowPts) : '',
       awayAbovePts: metrics?.awayAbovePts != null ? String(metrics.awayAbovePts) : '',
       awayBelowPts: metrics?.awayBelowPts != null ? String(metrics.awayBelowPts) : '',
+      leagueAvg: metrics?.leagueAvg != null ? String(metrics.leagueAvg) : '',
     };
     if (m.leagueApiId === 203 || SPORTSDB_LEAGUE_IDS.includes(m.leagueApiId)) {
       const slMatchHref: Href = {
