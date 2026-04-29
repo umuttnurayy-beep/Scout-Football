@@ -62,10 +62,14 @@ function createHomeService(deps) {
     return [...ids];
   }
 
-  function visibleMatchCountFromPayload(matches, superLigMatches) {
-    const mainCount = (matches || []).filter(match =>
+  function filterSupportedMatches(matches) {
+    return (matches || []).filter(match =>
       HOME_SUPPORTED_LEAGUES.includes(match.competition?.id) && hasMatchTeamNames(match)
-    ).length;
+    );
+  }
+
+  function visibleMatchCountFromPayload(matches, superLigMatches) {
+    const mainCount = filterSupportedMatches(matches).length;
     const superLigCount = (superLigMatches || []).filter(m => m.home && m.away).length;
     return mainCount + superLigCount;
   }
@@ -174,24 +178,26 @@ function createHomeService(deps) {
           if (stale) return { payload: stale, stale: true };
         }
 
-        const currentLeagueIds = visibleLeagueIdsFromPayload(matches, superLigMatches);
-        const featuredMatchId = await selectStableFeaturedMatchId(date, matches, superLigMatches);
+        const supportedMatches = filterSupportedMatches(matches);
+        const currentLeagueIds = visibleLeagueIdsFromPayload(supportedMatches, superLigMatches);
+        const featuredMatchId = await selectStableFeaturedMatchId(date, supportedMatches, superLigMatches);
         let nextPreview = null;
         let nextLeagueIds = [];
 
-        if (visibleMatchCountFromPayload(matches, superLigMatches) <= 1) {
+        if (visibleMatchCountFromPayload(supportedMatches, superLigMatches) <= 1) {
           for (let offset = 1; offset <= HOME_LOOKAHEAD_DAYS; offset += 1) {
             const nextDate = addDays(date, offset);
             const [nextMatches, nextSuperLigMatches] = await Promise.all([
               fetchFootballDataMatchesForDate(nextDate).catch(() => []),
               fetchSuperLigMatchesForDate(nextDate).catch(() => []),
             ]);
-            const leagueIds = visibleLeagueIdsFromPayload(nextMatches, nextSuperLigMatches);
+            const supportedNextMatches = filterSupportedMatches(nextMatches);
+            const leagueIds = visibleLeagueIdsFromPayload(supportedNextMatches, nextSuperLigMatches);
             if (leagueIds.length > 0) {
               nextLeagueIds = leagueIds;
               nextPreview = {
                 date: nextDate,
-                matches: nextMatches,
+                matches: supportedNextMatches,
                 superLigMatches: nextSuperLigMatches,
               };
               break;
@@ -202,7 +208,7 @@ function createHomeService(deps) {
         const standings = await buildStandingsMapForLeagueIds([...new Set([...currentLeagueIds, ...nextLeagueIds])]);
         const payload = {
           date,
-          matches,
+          matches: supportedMatches,
           superLigMatches,
           standings,
           featuredMatchId,
@@ -210,10 +216,10 @@ function createHomeService(deps) {
           generatedAt: new Date().toISOString(),
         };
 
-        const hasLive = matches.some(m => isLiveStatus(m.status)) ||
+        const hasLive = supportedMatches.some(m => isLiveStatus(m.status)) ||
           superLigMatches.some(m => isLiveStatus(m.status));
         await setCache(cacheKey, payload, ttlForMatchDate(date, hasLive));
-        if (visibleMatchCountFromPayload(matches, superLigMatches) > 0) {
+        if (visibleMatchCountFromPayload(supportedMatches, superLigMatches) > 0) {
           await setCache(staleKey, payload, HOME_STALE_TTL);
         }
         return { payload, stale: false };

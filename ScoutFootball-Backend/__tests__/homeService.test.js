@@ -98,6 +98,24 @@ describe('homeService', () => {
     expect(calls.standings.sort()).toEqual([2014, 2021]);
   });
 
+  test('filters unsupported football-data leagues out of the home payload', async () => {
+    const { service } = createService({
+      fdByDate: {
+        '2026-05-01': [
+          fdMatch(1, 2021, 'Leeds', 'Burnley'),
+          fdMatch(99, 2152, 'Corinthians', 'Penarol'),
+        ],
+      },
+    });
+
+    const res = await service.buildHome('2026-05-01');
+
+    expect(res.ok).toBe(true);
+    expect(res.data.matches).toHaveLength(1);
+    expect(res.data.matches[0].id).toBe(1);
+    expect(res.data.featuredMatchId).toBe(1);
+  });
+
   test('looks ahead on single-match days and returns nextPreview', async () => {
     const { service, calls } = createService({
       fdByDate: {
