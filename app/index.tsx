@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import {
-  getAllSportsH2H, getCityForTeam, getH2H, getHomeData, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, Standing,
+  getAllSportsH2H, getCityForTeam, getH2H, getHomeData, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, HomeData, Standing,
 } from '../services/api';
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
 import { matchListEmptyMessage } from '../utils/emptyStates';
@@ -467,6 +467,30 @@ function buildVisibleMatches(data: any[], slData: any[]) {
   return [...mainMatches, ...superLigMatches];
 }
 
+function rankMatchesWithMetrics(matches: Match[], rowsMap: Record<number, Standing[]>) {
+  return matches
+    .map(m => {
+      const rows = rowsMap[m.leagueApiId];
+      const home = findStanding(rows, m.home, m.homeTeamId);
+      const away = findStanding(rows, m.away, m.awayTeamId);
+      const metrics = computeMetrics(home, away, rows, m.leagueApiId);
+      return { m, metrics };
+    })
+    .sort((a, b) => {
+      const scoreDiff = scoutScore(b.m, b.metrics) - scoutScore(a.m, a.metrics);
+      if (scoreDiff !== 0) return scoreDiff;
+      const timeDiff = timeToMins(a.m.time) - timeToMins(b.m.time);
+      if (timeDiff !== 0) return timeDiff;
+      return a.m.id - b.m.id;
+    });
+}
+
+function buildNextPreviewFromHomeData(homeData: Pick<HomeData, 'nextPreview'>, rowsMap: Record<number, Standing[]>) {
+  if (!homeData.nextPreview) return null;
+  const nextVisible = buildVisibleMatches(homeData.nextPreview.matches || [], homeData.nextPreview.superLigMatches || []);
+  return rankMatchesWithMetrics(nextVisible, rowsMap)[0] || null;
+}
+
 function uniqueLeagueIds(matches: Match[]) {
   return [...new Set(matches.map(m => m.leagueApiId).filter(Boolean))];
 }
@@ -875,6 +899,7 @@ export default function HomeScreen() {
   const [backendFeaturedMatchId, setBackendFeaturedMatchId] = useState<number | null>(null);
   const [homeDataNotice, setHomeDataNotice] = useState<'stale' | 'error' | null>(null);
   const [loading, setLoading]           = useState(true);
+  const [refreshing, setRefreshing]     = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const dateList          = getDateList();
   const initialFocusDone  = useRef(false);
@@ -947,37 +972,19 @@ export default function HomeScreen() {
 
   async function loadMatches(date: Date, silent = false) {
     const requestId = ++loadSeq.current;
-    if (!silent) setLoading(true);
+    if (!silent) {
+      if (loading) setLoading(true);
+      else setRefreshing(true);
+    }
     try {
       const dateStr = formatDateParam(date);
       const homeData = await getHomeData(dateStr);
       if (homeData) {
         if (requestId !== loadSeq.current) return;
-        const homeStandings = homeData.standings || {};
-        const visible = buildVisibleMatches(homeData.matches, homeData.superLigMatches);
-        const featuredId = homeData.featuredMatchId ?? null;
-        setStandingsMap(homeStandings);
-        setMatches(visible);
-        setBackendFeaturedMatchId(featuredId);
-        setHomeDataNotice(homeData.stale ? 'stale' : null);
-        AsyncStorage.setItem(STANDINGS_CACHE_KEY, JSON.stringify({ cacheDate: dateStr, data: homeStandings })).catch(() => {});
-        AsyncStorage.setItem(`${HOME_DATA_CACHE_KEY}:${dateStr}`, JSON.stringify(homeData)).catch(() => {});
-
-        if (activeFilter === 'Scout' && visible.length <= 1 && homeData.nextPreview) {
-          const nextVisible = buildVisibleMatches(homeData.nextPreview.matches, homeData.nextPreview.superLigMatches);
-          const ranked = nextVisible
-            .map(m => {
-              const rows = homeStandings[m.leagueApiId];
-              const home = findStanding(rows, m.home, m.homeTeamId);
-              const away = findStanding(rows, m.away, m.awayTeamId);
-              const metrics = computeMetrics(home, away, rows, m.leagueApiId);
-              return { m, metrics };
-            })
-            .sort((a, b) => scoutScore(b.m, b.metrics) - scoutScore(a.m, a.metrics));
-          setNextDayPreview(ranked[0] || null);
-        } else {
-          setNextDayPreview(null);
-        }
+        applyHomeData(dateStr, homeData, {
+          notice: homeData.stale ? 'stale' : null,
+          persist: true,
+        });
         return;
       }
 
@@ -988,27 +995,7 @@ export default function HomeScreen() {
         if (rawHome) {
           const cachedHome = JSON.parse(rawHome);
           if (requestId !== loadSeq.current) return;
-          const homeStandings = cachedHome.standings || {};
-          const visible = buildVisibleMatches(cachedHome.matches || [], cachedHome.superLigMatches || []);
-          setStandingsMap(homeStandings);
-          setMatches(visible);
-          setBackendFeaturedMatchId(cachedHome.featuredMatchId ?? null);
-          setHomeDataNotice('stale');
-          if (activeFilter === 'Scout' && visible.length <= 1 && cachedHome.nextPreview) {
-            const nextVisible = buildVisibleMatches(cachedHome.nextPreview.matches || [], cachedHome.nextPreview.superLigMatches || []);
-            const ranked = nextVisible
-              .map(m => {
-                const rows = homeStandings[m.leagueApiId];
-                const home = findStanding(rows, m.home, m.homeTeamId);
-                const away = findStanding(rows, m.away, m.awayTeamId);
-                const metrics = computeMetrics(home, away, rows, m.leagueApiId);
-                return { m, metrics };
-              })
-              .sort((a, b) => scoutScore(b.m, b.metrics) - scoutScore(a.m, a.metrics));
-            setNextDayPreview(ranked[0] || null);
-          } else {
-            setNextDayPreview(null);
-          }
+          applyHomeData(dateStr, cachedHome, { notice: 'stale' });
           return;
         }
       } catch {}
@@ -1020,6 +1007,37 @@ export default function HomeScreen() {
         return;
       }
 
+      await loadDevFallbackMatches(date, dateStr, requestId, silent);
+    } catch (e) {
+      console.error('loadMatches hata:', e);
+    } finally {
+      if (!silent && requestId === loadSeq.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+  }
+
+  function applyHomeData(
+    dateStr: string,
+    homeData: HomeData,
+    options: { notice: 'stale' | 'error' | null; persist?: boolean },
+  ) {
+    const homeStandings = homeData.standings || {};
+    const visible = buildVisibleMatches(homeData.matches || [], homeData.superLigMatches || []);
+    setStandingsMap(homeStandings);
+    setMatches(visible);
+    setBackendFeaturedMatchId(homeData.featuredMatchId ?? null);
+    setHomeDataNotice(options.notice);
+    setNextDayPreview(visible.length <= 1 ? buildNextPreviewFromHomeData(homeData, homeStandings) : null);
+
+    if (options.persist) {
+      AsyncStorage.setItem(STANDINGS_CACHE_KEY, JSON.stringify({ cacheDate: dateStr, data: homeStandings })).catch(() => {});
+      AsyncStorage.setItem(`${HOME_DATA_CACHE_KEY}:${dateStr}`, JSON.stringify(homeData)).catch(() => {});
+    }
+  }
+
+  async function loadDevFallbackMatches(date: Date, dateStr: string, requestId: number, silent: boolean) {
       const needsStandings = Object.keys(standingsMap).length === 0;
       if (!silent && needsStandings) {
         // Cache'ten standings yükle (aynı gün ise ağa gitme — hero kararlı kalır)
@@ -1100,20 +1118,7 @@ export default function HomeScreen() {
           setNextDayPreview(null);
         }
       }
-    } catch (e) {
-      console.error('loadMatches hata:', e);
-    }
-    if (requestId === loadSeq.current) setLoading(false);
   }
-
-  useEffect(() => {
-    if (activeFilter !== 'Scout' || matches.length > 0) return;
-    if (homeDataNotice === 'error') return;
-    const requestId = loadSeq.current;
-    void loadNextDayPreview(selectedDate, requestId, standingsMap);
-    // Only refresh empty-state preview when the selected day/filter emptiness changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFilter, matches.length, selectedDate, homeDataNotice]);
 
   async function loadNextDayPreview(date: Date, requestId: number, rowsMap: Record<number, Standing[]>) {
     try {
@@ -1459,8 +1464,13 @@ export default function HomeScreen() {
           <Image source={require('../assets/images/sf-logo.png')} style={styles.headerLogo} />
           <Text style={styles.appName}><Text style={styles.appNameBlue}>Scout</Text>Football</Text>
         </View>
-        <TouchableOpacity onPress={() => loadMatches(selectedDate)}>
-          <Text style={[styles.refreshBtn, { color: c.primary }]}>↻ Güncelle</Text>
+        <TouchableOpacity onPress={() => loadMatches(selectedDate)} disabled={refreshing}>
+          <View style={styles.refreshContent}>
+            {refreshing && <ActivityIndicator size="small" color={c.primary} />}
+            <Text style={[styles.refreshBtn, { color: c.primary }]}>
+              {refreshing ? 'Güncelleniyor' : '↻ Güncelle'}
+            </Text>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -1503,6 +1513,13 @@ export default function HomeScreen() {
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      {refreshing && !loading && (
+        <View style={[styles.updateBar, { backgroundColor: c.surface, borderBottomColor: c.borderLight }]}>
+          <ActivityIndicator size="small" color={c.primary} />
+          <Text style={[styles.updateText, { color: c.textSub }]}>Veriler yenileniyor...</Text>
+        </View>
+      )}
 
       {loading ? (
         <View style={styles.loadingArea}>
@@ -1550,6 +1567,7 @@ const styles = StyleSheet.create({
   headerLogo:         { width: 42, height: 42, resizeMode: 'contain' },
   appName:            { fontSize: 16, fontWeight: '600', color: '#00BAFF' },
   appNameBlue:        { color: '#2563EB' },
+  refreshContent:     { minHeight: 28, flexDirection: 'row', alignItems: 'center', gap: 6 },
   refreshBtn:         { fontSize: 13, color: '#185FA5' },
   dateRow:            { borderBottomWidth: 0.5, borderBottomColor: '#eee', flexGrow: 0, backgroundColor: '#fff' },
   datePill:           { alignItems: 'center', paddingHorizontal: 10, paddingVertical: 8, marginRight: 6, borderRadius: 10, borderWidth: 0.5, borderColor: '#eee', minWidth: 52 },
@@ -1568,6 +1586,8 @@ const styles = StyleSheet.create({
   scoutPillText:      { fontSize: 13, color: '#185FA5', fontWeight: '700' },
   scoutPillTextActive:{ color: '#fff' },
   scroll:             { flex: 1 },
+  updateBar:          { minHeight: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderBottomWidth: 0.5 },
+  updateText:         { fontSize: 12, fontWeight: '500' },
   loadingArea:        { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 116 },
   emptyText:          { textAlign: 'center', color: '#888', marginTop: 40, fontSize: 13 },
   tabBar:             { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: '#eee', paddingBottom: 20, backgroundColor: '#fff' },
