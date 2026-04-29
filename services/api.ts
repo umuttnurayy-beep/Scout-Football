@@ -332,9 +332,17 @@ export async function getOdds(homeTeam: string, awayTeam: string, leagueApiId: n
     if (!Array.isArray(data)) return null;
 
     function normalize(s: string) {
-      return s.toLowerCase()
-        .replace(/fc|afc|cf|sc|ac|as|rc|ss|us |ud |cd |real |atletico |olympique |borussia /gi, '')
-        .replace(/[^a-z0-9]/g, '').trim();
+      const basic = s.toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/fc|afc|cf|sc|ac|as|rc|ss|us |ud |cd |real |olympique |borussia /gi, '')
+        .replace(/[^a-z0-9]/g, '')
+        .trim();
+      const aliases: Record<string, string> = {
+        atleti: 'atleticomadrid',
+        atletico: 'atleticomadrid',
+      };
+      return aliases[basic] || basic;
     }
 
     const match = data.find((game: any) => {

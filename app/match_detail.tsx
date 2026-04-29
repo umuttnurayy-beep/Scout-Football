@@ -519,6 +519,25 @@ function resolveWeatherCity(routeCity: string | null, stats: any, routeHomeName:
     getCityForTeam(routeHomeName);
 }
 
+function resolveMatchContext(stats: any, route: {
+  home: string;
+  away: string;
+  city: string | null;
+  homeTeamId: number;
+  awayTeamId: number;
+}) {
+  const teamIds = resolveFormTeamIds(stats, route.homeTeamId, route.awayTeamId);
+  return {
+    homeName: stats?.homeTeam?.shortName || stats?.homeTeam?.name || route.home,
+    awayName: stats?.awayTeam?.shortName || stats?.awayTeam?.name || route.away,
+    city: resolveWeatherCity(route.city, stats, route.home),
+    homeTeamId: teamIds.home,
+    awayTeamId: teamIds.away,
+    status: stats?.status,
+    stage: stats?.stage,
+  };
+}
+
 export default function MatchDetail() {
   const { colors: c, isDark } = useTheme();
   const router = useRouter();
@@ -570,11 +589,10 @@ export default function MatchDetail() {
     async function load(){
       setLoading(true);
       const stats = await getMatchStats(matchId);
-      const formTeamIds = resolveFormTeamIds(stats, homeTeamId, awayTeamId);
-      const weatherCity = resolveWeatherCity(city, stats, home);
+      const matchContext = resolveMatchContext(stats, { home, away, city, homeTeamId, awayTeamId });
       const [h2hR,weatherR,oddsR,hFormR,aFormR] = await Promise.allSettled([
-        getH2H(matchId,finishedParam),weatherCity ? getWeather(weatherCity) : Promise.resolve(null),
-        getOdds(home,away,leagueApiId),getTeamForm(formTeamIds.home),getTeamForm(formTeamIds.away),
+        getH2H(matchId,finishedParam),matchContext.city ? getWeather(matchContext.city) : Promise.resolve(null),
+        getOdds(matchContext.homeName,matchContext.awayName,leagueApiId),getTeamForm(matchContext.homeTeamId),getTeamForm(matchContext.awayTeamId),
       ]);
       setMatchData(stats);
       setH2hData(h2hR.status==='fulfilled'?(h2hR.value||[]):[]);
@@ -589,14 +607,17 @@ export default function MatchDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[matchId]);
 
-  const status    = matchData?.status;
+  const matchContext = resolveMatchContext(matchData, { home, away, city, homeTeamId, awayTeamId });
+  const displayHomeName = matchContext.homeName;
+  const displayAwayName = matchContext.awayName;
+  const status    = matchContext.status;
   const fullHome  = matchData?.score?.fullTime?.home;
   const fullAway  = matchData?.score?.fullTime?.away;
   const halfHome  = matchData?.score?.halfTime?.home;
   const halfAway  = matchData?.score?.halfTime?.away;
   const isFinished= status==='FINISHED';
   const isLive    = status==='IN_PLAY'||status==='LIVE'||status==='PAUSED';
-  const formTeamIds = resolveFormTeamIds(matchData, homeTeamId, awayTeamId);
+  const formTeamIds = { home: matchContext.homeTeamId, away: matchContext.awayTeamId };
 
   let displayHome: number|string|null=null, displayAway: number|string|null=null;
   if (isFinished&&fullHome!=null)       { displayHome=fullHome; displayAway=fullAway; }
@@ -621,7 +642,7 @@ export default function MatchDetail() {
   const weatherRisk= !!weatherData&&(weatherData.wind>35||/rain|shower|drizzle/.test((weatherData.condition||'').toLowerCase()));
   const homeTrend  = hasFormData ? getFormTrend(homeForm, formTeamIds.home) : null;
   const awayTrend  = hasFormData ? getFormTrend(awayForm, formTeamIds.away) : null;
-  const analysis   = buildMatchAnalysis(home,away,leagueApiId,homeStats,awayStats,homeFormPts,awayFormPts,h2hData.length,weatherRisk,hasFormData,homeTrend,awayTrend,leagueAvgParam);
+  const analysis   = buildMatchAnalysis(displayHomeName,displayAwayName,leagueApiId,homeStats,awayStats,homeFormPts,awayFormPts,h2hData.length,weatherRisk,hasFormData,homeTrend,awayTrend,leagueAvgParam);
 
   const homeRadar=[
     Math.min(parseFloat(homeStats.totalAvgGf)/3,1),
@@ -642,19 +663,19 @@ export default function MatchDetail() {
   const hStyle = hasFormData ? getTeamStyle(homeStats) : null;
   const aStyle = hasFormData ? getTeamStyle(awayStats)  : null;
   const characterDetail = hasFormData
-    ? buildMatchCharacterDetail(home, away, homeStats, awayStats, homeFormPts, awayFormPts, strHash(home + away + 'character'), hStyle?.label, aStyle?.label, homeTrend, awayTrend)
+    ? buildMatchCharacterDetail(displayHomeName, displayAwayName, homeStats, awayStats, homeFormPts, awayFormPts, strHash(displayHomeName + displayAwayName + 'character'), hStyle?.label, aStyle?.label, homeTrend, awayTrend)
     : '';
   const refProfile= refName ? getRefereeProfile(refName,leagueApiId) : null;
   const weatherCom= getWeatherComment(weatherData);
   const riskWarns = getRiskWarnings(homeStats,awayStats,h2hData.length,analysis);
-  const compareComment    = hasFormData ? getCompareComment(homeStats, awayStats, home, away) : '';
-  const h2hComment        = getH2HComment(h2hData, home, away);
-  const oddsComment       = getOddsComment(oddsData, home, analysis);
-  const homeAwayComment   = hasFormData ? getHomeAwayComment(homeStats, awayStats, home, away) : '';
-  const deepH2H           = getDeepH2HStats(h2hData, home, away, formTeamIds.home);
-  const isUclKnockout = leagueApiId === 2001 && matchData?.stage && !UCL_LEAGUE_PHASE_STAGES.has(matchData.stage);
+  const compareComment    = hasFormData ? getCompareComment(homeStats, awayStats, displayHomeName, displayAwayName) : '';
+  const h2hComment        = getH2HComment(h2hData, displayHomeName, displayAwayName);
+  const oddsComment       = getOddsComment(oddsData, displayHomeName, analysis);
+  const homeAwayComment   = hasFormData ? getHomeAwayComment(homeStats, awayStats, displayHomeName, displayAwayName) : '';
+  const deepH2H           = getDeepH2HStats(h2hData, displayHomeName, displayAwayName, formTeamIds.home);
+  const isUclKnockout = leagueApiId === 2001 && matchContext.stage && !UCL_LEAGUE_PHASE_STAGES.has(matchContext.stage);
   const motivationComment = isUclKnockout
-    ? getUclKnockoutMotivation(matchData.stage)
+    ? getUclKnockoutMotivation(matchContext.stage)
     : getMotivationComment(homePos, awayPos, leagueApiId, {
         homePts, awayPts, homePlayed, awayPlayed, leaderPts, totalTeams,
         homeAbovePts, homeBelowPts, awayAbovePts, awayBelowPts,
@@ -718,7 +739,7 @@ export default function MatchDetail() {
         <View style={styles.topbarCenter}>
           <Image source={require('../assets/images/sf-logo.png')} style={styles.headerLogo} />
           <View style={{alignItems:'center'}}>
-            <Text style={[styles.topbarTitle,{color:c.text}]} numberOfLines={1}>{home} - {away}</Text>
+            <Text style={[styles.topbarTitle,{color:c.text}]} numberOfLines={1}>{displayHomeName} - {displayAwayName}</Text>
             <Text style={[styles.topbarSub,{color:c.textMuted}]}>{league}</Text>
           </View>
         </View>
@@ -730,7 +751,7 @@ export default function MatchDetail() {
       {/* ── Hero ── */}
       <View style={[styles.hero,{backgroundColor:c.surface,borderBottomColor:c.border}]}>
         <View style={styles.teamsRow}>
-          <Text style={[styles.teamNameLeft,{color:c.text}]} numberOfLines={1}>{home}</Text>
+          <Text style={[styles.teamNameLeft,{color:c.text}]} numberOfLines={1}>{displayHomeName}</Text>
           <View style={styles.vsBlock}>
             {hasScore ? (
               <>
@@ -743,7 +764,7 @@ export default function MatchDetail() {
             )}
             <Text style={[styles.vsLabel,{color:c.textMuted}]}>{matchDate}</Text>
           </View>
-          <Text style={[styles.teamNameRight,{color:c.text}]} numberOfLines={1}>{away}</Text>
+          <Text style={[styles.teamNameRight,{color:c.text}]} numberOfLines={1}>{displayAwayName}</Text>
         </View>
         <View style={styles.heroBadgeRow}>
           <View style={[styles.badgeLiga,{backgroundColor:c.primaryLight}]}><Text style={[styles.badgeLigaText,{color:c.primaryDark}]}>{league}</Text></View>
@@ -851,8 +872,8 @@ export default function MatchDetail() {
             <>
               <Text style={[styles.sectionLabel,{color:c.textMuted}]}>MAÇ İSTATİSTİKLERİ</Text>
               <View style={styles.statLegend}>
-                <Text style={[styles.legendHome,{color:c.primary}]}>{home}</Text>
-                <Text style={[styles.legendAway,{color:c.loss}]}>{away}</Text>
+                <Text style={[styles.legendHome,{color:c.primary}]}>{displayHomeName}</Text>
+                <Text style={[styles.legendAway,{color:c.loss}]}>{displayAwayName}</Text>
               </View>
               {matchData.statistics[0]?.statistics?.map((stat:any,i:number)=>{
                 const hv=parseInt(stat.value)||0;
@@ -874,11 +895,11 @@ export default function MatchDetail() {
                   <View style={{flexDirection:'row',paddingHorizontal:8,marginBottom:4}}>
                     <View style={{flex:1,alignItems:'center'}}>
                       <ShotGauge shotsOn={hOn} shotsTotal={hTot}/>
-                      <Text style={{fontSize:11,color:c.primary,fontWeight:'500',marginTop:2}} numberOfLines={1}>{home}</Text>
+                      <Text style={{fontSize:11,color:c.primary,fontWeight:'500',marginTop:2}} numberOfLines={1}>{displayHomeName}</Text>
                     </View>
                     <View style={{flex:1,alignItems:'center'}}>
                       <ShotGauge shotsOn={aOn} shotsTotal={aTot}/>
-                      <Text style={{fontSize:11,color:c.loss,fontWeight:'500',marginTop:2}} numberOfLines={1}>{away}</Text>
+                      <Text style={{fontSize:11,color:c.loss,fontWeight:'500',marginTop:2}} numberOfLines={1}>{displayAwayName}</Text>
                     </View>
                   </View>
                 </>
@@ -907,9 +928,9 @@ export default function MatchDetail() {
           <>
             <View style={styles.radarLegendRow}>
               <View style={[styles.radarDot,{backgroundColor:hLeadsRadar?NEON:'#185FA5'}]}/>
-              <Text style={[styles.radarLegendText,{color:c.textSub},hLeadsRadar&&{color:NEON,fontWeight:'600'}]}>{home}</Text>
+              <Text style={[styles.radarLegendText,{color:c.textSub},hLeadsRadar&&{color:NEON,fontWeight:'600'}]}>{displayHomeName}</Text>
               <View style={[styles.radarDot,{backgroundColor:!hLeadsRadar?NEON:'#A32D2D'}]}/>
-              <Text style={[styles.radarLegendText,{color:c.textSub},!hLeadsRadar&&{color:NEON,fontWeight:'600'}]}>{away}</Text>
+              <Text style={[styles.radarLegendText,{color:c.textSub},!hLeadsRadar&&{color:NEON,fontWeight:'600'}]}>{displayAwayName}</Text>
             </View>
             <View style={{alignItems:'center',marginBottom:4}}>
               <RadarChart homeVals={homeRadar} awayVals={awayRadar} labels={radarLabels}/>
@@ -917,8 +938,8 @@ export default function MatchDetail() {
             <View style={[styles.insightBox,ts.insightBox]}>
               <Text style={[styles.insightText,ts.insightText]}>
                 {hLeadsRadar
-                  ? `${home} radar grafiğinde genel olarak önde; hücum ve savunma dengesi lehine.`
-                  : `${away} radar grafiğinde genel olarak önde; istatistiksel tablo daha güçlü görünüyor.`}
+                  ? `${displayHomeName} radar grafiğinde genel olarak önde; hücum ve savunma dengesi lehine.`
+                  : `${displayAwayName} radar grafiğinde genel olarak önde; istatistiksel tablo daha güçlü görünüyor.`}
               </Text>
             </View>
           </>
@@ -933,9 +954,9 @@ export default function MatchDetail() {
         {hasFormData ? (
           <>
             <View style={styles.compareHeader}>
-              <Text style={[styles.compareTeam,{color:c.primary}]} numberOfLines={1}>{home}</Text>
+              <Text style={[styles.compareTeam,{color:c.primary}]} numberOfLines={1}>{displayHomeName}</Text>
               <View style={{width:100}}/>
-              <Text style={[styles.compareTeam,{color:c.loss,textAlign:'right'}]} numberOfLines={1}>{away}</Text>
+              <Text style={[styles.compareTeam,{color:c.loss,textAlign:'right'}]} numberOfLines={1}>{displayAwayName}</Text>
             </View>
             <CompareRow label="Gol / Maç"           homeVal={homeStats.totalAvgGf}         awayVal={awayStats.totalAvgGf}/>
             <CompareRow label="Yenilen / Maç"        homeVal={homeStats.totalAvgGa}         awayVal={awayStats.totalAvgGa}        higherIsBetter={false}/>
@@ -959,15 +980,15 @@ export default function MatchDetail() {
         <Text style={[styles.sectionLabel,{color:c.textMuted}]}>SON FORM  (İ = İç Saha · D = Deplasman)</Text>
         {hasFormData ? (
           <>
-            <FormHeatRow matches={homeForm} teamId={formTeamIds.home} label={home}/>
-            <FormHeatRow matches={awayForm} teamId={formTeamIds.away}  label={away}/>
+            <FormHeatRow matches={homeForm} teamId={formTeamIds.home} label={displayHomeName}/>
+            <FormHeatRow matches={awayForm} teamId={formTeamIds.away}  label={displayAwayName}/>
             {/* Form Trend */}
             {(homeTrend || awayTrend) && (() => {
               const trendIcon = (d: 'up'|'down'|'stable') => d==='up'?'▲':d==='down'?'▼':'—';
               const trendColor = (d: 'up'|'down'|'stable') => d==='up'?(isDark?'#3FB950':'#27500A'):d==='down'?(isDark?'#F85149':'#A32D2D'):(isDark?'#8B949E':'#888');
               return (
                 <View style={{flexDirection:'row',gap:8,paddingHorizontal:14,marginTop:8,marginBottom:2}}>
-                  {[{label:home,trend:homeTrend},{label:away,trend:awayTrend}].map(({label,trend},i)=>{
+                  {[{label:displayHomeName,trend:homeTrend},{label:displayAwayName,trend:awayTrend}].map(({label,trend},i)=>{
                     if(!trend) return null;
                     const col = trendColor(trend.direction);
                     return (
@@ -1009,9 +1030,9 @@ export default function MatchDetail() {
           const ourH=Math.round(rawH/rawTot*100),ourD=Math.round(rawD/rawTot*100),ourA=100-ourH-ourD;
           const maxV=Math.max(ourH,ourD,ourA);
           const cols=[
-            {label:home,val:ourH,color:c.primary},
+            {label:displayHomeName,val:ourH,color:c.primary},
             {label:'Berabere',val:ourD,color:c.textMuted},
-            {label:away,val:ourA,color:c.loss},
+            {label:displayAwayName,val:ourA,color:c.loss},
           ];
           return(
             <View style={[styles.scoutOddsCard,ts.scoutCard]}>
@@ -1037,7 +1058,7 @@ export default function MatchDetail() {
           <>
             <View style={{flexDirection:'row',gap:8,paddingHorizontal:14,marginTop:10,marginBottom:4}}>
               {[
-                {label:home,val:oddsData.home},{label:'Berabere',val:oddsData.draw},{label:away,val:oddsData.away}
+                  {label:displayHomeName,val:oddsData.home},{label:'Berabere',val:oddsData.draw},{label:displayAwayName,val:oddsData.away}
               ].map((btn,i)=>(
                 <View key={i} style={[styles.marketBtn,ts.marketBtn]}>
                   <Text style={[styles.marketType,ts.marketType]} numberOfLines={1}>{btn.label}</Text>
@@ -1060,10 +1081,10 @@ export default function MatchDetail() {
               const hasValue=maxDiff>9;
               const valueText=hasValue
                 ?(Math.abs(diffH)>=Math.abs(diffA)
-                  ?(diffH>0?`${home} form tahmininde piyasadan ayrışıyor (%${Math.abs(diffH)} fark)`:`${home} piyasa payı form tahminine göre yüksek`)
-                  :(diffA>0?`${away} form tahmininde piyasadan ayrışıyor (%${Math.abs(diffA)} fark)`:`${away} piyasa payı form tahminine göre yüksek`))
+                  ?(diffH>0?`${displayHomeName} form tahmininde piyasadan ayrışıyor (%${Math.abs(diffH)} fark)`:`${displayHomeName} piyasa payı form tahminine göre yüksek`)
+                  :(diffA>0?`${displayAwayName} form tahmininde piyasadan ayrışıyor (%${Math.abs(diffA)} fark)`:`${displayAwayName} piyasa payı form tahminine göre yüksek`))
                 :'Piyasa ve form tahmini dengede; belirgin ayrışma yok';
-              const cols2=[{label:home,imp:impH,our:ourH},{label:'Berabere',imp:impD,our:ourD},{label:away,imp:impA,our:ourA}];
+              const cols2=[{label:displayHomeName,imp:impH,our:ourH},{label:'Berabere',imp:impD,our:ourD},{label:displayAwayName,imp:impA,our:ourA}];
               return(
                 <View style={{marginHorizontal:14,marginBottom:4,borderWidth:0.5,borderColor:c.border,borderRadius:10,overflow:'hidden'}}>
                   <View style={{backgroundColor:c.surfaceAlt,paddingHorizontal:12,paddingVertical:8}}>
@@ -1200,7 +1221,7 @@ export default function MatchDetail() {
               h2hData.forEach((m:any)=>{
                 const fh=m.score?.fullTime?.home,fa=m.score?.fullTime?.away;
                 if(fh==null||fa==null)return;
-                const ih=homeTeamId>0?m.homeTeam?.id===homeTeamId:(m.homeTeam?.shortName===home||m.homeTeam?.name?.includes(home));
+                const ih=formTeamIds.home>0?m.homeTeam?.id===formTeamIds.home:(m.homeTeam?.shortName===displayHomeName||m.homeTeam?.name?.includes(displayHomeName));
                 if (fh > fa) {
                   if (ih) hw++;
                   else aw++;
@@ -1211,9 +1232,9 @@ export default function MatchDetail() {
               });
               return(
                 <View style={styles.summaryGrid}>
-                  <View style={[styles.sumBox,ts.sumBox]}><Text style={[styles.sumVal,ts.sumVal,{color:c.primary}]}>{hw}</Text><Text style={[styles.sumLbl,ts.sumLbl]} numberOfLines={1}>{home}</Text></View>
+                  <View style={[styles.sumBox,ts.sumBox]}><Text style={[styles.sumVal,ts.sumVal,{color:c.primary}]}>{hw}</Text><Text style={[styles.sumLbl,ts.sumLbl]} numberOfLines={1}>{displayHomeName}</Text></View>
                   <View style={[styles.sumBox,ts.sumBox]}><Text style={[styles.sumVal,ts.sumVal]}>{d}</Text><Text style={[styles.sumLbl,ts.sumLbl]}>Berabere</Text></View>
-                  <View style={[styles.sumBox,ts.sumBox]}><Text style={[styles.sumVal,ts.sumVal,{color:c.loss}]}>{aw}</Text><Text style={[styles.sumLbl,ts.sumLbl]} numberOfLines={1}>{away}</Text></View>
+                  <View style={[styles.sumBox,ts.sumBox]}><Text style={[styles.sumVal,ts.sumVal,{color:c.loss}]}>{aw}</Text><Text style={[styles.sumLbl,ts.sumLbl]} numberOfLines={1}>{displayAwayName}</Text></View>
                 </View>
               );
             })()}
