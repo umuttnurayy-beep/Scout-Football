@@ -4,6 +4,7 @@ const fetch = require('node-fetch');
 
 const DEFAULT_BASE_URL = 'https://scoutfootball-backend-production.up.railway.app';
 const SUPPORTED_COMPETITIONS = new Set([2021, 2014, 2002, 2019, 2015, 2001]);
+const SUPER_LIG_CONTEXT_TEAM_ID = 138092; // Gaziantep FK, often exposes limited SportsDB form data.
 
 const baseUrl = (process.env.SCOUT_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, '');
 const date = process.argv[2] || new Date().toISOString().slice(0, 10);
@@ -99,6 +100,26 @@ function validateNextPreview(nextPreview, label) {
   };
 }
 
+function validateSuperLigTeamContext(payload, teamId) {
+  const context = unwrap(payload);
+  assert(context && typeof context === 'object', '/superlig/team-context/:teamId returns an object');
+  assert(context.teamId === teamId, '/superlig/team-context/:teamId preserves teamId');
+  assert(Array.isArray(context.recentMatches), '/superlig/team-context/:teamId recentMatches is an array');
+  assert(typeof context.formMatchesCount === 'number', '/superlig/team-context/:teamId formMatchesCount is a number');
+  assert(context.formMatchesCount === context.recentMatches.length, '/superlig/team-context/:teamId formMatchesCount matches recentMatches length');
+  assert(typeof context.isLimited === 'boolean', '/superlig/team-context/:teamId isLimited is boolean');
+  assert(['sportsdb', 'mixed'].includes(context.source), '/superlig/team-context/:teamId source is known');
+  assert('standingsStats' in context, '/superlig/team-context/:teamId standingsStats field exists');
+
+  if (context.isLimited) {
+    assert(context.source === 'mixed', '/superlig/team-context/:teamId limited data uses mixed source');
+    assert(Boolean(context.fallbackReason), '/superlig/team-context/:teamId limited data explains fallbackReason');
+    assert(context.standingsStats && typeof context.standingsStats === 'object', '/superlig/team-context/:teamId limited data includes standingsStats');
+  }
+
+  return context;
+}
+
 async function main() {
   console.log(`ScoutFootball /home smoke`);
   console.log(`Base URL: ${baseUrl}`);
@@ -111,6 +132,10 @@ async function main() {
 
   const first = validateHomePayload(await readJson(`/home?date=${encodeURIComponent(date)}`), 'first /home');
   const second = validateHomePayload(await readJson(`/home?date=${encodeURIComponent(date)}`), 'second /home');
+  const superLigContext = validateSuperLigTeamContext(
+    await readJson(`/superlig/team-context/${SUPER_LIG_CONTEXT_TEAM_ID}`),
+    SUPER_LIG_CONTEXT_TEAM_ID,
+  );
 
   assert(
     first.featuredMatchId === second.featuredMatchId,
@@ -134,6 +159,11 @@ async function main() {
   console.log(`nextPreviewMatches: ${first.next.matchCount}`);
   console.log(`nextPreviewSuperLigMatches: ${first.next.superLigCount}`);
   console.log(`nextPreviewCompetitionIds: ${first.next.competitionIds.join(',') || '-'}`);
+  console.log(`superLigContextTeamId: ${superLigContext.teamId}`);
+  console.log(`superLigContextSource: ${superLigContext.source}`);
+  console.log(`superLigContextLimited: ${superLigContext.isLimited}`);
+  console.log(`superLigContextFormCount: ${superLigContext.formMatchesCount}`);
+  console.log(`superLigContextStandingsTeam: ${superLigContext.standingsStats?.team || '-'}`);
   console.log(`stale: ${first.stale}`);
   console.log(`generatedAt: ${first.generatedAt}`);
 
