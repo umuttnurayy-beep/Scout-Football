@@ -8,10 +8,10 @@ import {
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import {
-  getAllSportsH2H, getCityForTeam, getH2H, getHomeData, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, HomeData, Standing,
+  clearLastApiError, getAllSportsH2H, getCityForTeam, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, HomeData, Standing,
 } from '../services/api';
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
-import { matchListEmptyMessage } from '../utils/emptyStates';
+import { dataNoticeMessage, matchListEmptyMessage } from '../utils/emptyStates';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -737,9 +737,7 @@ function DataNoticeCard({ type }: { type: 'stale' | 'error' }) {
     <View style={[sc.noticeCard, { backgroundColor: isDark ? '#18202A' : '#F3F7FC', borderColor: c.cardBorder }]}>
       <Ionicons name={isStale ? 'time-outline' : 'cloud-offline-outline'} size={18} color={isStale ? c.primary : '#E3B341'} />
       <Text style={[sc.noticeText, { color: c.textSub }]}>
-        {isStale
-          ? 'Veri kaynagi yenilenemedi; son guncel mac verisi gosteriliyor.'
-          : 'Veri su an alinamadi. Ekrandaki bilgiler eski cache veya sinirli kaynakla yuklenmis olabilir.'}
+        {dataNoticeMessage(type)}
       </Text>
     </View>
   );
@@ -1038,6 +1036,10 @@ export default function HomeScreen() {
   }
 
   async function loadDevFallbackMatches(date: Date, dateStr: string, requestId: number, silent: boolean) {
+      clearLastApiError();
+      const syncFallbackNotice = () => {
+        setHomeDataNotice(getLastApiError() ? 'error' : null);
+      };
       const needsStandings = Object.keys(standingsMap).length === 0;
       if (!silent && needsStandings) {
         // Cache'ten standings yükle (aynı gün ise ağa gitme — hero kararlı kalır)
@@ -1077,6 +1079,7 @@ export default function HomeScreen() {
           } else {
             setNextDayPreview(null);
           }
+          syncFallbackNotice();
         } else {
           // İlk yükleme: maç + standings birlikte çek, cache'e kaydet
           const [data, slData, fdResults, slStandings] = await Promise.all([
@@ -1101,6 +1104,7 @@ export default function HomeScreen() {
           } else {
             setNextDayPreview(null);
           }
+          syncFallbackNotice();
         }
       } else {
         // Güncelle / sessiz yenileme: sadece maç skorları güncellenir, standings sabit kalır
@@ -1117,6 +1121,7 @@ export default function HomeScreen() {
         } else {
           setNextDayPreview(null);
         }
+        syncFallbackNotice();
       }
   }
 

@@ -5,10 +5,13 @@ import {
   TouchableOpacity, View,
 } from 'react-native';
 import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-svg';
+import { DetailDataNotice, DetailStatusBanner } from '../components/DetailDataState';
 import { useTheme } from '../context/ThemeContext';
 import {
   SuperLigTeamContext, getAllSportsH2H, getCityForTeam, getSuperLigMatch, getSuperLigTeamContext, getWeather, isStaleApiData,
 } from '../services/api';
+import { detailDataMessage, staleAnalysisMessage } from '../utils/emptyStates';
+import { DetailDataIssue, buildDetailDataIssues, buildDetailRadar, detailIssueFlags, fulfilledOr, hasStaleDetailData } from '../utils/matchDetailDataState';
 import {
   ANALYSIS_DELTA as DELTA,
   Level,
@@ -32,6 +35,7 @@ import {
   strHash,
 } from '../utils/matchAnalysis';
 import { MEDIUM_BANK, SHORT_BANK } from '../utils/matchTextBanks';
+import { SCOUT_HELP, ScoutHelpKey } from '../utils/scoutHelpText';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -41,31 +45,6 @@ interface MatchAnalysis {
   scoutPick: ScoutPick | null;
   badgeLabel: string; badgeColor: string; badgeBg: string;
 }
-
-type ScoutHelpKey = 'stil' | 'gol' | 'tempo' | 'risk' | 'guven';
-
-const SCOUT_HELP: Record<ScoutHelpKey, { title: string; body: string }> = {
-  stil: {
-    title: 'Stil',
-    body: 'Maçın genel karakterini anlatır: daha hücumcu, savunmacı veya dengeli bir oyun beklenip beklenmediğini özetler.',
-  },
-  gol: {
-    title: 'Gol',
-    body: 'Maçın gol üretme potansiyelini gösterir. Takımların son dönem gol ve savunma profili birlikte okunur.',
-  },
-  tempo: {
-    title: 'Tempo',
-    body: 'Oyunun akış hızını anlatır. Pozisyon sıklığı, form ritmi ve maçın kopma ihtimali için kısa bir sinyaldir.',
-  },
-  risk: {
-    title: 'Risk',
-    body: 'Maçın ne kadar açık okunabildiğini gösterir. Değer yükseldikçe sonuç tarafında temkinli olmak gerekir.',
-  },
-  guven: {
-    title: 'Güven',
-    body: 'Scout yorumunun veri desteğini gösterir. Yüksekse özet daha sağlam sinyallere dayanır.',
-  },
-};
 
 // ── League Base Profile ────────────────────────────────────────────────────
 
@@ -508,6 +487,7 @@ export default function SLMatchDetail() {
   const [showNeden,   setShowNeden]    = useState(false);
   const [showScoutHelp, setShowScoutHelp] = useState<ScoutHelpKey | null>(null);
   const [staleNotice, setStaleNotice] = useState(false);
+  const [dataIssues, setDataIssues] = useState<Set<DetailDataIssue>>(new Set());
 
   const city = getCityForTeam(home);
   const isSuperLig = true;
@@ -530,23 +510,29 @@ export default function SLMatchDetail() {
         home && away ? getAllSportsH2H(home, away) : Promise.resolve([]),
       ]);
       if (evR.status === 'fulfilled') setEvent(evR.value);
-      const nextHomeContext = hcR.status === 'fulfilled' ? hcR.value : null;
-      const nextAwayContext = acR.status === 'fulfilled' ? acR.value : null;
+      const nextHomeContext = fulfilledOr(hcR, null);
+      const nextAwayContext = fulfilledOr(acR, null);
       setHomeContext(nextHomeContext);
       setAwayContext(nextAwayContext);
       setHomeForm(nextHomeContext?.recentMatches || []);
       setAwayForm(nextAwayContext?.recentMatches || []);
-      const nextWeather = weatherR.status === 'fulfilled' ? weatherR.value : null;
-      const nextH2H = h2hR.status === 'fulfilled' ? (h2hR.value || []) : [];
+      const nextWeather = fulfilledOr(weatherR, null);
+      const nextH2H = fulfilledOr(h2hR, []);
       setWeatherData(nextWeather);
       setH2HMatches(nextH2H);
-      setStaleNotice([
+      setStaleNotice(hasStaleDetailData([
         evR.status === 'fulfilled' ? evR.value : null,
         nextHomeContext,
         nextAwayContext,
         nextWeather,
         nextH2H,
-      ].some(isStaleApiData));
+      ], isStaleApiData));
+      setDataIssues(buildDetailDataIssues({
+        matchMissing: evR.status === 'rejected' || !evR.value,
+        formRejected: hcR.status === 'rejected' || acR.status === 'rejected',
+        h2hRejected: h2hR.status === 'rejected',
+        weatherRejected: weatherR.status === 'rejected',
+      }));
       setLoading(false);
     }
     if (eventId) load(); else setLoading(false);
@@ -588,28 +574,15 @@ export default function SLMatchDetail() {
   const awayFormPts = calcFormPointsSL(awayForm,  awayTeamId);
   const hasFormData = homeStats.total > 0 && awayStats.total > 0;
   const usingStandingsFallback = homeStandingStats !== null || awayStandingStats !== null;
+  const { hasFormIssue, hasH2HIssue, hasWeatherIssue } = detailIssueFlags(dataIssues);
 
   const weatherRisk = isWeatherRisk(weatherData);
   const homeTrend   = hasFormData ? getFormTrendSL(homeForm, homeTeamId) : null;
   const awayTrend   = hasFormData ? getFormTrendSL(awayForm, awayTeamId) : null;
   const analysis    = buildMatchAnalysis(home, away, homeStats, awayStats, homeFormPts, awayFormPts, h2hData.length, weatherRisk, hasFormData, homeTrend, awayTrend);
 
-  const homeRadar = [
-    Math.min(parseFloat(homeStats.totalAvgGf)/3, 1),
-    Math.max(0, 1-parseFloat(homeStats.totalAvgGa)/3),
-    homeFormPts/15,
-    homeStats.totalWinPct/100,
-    homeStats.over25Pct/100,
-  ];
-  const awayRadar = [
-    Math.min(parseFloat(awayStats.totalAvgGf)/3, 1),
-    Math.max(0, 1-parseFloat(awayStats.totalAvgGa)/3),
-    awayFormPts/15,
-    awayStats.totalWinPct/100,
-    awayStats.over25Pct/100,
-  ];
-  const radarLabels   = ['Hücum','Savunma','Form','Galibiyet','2.5 Üst'];
-  const hLeadsRadar   = homeRadar.reduce((s,v)=>s+v,0) >= awayRadar.reduce((s,v)=>s+v,0);
+  const { homeRadar, awayRadar, radarLabels, homeLeadsRadar: hLeadsRadar } =
+    buildDetailRadar(homeStats, awayStats, homeFormPts, awayFormPts);
   const hStyle        = hasFormData ? getTeamStyle(homeStats) : null;
   const aStyle        = hasFormData ? getTeamStyle(awayStats)  : null;
   const characterDetail = hasFormData
@@ -684,26 +657,26 @@ export default function SLMatchDetail() {
       </View>
 
       {staleNotice && (
-        <View style={[styles.limitedDataBanner, { backgroundColor: isDark ? '#18202A' : '#F3F7FC', borderColor: c.cardBorder }]}>
-          <Text style={[styles.limitedDataText, { color: c.textSub }]}>
-            Bazı veri kaynakları şu anda yenilenemedi. Ekranda son başarılı veriyle hazırlanmış analiz gösteriliyor.
-          </Text>
-        </View>
+        <DetailStatusBanner
+          message={staleAnalysisMessage()}
+          boxStyle={[styles.limitedDataBanner, { backgroundColor: isDark ? '#18202A' : '#F3F7FC', borderColor: c.cardBorder }]}
+          textStyle={[styles.limitedDataText, { color: c.textSub }]}
+        />
       )}
 
       {usingStandingsFallback && (
-        <View style={[styles.limitedDataBanner, { backgroundColor: isDark ? '#0D1A10' : '#EAF7ED', borderColor: isDark ? '#1A4A25' : '#27AE60' }]}>
-          <Text style={[styles.limitedDataText, { color: isDark ? '#3FB950' : '#1B6B3A' }]}>
-            📊 Maç bazlı Süper Lig form verisi sınırlı. Analiz sezon tablosuyla güçlendiriliyor; iç/dış saha ayrımı yalnızca yeterli maç verisi varsa gösterilir.
-          </Text>
-        </View>
+        <DetailStatusBanner
+          message="📊 Maç bazlı Süper Lig form verisi sınırlı. Analiz sezon tablosuyla güçlendiriliyor; iç/dış saha ayrımı yalnızca yeterli maç verisi varsa gösterilir."
+          boxStyle={[styles.limitedDataBanner, { backgroundColor: isDark ? '#0D1A10' : '#EAF7ED', borderColor: isDark ? '#1A4A25' : '#27AE60' }]}
+          textStyle={[styles.limitedDataText, { color: isDark ? '#3FB950' : '#1B6B3A' }]}
+        />
       )}
       {!hasFormData && !usingStandingsFallback && (
-        <View style={[styles.limitedDataBanner, { backgroundColor: isDark ? '#1A1205' : '#FFF8E1', borderColor: isDark ? '#4A3600' : '#E6A817' }]}>
-          <Text style={[styles.limitedDataText, { color: isDark ? '#E3B341' : '#7A5700' }]}>
-            ⚠️ Bu maç için sezon form verisi sınırlı. Analiz genel lig profiline dayanıyor.
-          </Text>
-        </View>
+        <DetailStatusBanner
+          message="⚠️ Bu maç için sezon form verisi sınırlı. Analiz genel lig profiline dayanıyor."
+          boxStyle={[styles.limitedDataBanner, { backgroundColor: isDark ? '#1A1205' : '#FFF8E1', borderColor: isDark ? '#4A3600' : '#E6A817' }]}
+          textStyle={[styles.limitedDataText, { color: isDark ? '#E3B341' : '#7A5700' }]}
+        />
       )}
 
       {/* ── Scout Özeti ── */}
@@ -798,9 +771,11 @@ export default function SLMatchDetail() {
             </View>
           </>
         ) : (
-          <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
-            <Text style={[styles.noDataText, { color: c.textSub }]}>Bu maç için performans verisi yüklenemedi.</Text>
-          </View>
+          <DetailDataNotice
+            message={detailDataMessage('performance', hasFormIssue ? 'sourceError' : 'empty')}
+            boxStyle={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}
+            textStyle={[styles.noDataText, { color: c.textSub }]}
+          />
         )}
 
         {/* Takım Karşılaştırması */}
@@ -853,9 +828,11 @@ export default function SLMatchDetail() {
             })()}
           </>
         ) : (
-          <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
-            <Text style={[styles.noDataText, { color: c.textSub }]}>Bu maç için karşılaştırma ve form verisi yüklenemedi.</Text>
-          </View>
+          <DetailDataNotice
+            message={detailDataMessage('comparison', hasFormIssue ? 'sourceError' : 'empty')}
+            boxStyle={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}
+            textStyle={[styles.noDataText, { color: c.textSub }]}
+          />
         )}
 
         {/* İç Saha / Deplasman Analizi — standings fallback'te iç/dış saha ayrımı yoktur */}
@@ -867,9 +844,11 @@ export default function SLMatchDetail() {
                 <Text style={[styles.insightText, { color: c.text }]}>{homeAwayComment}</Text>
               </View>
             ) : (
-              <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
-                <Text style={[styles.noDataText, { color: c.textSub }]}>İç saha / deplasman verisi yüklenemedi.</Text>
-              </View>
+              <DetailDataNotice
+                message={detailDataMessage('homeAway', hasFormIssue ? 'sourceError' : 'empty')}
+                boxStyle={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}
+                textStyle={[styles.noDataText, { color: c.textSub }]}
+              />
             )}
           </>
         )}
@@ -913,9 +892,11 @@ export default function SLMatchDetail() {
         })() : (
           <>
             <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SCOUT TAHMİNİ</Text>
-            <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
-              <Text style={[styles.noDataText, { color: c.textSub }]}>Tahmin için yeterli form verisi bulunamadı.</Text>
-            </View>
+            <DetailDataNotice
+              message={detailDataMessage('prediction', hasFormIssue ? 'sourceError' : 'empty')}
+              boxStyle={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}
+              textStyle={[styles.noDataText, { color: c.textSub }]}
+            />
           </>
         )}
 
@@ -952,7 +933,11 @@ export default function SLMatchDetail() {
             </View>
           </>
         ) : (
-          <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}><Text style={[styles.noDataText, { color: c.textSub }]}>Hava durumu verisi alınamadı.</Text></View>
+          <DetailDataNotice
+            message={detailDataMessage('weather', hasWeatherIssue ? 'sourceError' : 'empty')}
+            boxStyle={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}
+            textStyle={[styles.noDataText, { color: c.textSub }]}
+          />
         )}
 
         {/* Hakem */}
@@ -980,7 +965,11 @@ export default function SLMatchDetail() {
             </View>
           </>
         ) : (
-          <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}><Text style={[styles.noDataText, { color: c.textSub }]}>Hakem bilgisi maç başlamadan önce yayınlanmayabilir.</Text></View>
+          <DetailDataNotice
+            message="Hakem bilgisi maç başlamadan önce yayınlanmayabilir."
+            boxStyle={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}
+            textStyle={[styles.noDataText, { color: c.textSub }]}
+          />
         )}
 
         {/* H2H */}
@@ -1008,7 +997,11 @@ export default function SLMatchDetail() {
           </>
         )}
         {h2hData.length === 0 ? (
-          <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}><Text style={[styles.noDataText, { color: c.textSub }]}>Geçmiş karşılaşma bulunamadı.</Text></View>
+          <DetailDataNotice
+            message={detailDataMessage('h2h', hasH2HIssue ? 'sourceError' : 'empty')}
+            boxStyle={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}
+            textStyle={[styles.noDataText, { color: c.textSub }]}
+          />
         ) : (
           <>
             {(() => {
@@ -1056,9 +1049,11 @@ export default function SLMatchDetail() {
             <Text style={[styles.insightText, { color: isDark ? '#E3B341' : '#7A5700', fontWeight:'600' }]}>🏆 {motivationComment}</Text>
           </View>
         ) : (
-          <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
-            <Text style={[styles.noDataText, { color: c.textSub }]}>Bu maçta belirgin bir motivasyon faktörü tespit edilmedi.</Text>
-          </View>
+          <DetailDataNotice
+            message="Bu maçta belirgin bir motivasyon faktörü tespit edilmedi."
+            boxStyle={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}
+            textStyle={[styles.noDataText, { color: c.textSub }]}
+          />
         )}
 
         {/* Maç Karakteri Detayı */}
@@ -1079,9 +1074,11 @@ export default function SLMatchDetail() {
             </View>
           </>
         ) : (
-          <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
-            <Text style={[styles.noDataText, { color: c.textSub }]}>Maç karakteri için yeterli form verisi bulunamadı.</Text>
-          </View>
+          <DetailDataNotice
+            message={detailDataMessage('character', hasFormIssue ? 'sourceError' : 'empty')}
+            boxStyle={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}
+            textStyle={[styles.noDataText, { color: c.textSub }]}
+          />
         )}
 
         {/* Risk & Uyarı */}

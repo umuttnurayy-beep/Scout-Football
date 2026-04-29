@@ -2,6 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CURRENT_FOOTBALL_SEASON } from '../constants/seasons';
 import { API_BASE_URL } from './config';
 import { isOddsGameMatch } from './oddsMatching';
+export {
+  ApiResponseError,
+  clearLastApiError,
+  getLastApiError,
+  isStaleApiData,
+} from './apiResponse';
+import { isStaleApiData, logApiError, readApiJson } from './apiResponse';
 
 const BASE_URL = API_BASE_URL;
 
@@ -186,57 +193,6 @@ export type HomeData = {
   generatedAt: string;
 };
 
-type ApiEnvelope<T> = {
-  ok?: boolean;
-  stale?: boolean;
-  data?: T;
-  warning?: { code?: string; message?: string };
-  error?: { code?: string; message?: string };
-};
-
-type ApiMeta = {
-  stale: boolean;
-  warning?: { code?: string; message?: string };
-};
-
-export type WithApiMeta<T> = T & { __apiMeta?: ApiMeta };
-
-function withApiMeta<T>(data: T, meta: ApiMeta): T {
-  if (data && typeof data === 'object') {
-    try {
-      Object.defineProperty(data as object, '__apiMeta', {
-        value: meta,
-        enumerable: false,
-        configurable: true,
-      });
-    } catch {}
-  }
-  return data;
-}
-
-function unwrapApiData<T>(payload: T | ApiEnvelope<T>): T {
-  if (payload && typeof payload === 'object' && 'ok' in payload && 'data' in payload) {
-    return (payload as ApiEnvelope<T>).data as T;
-  }
-  return payload as T;
-}
-
-async function readApiJson<T>(res: Response, fallback: T): Promise<T> {
-  const raw = await res.json() as T | ApiEnvelope<T>;
-  const data = unwrapApiData<T>(raw) ?? fallback;
-  if (raw && typeof raw === 'object' && 'ok' in raw) {
-    return withApiMeta(data, {
-      stale: Boolean((raw as ApiEnvelope<T>).stale),
-      warning: (raw as ApiEnvelope<T>).warning,
-    });
-  }
-  return data;
-}
-
-export function isStaleApiData(value: unknown): boolean {
-  return Boolean(value && typeof value === 'object' && (value as { __apiMeta?: ApiMeta }).__apiMeta?.stale);
-}
-
 function arrayOrEmpty<T = any>(value: unknown): T[] {
   return Array.isArray(value) ? value : [];
 }
@@ -262,7 +218,7 @@ export async function getStandings(leagueId: number): Promise<Standing[]> {
     const data = await readApiJson<Standing[]>(res, []);
     return standingsOrEmpty(data);
   } catch (e) {
-    console.error('getStandings hata:', e);
+    logApiError('getStandings', e);
     return [];
   }
 }
@@ -274,7 +230,7 @@ export async function getTodayMatches(date?: string): Promise<any[]> {
     const data = await readApiJson<any[]>(res, []);
     return arrayOrEmpty(data);
   } catch (e) {
-    console.error('getTodayMatches hata:', e);
+    logApiError('getTodayMatches', e);
     return [];
   }
 }
@@ -282,19 +238,16 @@ export async function getTodayMatches(date?: string): Promise<any[]> {
 export async function getHomeData(date: string): Promise<HomeData | null> {
   try {
     const res = await fetch(`${BASE_URL}/home?date=${encodeURIComponent(date)}`);
-    const payload = await res.json() as (ApiEnvelope<HomeData> & { stale?: boolean }) | HomeData | null;
-    if (!res.ok || !payload) return null;
-    if (typeof payload === 'object' && 'ok' in payload && payload.ok === false) return null;
-    const data = unwrapApiData<HomeData | null>(payload as HomeData | ApiEnvelope<HomeData | null>);
+    const data = await readApiJson<HomeData | null>(res, null);
     if (!data || !Array.isArray(data.matches) || !Array.isArray(data.superLigMatches)) return null;
     return {
       ...data,
-      stale: Boolean((payload as { stale?: boolean }).stale || data.stale),
+      stale: Boolean(data.stale || isStaleApiData(data)),
       standings: data.standings || {},
       nextPreview: data.nextPreview || null,
     };
   } catch (e) {
-    console.error('getHomeData hata:', e);
+    logApiError('getHomeData', e);
     return null;
   }
 }
@@ -305,7 +258,7 @@ export async function getMatchStats(matchId: string): Promise<any> {
     const data = await readApiJson<any | null>(res, null);
     return data || null;
   } catch (e) {
-    console.error('getMatchStats hata:', e);
+    logApiError('getMatchStats', e);
     return null;
   }
 }
@@ -317,7 +270,7 @@ export async function getH2H(matchId: string, isFinished?: boolean): Promise<any
     const data = await readApiJson<any[]>(res, []);
     return arrayOrEmpty(data);
   } catch (e) {
-    console.error('getH2H hata:', e);
+    logApiError('getH2H', e);
     return [];
   }
 }
@@ -328,7 +281,7 @@ export async function getTeamForm(teamId: number): Promise<any[]> {
     const data = await readApiJson<any[]>(res, []);
     return arrayOrEmpty(data);
   } catch (e) {
-    console.error('getTeamForm hata:', e);
+    logApiError('getTeamForm', e);
     return [];
   }
 }
@@ -339,7 +292,7 @@ export async function getWeather(city: string): Promise<WeatherData | null> {
     const data = await readApiJson<WeatherData | null>(res, null);
     return data || null;
   } catch (e) {
-    console.error('getWeather hata:', e);
+    logApiError('getWeather', e);
     return null;
   }
 }
@@ -393,7 +346,7 @@ export async function getOdds(homeTeam: string, awayTeam: string, leagueApiId: n
 
     return odds;
   } catch (e) {
-    console.error('getOdds hata:', e);
+    logApiError('getOdds', e);
     return null;
   }
 }
@@ -404,7 +357,7 @@ export async function getTopScorers(leagueId: number): Promise<any[]> {
     const data = await readApiJson<any[]>(res, []);
     return arrayOrEmpty(data);
   } catch (e) {
-    console.error('getTopScorers hata:', e);
+    logApiError('getTopScorers', e);
     return [];
   }
 }
@@ -415,7 +368,7 @@ export async function getFdTeamData(teamId: number): Promise<any> {
     const data = await readApiJson<any | null>(res, null);
     return data || null;
   } catch (e) {
-    console.error('getFdTeamData hata:', e);
+    logApiError('getFdTeamData', e);
     return null;
   }
 }
@@ -425,7 +378,7 @@ export async function getUclKnockouts(season = CURRENT_FOOTBALL_SEASON): Promise
     const res = await fetch(`${BASE_URL}/ucl/knockouts?season=${season}`);
     return await readApiJson<any | null>(res, null) || null;
   } catch (e) {
-    console.error('getUclKnockouts hata:', e);
+    logApiError('getUclKnockouts', e);
     return null;
   }
 }
@@ -436,7 +389,7 @@ export async function getAllSportsTeamStats(teamName: string): Promise<any> {
     const data = await readApiJson<any | null>(res, null);
     return data || null;
   } catch (e) {
-    console.error('getAllSportsTeamStats hata:', e);
+    logApiError('getAllSportsTeamStats', e);
     return null;
   }
 }
@@ -447,7 +400,7 @@ export async function getAllSportsH2H(homeTeam: string, awayTeam: string): Promi
     const data = await readApiJson<any[]>(res, []);
     return arrayOrEmpty(data);
   } catch (e) {
-    console.error('getAllSportsH2H hata:', e);
+    logApiError('getAllSportsH2H', e);
     return [];
   }
 }
@@ -460,7 +413,7 @@ export async function getSuperLigStandings(): Promise<Standing[]> {
     const data = await readApiJson<Standing[]>(res, []);
     return standingsOrEmpty(data);
   } catch (e) {
-    console.error('getSuperLigStandings hata:', e);
+    logApiError('getSuperLigStandings', e);
     return [];
   }
 }
@@ -472,7 +425,7 @@ export async function getSuperLigMatches(date?: string): Promise<any[]> {
     const data = await readApiJson<any[]>(res, []);
     return arrayOrEmpty(data);
   } catch (e) {
-    console.error('getSuperLigMatches hata:', e);
+    logApiError('getSuperLigMatches', e);
     return [];
   }
 }
@@ -483,7 +436,7 @@ export async function getSuperLigTeamForm(teamId: number): Promise<any[]> {
     const data = await readApiJson<any[]>(res, []);
     return arrayOrEmpty(data);
   } catch (e) {
-    console.error('getSuperLigTeamForm hata:', e);
+    logApiError('getSuperLigTeamForm', e);
     return [];
   }
 }
@@ -504,7 +457,7 @@ export async function getSuperLigTeamContext(teamId: number): Promise<SuperLigTe
     const data = await readApiJson<SuperLigTeamContext | null>(res, null);
     return data || null;
   } catch (e) {
-    console.error('getSuperLigTeamContext hata:', e);
+    logApiError('getSuperLigTeamContext', e);
     return null;
   }
 }
@@ -515,7 +468,7 @@ export async function getSuperLigPlayers(teamId: number): Promise<any[]> {
     const data = await readApiJson<any[]>(res, []);
     return arrayOrEmpty(data);
   } catch (e) {
-    console.error('getSuperLigPlayers hata:', e);
+    logApiError('getSuperLigPlayers', e);
     return [];
   }
 }
@@ -526,7 +479,7 @@ export async function getSuperLigScorers(): Promise<any[]> {
     const data = await readApiJson<any[]>(res, []);
     return arrayOrEmpty(data);
   } catch (e) {
-    console.error('getSuperLigScorers hata:', e);
+    logApiError('getSuperLigScorers', e);
     return [];
   }
 }
@@ -537,7 +490,7 @@ export async function getSuperLigMatch(eventId: string): Promise<any | null> {
     const data = await readApiJson<any | null>(res, null);
     return data || null;
   } catch (e) {
-    console.error('getSuperLigMatch hata:', e);
+    logApiError('getSuperLigMatch', e);
     return null;
   }
 }
