@@ -8,6 +8,7 @@
     "smoke:match": "node scripts/smoke-match-detail.js",
     "smoke:home": "node scripts/smoke-home.js",
     "smoke:superlig": "node scripts/smoke-superlig-context.js",
+    "smoke:upstream": "node scripts/smoke-upstream-diagnostics.js",
     "test": "jest --runInBand"
   },
   "keywords": [],

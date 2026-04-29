@@ -8,6 +8,7 @@ Bu checklist, son değişikliklerde dokunulan ana ekran veri uyarıları, maç d
 - [ ] `npm.cmd run lint`
 - [ ] `npm.cmd run test:api-contract`
 - [ ] `cd ScoutFootball-Backend && npm.cmd test`
+- [ ] `cd ScoutFootball-Backend && npm.cmd run smoke:upstream` (`DIAGNOSTICS_SECRET` env ile)
 
 ## Ana Ekran
 
