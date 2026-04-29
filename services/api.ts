@@ -40,6 +40,7 @@ export const TEAM_CITIES: Record<string, string> = {
   'Stoke': 'Stoke-on-Trent', 'Derby': 'Derby', 'Blackburn': 'Blackburn',
   // La Liga
   'Real Madrid': 'Madrid', 'Barcelona': 'Barcelona', 'Atletico Madrid': 'Madrid',
+  'Atlético Madrid': 'Madrid', 'Club Atlético de Madrid': 'Madrid', 'Atlético': 'Madrid', 'Atleti': 'Madrid',
   'Sevilla': 'Seville', 'Betis': 'Seville', 'Real Betis': 'Seville',
   'Villarreal': 'Villarreal', 'Valencia': 'Valencia',
   'Girona': 'Girona', 'Athletic Club': 'Bilbao', 'Real Sociedad': 'San Sebastian',

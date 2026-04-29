@@ -5,6 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "smoke:match": "node scripts/smoke-match-detail.js",
+    "smoke:home": "node scripts/smoke-home.js",
     "test": "jest --runInBand"
   },
   "keywords": [],

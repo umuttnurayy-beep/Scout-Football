@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../context/ThemeContext';
-import { getH2H, getMatchStats, getOdds, getTeamForm, getWeather } from '../services/api';
+import { getCityForTeam, getH2H, getMatchStats, getOdds, getTeamForm, getWeather } from '../services/api';
 import {
   ANALYSIS_DELTA as DELTA,
   Level,
@@ -505,6 +505,20 @@ function getUclKnockoutMotivation(stage: string): string {
 
 // ── Main Screen ────────────────────────────────────────────────────────────
 
+function resolveFormTeamIds(stats: any, routeHomeTeamId: number, routeAwayTeamId: number) {
+  return {
+    home: stats?.homeTeam?.id || routeHomeTeamId,
+    away: stats?.awayTeam?.id || routeAwayTeamId,
+  };
+}
+
+function resolveWeatherCity(routeCity: string | null, stats: any, routeHomeName: string) {
+  return routeCity ||
+    getCityForTeam(stats?.homeTeam?.name || '') ||
+    getCityForTeam(stats?.homeTeam?.shortName || '') ||
+    getCityForTeam(routeHomeName);
+}
+
 export default function MatchDetail() {
   const { colors: c, isDark } = useTheme();
   const router = useRouter();
@@ -555,11 +569,14 @@ export default function MatchDetail() {
   useEffect(()=>{
     async function load(){
       setLoading(true);
-      const [statsR,h2hR,weatherR,oddsR,hFormR,aFormR] = await Promise.allSettled([
-        getMatchStats(matchId),getH2H(matchId,finishedParam),city ? getWeather(city) : Promise.resolve(null),
-        getOdds(home,away,leagueApiId),getTeamForm(homeTeamId),getTeamForm(awayTeamId),
+      const stats = await getMatchStats(matchId);
+      const formTeamIds = resolveFormTeamIds(stats, homeTeamId, awayTeamId);
+      const weatherCity = resolveWeatherCity(city, stats, home);
+      const [h2hR,weatherR,oddsR,hFormR,aFormR] = await Promise.allSettled([
+        getH2H(matchId,finishedParam),weatherCity ? getWeather(weatherCity) : Promise.resolve(null),
+        getOdds(home,away,leagueApiId),getTeamForm(formTeamIds.home),getTeamForm(formTeamIds.away),
       ]);
-      setMatchData(statsR.status==='fulfilled'?statsR.value:null);
+      setMatchData(stats);
       setH2hData(h2hR.status==='fulfilled'?(h2hR.value||[]):[]);
       setWeatherData(weatherR.status==='fulfilled'?weatherR.value:null);
       setOddsData(oddsR.status==='fulfilled'?oddsR.value:null);
@@ -579,6 +596,7 @@ export default function MatchDetail() {
   const halfAway  = matchData?.score?.halfTime?.away;
   const isFinished= status==='FINISHED';
   const isLive    = status==='IN_PLAY'||status==='LIVE'||status==='PAUSED';
+  const formTeamIds = resolveFormTeamIds(matchData, homeTeamId, awayTeamId);
 
   let displayHome: number|string|null=null, displayAway: number|string|null=null;
   if (isFinished&&fullHome!=null)       { displayHome=fullHome; displayAway=fullAway; }
@@ -594,15 +612,15 @@ export default function MatchDetail() {
   const hasScore = displayHome !== null;
   const refName  = matchData?.referees?.[0]?.name || '';
 
-  const homeStats  = calcFormStats(homeForm, homeTeamId);
-  const awayStats  = calcFormStats(awayForm,  awayTeamId);
-  const homeFormPts= calcFormPoints(homeForm, homeTeamId);
-  const awayFormPts= calcFormPoints(awayForm,  awayTeamId);
+  const homeStats  = calcFormStats(homeForm, formTeamIds.home);
+  const awayStats  = calcFormStats(awayForm,  formTeamIds.away);
+  const homeFormPts= calcFormPoints(homeForm, formTeamIds.home);
+  const awayFormPts= calcFormPoints(awayForm,  formTeamIds.away);
   const hasFormData= homeStats.total>0 && awayStats.total>0;
 
   const weatherRisk= !!weatherData&&(weatherData.wind>35||/rain|shower|drizzle/.test((weatherData.condition||'').toLowerCase()));
-  const homeTrend  = hasFormData ? getFormTrend(homeForm, homeTeamId) : null;
-  const awayTrend  = hasFormData ? getFormTrend(awayForm, awayTeamId) : null;
+  const homeTrend  = hasFormData ? getFormTrend(homeForm, formTeamIds.home) : null;
+  const awayTrend  = hasFormData ? getFormTrend(awayForm, formTeamIds.away) : null;
   const analysis   = buildMatchAnalysis(home,away,leagueApiId,homeStats,awayStats,homeFormPts,awayFormPts,h2hData.length,weatherRisk,hasFormData,homeTrend,awayTrend,leagueAvgParam);
 
   const homeRadar=[
@@ -633,7 +651,7 @@ export default function MatchDetail() {
   const h2hComment        = getH2HComment(h2hData, home, away);
   const oddsComment       = getOddsComment(oddsData, home, analysis);
   const homeAwayComment   = hasFormData ? getHomeAwayComment(homeStats, awayStats, home, away) : '';
-  const deepH2H           = getDeepH2HStats(h2hData, home, away, homeTeamId);
+  const deepH2H           = getDeepH2HStats(h2hData, home, away, formTeamIds.home);
   const isUclKnockout = leagueApiId === 2001 && matchData?.stage && !UCL_LEAGUE_PHASE_STAGES.has(matchData.stage);
   const motivationComment = isUclKnockout
     ? getUclKnockoutMotivation(matchData.stage)
@@ -941,8 +959,8 @@ export default function MatchDetail() {
         <Text style={[styles.sectionLabel,{color:c.textMuted}]}>SON FORM  (İ = İç Saha · D = Deplasman)</Text>
         {hasFormData ? (
           <>
-            <FormHeatRow matches={homeForm} teamId={homeTeamId} label={home}/>
-            <FormHeatRow matches={awayForm} teamId={awayTeamId}  label={away}/>
+            <FormHeatRow matches={homeForm} teamId={formTeamIds.home} label={home}/>
+            <FormHeatRow matches={awayForm} teamId={formTeamIds.away}  label={away}/>
             {/* Form Trend */}
             {(homeTrend || awayTrend) && (() => {
               const trendIcon = (d: 'up'|'down'|'stable') => d==='up'?'▲':d==='down'?'▼':'—';

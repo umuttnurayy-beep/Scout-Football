@@ -1011,8 +1011,8 @@ export default function HomeScreen() {
     } catch (e) {
       console.error('loadMatches hata:', e);
     } finally {
-      if (!silent && requestId === loadSeq.current) {
-        setLoading(false);
+      if (requestId === loadSeq.current) {
+        if (!silent) setLoading(false);
         setRefreshing(false);
       }
     }
