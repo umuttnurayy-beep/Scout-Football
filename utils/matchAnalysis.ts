@@ -342,110 +342,110 @@ export function buildScoutPick(
   if (lowConfidence) {
     if (avgOver >= 58 || hAtk + aAtk >= 2.6) {
       return {
-        label: '1.5 Üst radarı',
-        detail: `Veri güveni sınırlı, bu yüzden 2.5 üst yerine daha düşük gol çizgisi mantıklı. İlk 15 dakikada tempo ve şut hacmi oluşursa 1.5 üst desteklenir.`,
+        label: 'Düşük çizgide gol takibi',
+        detail: `Veri güveni sınırlı ama iki takımın üretim profili gol tarafını tamamen kapatmıyor. İlk bölümde tempo ve şut hacmi oluşursa düşük gol çizgisi daha anlamlı hale gelir.`,
         tone: 'goals',
       };
     }
     if (avgOver <= 42 || hAtk + aAtk <= 2.0) {
       return {
-        label: 'Alt 3.5 güvenli çizgi',
-        detail: `Örneklem sınırlı ama gol profili patlayıcı görünmüyor: 2.5 üst ortalaması %${overLabel}. Tempo yükselmezse alt çizgisi daha dengeli okuma verir.`,
+        label: 'Kontrollü skor profili',
+        detail: `Örneklem sınırlı ama gol profili patlayıcı görünmüyor: 2.5 üst ortalaması %${overLabel}. Tempo yükselmezse daha kontrollü skor çizgisi ön plana çıkar.`,
         tone: 'draw',
       };
     }
     if (homeEdge >= awayEdge + 3) {
       return {
-        label: '1X güvenlik tarafı',
-        detail: `${home} tarafında hafif üstünlük var, fakat veri direkt MS 1 için yeterince güçlü değil. Çift şans daha temkinli market okuması.`,
+        label: 'Ev sahibi kaybetmeme profili',
+        detail: `${home} tarafında hafif üstünlük var, fakat galibiyet sinyali tek başına güçlü değil. Kaybetmeme tarafı daha dengeli risk profili sunuyor.`,
         tone: 'home',
       };
     }
     if (awayEdge >= homeEdge + 3) {
       return {
-        label: 'X2 güvenlik tarafı',
-        detail: `${away} oyunda kalma tarafında hafif sinyal veriyor. Veri sınırlı olduğu için direkt MS 2 yerine X2 daha kontrollü yaklaşım.`,
+        label: 'Deplasman dirençli profil',
+        detail: `${away} oyunda kalma tarafında hafif sinyal veriyor. Veri sınırlı olduğu için deplasman kaybetmeme senaryosu daha kontrollü okunur.`,
         tone: 'away',
       };
     }
     if (avgKg >= 52) {
       return {
-        label: 'KG Var için canlı teyit',
-        detail: `KG Var ortalaması %${kgLabel}; maç önü güven düşük olsa da iki tarafın skor bulma ihtimali tamamen kapalı değil. Erken tempo oluşursa bu market izlenebilir.`,
+        label: 'Çift taraflı gol izlenmeli',
+        detail: `İki takımın gol bulma ortalaması %${kgLabel}; maç önü güven düşük olsa da karşılıklı skor ihtimali tamamen kapanmıyor. Erken tempo bu senaryoyu güçlendirir.`,
         tone: 'goals',
       };
     }
     return {
-      label: 'Taraf yerine canlı gol pazarı',
-      detail: 'Veri güveni düşük ve taraf sinyalleri net değil. İlk bölümde tempo oluşursa gol pazarı, durağan başlangıçta alt çizgisi daha mantıklı okunur.',
+      label: 'Taraf sinyali zayıf, tempo belirleyici',
+      detail: 'Veri güveni düşük ve taraf sinyalleri net değil. İlk bölümde tempo oluşursa gol profili güçlenir; durağan başlangıçta kontrollü skor okumak daha sağlıklı olur.',
       tone: 'caution',
     };
   }
 
   if (avgOver >= 64 && avgKg >= 58 && hAtk >= 1.4 && aAtk >= 1.4) {
     return {
-      label: '2.5 Üst + KG Var eğilimi',
-      detail: `Gol profili çift taraflı destek veriyor: 2.5 üst ortalaması %${overLabel}, KG Var ortalaması %${kgLabel}. Taraf yerine gol pazarı daha temiz okunuyor.`,
+      label: 'Yüksek tempo ve çift taraflı gol profili',
+      detail: `Gol profili iki taraftan destek alıyor: 2.5 üst ortalaması %${overLabel}, karşılıklı gol ortalaması %${kgLabel}. Taraf seçiminden çok maç temposu öne çıkıyor.`,
       tone: 'goals',
     };
   }
 
   if (avgOver >= 62 && hAtk + aAtk >= 2.8) {
     return {
-      label: '2.5 Üst lean',
-      detail: `Toplam gol trendi güçlü (%${overLabel}). KG Var aynı ölçüde desteklemiyorsa bile maçın 2 gole sıkışmama ihtimali öne çıkıyor.`,
+      label: 'Toplam gol beklentisi yüksek',
+      detail: `Toplam gol trendi güçlü (%${overLabel}). Karşılıklı gol aynı ölçüde desteklemese bile maçın düşük skora sıkışmama ihtimali öne çıkıyor.`,
       tone: 'goals',
     };
   }
 
   if (avgOver <= 38 && avgKg <= 48) {
     return {
-      label: 'Alt 3.5 / kontrollü tempo',
-      detail: `Gol trendi düşük kalıyor: 2.5 üst ortalaması %${overLabel}. Öncelikli okuma dar skor, sabırlı başlangıç ve risk azaltılmış alt senaryosu.`,
+      label: 'Kontrollü tempo ve dar skor',
+      detail: `Gol trendi düşük kalıyor: 2.5 üst ortalaması %${overLabel}. Öncelikli okuma dar skor, sabırlı başlangıç ve düşük tempolu maç profili.`,
       tone: 'draw',
     };
   }
 
   if (avgOver <= 42 && Math.abs(hFP - aFP) <= 3) {
     return {
-      label: 'X ve alt tempo radarı',
-      detail: 'Form farkı sınırlı, gol trendi düşük. Beraberlik veya tek farkla bitecek kontrollü skor çizgisi daha mantıklı duruyor.',
+      label: 'Denge ve düşük tempo profili',
+      detail: 'Form farkı sınırlı, gol trendi düşük. Beraberlik veya tek farkla bitecek kontrollü skor çizgisi daha güçlü senaryo olarak duruyor.',
       tone: 'draw',
     };
   }
 
   if (homeEdge >= awayEdge + 7) {
     return {
-      label: 'MS 1 eğilimi',
-      detail: `${home} tarafında form, iç saha ve hücum-savunma eşleşmesi belirgin üstün. Oran çok düşerse 1X daha rasyonel güvenlik payı verir.`,
+      label: 'Ev sahibi üstünlük sinyali',
+      detail: `${home} tarafında form, iç saha ve hücum-savunma eşleşmesi belirgin üstün. Fiyat çok kısalırsa kaybetmeme tarafı daha dengeli risk payı sunar.`,
       tone: 'home',
     };
   }
   if (awayEdge >= homeEdge + 7) {
     return {
-      label: 'MS 2 eğilimi',
-      detail: `${away} form ve deplasman üretimiyle net sinyal veriyor. Risk yönetimi için X2, direkt taraf seçimine göre daha dengeli okunabilir.`,
+      label: 'Deplasman üstünlük sinyali',
+      detail: `${away} form ve deplasman üretimiyle net sinyal veriyor. Deplasman riski nedeniyle kaybetmeme profili, doğrudan taraf seçimine göre daha dengeli okunabilir.`,
       tone: 'away',
     };
   }
   if (homeEdge >= awayEdge + 4) {
     return {
-      label: '1X tarafı',
-      detail: `${home} kaybetmeme çizgisinde daha güçlü duruyor. Direkt galibiyet yerine çift şans profili veriye daha uyumlu.`,
+      label: 'Ev sahibi kaybetmeme tarafı',
+      detail: `${home} kaybetmeme çizgisinde daha güçlü duruyor. Doğrudan galibiyet yerine güvenlik payı olan taraf profili veriye daha uyumlu.`,
       tone: 'home',
     };
   }
   if (awayEdge >= homeEdge + 4) {
     return {
-      label: 'X2 tarafı',
-      detail: `${away} oyunda kalma ve sonuç alma tarafında daha iyi sinyal veriyor. Deplasman riskini azaltan okuma X2.`,
+      label: 'Deplasman kaybetmeme tarafı',
+      detail: `${away} oyunda kalma ve sonuç alma tarafında daha iyi sinyal veriyor. Deplasman riskini azaltan okuma daha mantıklı görünüyor.`,
       tone: 'away',
     };
   }
 
   return {
-    label: 'Pas / canlıdan oku',
-    detail: 'Maç önü sinyaller birbirini kesiyor. İlk gol, tempo ve ceza sahası girişleri görülmeden taraf ya da gol pazarı zorlanmamalı.',
+    label: 'Maç önü sinyal zayıf',
+    detail: 'Maç önü sinyaller birbirini kesiyor. İlk gol, tempo ve ceza sahası girişleri görülmeden taraf ya da gol senaryosu zorlanmamalı.',
     tone: 'draw',
   };
 }

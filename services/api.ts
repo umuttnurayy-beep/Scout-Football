@@ -169,6 +169,21 @@ export type OddsData = {
   away: string;
 };
 
+export type HomeData = {
+  date: string;
+  matches: any[];
+  superLigMatches: any[];
+  standings: Record<number, Standing[]>;
+  featuredMatchId?: number | null;
+  stale?: boolean;
+  nextPreview: {
+    date: string;
+    matches: any[];
+    superLigMatches: any[];
+  } | null;
+  generatedAt: string;
+};
+
 type ApiEnvelope<T> = {
   ok?: boolean;
   data?: T;
@@ -226,6 +241,26 @@ export async function getTodayMatches(date?: string): Promise<any[]> {
   } catch (e) {
     console.error('getTodayMatches hata:', e);
     return [];
+  }
+}
+
+export async function getHomeData(date: string): Promise<HomeData | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/home?date=${encodeURIComponent(date)}`);
+    const payload = await res.json() as (ApiEnvelope<HomeData> & { stale?: boolean }) | HomeData | null;
+    if (!res.ok || !payload) return null;
+    if (typeof payload === 'object' && 'ok' in payload && payload.ok === false) return null;
+    const data = unwrapApiData<HomeData | null>(payload as HomeData | ApiEnvelope<HomeData | null>);
+    if (!data || !Array.isArray(data.matches) || !Array.isArray(data.superLigMatches)) return null;
+    return {
+      ...data,
+      stale: Boolean((payload as { stale?: boolean }).stale || data.stale),
+      standings: data.standings || {},
+      nextPreview: data.nextPreview || null,
+    };
+  } catch (e) {
+    console.error('getHomeData hata:', e);
+    return null;
   }
 }
 

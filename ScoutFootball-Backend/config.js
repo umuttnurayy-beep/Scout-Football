@@ -14,6 +14,7 @@ module.exports = {
   MONGODB_URI: readEnv('MONGODB_URI', { optional: true }),
   PUSH_TEST_SECRET: readEnv('PUSH_TEST_SECRET', { optional: true }),
   DIAGNOSTICS_SECRET: readEnv('DIAGNOSTICS_SECRET', { optional: true }),
+  CORS_ORIGINS: readEnv('CORS_ORIGINS', { optional: true }),
   CURRENT_FOOTBALL_SEASON: process.env.CURRENT_FOOTBALL_SEASON || '2025',
 
   FOOTBALL_DATA_BASE: 'https://api.football-data.org/v4',

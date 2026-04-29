@@ -1,8 +1,17 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const fetch = require('node-fetch');
 const mongoose = require('mongoose');
 const createHealthRouter = require('./routes/health');
+const { createHomeService } = require('./services/homeService');
+const {
+  TTL,
+  createCache,
+  isLiveStatus,
+  ttlForMatchDate,
+} = require('./utils/cache');
 const {
   FOOTBALL_DATA_KEY,
   WEATHER_API_KEY,
@@ -11,6 +20,7 @@ const {
   MONGODB_URI,
   PUSH_TEST_SECRET,
   DIAGNOSTICS_SECRET,
+  CORS_ORIGINS,
   CURRENT_FOOTBALL_SEASON,
   FOOTBALL_DATA_BASE,
   WEATHER_BASE,
@@ -22,8 +32,36 @@ const {
 } = require('./config');
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+const allowedOrigins = CORS_ORIGINS
+  ? CORS_ORIGINS.split(',').map(origin => origin.trim()).filter(Boolean)
+  : [];
+
+app.use(helmet());
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error('Not allowed by CORS'));
+  },
+}));
+app.use(express.json({ limit: '64kb' }));
+
+const publicLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const writeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use(publicLimiter);
 
 function apiError(res, status, code, message, data) {
   return res.status(status).json({
@@ -55,7 +93,6 @@ const cacheSchema = new mongoose.Schema({
   data:      mongoose.Schema.Types.Mixed,
   expiresAt: { type: Date, required: true },
 });
-cacheSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 const CacheModel = mongoose.model('Cache', cacheSchema);
 
 let mongoConnected = false;
@@ -66,44 +103,15 @@ if (MONGODB_URI) {
 }
 
 // --- Cache Helpers (MongoDB önce, RAM fallback) ---
-const memCache = {};
-
-async function getCache(key) {
-  if (mongoConnected) {
-    try {
-      const doc = await CacheModel.findOne({ key, expiresAt: { $gt: new Date() } });
-      if (doc) return doc.data;
-    } catch {}
-  }
-  const item = memCache[key];
-  if (!item) return null;
-  if (Date.now() > item.expiresAt) { delete memCache[key]; return null; }
-  return item.data;
-}
-
-async function setCache(key, data, ttlMs) {
-  const expiresAt = new Date(Date.now() + ttlMs);
-  if (mongoConnected) {
-    try {
-      await CacheModel.findOneAndUpdate({ key }, { data, expiresAt }, { upsert: true, new: true });
-      return;
-    } catch {}
-  }
-  memCache[key] = { data, expiresAt: Date.now() + ttlMs };
-}
-
-const TTL = {
-  live:        30  * 1000,
-  matches:     60  * 1000,
-  standings:   60  * 60  * 1000,
-  h2h:         60  * 60  * 1000,
-  weather:     10  * 60  * 1000,
-  odds:        5   * 60  * 1000,
-  team:        24  * 60  * 60  * 1000,
-  teamStats:   6   * 60  * 60  * 1000,
-  seasonFixtures: 6 * 60  * 60  * 1000,
-  topscorers:  60  * 60  * 1000,
-};
+const {
+  dedupe,
+  getCache,
+  getStaleCache,
+  setCache,
+} = createCache({
+  CacheModel,
+  isMongoConnected: () => mongoConnected,
+});
 
 // =====================
 // FOOTBALL-DATA.ORG
@@ -263,6 +271,77 @@ async function repairFootballDataMatches(matches, date) {
   }
 }
 
+async function fetchStandingsForLeague(leagueId) {
+  if (!FOOTBALL_DATA_KEY) return [];
+  const cacheKey = `standings_v3_${leagueId}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return cached;
+
+  return dedupe(cacheKey, async () => {
+    const fresh = await getCache(cacheKey);
+    if (fresh) return fresh;
+
+    const response = await fetch(`${FOOTBALL_DATA_BASE}/competitions/${leagueId}/standings`, {
+      headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
+    });
+    const data = await response.json();
+    const table = data.standings?.[0]?.table || [];
+    const result = table.map(item => ({
+      pos:    item.position,
+      team:   item.team.name,
+      teamId: item.team.id,
+      crest:  item.team.crest,
+      played: item.playedGames,
+      win:    item.won,
+      draw:   item.draw,
+      loss:   item.lost,
+      gf:     item.goalsFor,
+      ga:     item.goalsAgainst,
+      pts:    item.points,
+    }));
+
+    if (result.length > 0) {
+      await setCache(cacheKey, result, TTL.standings);
+      return result;
+    }
+
+    const espnSlug = FD_TO_ESPN_SLUG[leagueId];
+    if (espnSlug) {
+      console.log(`[standings] football-data.org empty for ${leagueId}, trying ESPN (${espnSlug})`);
+      const espnResult = await fetchEspnStandings(espnSlug);
+      if (espnResult.length > 0) {
+        await setCache(cacheKey, espnResult, TTL.standings);
+        return espnResult;
+      }
+    }
+
+    return [];
+  });
+}
+
+async function fetchFootballDataMatchesForDate(date) {
+  if (!FOOTBALL_DATA_KEY) return [];
+  const cacheKey = `matches_v2_${date || 'today'}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return cached;
+
+  return dedupe(cacheKey, async () => {
+    const fresh = await getCache(cacheKey);
+    if (fresh) return fresh;
+
+    const today = date || new Date().toISOString().split('T')[0];
+    const response = await fetch(`${FOOTBALL_DATA_BASE}/matches?date=${today}`, {
+      headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
+    });
+    const data = await response.json();
+    const matches = Array.isArray(data.matches) ? data.matches : [];
+    const repairedMatches = await repairFootballDataMatches(matches, today);
+    const renderableMatches = repairedMatches.filter(hasMatchTeamNames);
+    await setCache(cacheKey, renderableMatches, ttlForMatchDate(today, renderableMatches.some(m => isLiveStatus(m.status))));
+    return renderableMatches;
+  });
+}
+
 app.get('/standings/:leagueId', async (req, res) => {
   const { leagueId } = req.params;
   if (!FOOTBALL_DATA_KEY) return missingConfig(res, 'FOOTBALL_DATA_KEY', []);
@@ -315,20 +394,8 @@ app.get('/standings/:leagueId', async (req, res) => {
 app.get('/matches', async (req, res) => {
   const { date } = req.query;
   if (!FOOTBALL_DATA_KEY) return missingConfig(res, 'FOOTBALL_DATA_KEY', []);
-  const cacheKey = `matches_v2_${date || 'today'}`;
-  const cached = await getCache(cacheKey);
-  if (cached) return res.json(cached);
   try {
-    const today = date || new Date().toISOString().split('T')[0];
-    const response = await fetch(`${FOOTBALL_DATA_BASE}/matches?date=${today}`, {
-      headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
-    });
-    const data = await response.json();
-    const matches = Array.isArray(data.matches) ? data.matches : [];
-    const repairedMatches = await repairFootballDataMatches(matches, today);
-    const renderableMatches = repairedMatches.filter(hasMatchTeamNames);
-    await setCache(cacheKey, renderableMatches, TTL.matches);
-    res.json(renderableMatches);
+    res.json(await fetchFootballDataMatchesForDate(date));
   } catch (e) {
     console.error('/matches hata:', e.message);
     apiError(res, 502, 'upstream_error', e.message, []);
@@ -365,7 +432,7 @@ app.get('/h2h/:matchId', async (req, res) => {
       headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
     });
     const data = await response.json();
-    const ttl = isFinished ? TTL.h2h : 24 * 60 * 60 * 1000;
+    const ttl = isFinished ? TTL.historical : 24 * 60 * 60 * 1000;
     await setCache(cacheKey, data.matches || [], ttl);
     res.json(data.matches || []);
   } catch (e) {
@@ -403,7 +470,7 @@ app.get('/team/:teamId/matches', async (req, res) => {
     });
     const data = await response.json();
     const matches = Array.isArray(data.matches) && data.matches.length > 0 ? data.matches : null;
-    if (matches) await setCache(cacheKey, matches, TTL.h2h);
+    if (matches) await setCache(cacheKey, matches, TTL.teamStats);
     res.json(matches || []);
   } catch (e) {
     console.error('/team/:teamId/matches hata:', e.message);
@@ -546,11 +613,16 @@ async function fetchSuperLigSeasonEvents() {
   const cached = await getCache(cacheKey);
   if (cached) return cached;
 
-  const r = await fetch(`${SPORTSDB_BASE}/eventsseason.php?id=${SL_LEAGUE_ID}&s=${SL_SEASON}`);
-  const data = await r.json();
-  const events = Array.isArray(data.events) ? data.events : [];
-  if (events.length > 0) await setCache(cacheKey, events, TTL.seasonFixtures);
-  return events;
+  return dedupe(cacheKey, async () => {
+    const fresh = await getCache(cacheKey);
+    if (fresh) return fresh;
+
+    const r = await fetch(`${SPORTSDB_BASE}/eventsseason.php?id=${SL_LEAGUE_ID}&s=${SL_SEASON}`);
+    const data = await r.json();
+    const events = Array.isArray(data.events) ? data.events : [];
+    if (events.length > 0) await setCache(cacheKey, events, TTL.seasonFixtures);
+    return events;
+  });
 }
 
 function timeFromIso(isoDate) {
@@ -591,6 +663,70 @@ async function fetchEspnSuperLigMatches(date) {
   return events.map(event => mapEspnSuperLigEvent(event, date));
 }
 
+async function fetchSuperLigStandingsCached() {
+  const cacheKey = 'superlig_standings_v3';
+  const cached = await getCache(cacheKey);
+  if (cached) return cached;
+
+  return dedupe(cacheKey, async () => {
+    const fresh = await getCache(cacheKey);
+    if (fresh) return fresh;
+
+    const r = await fetch('https://site.api.espn.com/apis/v2/sports/soccer/tur.1/standings');
+    const data = await r.json();
+    const entries = data?.children?.[0]?.standings?.entries || [];
+    if (entries.length === 0) return [];
+    const result = entries.map(e => {
+      const stats = {};
+      for (const s of (e.stats || [])) {
+        if ('value' in s) stats[s.name] = s.value;
+      }
+      const espnName = e.team?.displayName || '';
+      const teamId = SL_ESPN_TO_SPORTSDB[espnName] || 0;
+      return {
+        pos:    Math.round(stats.rank    || 0),
+        team:   espnName,
+        teamId,
+        played: Math.round(stats.gamesPlayed || 0),
+        win:    Math.round(stats.wins    || 0),
+        draw:   Math.round(stats.ties    || 0),
+        loss:   Math.round(stats.losses  || 0),
+        gf:     Math.round(stats.pointsFor  || 0),
+        ga:     Math.round(stats.pointsAgainst || 0),
+        pts:    Math.round(stats.points  || 0),
+      };
+    }).sort((a, b) => a.pos - b.pos);
+    await setCache(cacheKey, result, TTL.standings);
+    return result;
+  });
+}
+
+async function fetchSuperLigMatchesForDate(date) {
+  const d = date || new Date().toISOString().split('T')[0];
+  const cacheKey = `superlig_matches_v2_${d}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return cached;
+
+  return dedupe(cacheKey, async () => {
+    const fresh = await getCache(cacheKey);
+    if (fresh) return fresh;
+
+    const r = await fetch(`${SPORTSDB_BASE}/eventsday.php?d=${d}&l=${SL_LEAGUE_ID}`);
+    const data = await r.json();
+    let events = data.events || [];
+    if (events.length === 0) {
+      const seasonEvents = await fetchSuperLigSeasonEvents();
+      events = seasonEvents.filter(e => e.dateEvent === d || e.dateEventLocal === d);
+    }
+    let result = events.map(mapSuperLigEvent);
+    if (result.length === 0) {
+      result = await fetchEspnSuperLigMatches(d);
+    }
+    if (result.length > 0) await setCache(cacheKey, result, ttlForMatchDate(d, result.some(m => isLiveStatus(m.status))));
+    return result;
+  });
+}
+
 function normalizeTeamLookupName(value) {
   return (value || '')
     .replace(/İ/g, 'I')
@@ -626,90 +762,56 @@ async function findAllSportsTeam(name) {
 }
 
 app.get('/superlig/standings', async (req, res) => {
-  const cacheKey = 'superlig_standings_v3';
-  const cached = await getCache(cacheKey);
-  if (cached) return res.json(cached);
   try {
-    const r = await fetch('https://site.api.espn.com/apis/v2/sports/soccer/tur.1/standings');
-    const data = await r.json();
-    const entries = data?.children?.[0]?.standings?.entries || [];
-    if (entries.length === 0) return res.json([]);
-    const result = entries.map(e => {
-      const stats = {};
-      for (const s of (e.stats || [])) {
-        if ('value' in s) stats[s.name] = s.value;
-      }
-      const espnName = e.team?.displayName || '';
-      const teamId = SL_ESPN_TO_SPORTSDB[espnName] || 0;
-      return {
-        pos:    Math.round(stats.rank    || 0),
-        team:   espnName,
-        teamId,
-        played: Math.round(stats.gamesPlayed || 0),
-        win:    Math.round(stats.wins    || 0),
-        draw:   Math.round(stats.ties    || 0),
-        loss:   Math.round(stats.losses  || 0),
-        gf:     Math.round(stats.pointsFor  || 0),
-        ga:     Math.round(stats.pointsAgainst || 0),
-        pts:    Math.round(stats.points  || 0),
-      };
-    }).sort((a, b) => a.pos - b.pos);
-    await setCache(cacheKey, result, TTL.standings);
-    res.json(result);
+    res.json(await fetchSuperLigStandingsCached());
   } catch (e) {
     console.error('/superlig/standings hata:', e.message);
-    res.json([]);
+    apiError(res, 502, 'upstream_error', e.message, []);
   }
 });
 
 app.get('/superlig/matches', async (req, res) => {
   const { date } = req.query;
-  const d = date || new Date().toISOString().split('T')[0];
-  const cacheKey = `superlig_matches_v2_${d}`;
-  const cached = await getCache(cacheKey);
-  if (cached) return res.json(cached);
   try {
-    const r = await fetch(`${SPORTSDB_BASE}/eventsday.php?d=${d}&l=${SL_LEAGUE_ID}`);
-    const data = await r.json();
-    let events = data.events || [];
-    if (events.length === 0) {
-      const seasonEvents = await fetchSuperLigSeasonEvents();
-      events = seasonEvents.filter(e => e.dateEvent === d || e.dateEventLocal === d);
-    }
-    let result = events.map(mapSuperLigEvent);
-    if (result.length === 0) {
-      result = await fetchEspnSuperLigMatches(d);
-    }
-    const isPast = new Date(d) <= new Date();
-    if (result.length > 0) await setCache(cacheKey, result, isPast ? TTL.matches : TTL.standings);
-    res.json(result);
+    res.json(await fetchSuperLigMatchesForDate(date));
   } catch (e) {
     console.error('/superlig/matches hata:', e.message);
-    res.json([]);
+    apiError(res, 502, 'upstream_error', e.message, []);
+  }
+});
+
+const homeService = createHomeService({
+  dedupe,
+  getCache,
+  getStaleCache,
+  setCache,
+  fetchFootballDataMatchesForDate,
+  fetchSuperLigMatchesForDate,
+  fetchSuperLigStandingsCached,
+  fetchStandingsForLeague,
+  hasMatchTeamNames,
+  isLiveStatus,
+  ttlForMatchDate,
+});
+
+app.get('/home', async (req, res) => {
+  try {
+    res.json(await homeService.buildHome(req.query.date));
+  } catch (e) {
+    apiError(res, 502, 'upstream_error', e.message, null);
   }
 });
 
 app.get('/superlig/team-form/:teamId', async (req, res) => {
   const { teamId } = req.params;
   const tid = parseInt(teamId);
-  if (!tid) return res.json([]);
+  if (!tid) return apiError(res, 400, 'bad_request', 'invalid teamId', []);
 
   const cacheKey = `superlig_form_season_v3_${teamId}`;
   const cached = await getCache(cacheKey);
   if (cached) return res.json(cached);
   try {
-    // Fetch all rounds so form cards can calculate current-season home/away splits.
-    const roundNums = Array.from({ length: 38 }, (_, i) => i + 1);
-    const roundResults = await Promise.all(
-      roundNums.map(r =>
-        fetch(`${SPORTSDB_BASE}/eventsround.php?id=${SL_LEAGUE_ID}&r=${r}&s=${SL_SEASON}`)
-          .then(resp => resp.json())
-          .then(d => d.events || [])
-          .catch(() => [])
-      )
-    );
-
-    const allEvents = roundResults.flat();
+    const allEvents = await fetchSuperLigSeasonEvents();
     const teamMatches = allEvents
       .filter(e =>
         (parseInt(e.idHomeTeam) === tid || parseInt(e.idAwayTeam) === tid) &&
@@ -730,7 +832,7 @@ app.get('/superlig/team-form/:teamId', async (req, res) => {
     res.json(teamMatches);
   } catch (e) {
     console.error('/superlig/team-form hata:', e.message);
-    res.json([]);
+    apiError(res, 502, 'upstream_error', e.message, []);
   }
 });
 
@@ -753,7 +855,7 @@ app.get('/superlig/players/:teamId', async (req, res) => {
     res.json(result);
   } catch (e) {
     console.error('/superlig/players hata:', e.message);
-    res.json([]);
+    apiError(res, 502, 'upstream_error', e.message, []);
   }
 });
 
@@ -803,7 +905,7 @@ app.get('/superlig/scorers', async (req, res) => {
     res.json(result);
   } catch (e) {
     console.error('/superlig/scorers hata:', e.message);
-    res.json([]);
+    apiError(res, 502, 'upstream_error', e.message, []);
   }
 });
 
@@ -816,13 +918,14 @@ app.get('/superlig/match/:eventId', async (req, res) => {
     const r = await fetch(`${SPORTSDB_BASE}/lookupevent.php?id=${eventId}`);
     const data = await r.json();
     const event = data?.events?.[0] || null;
-    if (!event) return res.json(null);
+    if (!event) return apiError(res, 404, 'not_found', 'match not found', null);
     const isFinished = ['FT', 'AET', 'PEN', 'Match Finished'].includes(event.strStatus || '');
-    await setCache(cacheKey, event, isFinished ? TTL.h2h : TTL.matches);
+    const matchDate = event.dateEvent || new Date().toISOString().split('T')[0];
+    await setCache(cacheKey, event, isFinished ? TTL.historical : ttlForMatchDate(matchDate, isLiveStatus(event.strStatus)));
     res.json(event);
   } catch (e) {
     console.error('/superlig/match/:eventId hata:', e.message);
-    res.json(null);
+    apiError(res, 502, 'upstream_error', e.message, null);
   }
 });
 
@@ -880,7 +983,7 @@ app.get('/ucl/knockouts', async (req, res) => {
     res.json(result);
   } catch (e) {
     console.error('/ucl/knockouts hata:', e.message);
-    res.status(500).json({ error: e.message });
+    apiError(res, 502, 'upstream_error', e.message, {});
   }
 });
 
@@ -893,7 +996,7 @@ app.get('/allsports/team-stats/:teamName', async (req, res) => {
   const cacheKey = `allsports_v1_${teamName}`;
   const cached = await getCache(cacheKey);
   if (cached) return res.json(cached);
-  if (!ALLSPORTS_KEY) return res.json(null);
+  if (!ALLSPORTS_KEY) return missingConfig(res, 'ALLSPORTS_KEY', null);
   try {
     // Takım adıyla arama
     const teamRes = await fetch(`${ALLSPORTS_BASE}?met=Teams&APIkey=${ALLSPORTS_KEY}&teamName=${encodeURIComponent(teamName)}`);
@@ -950,15 +1053,15 @@ app.get('/allsports/team-stats/:teamName', async (req, res) => {
     res.json(result);
   } catch (e) {
     console.error('/allsports/team-stats hata:', e.message);
-    res.json(null);
+    apiError(res, 502, 'upstream_error', e.message, null);
   }
 });
 
 // ─── AllSports H2H ────────────────────────────────────────────────────────────
 app.get('/allsports/h2h', async (req, res) => {
   const { home, away } = req.query;
-  if (!home || !away) return res.status(400).json({ error: 'home ve away parametreleri gerekli' });
-  if (!ALLSPORTS_KEY) return res.json([]);
+  if (!home || !away) return apiError(res, 400, 'bad_request', 'home ve away parametreleri gerekli', []);
+  if (!ALLSPORTS_KEY) return missingConfig(res, 'ALLSPORTS_KEY', []);
 
   const cacheKey = `allsports_h2h_v1_${home}_${away}`;
   const cached = await getCache(cacheKey);
@@ -991,11 +1094,11 @@ app.get('/allsports/h2h', async (req, res) => {
       .sort((a, b) => new Date(b.date) - new Date(a.date))
       .slice(0, 12);
 
-    if (matches.length > 0) await setCache(cacheKey, matches, 6 * 60 * 60 * 1000);
+    if (matches.length > 0) await setCache(cacheKey, matches, TTL.historical);
     res.json(matches);
   } catch (e) {
     console.error('/allsports/h2h hata:', e.message);
-    res.json([]);
+    apiError(res, 502, 'upstream_error', e.message, []);
   }
 });
 
@@ -1009,14 +1112,38 @@ const pushTokenSchema = new mongoose.Schema({
 });
 const PushToken = mongoose.model('PushToken', pushTokenSchema);
 
-app.post('/register-token', async (req, res) => {
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function cleanPushPrefs(value) {
+  const prefs = isPlainObject(value) ? value : {};
+  return {
+    daily: Boolean(prefs.daily),
+    favTeam: Boolean(prefs.favTeam),
+    featured: Boolean(prefs.featured),
+  };
+}
+
+function cleanWatchedTeams(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(item => typeof item === 'string')
+    .map(item => item.trim())
+    .filter(Boolean)
+    .slice(0, 30);
+}
+
+app.post('/register-token', writeLimiter, async (req, res) => {
   const { token, prefs, watchedTeams } = req.body;
-  if (!token) return res.status(400).json({ ok: false, error: 'token gerekli' });
+  if (typeof token !== 'string' || !/^(ExponentPushToken|ExpoPushToken)\[[A-Za-z0-9_-]+\]$/.test(token)) {
+    return res.status(400).json({ ok: false, error: 'geçerli token gerekli' });
+  }
   if (!mongoConnected) return res.json({ ok: false, error: 'db yok' });
   try {
     await PushToken.findOneAndUpdate(
       { token },
-      { token, prefs: prefs || {}, watchedTeams: watchedTeams || [], updatedAt: new Date() },
+      { token, prefs: cleanPushPrefs(prefs), watchedTeams: cleanWatchedTeams(watchedTeams), updatedAt: new Date() },
       { upsert: true, new: true },
     );
     res.json({ ok: true });
@@ -1040,7 +1167,7 @@ app.get('/push/status', async (req, res) => {
   }
 });
 
-app.post('/push/test', async (req, res) => {
+app.post('/push/test', writeLimiter, async (req, res) => {
   if (!PUSH_TEST_SECRET || req.headers['x-push-test-secret'] !== PUSH_TEST_SECRET) {
     return res.status(403).json({ ok: false, error: 'forbidden' });
   }
@@ -1090,4 +1217,8 @@ async function sendPushNotifications(tokens, title, body) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`ScoutFootball Backend çalışıyor: port ${PORT}`));
+if (require.main === module) {
+  app.listen(PORT, () => console.log(`ScoutFootball Backend çalışıyor: port ${PORT}`));
+}
+
+module.exports = app;

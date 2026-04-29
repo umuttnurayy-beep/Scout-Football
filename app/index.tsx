@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import {
-  getAllSportsH2H, getCityForTeam, getH2H, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, Standing,
+  getAllSportsH2H, getCityForTeam, getH2H, getHomeData, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, Standing,
 } from '../services/api';
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
 import { matchListEmptyMessage } from '../utils/emptyStates';
@@ -17,6 +17,7 @@ import { matchListEmptyMessage } from '../utils/emptyStates';
 
 const STANDINGS_CACHE_KEY = 'scout_standings_cache_v5';
 const FEATURED_MATCH_CACHE_KEY = 'scout_featured_match_cache_v1';
+const HOME_DATA_CACHE_KEY = 'scout_home_data_cache_v1';
 
 const SUPPORTED_LEAGUES = [2021, 2014, 2002, 2019, 2015, 2001];
 const LEAGUE_NAMES: Record<number, string> = {
@@ -115,7 +116,7 @@ type Metrics = {
 
 type ListItem = {
   key: string;
-  type: 'section-header' | 'hero' | 'highlight' | 'day-summary' | 'match' | 'single-insight' | 'single-trends' | 'single-h2h' | 'tomorrow-featured' | 'empty' | 'empty-scout';
+  type: 'notice' | 'section-header' | 'hero' | 'highlight' | 'day-summary' | 'match' | 'single-insight' | 'single-trends' | 'single-h2h' | 'tomorrow-featured' | 'empty' | 'empty-scout';
   m?: Match;
   metrics?: Metrics;
   h2h?: any[];
@@ -124,6 +125,7 @@ type ListItem = {
   sub?: string;
   summary?: string;
   filter?: string;
+  notice?: 'stale' | 'error';
 };
 
 type FeaturedMatchCache = Record<string, number>;
@@ -704,6 +706,21 @@ function EmptyActionCard({
   );
 }
 
+function DataNoticeCard({ type }: { type: 'stale' | 'error' }) {
+  const { colors: c, isDark } = useTheme();
+  const isStale = type === 'stale';
+  return (
+    <View style={[sc.noticeCard, { backgroundColor: isDark ? '#18202A' : '#F3F7FC', borderColor: c.cardBorder }]}>
+      <Ionicons name={isStale ? 'time-outline' : 'cloud-offline-outline'} size={18} color={isStale ? c.primary : '#E3B341'} />
+      <Text style={[sc.noticeText, { color: c.textSub }]}>
+        {isStale
+          ? 'Veri kaynagi yenilenemedi; son guncel mac verisi gosteriliyor.'
+          : 'Veri su an alinamadi. Ekrandaki bilgiler eski cache veya sinirli kaynakla yuklenmis olabilir.'}
+      </Text>
+    </View>
+  );
+}
+
 function EmptyScoutState({
   selectedDate,
   preview,
@@ -855,6 +872,8 @@ export default function HomeScreen() {
   const [nextDayPreview, setNextDayPreview] = useState<{ m: Match; metrics: Metrics } | null>(null);
   const [singleH2H, setSingleH2H] = useState<any[]>([]);
   const [featuredMatchCache, setFeaturedMatchCache] = useState<FeaturedMatchCache>({});
+  const [backendFeaturedMatchId, setBackendFeaturedMatchId] = useState<number | null>(null);
+  const [homeDataNotice, setHomeDataNotice] = useState<'stale' | 'error' | null>(null);
   const [loading, setLoading]           = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const dateList          = getDateList();
@@ -931,6 +950,76 @@ export default function HomeScreen() {
     if (!silent) setLoading(true);
     try {
       const dateStr = formatDateParam(date);
+      const homeData = await getHomeData(dateStr);
+      if (homeData) {
+        if (requestId !== loadSeq.current) return;
+        const homeStandings = homeData.standings || {};
+        const visible = buildVisibleMatches(homeData.matches, homeData.superLigMatches);
+        const featuredId = homeData.featuredMatchId ?? null;
+        setStandingsMap(homeStandings);
+        setMatches(visible);
+        setBackendFeaturedMatchId(featuredId);
+        setHomeDataNotice(homeData.stale ? 'stale' : null);
+        AsyncStorage.setItem(STANDINGS_CACHE_KEY, JSON.stringify({ cacheDate: dateStr, data: homeStandings })).catch(() => {});
+        AsyncStorage.setItem(`${HOME_DATA_CACHE_KEY}:${dateStr}`, JSON.stringify(homeData)).catch(() => {});
+
+        if (activeFilter === 'Scout' && visible.length <= 1 && homeData.nextPreview) {
+          const nextVisible = buildVisibleMatches(homeData.nextPreview.matches, homeData.nextPreview.superLigMatches);
+          const ranked = nextVisible
+            .map(m => {
+              const rows = homeStandings[m.leagueApiId];
+              const home = findStanding(rows, m.home, m.homeTeamId);
+              const away = findStanding(rows, m.away, m.awayTeamId);
+              const metrics = computeMetrics(home, away, rows, m.leagueApiId);
+              return { m, metrics };
+            })
+            .sort((a, b) => scoutScore(b.m, b.metrics) - scoutScore(a.m, a.metrics));
+          setNextDayPreview(ranked[0] || null);
+        } else {
+          setNextDayPreview(null);
+        }
+        return;
+      }
+
+      setBackendFeaturedMatchId(null);
+      setHomeDataNotice('error');
+      try {
+        const rawHome = await AsyncStorage.getItem(`${HOME_DATA_CACHE_KEY}:${dateStr}`);
+        if (rawHome) {
+          const cachedHome = JSON.parse(rawHome);
+          if (requestId !== loadSeq.current) return;
+          const homeStandings = cachedHome.standings || {};
+          const visible = buildVisibleMatches(cachedHome.matches || [], cachedHome.superLigMatches || []);
+          setStandingsMap(homeStandings);
+          setMatches(visible);
+          setBackendFeaturedMatchId(cachedHome.featuredMatchId ?? null);
+          setHomeDataNotice('stale');
+          if (activeFilter === 'Scout' && visible.length <= 1 && cachedHome.nextPreview) {
+            const nextVisible = buildVisibleMatches(cachedHome.nextPreview.matches || [], cachedHome.nextPreview.superLigMatches || []);
+            const ranked = nextVisible
+              .map(m => {
+                const rows = homeStandings[m.leagueApiId];
+                const home = findStanding(rows, m.home, m.homeTeamId);
+                const away = findStanding(rows, m.away, m.awayTeamId);
+                const metrics = computeMetrics(home, away, rows, m.leagueApiId);
+                return { m, metrics };
+              })
+              .sort((a, b) => scoutScore(b.m, b.metrics) - scoutScore(a.m, a.metrics));
+            setNextDayPreview(ranked[0] || null);
+          } else {
+            setNextDayPreview(null);
+          }
+          return;
+        }
+      } catch {}
+
+      if (!__DEV__) {
+        setStandingsMap({});
+        setMatches([]);
+        setNextDayPreview(null);
+        return;
+      }
+
       const needsStandings = Object.keys(standingsMap).length === 0;
       if (!silent && needsStandings) {
         // Cache'ten standings yükle (aynı gün ise ağa gitme — hero kararlı kalır)
@@ -1019,11 +1108,12 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (activeFilter !== 'Scout' || matches.length > 0) return;
+    if (homeDataNotice === 'error') return;
     const requestId = loadSeq.current;
     void loadNextDayPreview(selectedDate, requestId, standingsMap);
     // Only refresh empty-state preview when the selected day/filter emptiness changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFilter, matches.length, selectedDate]);
+  }, [activeFilter, matches.length, selectedDate, homeDataNotice]);
 
   async function loadNextDayPreview(date: Date, requestId: number, rowsMap: Record<number, Standing[]>) {
     try {
@@ -1167,27 +1257,33 @@ export default function HomeScreen() {
 
   const featuredMatches = useMemo(() => {
     if (activeFilter !== 'Scout' || sortedMatches.length === 0) return sortedMatches;
+    const backendFeatured = sortedMatches.find(m => m.id === backendFeaturedMatchId);
+    if (backendFeatured) return [backendFeatured, ...sortedMatches.filter(m => m.id !== backendFeatured.id)];
     const dateKey = formatDateParam(selectedDate);
     const cacheKey = `${dateKey}:Scout`;
     const cachedId = featuredMatchCache[cacheKey];
     const cached = sortedMatches.find(m => m.id === cachedId);
     if (!cached) return sortedMatches;
     return [cached, ...sortedMatches.filter(m => m.id !== cached.id)];
-  }, [activeFilter, sortedMatches, selectedDate, featuredMatchCache]);
+  }, [activeFilter, sortedMatches, backendFeaturedMatchId, selectedDate, featuredMatchCache]);
 
   useEffect(() => {
     if (activeFilter !== 'Scout' || sortedMatches.length === 0) return;
+    if (backendFeaturedMatchId && sortedMatches.some(m => m.id === backendFeaturedMatchId)) return;
     const dateKey = formatDateParam(selectedDate);
     const cacheKey = `${dateKey}:Scout`;
     if (featuredMatchCache[cacheKey]) return;
     const nextCache = { ...featuredMatchCache, [cacheKey]: sortedMatches[0].id };
     setFeaturedMatchCache(nextCache);
     AsyncStorage.setItem(FEATURED_MATCH_CACHE_KEY, JSON.stringify(nextCache)).catch(() => {});
-  }, [activeFilter, sortedMatches, selectedDate, featuredMatchCache]);
+  }, [activeFilter, sortedMatches, backendFeaturedMatchId, selectedDate, featuredMatchCache]);
 
   const listItems = useMemo<ListItem[]>(() => {
     const scoutMode = activeFilter === 'Scout' && featuredMatches.length > 0;
     const items: ListItem[] = [];
+    if (activeFilter === 'Scout' && homeDataNotice) {
+      items.push({ key: `notice-${homeDataNotice}`, type: 'notice', notice: homeDataNotice });
+    }
 
     if (scoutMode) {
       const hero = featuredMatches[0];
@@ -1246,7 +1342,7 @@ export default function HomeScreen() {
     }
 
     return items;
-  }, [featuredMatches, sortedMatches, metricsMap, activeFilter, selectedDate, nextDayPreview, singleH2H]);
+  }, [featuredMatches, sortedMatches, metricsMap, activeFilter, selectedDate, nextDayPreview, singleH2H, homeDataNotice]);
 
   function goToMatch(m: Match, metrics?: Metrics) {
     const metricParams = {
@@ -1306,6 +1402,8 @@ export default function HomeScreen() {
 
   function renderListItem({ item }: { item: ListItem }) {
     switch (item.type) {
+      case 'notice':
+        return <DataNoticeCard type={item.notice || 'error'} />;
       case 'section-header':
         return (
           <View style={sc.sectionHeader}>
@@ -1535,6 +1633,8 @@ const sc = StyleSheet.create({
   emptyPrimaryBtn:{ minHeight: 44, borderWidth: 1, borderRadius: 10, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   emptyPrimaryText:{ fontSize: 13, fontWeight: '800' },
   emptyIconBtn:   { width: 44, height: 44, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  noticeCard:     { marginHorizontal: 14, marginTop: 12, marginBottom: 2, borderRadius: 10, borderWidth: 1, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  noticeText:     { flex: 1, fontSize: 12, lineHeight: 17 },
   emptyAction:    { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, borderWidth: 1, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
   emptyActionIcon:{ width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   emptyActionText:{ flex: 1, minWidth: 0 },
