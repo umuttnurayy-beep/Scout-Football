@@ -148,11 +148,11 @@ function buildMatchAnalysis(
 
   let badgeLabel: string, badgeColor: string, badgeBg: string;
   if (risk === 'Düşük' && guven !== 'Düşük') {
-    badgeLabel = '🟢 Favori'; badgeColor = '#1B6B3A'; badgeBg = '#E8F8F0';
+    badgeLabel = '🟢 Güçlü sinyal'; badgeColor = '#1B6B3A'; badgeBg = '#E8F8F0';
   } else if (risk === 'Yüksek') {
-    badgeLabel = '🔴 Riskli'; badgeColor = '#A32D2D'; badgeBg = '#FDE8E8';
+    badgeLabel = '🔴 Risk yüksek'; badgeColor = '#A32D2D'; badgeBg = '#FDE8E8';
   } else {
-    badgeLabel = '⚖️ Dengeli'; badgeColor = '#7A5700'; badgeBg = '#FFF8E1';
+    badgeLabel = '⚖️ Dengeli profil'; badgeColor = '#7A5700'; badgeBg = '#FFF8E1';
   }
 
   return { stil, gol, tempo, risk, guven, short, medium, reasons, scoutPick, badgeLabel, badgeColor, badgeBg };
@@ -769,9 +769,9 @@ export default function MatchDetail() {
         <View style={styles.heroBadgeRow}>
           <View style={[styles.badgeLiga,{backgroundColor:c.primaryLight}]}><Text style={[styles.badgeLigaText,{color:c.primaryDark}]}>{league}</Text></View>
           <View style={[styles.confidenceBadge,{backgroundColor:
-            analysis.badgeLabel.includes('Favori')
+            analysis.badgeLabel.includes('Güçlü')
               ? (isDark ? '#0D2010' : '#E8F8F0')
-              : analysis.badgeLabel.includes('Riskli')
+              : analysis.badgeLabel.includes('Risk')
                 ? (isDark ? '#2C0A0A' : '#FDE8E8')
                 : (isDark ? '#2A1F00' : '#FFF8E1')
           }]}>
@@ -938,8 +938,8 @@ export default function MatchDetail() {
             <View style={[styles.insightBox,ts.insightBox]}>
               <Text style={[styles.insightText,ts.insightText]}>
                 {hLeadsRadar
-                  ? `${displayHomeName} radar grafiğinde genel olarak önde; hücum ve savunma dengesi lehine.`
-                  : `${displayAwayName} radar grafiğinde genel olarak önde; istatistiksel tablo daha güçlü görünüyor.`}
+                  ? `${displayHomeName} form radarında önde. Bu doğrudan maç sonucu tahmini değil; hücum, savunma, form ve gol trendinin toplam gücünü gösterir.`
+                  : `${displayAwayName} form radarında önde. Bu doğrudan maç sonucu tahmini değil; hücum, savunma, form ve gol trendinin toplam gücünü gösterir.`}
               </Text>
             </View>
           </>

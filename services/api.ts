@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CURRENT_FOOTBALL_SEASON } from '../constants/seasons';
 import { API_BASE_URL } from './config';
+import { isOddsGameMatch } from './oddsMatching';
 
 const BASE_URL = API_BASE_URL;
 
@@ -331,27 +332,7 @@ export async function getOdds(homeTeam: string, awayTeam: string, leagueApiId: n
     const data = await readApiJson<any[]>(res, []);
     if (!Array.isArray(data)) return null;
 
-    function normalize(s: string) {
-      const basic = s.toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/fc|afc|cf|sc|ac|as|rc|ss|us |ud |cd |real |olympique |borussia /gi, '')
-        .replace(/[^a-z0-9]/g, '')
-        .trim();
-      const aliases: Record<string, string> = {
-        atleti: 'atleticomadrid',
-        atletico: 'atleticomadrid',
-      };
-      return aliases[basic] || basic;
-    }
-
-    const match = data.find((game: any) => {
-      const h = normalize(game.home_team || '');
-      const a = normalize(game.away_team || '');
-      const home = normalize(homeTeam);
-      const away = normalize(awayTeam);
-      return (h.includes(home) || home.includes(h)) && (a.includes(away) || away.includes(a));
-    });
+    const match = data.find((game: any) => isOddsGameMatch(game, homeTeam, awayTeam));
 
     if (!match) return null;
 

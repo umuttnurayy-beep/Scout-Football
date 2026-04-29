@@ -282,9 +282,9 @@ function buildMatchSummary(m: {
   confidence: 'low' | 'medium' | 'high'; tempo: number; homePpg: number; awayPpg: number;
 }): string {
   const bits: string[] = [];
-  if (m.expectedGoals >= 3.2)      bits.push('gol beklentisi yüksek');
-  else if (m.expectedGoals >= 2.5) bits.push('orta düzey gol beklentisi');
-  else if (m.expectedGoals < 2.0)  bits.push('az gollü bir akış bekleniyor');
+  if (m.expectedGoals >= 3.2)      bits.push('gol çizgisi canlı');
+  else if (m.expectedGoals >= 2.5) bits.push('gol beklentisi orta-üst');
+  else if (m.expectedGoals < 2.0)  bits.push('kontrollü skor profili');
 
   if (m.confidence === 'high') bits.push('belirgin bir favori var');
   else if (m.favorite === 'balanced' && m.homePpg >= 1.8 && m.awayPpg >= 1.8)
@@ -292,7 +292,7 @@ function buildMatchSummary(m: {
   else if (m.favorite === 'balanced')
     bits.push('iki takım dengeli profilde');
 
-  if (m.tempo >= 3.0) bits.push('tempolu bir maç profili');
+  if (m.tempo >= 3.0) bits.push('tempo sinyali yüksek');
 
   if (bits.length === 0) return 'Takım verilerine göre standart bir maç profili.';
   const sentence = bits.join(', ');
@@ -536,10 +536,10 @@ function trendBarPercent(value: string) {
 }
 
 function singleMatchScoutText(m: Match, metrics: Metrics) {
-  if (!metrics.hasData) return `${m.home} - ${m.away} için sezon verisi sınırlı. Ana okuma maç ritmi ve ilk bölüm temposu üzerinden yapılmalı.`;
+  if (!metrics.hasData) return `${m.home} - ${m.away} için sezon verisi sınırlı. Taraf yorumu yerine ilk bölüm temposu ve şut hacmi izlenmeli.`;
   const fav = favoriteText(m, metrics).toLowerCase();
   const tempo = metrics.expectedGoals >= 2.8 ? 'yüksek tempo' : metrics.expectedGoals <= 2.0 ? 'kontrollü tempo' : 'orta tempo';
-  return `${m.home} - ${m.away} eşleşmesi ${tempo} profili sunuyor. ${expectedLine(metrics)} ve ${fav} sinyali öne çıkıyor.`;
+  return `${m.home} - ${m.away} eşleşmesi ${tempo} profili sunuyor. ${expectedLine(metrics)}; taraf okumasında ${fav} sinyali var.`;
 }
 
 function readH2HMatch(match: any) {
