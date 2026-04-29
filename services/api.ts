@@ -188,9 +188,31 @@ export type HomeData = {
 
 type ApiEnvelope<T> = {
   ok?: boolean;
+  stale?: boolean;
   data?: T;
+  warning?: { code?: string; message?: string };
   error?: { code?: string; message?: string };
 };
+
+type ApiMeta = {
+  stale: boolean;
+  warning?: { code?: string; message?: string };
+};
+
+export type WithApiMeta<T> = T & { __apiMeta?: ApiMeta };
+
+function withApiMeta<T>(data: T, meta: ApiMeta): T {
+  if (data && typeof data === 'object') {
+    try {
+      Object.defineProperty(data as object, '__apiMeta', {
+        value: meta,
+        enumerable: false,
+        configurable: true,
+      });
+    } catch {}
+  }
+  return data;
+}
 
 function unwrapApiData<T>(payload: T | ApiEnvelope<T>): T {
   if (payload && typeof payload === 'object' && 'ok' in payload && 'data' in payload) {
@@ -200,8 +222,19 @@ function unwrapApiData<T>(payload: T | ApiEnvelope<T>): T {
 }
 
 async function readApiJson<T>(res: Response, fallback: T): Promise<T> {
-  const payload = unwrapApiData<T>(await res.json());
-  return payload ?? fallback;
+  const raw = await res.json() as T | ApiEnvelope<T>;
+  const data = unwrapApiData<T>(raw) ?? fallback;
+  if (raw && typeof raw === 'object' && 'ok' in raw) {
+    return withApiMeta(data, {
+      stale: Boolean((raw as ApiEnvelope<T>).stale),
+      warning: (raw as ApiEnvelope<T>).warning,
+    });
+  }
+  return data;
+}
+
+export function isStaleApiData(value: unknown): boolean {
+  return Boolean(value && typeof value === 'object' && (value as { __apiMeta?: ApiMeta }).__apiMeta?.stale);
 }
 
 function arrayOrEmpty<T = any>(value: unknown): T[] {

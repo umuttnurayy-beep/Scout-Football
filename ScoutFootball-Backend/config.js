@@ -15,7 +15,13 @@ module.exports = {
   PUSH_TEST_SECRET: readEnv('PUSH_TEST_SECRET', { optional: true }),
   DIAGNOSTICS_SECRET: readEnv('DIAGNOSTICS_SECRET', { optional: true }),
   CORS_ORIGINS: readEnv('CORS_ORIGINS', { optional: true }),
-  CURRENT_FOOTBALL_SEASON: process.env.CURRENT_FOOTBALL_SEASON || '2025',
+  CURRENT_FOOTBALL_DATA_SEASON:
+    process.env.CURRENT_FOOTBALL_DATA_SEASON ||
+    process.env.CURRENT_FOOTBALL_SEASON ||
+    '2025',
+  DISPLAY_FOOTBALL_SEASON:
+    process.env.DISPLAY_FOOTBALL_SEASON ||
+    '2025/26',
 
   FOOTBALL_DATA_BASE: 'https://api.football-data.org/v4',
   WEATHER_BASE: 'https://api.weatherapi.com/v1',
@@ -23,5 +29,8 @@ module.exports = {
   ALLSPORTS_BASE: 'https://apiv2.allsportsapi.com/football/',
   SPORTSDB_BASE: 'https://www.thesportsdb.com/api/v1/json/123',
   SL_LEAGUE_ID: '4339',
-  SL_SEASON: process.env.SL_SEASON || '2025-2026',
+  CURRENT_SPORTSDB_SEASON:
+    process.env.CURRENT_SPORTSDB_SEASON ||
+    process.env.SL_SEASON ||
+    '2025-2026',
 };

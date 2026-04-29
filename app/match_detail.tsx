@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../context/ThemeContext';
-import { getCityForTeam, getH2H, getMatchStats, getOdds, getTeamForm, getWeather } from '../services/api';
+import { getCityForTeam, getH2H, getMatchStats, getOdds, getTeamForm, getWeather, isStaleApiData } from '../services/api';
 import {
   ANALYSIS_DELTA as DELTA,
   Level,
@@ -508,6 +508,7 @@ export default function MatchDetail() {
   const [loading,    setLoading]    = useState(true);
   const [showNeden,  setShowNeden]  = useState(false);
   const [showScoutHelp, setShowScoutHelp] = useState<ScoutHelpKey | null>(null);
+  const [staleNotice, setStaleNotice] = useState(false);
 
   const p = (k: string) => Array.isArray(params[k]) ? (params[k] as string[])[0] : ((params[k] as string) || '');
   const home        = p('home');
@@ -540,7 +541,7 @@ export default function MatchDetail() {
   const matchDate = utcDate ? new Date(utcDate).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'}) : '';
   const matchTime = utcDate ? new Date(utcDate).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}) : '';
 
-  useEffect(()=>{ setMatchData(null);setH2hData([]);setWeatherData(null);setOddsData(null);setHomeForm([]);setAwayForm([]); },[matchId]);
+  useEffect(()=>{ setMatchData(null);setH2hData([]);setWeatherData(null);setOddsData(null);setHomeForm([]);setAwayForm([]);setStaleNotice(false); },[matchId]);
 
   useEffect(()=>{
     async function load(){
@@ -551,12 +552,18 @@ export default function MatchDetail() {
         getH2H(matchId,finishedParam),matchContext.city ? getWeather(matchContext.city) : Promise.resolve(null),
         getOdds(matchContext.homeName,matchContext.awayName,leagueApiId),getTeamForm(matchContext.homeTeamId),getTeamForm(matchContext.awayTeamId),
       ]);
+      const h2hValue = h2hR.status==='fulfilled'?(h2hR.value||[]):[];
+      const weatherValue = weatherR.status==='fulfilled'?weatherR.value:null;
+      const oddsValue = oddsR.status==='fulfilled'?oddsR.value:null;
+      const homeFormValue = hFormR.status==='fulfilled'?(hFormR.value||[]):[];
+      const awayFormValue = aFormR.status==='fulfilled'?(aFormR.value||[]):[];
       setMatchData(stats);
-      setH2hData(h2hR.status==='fulfilled'?(h2hR.value||[]):[]);
-      setWeatherData(weatherR.status==='fulfilled'?weatherR.value:null);
-      setOddsData(oddsR.status==='fulfilled'?oddsR.value:null);
-      setHomeForm(hFormR.status==='fulfilled'?(hFormR.value||[]):[]);
-      setAwayForm(aFormR.status==='fulfilled'?(aFormR.value||[]):[]);
+      setH2hData(h2hValue);
+      setWeatherData(weatherValue);
+      setOddsData(oddsValue);
+      setHomeForm(homeFormValue);
+      setAwayForm(awayFormValue);
+      setStaleNotice([stats, h2hValue, weatherValue, oddsValue, homeFormValue, awayFormValue].some(isStaleApiData));
       setLoading(false);
     }
     if(matchId) load(); else setLoading(false);
@@ -736,6 +743,14 @@ export default function MatchDetail() {
           </View>
         </View>
       </View>
+
+      {staleNotice && (
+        <View style={[styles.limitedDataBanner, { backgroundColor: isDark ? '#18202A' : '#F3F7FC', borderColor: c.cardBorder }]}>
+          <Text style={[styles.limitedDataText, { color: c.textSub }]}>
+            Bazı veri kaynakları şu anda yenilenemedi. Ekranda son başarılı veriyle hazırlanmış analiz gösteriliyor.
+          </Text>
+        </View>
+      )}
 
       {/* ── Scout Özeti ── */}
       <View style={[scStyles.card,{backgroundColor:isDark?'#1A1228':'#f4f0ff',borderBottomColor:isDark?'#2D2040':'#ddd6ff'}]}>
@@ -1306,6 +1321,8 @@ const styles = StyleSheet.create({
   compareTeam:       { flex:1, fontSize:12, fontWeight:'500' },
   noDataBox:         { margin:14, padding:16, backgroundColor:'#f8f8f8', borderRadius:10, alignItems:'center' },
   noDataText:        { fontSize:13, color:'#555', textAlign:'center' },
+  limitedDataBanner: { marginHorizontal:14, marginTop:10, marginBottom:2, padding:10, borderRadius:8, borderWidth:1 },
+  limitedDataText:   { fontSize:12, lineHeight:17 },
   summaryGrid:       { flexDirection:'row', gap:8, paddingHorizontal:14, marginBottom:8 },
   sumBox:            { flex:1, backgroundColor:'#f8f8f8', borderRadius:8, padding:10, alignItems:'center' },
   sumVal:            { fontSize:22, fontWeight:'500', color:'#111' },

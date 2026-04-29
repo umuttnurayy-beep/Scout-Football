@@ -61,7 +61,6 @@ function createCache({ CacheModel, isMongoConnected }) {
     const item = memCache[key];
     if (!item) return null;
     if (Date.now() > item.expiresAt) {
-      delete memCache[key];
       return null;
     }
     return item.data;

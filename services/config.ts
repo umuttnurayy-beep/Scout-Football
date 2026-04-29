@@ -18,3 +18,6 @@ export const CURRENT_FOOTBALL_SEASON =
 
 export const DISPLAY_FOOTBALL_SEASON =
   readExtraString('displayFootballSeason') || '2025/26';
+
+export const CURRENT_SPORTSDB_SEASON =
+  readExtraString('sportsDbSeason') || '2025-2026';

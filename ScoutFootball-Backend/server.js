@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -21,14 +21,15 @@ const {
   PUSH_TEST_SECRET,
   DIAGNOSTICS_SECRET,
   CORS_ORIGINS,
-  CURRENT_FOOTBALL_SEASON,
+  CURRENT_FOOTBALL_DATA_SEASON,
+  DISPLAY_FOOTBALL_SEASON,
   FOOTBALL_DATA_BASE,
   WEATHER_BASE,
   ODDS_BASE,
   ALLSPORTS_BASE,
   SPORTSDB_BASE,
   SL_LEAGUE_ID,
-  SL_SEASON,
+  CURRENT_SPORTSDB_SEASON,
 } = require('./config');
 
 const app = express();
@@ -69,6 +70,37 @@ function apiError(res, status, code, message, data) {
     error: { code, message },
     data,
   });
+}
+
+function apiStale(res, data, code, message) {
+  return res.json({
+    ok: true,
+    stale: true,
+    warning: { code, message },
+    data,
+  });
+}
+
+async function apiStaleOrError(res, cacheKey, status, code, message, data) {
+  const stale = await getStaleCache(cacheKey);
+  if (stale !== null && stale !== undefined) {
+    return apiStale(res, stale, code, message);
+  }
+  return apiError(res, status, code, message, data);
+}
+
+async function readUpstreamJson(response, label) {
+  let data = null;
+  try {
+    data = await response.json();
+  } catch (error) {
+    throw new Error(`${label} returned non-JSON response (${response.status})`);
+  }
+  if (!response.ok) {
+    const detail = data?.message || data?.error || JSON.stringify(data).slice(0, 180);
+    throw new Error(`${label} returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`);
+  }
+  return data;
 }
 
 function missingConfig(res, name, data) {
@@ -126,7 +158,7 @@ const FD_TO_ESPN_SLUG = {
 
 async function fetchEspnStandings(slug) {
   const res = await fetch(`https://site.api.espn.com/apis/v2/sports/soccer/${slug}/standings`);
-  const data = await res.json();
+  const data = await readUpstreamJson(res, 'espn standings');
   const entries = data.children?.[0]?.standings?.entries || [];
   if (entries.length === 0) return [];
   return entries.map((entry, idx) => {
@@ -197,7 +229,7 @@ function mapEspnEventToFootballDataMatch(event, date) {
   return {
     area: { id: 2077, name: 'Europe', code: 'EUR', flag: 'https://crests.football-data.org/EUR.svg' },
     competition: { id: 2001, name: 'UEFA Champions League', code: 'CL', type: 'CUP', emblem: 'https://crests.football-data.org/CL.png' },
-    season: { startDate: `${CURRENT_FOOTBALL_SEASON}-07-01`, endDate: `${Number(CURRENT_FOOTBALL_SEASON) + 1}-06-30`, winner: null },
+    season: { startDate: `${CURRENT_FOOTBALL_DATA_SEASON}-07-01`, endDate: `${Number(CURRENT_FOOTBALL_DATA_SEASON) + 1}-06-30`, winner: null },
     id: parseInt(event.id) || 0,
     utcDate: event.date || competition.date || `${date}T00:00:00Z`,
     status,
@@ -223,7 +255,7 @@ function mapEspnEventToFootballDataMatch(event, date) {
 
 async function fetchEspnScoreboardMatches(slug, date) {
   const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard?dates=${formatDateForEspn(date)}`);
-  const data = await response.json();
+  const data = await readUpstreamJson(response, 'espn scoreboard');
   const events = Array.isArray(data.events) ? data.events : [];
   return events.map(event => mapEspnEventToFootballDataMatch(event, date));
 }
@@ -284,7 +316,7 @@ async function fetchStandingsForLeague(leagueId) {
     const response = await fetch(`${FOOTBALL_DATA_BASE}/competitions/${leagueId}/standings`, {
       headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
     });
-    const data = await response.json();
+    const data = await readUpstreamJson(response, 'football-data standings');
     const table = data.standings?.[0]?.table || [];
     const result = table.map(item => ({
       pos:    item.position,
@@ -333,7 +365,7 @@ async function fetchFootballDataMatchesForDate(date) {
     const response = await fetch(`${FOOTBALL_DATA_BASE}/matches?date=${today}`, {
       headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
     });
-    const data = await response.json();
+    const data = await readUpstreamJson(response, 'football-data matches');
     const matches = Array.isArray(data.matches) ? data.matches : [];
     const repairedMatches = await repairFootballDataMatches(matches, today);
     const renderableMatches = repairedMatches.filter(hasMatchTeamNames);
@@ -352,7 +384,7 @@ app.get('/standings/:leagueId', async (req, res) => {
     const response = await fetch(`${FOOTBALL_DATA_BASE}/competitions/${leagueId}/standings`, {
       headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
     });
-    const data = await response.json();
+    const data = await readUpstreamJson(response, 'football-data standings');
     const table = data.standings?.[0]?.table || [];
     const result = table.map(item => ({
       pos:    item.position,
@@ -387,18 +419,19 @@ app.get('/standings/:leagueId', async (req, res) => {
     res.json([]);
   } catch (e) {
     console.error('/standings hata:', e.message);
-    apiError(res, 502, 'upstream_error', e.message, []);
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
   }
 });
 
 app.get('/matches', async (req, res) => {
   const { date } = req.query;
   if (!FOOTBALL_DATA_KEY) return missingConfig(res, 'FOOTBALL_DATA_KEY', []);
+  const cacheKey = `matches_v2_${date || 'today'}`;
   try {
     res.json(await fetchFootballDataMatchesForDate(date));
   } catch (e) {
     console.error('/matches hata:', e.message);
-    apiError(res, 502, 'upstream_error', e.message, []);
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
   }
 });
 
@@ -412,11 +445,11 @@ app.get('/match/:matchId', async (req, res) => {
     const response = await fetch(`${FOOTBALL_DATA_BASE}/matches/${matchId}`, {
       headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
     });
-    const data = await response.json();
+    const data = await readUpstreamJson(response, 'football-data match');
     await setCache(cacheKey, data, TTL.live);
     res.json(data);
   } catch (e) {
-    apiError(res, 502, 'upstream_error', e.message, null);
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, null);
   }
 });
 
@@ -431,12 +464,12 @@ app.get('/h2h/:matchId', async (req, res) => {
     const response = await fetch(`${FOOTBALL_DATA_BASE}/matches/${matchId}/head2head?limit=10`, {
       headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
     });
-    const data = await response.json();
+    const data = await readUpstreamJson(response, 'football-data h2h');
     const ttl = isFinished ? TTL.historical : 24 * 60 * 60 * 1000;
     await setCache(cacheKey, data.matches || [], ttl);
     res.json(data.matches || []);
   } catch (e) {
-    apiError(res, 502, 'upstream_error', e.message, []);
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
   }
 });
 
@@ -450,11 +483,11 @@ app.get('/team/:teamId', async (req, res) => {
     const response = await fetch(`${FOOTBALL_DATA_BASE}/teams/${teamId}`, {
       headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
     });
-    const data = await response.json();
+    const data = await readUpstreamJson(response, 'football-data team');
     await setCache(cacheKey, data, TTL.team);
     res.json(data);
   } catch (e) {
-    apiError(res, 502, 'upstream_error', e.message, null);
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, null);
   }
 });
 
@@ -465,16 +498,16 @@ app.get('/team/:teamId/matches', async (req, res) => {
   const cached = await getCache(cacheKey);
   if (cached) return res.json(cached);
   try {
-    const response = await fetch(`${FOOTBALL_DATA_BASE}/teams/${teamId}/matches?status=FINISHED&limit=50&season=${CURRENT_FOOTBALL_SEASON}`, {
+    const response = await fetch(`${FOOTBALL_DATA_BASE}/teams/${teamId}/matches?status=FINISHED&limit=50&season=${CURRENT_FOOTBALL_DATA_SEASON}`, {
       headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
     });
-    const data = await response.json();
+    const data = await readUpstreamJson(response, 'football-data team matches');
     const matches = Array.isArray(data.matches) && data.matches.length > 0 ? data.matches : null;
     if (matches) await setCache(cacheKey, matches, TTL.teamStats);
     res.json(matches || []);
   } catch (e) {
     console.error('/team/:teamId/matches hata:', e.message);
-    apiError(res, 502, 'upstream_error', e.message, []);
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
   }
 });
 
@@ -488,11 +521,11 @@ app.get('/scorers/:leagueId', async (req, res) => {
     const response = await fetch(`${FOOTBALL_DATA_BASE}/competitions/${leagueId}/scorers?limit=100`, {
       headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
     });
-    const data = await response.json();
+    const data = await readUpstreamJson(response, 'football-data scorers');
     await setCache(cacheKey, data.scorers || [], TTL.standings);
     res.json(data.scorers || []);
   } catch (e) {
-    apiError(res, 502, 'upstream_error', e.message, []);
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
   }
 });
 
@@ -511,7 +544,7 @@ app.get('/weather', async (req, res) => {
     const response = await fetch(
       `${WEATHER_BASE}/current.json?key=${WEATHER_API_KEY}&q=${encodeURIComponent(city)}&lang=tr`
     );
-    const data = await response.json();
+    const data = await readUpstreamJson(response, 'weather');
     const result = {
       temp:      data.current.temp_c,
       condition: data.current.condition.text,
@@ -522,7 +555,7 @@ app.get('/weather', async (req, res) => {
     await setCache(cacheKey, result, TTL.weather);
     res.json(result);
   } catch (e) {
-    apiError(res, 502, 'upstream_error', e.message, null);
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, null);
   }
 });
 
@@ -537,11 +570,11 @@ app.get('/odds', async (req, res) => {
     const response = await fetch(
       `${ODDS_BASE}/sports/${sport}/odds/?apiKey=${ODDS_API_KEY}&regions=eu&markets=h2h&oddsFormat=decimal`
     );
-    const data = await response.json();
+    const data = await readUpstreamJson(response, 'odds');
     await setCache(cacheKey, data, TTL.odds);
     res.json(data);
   } catch (e) {
-    apiError(res, 502, 'upstream_error', e.message, []);
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
   }
 });
 
@@ -549,7 +582,13 @@ app.get('/odds', async (req, res) => {
 // HEALTH
 // =====================
 
-app.use(createHealthRouter(() => mongoConnected));
+app.use(createHealthRouter(() => mongoConnected, () => ({
+  seasons: {
+    footballData: CURRENT_FOOTBALL_DATA_SEASON,
+    sportsDb: CURRENT_SPORTSDB_SEASON,
+    display: DISPLAY_FOOTBALL_SEASON,
+  },
+})));
 
 // =====================
 // SÜPER LİG (TheSportsDB)
@@ -609,7 +648,7 @@ function sportsDbTeamIdForName(name) {
 }
 
 async function fetchSuperLigSeasonEvents() {
-  const cacheKey = `superlig_season_events_${SL_SEASON}`;
+  const cacheKey = `superlig_season_events_${CURRENT_SPORTSDB_SEASON}`;
   const cached = await getCache(cacheKey);
   if (cached) return cached;
 
@@ -617,8 +656,8 @@ async function fetchSuperLigSeasonEvents() {
     const fresh = await getCache(cacheKey);
     if (fresh) return fresh;
 
-    const r = await fetch(`${SPORTSDB_BASE}/eventsseason.php?id=${SL_LEAGUE_ID}&s=${SL_SEASON}`);
-    const data = await r.json();
+    const r = await fetch(`${SPORTSDB_BASE}/eventsseason.php?id=${SL_LEAGUE_ID}&s=${CURRENT_SPORTSDB_SEASON}`);
+    const data = await readUpstreamJson(r, 'sportsdb superlig season events');
     const events = Array.isArray(data.events) ? data.events : [];
     if (events.length > 0) await setCache(cacheKey, events, TTL.seasonFixtures);
     return events;
@@ -658,7 +697,7 @@ function mapEspnSuperLigEvent(event, fallbackDate) {
 
 async function fetchEspnSuperLigMatches(date) {
   const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/tur.1/scoreboard?dates=${formatDateForEspn(date)}`);
-  const data = await r.json();
+  const data = await readUpstreamJson(r, 'espn superlig scoreboard');
   const events = Array.isArray(data.events) ? data.events : [];
   return events.map(event => mapEspnSuperLigEvent(event, date));
 }
@@ -673,7 +712,7 @@ async function fetchSuperLigStandingsCached() {
     if (fresh) return fresh;
 
     const r = await fetch('https://site.api.espn.com/apis/v2/sports/soccer/tur.1/standings');
-    const data = await r.json();
+    const data = await readUpstreamJson(r, 'espn superlig standings');
     const entries = data?.children?.[0]?.standings?.entries || [];
     if (entries.length === 0) return [];
     const result = entries.map(e => {
@@ -712,7 +751,7 @@ async function fetchSuperLigMatchesForDate(date) {
     if (fresh) return fresh;
 
     const r = await fetch(`${SPORTSDB_BASE}/eventsday.php?d=${d}&l=${SL_LEAGUE_ID}`);
-    const data = await r.json();
+    const data = await readUpstreamJson(r, 'sportsdb superlig matches');
     let events = data.events || [];
     if (events.length === 0) {
       const seasonEvents = await fetchSuperLigSeasonEvents();
@@ -824,7 +863,7 @@ async function findAllSportsTeam(name) {
   const queries = allSportsTeamQueries(name);
   for (const query of queries) {
     const response = await fetch(`${ALLSPORTS_BASE}?met=Teams&APIkey=${ALLSPORTS_KEY}&teamName=${encodeURIComponent(query)}`);
-    const data = await response.json();
+    const data = await readUpstreamJson(response, 'allsports team search');
     const team = (data.result || [])[0];
     if (team) return team;
   }
@@ -832,21 +871,24 @@ async function findAllSportsTeam(name) {
 }
 
 app.get('/superlig/standings', async (req, res) => {
+  const cacheKey = 'superlig_standings_v3';
   try {
     res.json(await fetchSuperLigStandingsCached());
   } catch (e) {
     console.error('/superlig/standings hata:', e.message);
-    apiError(res, 502, 'upstream_error', e.message, []);
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
   }
 });
 
 app.get('/superlig/matches', async (req, res) => {
   const { date } = req.query;
+  const d = date || new Date().toISOString().split('T')[0];
+  const cacheKey = `superlig_matches_v2_${d}`;
   try {
     res.json(await fetchSuperLigMatchesForDate(date));
   } catch (e) {
     console.error('/superlig/matches hata:', e.message);
-    apiError(res, 502, 'upstream_error', e.message, []);
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
   }
 });
 
@@ -876,12 +918,13 @@ app.get('/superlig/team-form/:teamId', async (req, res) => {
   const { teamId } = req.params;
   const tid = parseInt(teamId);
   if (!tid) return apiError(res, 400, 'bad_request', 'invalid teamId', []);
+  const cacheKey = `superlig_form_season_v3_${tid}`;
 
   try {
     res.json(await fetchSuperLigTeamFormMatches(tid));
   } catch (e) {
     console.error('/superlig/team-form hata:', e.message);
-    apiError(res, 502, 'upstream_error', e.message, []);
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
   }
 });
 
@@ -889,12 +932,13 @@ app.get('/superlig/team-context/:teamId', async (req, res) => {
   const { teamId } = req.params;
   const tid = parseInt(teamId);
   if (!tid) return apiError(res, 400, 'bad_request', 'invalid teamId', null);
+  const cacheKey = `superlig_team_context_v1_${tid}`;
 
   try {
     res.json(await fetchSuperLigTeamContext(tid));
   } catch (e) {
     console.error('/superlig/team-context hata:', e.message);
-    apiError(res, 502, 'upstream_error', e.message, null);
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, null);
   }
 });
 
@@ -905,7 +949,7 @@ app.get('/superlig/players/:teamId', async (req, res) => {
   if (cached) return res.json(cached);
   try {
     const r = await fetch(`${SPORTSDB_BASE}/lookup_all_players.php?id=${teamId}`);
-    const data = await r.json();
+    const data = await readUpstreamJson(r, 'sportsdb superlig players');
     const players = data.player || [];
     const result = players.map(p => ({
       id:          p.idPlayer,
@@ -917,7 +961,7 @@ app.get('/superlig/players/:teamId', async (req, res) => {
     res.json(result);
   } catch (e) {
     console.error('/superlig/players hata:', e.message);
-    apiError(res, 502, 'upstream_error', e.message, []);
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
   }
 });
 
@@ -926,8 +970,8 @@ app.get('/superlig/scorers', async (req, res) => {
   const cached = await getCache(cacheKey);
   if (Array.isArray(cached) && cached.length > 0) return res.json(cached);
   try {
-    const r = await fetch(`${SPORTSDB_BASE}/eventspastleague.php?l=${SL_LEAGUE_ID}&s=${SL_SEASON}`);
-    const data = await r.json();
+    const r = await fetch(`${SPORTSDB_BASE}/eventspastleague.php?l=${SL_LEAGUE_ID}&s=${CURRENT_SPORTSDB_SEASON}`);
+    const data = await readUpstreamJson(r, 'sportsdb superlig scorers');
     const events = data.events || [];
 
     const scorerMap = {};
@@ -967,7 +1011,7 @@ app.get('/superlig/scorers', async (req, res) => {
     res.json(result);
   } catch (e) {
     console.error('/superlig/scorers hata:', e.message);
-    apiError(res, 502, 'upstream_error', e.message, []);
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
   }
 });
 
@@ -978,7 +1022,7 @@ app.get('/superlig/match/:eventId', async (req, res) => {
   if (cached) return res.json(cached);
   try {
     const r = await fetch(`${SPORTSDB_BASE}/lookupevent.php?id=${eventId}`);
-    const data = await r.json();
+    const data = await readUpstreamJson(r, 'sportsdb superlig match');
     const event = data?.events?.[0] || null;
     if (!event) return apiError(res, 404, 'not_found', 'match not found', null);
     const isFinished = ['FT', 'AET', 'PEN', 'Match Finished'].includes(event.strStatus || '');
@@ -987,7 +1031,7 @@ app.get('/superlig/match/:eventId', async (req, res) => {
     res.json(event);
   } catch (e) {
     console.error('/superlig/match/:eventId hata:', e.message);
-    apiError(res, 502, 'upstream_error', e.message, null);
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, null);
   }
 });
 
@@ -1015,7 +1059,7 @@ function normalizeStage(raw) {
 }
 
 app.get('/ucl/knockouts', async (req, res) => {
-  const season = req.query.season || CURRENT_FOOTBALL_SEASON;
+  const season = req.query.season || CURRENT_FOOTBALL_DATA_SEASON;
   if (!FOOTBALL_DATA_KEY) return missingConfig(res, 'FOOTBALL_DATA_KEY', {});
   const cacheKey = `ucl_knockouts_v5_${season}`;
   const cached = await getCache(cacheKey);
@@ -1025,7 +1069,7 @@ app.get('/ucl/knockouts', async (req, res) => {
       `${FOOTBALL_DATA_BASE}/competitions/CL/matches?season=${season}`,
       { headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY } }
     );
-    const data = await r.json();
+    const data = await readUpstreamJson(r, 'football-data ucl knockouts');
     const allMatches = data.matches || [];
 
     const uniqueStages = [...new Set(allMatches.map(m => m.stage))];
@@ -1045,7 +1089,7 @@ app.get('/ucl/knockouts', async (req, res) => {
     res.json(result);
   } catch (e) {
     console.error('/ucl/knockouts hata:', e.message);
-    apiError(res, 502, 'upstream_error', e.message, {});
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, {});
   }
 });
 
@@ -1062,7 +1106,7 @@ app.get('/allsports/team-stats/:teamName', async (req, res) => {
   try {
     // Takım adıyla arama
     const teamRes = await fetch(`${ALLSPORTS_BASE}?met=Teams&APIkey=${ALLSPORTS_KEY}&teamName=${encodeURIComponent(teamName)}`);
-    const teamData = await teamRes.json();
+    const teamData = await readUpstreamJson(teamRes, 'allsports team search');
     const teams = teamData.result || [];
     if (teams.length === 0) return res.json(null);
 
@@ -1078,7 +1122,7 @@ app.get('/allsports/team-stats/:teamName', async (req, res) => {
     const today = new Date().toISOString().split('T')[0];
     const ago = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const fixRes = await fetch(`${ALLSPORTS_BASE}?met=Fixtures&APIkey=${ALLSPORTS_KEY}&teamId=${teamId}&from=${ago}&to=${today}`);
-    const fixData = await fixRes.json();
+    const fixData = await readUpstreamJson(fixRes, 'allsports fixtures');
     const fixtures = (fixData.result || []).filter(f => f.event_final_result && f.event_final_result !== '?');
     if (fixtures.length === 0) return res.json(null);
 
@@ -1115,7 +1159,7 @@ app.get('/allsports/team-stats/:teamName', async (req, res) => {
     res.json(result);
   } catch (e) {
     console.error('/allsports/team-stats hata:', e.message);
-    apiError(res, 502, 'upstream_error', e.message, null);
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, null);
   }
 });
 
@@ -1137,7 +1181,7 @@ app.get('/allsports/h2h', async (req, res) => {
     if (!homeTeam || !awayTeam) return res.json([]);
 
     const h2hRes = await fetch(`${ALLSPORTS_BASE}?met=H2H&APIkey=${ALLSPORTS_KEY}&firstTeamId=${homeTeam.team_key}&secondTeamId=${awayTeam.team_key}`);
-    const h2hData = await h2hRes.json();
+    const h2hData = await readUpstreamJson(h2hRes, 'allsports h2h');
 
     const matches = (h2hData.result?.H2H || [])
       .filter(m => m.event_status === 'Finished' && m.event_final_result)
@@ -1160,7 +1204,7 @@ app.get('/allsports/h2h', async (req, res) => {
     res.json(matches);
   } catch (e) {
     console.error('/allsports/h2h hata:', e.message);
-    apiError(res, 502, 'upstream_error', e.message, []);
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
   }
 });
 

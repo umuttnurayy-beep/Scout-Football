@@ -129,6 +129,7 @@ async function main() {
   const health = unwrap(await readJson('/health'));
   assert(health && health.status === 'ok', '/health status is ok');
   if (health && health.mongo !== true) warn('/health mongo is not true');
+  assert(health?.seasons && typeof health.seasons === 'object', '/health seasons metadata exists');
 
   const first = validateHomePayload(await readJson(`/home?date=${encodeURIComponent(date)}`), 'first /home');
   const second = validateHomePayload(await readJson(`/home?date=${encodeURIComponent(date)}`), 'second /home');
@@ -164,6 +165,9 @@ async function main() {
   console.log(`superLigContextLimited: ${superLigContext.isLimited}`);
   console.log(`superLigContextFormCount: ${superLigContext.formMatchesCount}`);
   console.log(`superLigContextStandingsTeam: ${superLigContext.standingsStats?.team || '-'}`);
+  console.log(`seasonFootballData: ${health?.seasons?.footballData || '-'}`);
+  console.log(`seasonSportsDb: ${health?.seasons?.sportsDb || '-'}`);
+  console.log(`seasonDisplay: ${health?.seasons?.display || '-'}`);
   console.log(`stale: ${first.stale}`);
   console.log(`generatedAt: ${first.generatedAt}`);
 

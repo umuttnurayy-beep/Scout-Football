@@ -7,7 +7,7 @@ import {
 import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../context/ThemeContext';
 import {
-  SuperLigTeamContext, getAllSportsH2H, getCityForTeam, getSuperLigMatch, getSuperLigTeamContext, getWeather,
+  SuperLigTeamContext, getAllSportsH2H, getCityForTeam, getSuperLigMatch, getSuperLigTeamContext, getWeather, isStaleApiData,
 } from '../services/api';
 import {
   ANALYSIS_DELTA as DELTA,
@@ -507,6 +507,7 @@ export default function SLMatchDetail() {
   const [loading,     setLoading]      = useState(true);
   const [showNeden,   setShowNeden]    = useState(false);
   const [showScoutHelp, setShowScoutHelp] = useState<ScoutHelpKey | null>(null);
+  const [staleNotice, setStaleNotice] = useState(false);
 
   const city = getCityForTeam(home);
   const isSuperLig = true;
@@ -535,8 +536,17 @@ export default function SLMatchDetail() {
       setAwayContext(nextAwayContext);
       setHomeForm(nextHomeContext?.recentMatches || []);
       setAwayForm(nextAwayContext?.recentMatches || []);
-      if (weatherR.status === 'fulfilled') setWeatherData(weatherR.value);
-      setH2HMatches(h2hR.status === 'fulfilled' ? (h2hR.value || []) : []);
+      const nextWeather = weatherR.status === 'fulfilled' ? weatherR.value : null;
+      const nextH2H = h2hR.status === 'fulfilled' ? (h2hR.value || []) : [];
+      setWeatherData(nextWeather);
+      setH2HMatches(nextH2H);
+      setStaleNotice([
+        evR.status === 'fulfilled' ? evR.value : null,
+        nextHomeContext,
+        nextAwayContext,
+        nextWeather,
+        nextH2H,
+      ].some(isStaleApiData));
       setLoading(false);
     }
     if (eventId) load(); else setLoading(false);
@@ -672,6 +682,14 @@ export default function SLMatchDetail() {
         </View>
         {venue&&<Text style={[styles.venueText, { color: c.textMuted }]}>🏟️ {venue}</Text>}
       </View>
+
+      {staleNotice && (
+        <View style={[styles.limitedDataBanner, { backgroundColor: isDark ? '#18202A' : '#F3F7FC', borderColor: c.cardBorder }]}>
+          <Text style={[styles.limitedDataText, { color: c.textSub }]}>
+            Bazı veri kaynakları şu anda yenilenemedi. Ekranda son başarılı veriyle hazırlanmış analiz gösteriliyor.
+          </Text>
+        </View>
+      )}
 
       {usingStandingsFallback && (
         <View style={[styles.limitedDataBanner, { backgroundColor: isDark ? '#0D1A10' : '#EAF7ED', borderColor: isDark ? '#1A4A25' : '#27AE60' }]}>

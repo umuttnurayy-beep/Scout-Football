@@ -8,13 +8,13 @@ import { getStandings, getSuperLigStandings, getUclKnockouts } from '../services
 import { leagueDataEmptyMessage } from '../utils/emptyStates';
 
 const leagues = [
-  { id: 1, apiId: 39,  name: 'Premier Lig', country: 'İngiltere', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', season: '2025/26' },
-  { id: 2, apiId: 140, name: 'La Liga',     country: 'İspanya',   flag: '🇪🇸', season: '2025/26' },
-  { id: 3, apiId: 78,  name: 'Bundesliga',  country: 'Almanya',   flag: '🇩🇪', season: '2025/26' },
-  { id: 4, apiId: 135, name: 'Serie A',     country: 'İtalya',    flag: '🇮🇹', season: '2025/26' },
-  { id: 5, apiId: 61,  name: 'Ligue 1',     country: 'Fransa',    flag: '🇫🇷', season: '2025/26' },
-  { id: 6, apiId: 2,   name: 'UCL',         country: 'Avrupa',    flag: '🌍', season: '2025/26' },
-  { id: 7, apiId: 203, name: 'Süper Lig',   country: 'Türkiye',   flag: '🇹🇷', season: '2025/26' },
+  { id: 1, apiId: 39,  name: 'Premier Lig', country: 'İngiltere', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+  { id: 2, apiId: 140, name: 'La Liga',     country: 'İspanya',   flag: '🇪🇸' },
+  { id: 3, apiId: 78,  name: 'Bundesliga',  country: 'Almanya',   flag: '🇩🇪' },
+  { id: 4, apiId: 135, name: 'Serie A',     country: 'İtalya',    flag: '🇮🇹' },
+  { id: 5, apiId: 61,  name: 'Ligue 1',     country: 'Fransa',    flag: '🇫🇷' },
+  { id: 6, apiId: 2,   name: 'UCL',         country: 'Avrupa',    flag: '🌍' },
+  { id: 7, apiId: 203, name: 'Süper Lig',   country: 'Türkiye',   flag: '🇹🇷' },
 ];
 
 const configuredLeagues = leagues.map(league => ({
