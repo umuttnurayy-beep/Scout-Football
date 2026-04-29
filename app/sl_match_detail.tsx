@@ -7,7 +7,7 @@ import {
 import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../context/ThemeContext';
 import {
-  getAllSportsH2H, getCityForTeam, getSuperLigMatch, getSuperLigTeamForm, getWeather,
+  SuperLigTeamContext, getAllSportsH2H, getCityForTeam, getSuperLigMatch, getSuperLigTeamContext, getWeather,
 } from '../services/api';
 import {
   ANALYSIS_DELTA as DELTA,
@@ -19,10 +19,14 @@ import {
   buildReasons,
   buildScoutPick,
   buildScoutSummary,
+  getCompareComment,
   getHomeAwayComment,
   getGuven,
   getMotivationComment,
   getPersonaEnriched,
+  getRiskWarnings,
+  getWeatherComment,
+  isWeatherRisk,
   pickFrom,
   shiftLevel,
   strHash,
@@ -198,18 +202,6 @@ function calcFormStatsSL(matches: any[], teamId: number) {
   };
 }
 
-function normTeamName(s: string): string {
-  return s.toLowerCase()
-    .replace(/\b(fc|cf|sc|ac|as|afc|rfc|cfc|fk|sk|bv|sv|if|kv|rc|ss|us|ud)\b/g, '')
-    .replace(/[^a-z0-9]/g, '');
-}
-
-function findTeamInStandings(rows: any[], teamName: string): any | null {
-  if (!rows.length || !teamName) return null;
-  const norm = normTeamName(teamName);
-  return rows.find(r => normTeamName(r.team || '') === norm) || null;
-}
-
 function statsFromStanding(row: any): ReturnType<typeof calcFormStatsSL> | null {
   if (!row || !row.played) return null;
   const played = row.played;
@@ -357,52 +349,6 @@ function getDeepH2HStatsSL(
 
   parts.push(trendText);
   return { over25Pct, bttsPct, trendDir, deepComment: parts.join(' ') };
-}
-
-function getCompareComment(
-  hSt: ReturnType<typeof calcFormStatsSL>,
-  aSt: ReturnType<typeof calcFormStatsSL>,
-  home: string, away: string,
-): string {
-  const hAtk=parseFloat(hSt.totalAvgGf as string);
-  const aAtk=parseFloat(aSt.totalAvgGf as string);
-  const hDef=parseFloat(hSt.totalAvgGa as string);
-  const aDef=parseFloat(aSt.totalAvgGa as string);
-  const atkLead = hAtk>aAtk+0.3?home : aAtk>hAtk+0.3?away : null;
-  const defLead = hDef<aDef-0.25?home : aDef<hDef-0.25?away : null;
-  if (atkLead&&defLead&&atkLead===defLead) return `${atkLead} hem hücumda hem savunmada önde; istatistiksel açıdan belirgin üstünlük var.`;
-  if (atkLead&&defLead&&atkLead!==defLead) return `${atkLead} hücumda daha üretken, ${defLead} savunmada daha sağlam; dengeli bir güç dağılımı.`;
-  if (atkLead) return `${atkLead} gol üretiminde öne çıkıyor; savunmada fark belirgin değil.`;
-  if (defLead) return `${defLead} savunmada daha sağlam; hücum üretiminde belirgin fark yok.`;
-  return 'Hücum ve savunma metrikleri her iki takım için birbirine yakın; belirgin istatistiksel üstünlük görünmüyor.';
-}
-
-function getWeatherComment(weatherData: any): { impact: Level; sentence: string } {
-  if (!weatherData) return { impact: 'Düşük', sentence: 'Hava durumu verisi alınamadı.' };
-  const t=weatherData.temp??15, w=weatherData.wind??0;
-  const cond=(weatherData.condition||'').toLowerCase();
-  const isRain=/rain|shower|drizzle|yağ/.test(cond);
-  if ((isRain&&w>20)||w>40) return { impact:'Yüksek', sentence:`Rüzgar (${w} km/s)${isRain?' ve yağmur':''} uzun top kombinasyonlarını zorlaştırıyor; duran toplar belirleyici olabilir.` };
-  if (isRain)   return { impact:'Orta',   sentence:'Islak zemin bireysel hataları artırabilir; deplasman savunması için ekstra risk oluşturuyor.' };
-  if (w>25)     return { impact:'Orta',   sentence:`Rüzgar (${w} km/s) yüksek pas hataları yaratabilir. Kısa kombinasyon oynayan takım avantajlı olabilir.` };
-  if (t>28)     return { impact:'Orta',   sentence:`Yüksek sıcaklık (${t}°C) ikinci yarı temposunu düşürebilir. Az rotasyon yapan takım dezavantajlı.` };
-  if (t<5)      return { impact:'Düşük',  sentence:`Soğuk hava (${t}°C) yüksek pressing sürdürmeyi güçleştirir. Pozisyonel ve kontrollü oyun avantajlı.` };
-  return { impact:'Düşük', sentence:`Hava koşulları maç için elverişli (${t}°C, ${w} km/s rüzgar). Belirleyici etki beklenmez.` };
-}
-
-function getRiskWarnings(
-  hSt: ReturnType<typeof calcFormStatsSL>,
-  aSt: ReturnType<typeof calcFormStatsSL>,
-  h2hCount: number, analysis: MatchAnalysis,
-): string[] {
-  const w: string[] = [];
-  if (hSt.total < 5) w.push(`Ev sahibi için sınırlı veri (${hSt.total} maç) — yüzdeler yanıltıcı olabilir.`);
-  if (aSt.total < 5) w.push(`Deplasman için sınırlı veri (${aSt.total} maç) — yüzdeler yanıltıcı olabilir.`);
-  if (h2hCount < 2)  w.push('H2H geçmişi yetersiz — doğrudan karşılaşma verisi az.');
-  if (analysis.guven === 'Düşük') w.push('Veri güveni düşük — tahminler genel eğilimlere dayanıyor.');
-  if (analysis.risk  === 'Yüksek') w.push('Form verileri değişken — bu tür maçlarda sürpriz sık görülür.');
-  if (w.length === 0) w.push('Belirgin bir veri riski tespit edilmedi; analiz güvenilir tablo sunuyor.');
-  return w;
 }
 
 function getRefereeProfile(refName: string) {
@@ -554,7 +500,8 @@ export default function SLMatchDetail() {
   const [event,       setEvent]       = useState<any>(null);
   const [homeForm,    setHomeForm]     = useState<any[]>([]);
   const [awayForm,    setAwayForm]     = useState<any[]>([]);
-  const [standings,   setStandings]   = useState<any[]>([]);
+  const [homeContext, setHomeContext]  = useState<SuperLigTeamContext | null>(null);
+  const [awayContext, setAwayContext]  = useState<SuperLigTeamContext | null>(null);
   const [weatherData, setWeatherData]  = useState<any>(null);
   const [h2hMatches,  setH2HMatches]  = useState<any[]>([]);
   const [loading,     setLoading]      = useState(true);
@@ -568,25 +515,26 @@ export default function SLMatchDetail() {
     async function load() {
       setLoading(true);
       const matchLoader = getSuperLigMatch(eventId);
-      const homeFormLoader = homeTeamId
-        ? getSuperLigTeamForm(homeTeamId)
-        : Promise.resolve([]);
-      const awayFormLoader = awayTeamId
-        ? getSuperLigTeamForm(awayTeamId)
-        : Promise.resolve([]);
-      const standingsLoader = Promise.resolve([]);
-      const [evR, hfR, afR, weatherR, h2hR, stR] = await Promise.allSettled([
+      const homeContextLoader = homeTeamId
+        ? getSuperLigTeamContext(homeTeamId)
+        : Promise.resolve(null);
+      const awayContextLoader = awayTeamId
+        ? getSuperLigTeamContext(awayTeamId)
+        : Promise.resolve(null);
+      const [evR, hcR, acR, weatherR, h2hR] = await Promise.allSettled([
         matchLoader,
-        homeFormLoader,
-        awayFormLoader,
+        homeContextLoader,
+        awayContextLoader,
         city ? getWeather(city) : Promise.resolve(null),
         home && away ? getAllSportsH2H(home, away) : Promise.resolve([]),
-        standingsLoader,
       ]);
       if (evR.status === 'fulfilled') setEvent(evR.value);
-      setHomeForm(hfR.status === 'fulfilled' ? (hfR.value || []) : []);
-      setAwayForm(afR.status === 'fulfilled' ? (afR.value || []) : []);
-      if (stR.status === 'fulfilled') setStandings(stR.value || []);
+      const nextHomeContext = hcR.status === 'fulfilled' ? hcR.value : null;
+      const nextAwayContext = acR.status === 'fulfilled' ? acR.value : null;
+      setHomeContext(nextHomeContext);
+      setAwayContext(nextAwayContext);
+      setHomeForm(nextHomeContext?.recentMatches || []);
+      setAwayForm(nextAwayContext?.recentMatches || []);
       if (weatherR.status === 'fulfilled') setWeatherData(weatherR.value);
       setH2HMatches(h2hR.status === 'fulfilled' ? (h2hR.value || []) : []);
       setLoading(false);
@@ -617,21 +565,21 @@ export default function SLMatchDetail() {
 
   const h2hData = h2hMatches;
 
-  // Form stats — falls back to season standings when match-by-match form unavailable
+  // Form stats — falls back to season standings when match-by-match form is too thin
   const homeFormCalc = calcFormStatsSL(homeForm, homeTeamId);
   const awayFormCalc = calcFormStatsSL(awayForm, awayTeamId);
-  const homeStandingStats = !isSuperLig && homeFormCalc.total === 0
-    ? statsFromStanding(findTeamInStandings(standings, home)) : null;
-  const awayStandingStats = !isSuperLig && awayFormCalc.total === 0
-    ? statsFromStanding(findTeamInStandings(standings, away)) : null;
+  const homeStandingStats = homeContext?.isLimited
+    ? statsFromStanding(homeContext.standingsStats) : null;
+  const awayStandingStats = awayContext?.isLimited
+    ? statsFromStanding(awayContext.standingsStats) : null;
   const homeStats   = homeStandingStats || homeFormCalc;
   const awayStats   = awayStandingStats || awayFormCalc;
   const homeFormPts = calcFormPointsSL(homeForm, homeTeamId);
   const awayFormPts = calcFormPointsSL(awayForm,  awayTeamId);
   const hasFormData = homeStats.total > 0 && awayStats.total > 0;
-  const usingStandingsFallback = !isSuperLig && (homeStandingStats !== null || awayStandingStats !== null);
+  const usingStandingsFallback = homeStandingStats !== null || awayStandingStats !== null;
 
-  const weatherRisk = !!weatherData && (weatherData.wind>35 || /rain|shower|drizzle/.test((weatherData.condition||'').toLowerCase()));
+  const weatherRisk = isWeatherRisk(weatherData);
   const homeTrend   = hasFormData ? getFormTrendSL(homeForm, homeTeamId) : null;
   const awayTrend   = hasFormData ? getFormTrendSL(awayForm, awayTeamId) : null;
   const analysis    = buildMatchAnalysis(home, away, homeStats, awayStats, homeFormPts, awayFormPts, h2hData.length, weatherRisk, hasFormData, homeTrend, awayTrend);
@@ -659,7 +607,7 @@ export default function SLMatchDetail() {
     : '';
   const refProfile    = refName ? getRefereeProfile(refName) : null;
   const weatherCom    = getWeatherComment(weatherData);
-  const riskWarns     = getRiskWarnings(homeStats, awayStats, h2hData.length, analysis);
+  const riskWarns     = getRiskWarnings(homeStats, awayStats, h2hData.length, analysis, 2);
   const compareComment    = hasFormData ? getCompareComment(homeStats, awayStats, home, away) : '';
   const h2hComment        = getH2HCommentSL(h2hData, home, away);
   const homeAwayComment   = hasFormData ? getHomeAwayComment(homeStats, awayStats, home, away) : '';
@@ -725,17 +673,17 @@ export default function SLMatchDetail() {
         {venue&&<Text style={[styles.venueText, { color: c.textMuted }]}>🏟️ {venue}</Text>}
       </View>
 
-      {!isSuperLig && usingStandingsFallback && (
+      {usingStandingsFallback && (
         <View style={[styles.limitedDataBanner, { backgroundColor: isDark ? '#0D1A10' : '#EAF7ED', borderColor: isDark ? '#1A4A25' : '#27AE60' }]}>
           <Text style={[styles.limitedDataText, { color: isDark ? '#3FB950' : '#1B6B3A' }]}>
-            📊 Anlık form verisi mevcut değil. Sezon istatistikleri kullanılıyor (gol, galibiyet oranı vb.).
+            📊 Maç bazlı Süper Lig form verisi sınırlı. Analiz sezon tablosuyla güçlendiriliyor; iç/dış saha ayrımı yalnızca yeterli maç verisi varsa gösterilir.
           </Text>
         </View>
       )}
-      {!isSuperLig && !hasFormData && !usingStandingsFallback && (
+      {!hasFormData && !usingStandingsFallback && (
         <View style={[styles.limitedDataBanner, { backgroundColor: isDark ? '#1A1205' : '#FFF8E1', borderColor: isDark ? '#4A3600' : '#E6A817' }]}>
           <Text style={[styles.limitedDataText, { color: isDark ? '#E3B341' : '#7A5700' }]}>
-            ⚠️ Bu lig için sezon form verisi sınırlı. Analiz genel lig profiline dayanıyor.
+            ⚠️ Bu maç için sezon form verisi sınırlı. Analiz genel lig profiline dayanıyor.
           </Text>
         </View>
       )}

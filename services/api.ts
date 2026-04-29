@@ -455,6 +455,27 @@ export async function getSuperLigTeamForm(teamId: number): Promise<any[]> {
   }
 }
 
+export interface SuperLigTeamContext {
+  teamId: number;
+  source: 'sportsdb' | 'mixed';
+  isLimited: boolean;
+  fallbackReason: string | null;
+  formMatchesCount: number;
+  recentMatches: any[];
+  standingsStats: Standing | null;
+}
+
+export async function getSuperLigTeamContext(teamId: number): Promise<SuperLigTeamContext | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/superlig/team-context/${teamId}`);
+    const data = await readApiJson<SuperLigTeamContext | null>(res, null);
+    return data || null;
+  } catch (e) {
+    console.error('getSuperLigTeamContext hata:', e);
+    return null;
+  }
+}
+
 export async function getSuperLigPlayers(teamId: number): Promise<any[]> {
   try {
     const res = await fetch(`${BASE_URL}/superlig/players/${teamId}`);

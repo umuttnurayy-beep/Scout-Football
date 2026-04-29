@@ -17,6 +17,7 @@ import {
   buildReasons,
   buildScoutPick,
   buildScoutSummary,
+  getCompareComment,
   getDeepH2HStats,
   getDrawAnalysis,
   getFormTrend,
@@ -24,6 +25,9 @@ import {
   getHomeAwayComment,
   getMotivationComment,
   getPersonaEnriched,
+  getRiskWarnings,
+  getWeatherComment,
+  isWeatherRisk,
   pickFrom,
   shiftLevel,
   strHash,
@@ -275,24 +279,6 @@ function getH2HComment(h2hData: any[], home: string, away: string): string {
   return `Geçmiş karşılaşmalar dengeli bir tablo çiziyor (${hw}G / ${d}B / ${aw}M, ort. ${avgG} gol).`;
 }
 
-function getCompareComment(
-  hSt: ReturnType<typeof calcFormStats>,
-  aSt: ReturnType<typeof calcFormStats>,
-  home: string, away: string,
-): string {
-  const hAtk=parseFloat(hSt.totalAvgGf as string);
-  const aAtk=parseFloat(aSt.totalAvgGf as string);
-  const hDef=parseFloat(hSt.totalAvgGa as string);
-  const aDef=parseFloat(aSt.totalAvgGa as string);
-  const atkLead = hAtk>aAtk+0.3?home : aAtk>hAtk+0.3?away : null;
-  const defLead = hDef<aDef-0.25?home : aDef<hDef-0.25?away : null;
-  if (atkLead&&defLead&&atkLead===defLead) return `${atkLead} hem hücumda hem savunmada önde; istatistiksel açıdan belirgin üstünlük var.`;
-  if (atkLead&&defLead&&atkLead!==defLead) return `${atkLead} hücumda daha üretken, ${defLead} savunmada daha sağlam; dengeli bir güç dağılımı.`;
-  if (atkLead) return `${atkLead} gol üretiminde öne çıkıyor; savunmada fark belirgin değil.`;
-  if (defLead) return `${defLead} savunmada daha sağlam; hücum üretiminde belirgin fark yok.`;
-  return 'Hücum ve savunma metrikleri her iki takım için birbirine yakın; belirgin istatistiksel üstünlük görünmüyor.';
-}
-
 function getOddsComment(oddsData: any, home: string, analysis: MatchAnalysis): string {
   if (!oddsData) return 'Bu maç için oran verisi henüz yayınlanmadı.';
   const hO=parseFloat(oddsData.home)||0;
@@ -304,35 +290,6 @@ function getOddsComment(oddsData: any, home: string, analysis: MatchAnalysis): s
   if (favOdd<=1.5) return `Piyasa ${mktFav} için çok güçlü favori konumu biçiyor (${favOdd}). Oran düşük, getiri sınırlı.`;
   if (favOdd<=2.0) return `Piyasa ${mktFav} takımını favori görüyor (${favOdd}). Form verisi bu tercihi ${analysis.risk==='Düşük'?'destekliyor':'kısmen destekliyor'}.`;
   return `Piyasa ${mktFav} takımını hafif öne çıkarıyor (${favOdd}). Form verisi bu avantajı aynı netlikte desteklemiyor; bu yüzden maç dengeli okunmalı.`;
-}
-
-function getWeatherComment(weatherData: any): { impact: Level; sentence: string } {
-  if (!weatherData) return { impact: 'Düşük', sentence: 'Hava durumu verisi alınamadı.' };
-  const t=weatherData.temp??15, w=weatherData.wind??0;
-  const cond=(weatherData.condition||'').toLowerCase();
-  const isRain=/rain|shower|drizzle|yağ/.test(cond);
-  if ((isRain&&w>20)||w>40) return { impact:'Yüksek', sentence:`Rüzgar (${w} km/s)${isRain?' ve yağmur':''} uzun top kombinasyonlarını zorlaştırıyor; duran toplar belirleyici olabilir.` };
-  if (isRain)   return { impact:'Orta',   sentence:'Islak zemin bireysel hataları artırabilir; deplasman savunması için ekstra risk oluşturuyor.' };
-  if (w>25)     return { impact:'Orta',   sentence:`Rüzgar (${w} km/s) yüksek pas hataları yaratabilir. Kısa kombinasyon oynayan takım avantajlı olabilir.` };
-  if (t>28)     return { impact:'Orta',   sentence:`Yüksek sıcaklık (${t}°C) ikinci yarı temposunu düşürebilir. Az rotasyon yapan takım dezavantajlı.` };
-  if (t<5)      return { impact:'Düşük',  sentence:`Soğuk hava (${t}°C) yüksek pressing sürdürmeyi güçleştirir. Pozisyonel ve kontrollü oyun avantajlı.` };
-  return { impact:'Düşük', sentence:`Hava koşulları maç için elverişli (${t}°C, ${w} km/s rüzgar). Belirleyici etki beklenmez.` };
-}
-
-function getRiskWarnings(
-  hSt: ReturnType<typeof calcFormStats>,
-  aSt: ReturnType<typeof calcFormStats>,
-  h2hCount: number,
-  analysis: MatchAnalysis,
-): string[] {
-  const w: string[] = [];
-  if (hSt.total < 5) w.push(`Ev sahibi için sınırlı veri (${hSt.total} maç) — yüzdeler yanıltıcı olabilir.`);
-  if (aSt.total < 5) w.push(`Deplasman için sınırlı veri (${aSt.total} maç) — yüzdeler yanıltıcı olabilir.`);
-  if (h2hCount < 3)  w.push('H2H geçmişi yetersiz — doğrudan karşılaşma verisi az.');
-  if (analysis.guven === 'Düşük') w.push('Veri güveni düşük — tahminler genel eğilimlere dayanıyor.');
-  if (analysis.risk  === 'Yüksek') w.push('Form verileri değişken — bu tür maçlarda sürpriz sık görülür.');
-  if (w.length === 0) w.push('Belirgin bir veri riski tespit edilmedi; analiz güvenilir tablo sunuyor.');
-  return w;
 }
 
 // ── Referee Profile ────────────────────────────────────────────────────────
@@ -639,7 +596,7 @@ export default function MatchDetail() {
   const awayFormPts= calcFormPoints(awayForm,  formTeamIds.away);
   const hasFormData= homeStats.total>0 && awayStats.total>0;
 
-  const weatherRisk= !!weatherData&&(weatherData.wind>35||/rain|shower|drizzle/.test((weatherData.condition||'').toLowerCase()));
+  const weatherRisk= isWeatherRisk(weatherData);
   const homeTrend  = hasFormData ? getFormTrend(homeForm, formTeamIds.home) : null;
   const awayTrend  = hasFormData ? getFormTrend(awayForm, formTeamIds.away) : null;
   const analysis   = buildMatchAnalysis(displayHomeName,displayAwayName,leagueApiId,homeStats,awayStats,homeFormPts,awayFormPts,h2hData.length,weatherRisk,hasFormData,homeTrend,awayTrend,leagueAvgParam);

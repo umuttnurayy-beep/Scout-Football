@@ -727,6 +727,76 @@ async function fetchSuperLigMatchesForDate(date) {
   });
 }
 
+async function fetchSuperLigTeamFormMatches(teamId) {
+  const tid = parseInt(teamId);
+  if (!tid) return [];
+
+  const cacheKey = `superlig_form_season_v3_${tid}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return cached;
+
+  return dedupe(cacheKey, async () => {
+    const fresh = await getCache(cacheKey);
+    if (fresh) return fresh;
+
+    const allEvents = await fetchSuperLigSeasonEvents();
+    const teamMatches = allEvents
+      .filter(e =>
+        (parseInt(e.idHomeTeam) === tid || parseInt(e.idAwayTeam) === tid) &&
+        e.intHomeScore !== null && e.intHomeScore !== '' && e.intHomeScore !== undefined
+      )
+      .sort((a, b) => new Date(a.dateEvent) - new Date(b.dateEvent))
+      .map(e => ({
+        homeTeamId: parseInt(e.idHomeTeam),
+        awayTeamId: parseInt(e.idAwayTeam),
+        homeScore:  parseInt(e.intHomeScore),
+        awayScore:  parseInt(e.intAwayScore),
+        date:       e.dateEvent,
+        home:       e.strHomeTeam,
+        away:       e.strAwayTeam,
+      }));
+
+    if (teamMatches.length > 0) await setCache(cacheKey, teamMatches, TTL.teamStats);
+    return teamMatches;
+  });
+}
+
+async function fetchSuperLigTeamContext(teamId) {
+  const tid = parseInt(teamId);
+  if (!tid) return null;
+
+  const cacheKey = `superlig_team_context_v1_${tid}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return cached;
+
+  return dedupe(cacheKey, async () => {
+    const fresh = await getCache(cacheKey);
+    if (fresh) return fresh;
+
+    const [recentMatches, standings] = await Promise.all([
+      fetchSuperLigTeamFormMatches(tid),
+      fetchSuperLigStandingsCached(),
+    ]);
+    const standingsRow = standings.find(row => row.teamId === tid) || null;
+    const formMatchesCount = recentMatches.length;
+    const isLimited = formMatchesCount < 5;
+    const result = {
+      teamId: tid,
+      source: isLimited && standingsRow ? 'mixed' : 'sportsdb',
+      isLimited,
+      fallbackReason: isLimited
+        ? 'TheSportsDB sezon maç listesi bu takım için sınırlı maç bazlı form verisi döndürüyor.'
+        : null,
+      formMatchesCount,
+      recentMatches,
+      standingsStats: standingsRow,
+    };
+
+    await setCache(cacheKey, result, TTL.teamStats);
+    return result;
+  });
+}
+
 function normalizeTeamLookupName(value) {
   return (value || '')
     .replace(/İ/g, 'I')
@@ -807,32 +877,24 @@ app.get('/superlig/team-form/:teamId', async (req, res) => {
   const tid = parseInt(teamId);
   if (!tid) return apiError(res, 400, 'bad_request', 'invalid teamId', []);
 
-  const cacheKey = `superlig_form_season_v3_${teamId}`;
-  const cached = await getCache(cacheKey);
-  if (cached) return res.json(cached);
   try {
-    const allEvents = await fetchSuperLigSeasonEvents();
-    const teamMatches = allEvents
-      .filter(e =>
-        (parseInt(e.idHomeTeam) === tid || parseInt(e.idAwayTeam) === tid) &&
-        e.intHomeScore !== null && e.intHomeScore !== '' && e.intHomeScore !== undefined
-      )
-      .sort((a, b) => new Date(a.dateEvent) - new Date(b.dateEvent))
-      .map(e => ({
-        homeTeamId: parseInt(e.idHomeTeam),
-        awayTeamId: parseInt(e.idAwayTeam),
-        homeScore:  parseInt(e.intHomeScore),
-        awayScore:  parseInt(e.intAwayScore),
-        date:       e.dateEvent,
-        home:       e.strHomeTeam,
-        away:       e.strAwayTeam,
-      }));
-
-    if (teamMatches.length > 0) await setCache(cacheKey, teamMatches, TTL.teamStats);
-    res.json(teamMatches);
+    res.json(await fetchSuperLigTeamFormMatches(tid));
   } catch (e) {
     console.error('/superlig/team-form hata:', e.message);
     apiError(res, 502, 'upstream_error', e.message, []);
+  }
+});
+
+app.get('/superlig/team-context/:teamId', async (req, res) => {
+  const { teamId } = req.params;
+  const tid = parseInt(teamId);
+  if (!tid) return apiError(res, 400, 'bad_request', 'invalid teamId', null);
+
+  try {
+    res.json(await fetchSuperLigTeamContext(tid));
+  } catch (e) {
+    console.error('/superlig/team-context hata:', e.message);
+    apiError(res, 502, 'upstream_error', e.message, null);
   }
 });
 

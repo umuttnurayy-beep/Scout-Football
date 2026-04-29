@@ -537,7 +537,7 @@ export function getWeatherComment(weatherData: any): { impact: Level; sentence: 
   const t = weatherData.temp ?? 15;
   const w = weatherData.wind ?? 0;
   const cond = (weatherData.condition || '').toLowerCase();
-  const rain = /rain|shower|drizzle|yağmur/.test(cond);
+  const rain = /rain|shower|drizzle|yağ/.test(cond);
   if (rain || w > 35) return {
     impact: 'Yüksek',
     sentence: 'Yağış veya güçlü rüzgar pas kalitesini ve şut isabetini düşürebilir; kontrollü oyun ve duran toplar öne çıkar.',
@@ -550,6 +550,68 @@ export function getWeatherComment(weatherData: any): { impact: Level; sentence: 
     impact: 'Düşük',
     sentence: 'Hava koşulları futbol için uygun; maç karakterini belirleyecek ana unsur takım formu olacak.',
   };
+}
+
+export function isWeatherRisk(weatherData: any): boolean {
+  if (!weatherData) return false;
+  const wind = weatherData.wind ?? 0;
+  const condition = (weatherData.condition || '').toLowerCase();
+  return wind > 35 || /rain|shower|drizzle|yağ/.test(condition);
+}
+
+type CompareStats = {
+  totalAvgGf: string | number;
+  totalAvgGa: string | number;
+};
+
+export function getCompareComment(
+  hSt: CompareStats,
+  aSt: CompareStats,
+  home: string,
+  away: string,
+): string {
+  const hAtk = parseFloat(String(hSt.totalAvgGf));
+  const aAtk = parseFloat(String(aSt.totalAvgGf));
+  const hDef = parseFloat(String(hSt.totalAvgGa));
+  const aDef = parseFloat(String(aSt.totalAvgGa));
+  const atkLead = hAtk > aAtk + 0.3 ? home : aAtk > hAtk + 0.3 ? away : null;
+  const defLead = hDef < aDef - 0.25 ? home : aDef < hDef - 0.25 ? away : null;
+
+  if (atkLead && defLead && atkLead === defLead) {
+    return `${atkLead} hem hücumda hem savunmada önde; istatistiksel açıdan belirgin üstünlük var.`;
+  }
+  if (atkLead && defLead && atkLead !== defLead) {
+    return `${atkLead} hücumda daha üretken, ${defLead} savunmada daha sağlam; dengeli bir güç dağılımı.`;
+  }
+  if (atkLead) return `${atkLead} gol üretiminde öne çıkıyor; savunmada fark belirgin değil.`;
+  if (defLead) return `${defLead} savunmada daha sağlam; hücum üretiminde belirgin fark yok.`;
+  return 'Hücum ve savunma metrikleri her iki takım için birbirine yakın; belirgin istatistiksel üstünlük görünmüyor.';
+}
+
+type RiskWarningStats = {
+  total: number;
+};
+
+type RiskWarningAnalysis = {
+  guven: Level;
+  risk: Level;
+};
+
+export function getRiskWarnings(
+  hSt: RiskWarningStats,
+  aSt: RiskWarningStats,
+  h2hCount: number,
+  analysis: RiskWarningAnalysis,
+  h2hMin = 3,
+): string[] {
+  const warnings: string[] = [];
+  if (hSt.total < 5) warnings.push(`Ev sahibi için sınırlı veri (${hSt.total} maç) — yüzdeler yanıltıcı olabilir.`);
+  if (aSt.total < 5) warnings.push(`Deplasman için sınırlı veri (${aSt.total} maç) — yüzdeler yanıltıcı olabilir.`);
+  if (h2hCount < h2hMin) warnings.push('H2H geçmişi yetersiz — doğrudan karşılaşma verisi az.');
+  if (analysis.guven === 'Düşük') warnings.push('Veri güveni düşük — tahminler genel eğilimlere dayanıyor.');
+  if (analysis.risk === 'Yüksek') warnings.push('Form verileri değişken — bu tür maçlarda sürpriz sık görülür.');
+  if (warnings.length === 0) warnings.push('Belirgin bir veri riski tespit edilmedi; analiz güvenilir tablo sunuyor.');
+  return warnings;
 }
 
 // ── New helper functions ────────────────────────────────────────────────────
