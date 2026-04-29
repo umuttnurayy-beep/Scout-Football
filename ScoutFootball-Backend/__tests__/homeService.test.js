@@ -144,7 +144,7 @@ describe('homeService', () => {
       generatedAt: '2026-05-01T00:00:00.000Z',
     };
     const cache = createMemoryCache({
-      'home_last_good_v1_2026-05-01': stalePayload,
+      'home_last_good_v2_2026-05-01': stalePayload,
     });
     const { service } = createService({
       cache,

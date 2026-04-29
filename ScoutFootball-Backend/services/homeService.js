@@ -1,4 +1,5 @@
 const HOME_SUPPORTED_LEAGUES = [2021, 2014, 2002, 2019, 2015, 2001];
+const HOME_CACHE_VERSION = 'v2';
 const HOME_LOOKAHEAD_DAYS = 7;
 const HOME_FEATURED_TTL = 36 * 60 * 60 * 1000;
 const HOME_STALE_TTL = 48 * 60 * 60 * 1000;
@@ -149,8 +150,8 @@ function createHomeService(deps) {
 
   async function buildHome(rawDate) {
     const date = normalizeHomeDate(rawDate);
-    const cacheKey = `home_v1_${date}`;
-    const staleKey = `home_last_good_v1_${date}`;
+    const cacheKey = `home_${HOME_CACHE_VERSION}_${date}`;
+    const staleKey = `home_last_good_${HOME_CACHE_VERSION}_${date}`;
     const cached = await getCache(cacheKey);
     if (cached) return { ok: true, data: cached };
 
