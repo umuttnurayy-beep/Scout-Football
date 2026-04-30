@@ -396,6 +396,64 @@ async function fetchFootballDataMatchesForDate(date) {
   });
 }
 
+function footballDataMatchCacheTtl(match) {
+  const status = String(match?.status || '').toUpperCase();
+  if (status === 'FINISHED') return TTL.historical;
+  const matchDate = String(match?.utcDate || '').split('T')[0];
+  return ttlForMatchDate(matchDate, isLiveStatus(status));
+}
+
+async function fetchFootballDataMatch(matchId) {
+  const cacheKey = `match_${matchId}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return cached;
+
+  return dedupe(cacheKey, async () => {
+    const fresh = await getCache(cacheKey);
+    if (fresh) return fresh;
+    const data = await upstream.fetchJson(`${FOOTBALL_DATA_BASE}/matches/${matchId}`, {
+      headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
+    }, 'football-data match');
+    await setCache(cacheKey, data, footballDataMatchCacheTtl(data));
+    return data;
+  });
+}
+
+async function fetchFootballDataH2H(matchId, isFinished) {
+  const cacheKey = `h2h_${matchId}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return cached;
+
+  return dedupe(cacheKey, async () => {
+    const fresh = await getCache(cacheKey);
+    if (fresh) return fresh;
+    const data = await upstream.fetchJson(`${FOOTBALL_DATA_BASE}/matches/${matchId}/head2head?limit=10`, {
+      headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
+    }, 'football-data h2h');
+    const matches = data.matches || [];
+    const ttl = isFinished ? TTL.historical : TTL.h2h;
+    await setCache(cacheKey, matches, ttl);
+    return matches;
+  });
+}
+
+async function fetchFootballDataTeamMatches(teamId) {
+  const cacheKey = `team_matches_season_v2_${teamId}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return cached;
+
+  return dedupe(cacheKey, async () => {
+    const fresh = await getCache(cacheKey);
+    if (fresh) return fresh;
+    const data = await upstream.fetchJson(`${FOOTBALL_DATA_BASE}/teams/${teamId}/matches?status=FINISHED&limit=50&season=${CURRENT_FOOTBALL_DATA_SEASON}`, {
+      headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
+    }, 'football-data team matches');
+    const matches = Array.isArray(data.matches) && data.matches.length > 0 ? data.matches : [];
+    if (matches.length > 0) await setCache(cacheKey, matches, TTL.teamStats);
+    return matches;
+  });
+}
+
 app.get('/standings/:leagueId', async (req, res) => {
   const { leagueId } = req.params;
   if (!FOOTBALL_DATA_KEY) return missingConfig(res, 'FOOTBALL_DATA_KEY', []);
@@ -456,18 +514,55 @@ app.get('/matches', async (req, res) => {
   }
 });
 
+app.get('/match/:matchId/context', async (req, res) => {
+  const { matchId } = req.params;
+  if (!FOOTBALL_DATA_KEY) return missingConfig(res, 'FOOTBALL_DATA_KEY', null);
+
+  const isFinished = req.query.finished === '1';
+  const cacheKey = `match_context_v1_${matchId}_${isFinished ? 'finished' : 'active'}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return res.json({ ok: true, data: cached });
+
+  try {
+    const match = await fetchFootballDataMatch(matchId);
+    if (!match) return apiError(res, 404, 'not_found', 'match not found', null);
+
+    const matchFinished = isFinished || String(match.status || '').toUpperCase() === 'FINISHED';
+    const homeTeamId = match.homeTeam?.id || 0;
+    const awayTeamId = match.awayTeam?.id || 0;
+    const [homeFormR, awayFormR, h2hR] = await Promise.allSettled([
+      homeTeamId ? fetchFootballDataTeamMatches(homeTeamId) : Promise.resolve([]),
+      awayTeamId ? fetchFootballDataTeamMatches(awayTeamId) : Promise.resolve([]),
+      fetchFootballDataH2H(matchId, matchFinished),
+    ]);
+
+    const issues = [];
+    if (homeFormR.status === 'rejected' || awayFormR.status === 'rejected') issues.push('form');
+    if (h2hR.status === 'rejected') issues.push('h2h');
+
+    const payload = {
+      match,
+      homeForm: homeFormR.status === 'fulfilled' ? homeFormR.value : [],
+      awayForm: awayFormR.status === 'fulfilled' ? awayFormR.value : [],
+      h2h: h2hR.status === 'fulfilled' ? h2hR.value : [],
+      issues,
+      generatedAt: new Date().toISOString(),
+    };
+
+    await setCache(cacheKey, payload, footballDataMatchCacheTtl(match));
+    return res.json({ ok: true, data: payload });
+  } catch (e) {
+    console.error('/match/:matchId/context hata:', e.message);
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, null);
+  }
+});
+
 app.get('/match/:matchId', async (req, res) => {
   const { matchId } = req.params;
   if (!FOOTBALL_DATA_KEY) return missingConfig(res, 'FOOTBALL_DATA_KEY', null);
   const cacheKey = `match_${matchId}`;
-  const cached = await getCache(cacheKey);
-  if (cached) return res.json(cached);
   try {
-    const data = await upstream.fetchJson(`${FOOTBALL_DATA_BASE}/matches/${matchId}`, {
-      headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
-    }, 'football-data match');
-    await setCache(cacheKey, data, TTL.live);
-    res.json(data);
+    res.json(await fetchFootballDataMatch(matchId));
   } catch (e) {
     return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, null);
   }
@@ -478,15 +573,8 @@ app.get('/h2h/:matchId', async (req, res) => {
   if (!FOOTBALL_DATA_KEY) return missingConfig(res, 'FOOTBALL_DATA_KEY', []);
   const isFinished = req.query.finished === '1';
   const cacheKey = `h2h_${matchId}`;
-  const cached = await getCache(cacheKey);
-  if (cached) return res.json(cached);
   try {
-    const data = await upstream.fetchJson(`${FOOTBALL_DATA_BASE}/matches/${matchId}/head2head?limit=10`, {
-      headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
-    }, 'football-data h2h');
-    const ttl = isFinished ? TTL.historical : TTL.h2h;
-    await setCache(cacheKey, data.matches || [], ttl);
-    res.json(data.matches || []);
+    res.json(await fetchFootballDataH2H(matchId, isFinished));
   } catch (e) {
     return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
   }
@@ -513,15 +601,8 @@ app.get('/team/:teamId/matches', async (req, res) => {
   const { teamId } = req.params;
   if (!FOOTBALL_DATA_KEY) return missingConfig(res, 'FOOTBALL_DATA_KEY', []);
   const cacheKey = `team_matches_season_v2_${teamId}`;
-  const cached = await getCache(cacheKey);
-  if (cached) return res.json(cached);
   try {
-    const data = await upstream.fetchJson(`${FOOTBALL_DATA_BASE}/teams/${teamId}/matches?status=FINISHED&limit=50&season=${CURRENT_FOOTBALL_DATA_SEASON}`, {
-      headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
-    }, 'football-data team matches');
-    const matches = Array.isArray(data.matches) && data.matches.length > 0 ? data.matches : null;
-    if (matches) await setCache(cacheKey, matches, TTL.teamStats);
-    res.json(matches || []);
+    res.json(await fetchFootballDataTeamMatches(teamId));
   } catch (e) {
     console.error('/team/:teamId/matches hata:', e.message);
     return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
@@ -850,6 +931,24 @@ async function fetchSuperLigTeamContext(teamId) {
   });
 }
 
+async function fetchSuperLigMatch(eventId) {
+  const cacheKey = `superlig_match_v1_${eventId}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return cached;
+
+  return dedupe(cacheKey, async () => {
+    const fresh = await getCache(cacheKey);
+    if (fresh) return fresh;
+    const data = await upstream.fetchJson(`${SPORTSDB_BASE}/lookupevent.php?id=${eventId}`, {}, 'sportsdb superlig match');
+    const event = data?.events?.[0] || null;
+    if (!event) return null;
+    const isFinished = ['FT', 'AET', 'PEN', 'Match Finished'].includes(event.strStatus || '');
+    const matchDate = event.dateEvent || new Date().toISOString().split('T')[0];
+    await setCache(cacheKey, event, isFinished ? TTL.historical : ttlForMatchDate(matchDate, isLiveStatus(event.strStatus)));
+    return event;
+  });
+}
+
 function normalizeTeamLookupName(value) {
   return (value || '')
     .replace(/İ/g, 'I')
@@ -881,6 +980,45 @@ async function findAllSportsTeam(name) {
     if (team) return team;
   }
   return null;
+}
+
+async function fetchAllSportsH2HMatches(home, away) {
+  if (!ALLSPORTS_KEY) throw new Error('ALLSPORTS_KEY missing');
+  const cacheKey = `allsports_h2h_v1_${home}_${away}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return cached;
+
+  return dedupe(cacheKey, async () => {
+    const fresh = await getCache(cacheKey);
+    if (fresh) return fresh;
+    const [homeTeam, awayTeam] = await Promise.all([
+      findAllSportsTeam(home),
+      findAllSportsTeam(away),
+    ]);
+    if (!homeTeam || !awayTeam) return [];
+
+    const h2hData = await upstream.fetchJson(`${ALLSPORTS_BASE}?met=H2H&APIkey=${ALLSPORTS_KEY}&firstTeamId=${homeTeam.team_key}&secondTeamId=${awayTeam.team_key}`, {}, 'allsports h2h');
+
+    const matches = (h2hData.result?.H2H || [])
+      .filter(m => m.event_status === 'Finished' && m.event_final_result)
+      .map(m => {
+        const parts = (m.event_final_result || '').split(' - ');
+        return {
+          date: m.event_date,
+          home: m.event_home_team,
+          away: m.event_away_team,
+          homeScore: parseInt(parts[0]) || 0,
+          awayScore: parseInt(parts[1]) || 0,
+          league: m.league_name,
+          team1Home: m.home_team_key === homeTeam.team_key,
+        };
+      })
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 12);
+
+    if (matches.length > 0) await setCache(cacheKey, matches, TTL.historical);
+    return matches;
+  });
 }
 
 app.get('/superlig/standings', async (req, res) => {
@@ -1026,18 +1164,60 @@ app.get('/superlig/scorers', async (req, res) => {
   }
 });
 
+app.get('/superlig/match/:eventId/context', async (req, res) => {
+  const { eventId } = req.params;
+  const homeTeamId = parseInt(req.query.homeTeamId);
+  const awayTeamId = parseInt(req.query.awayTeamId);
+  const home = String(req.query.home || '');
+  const away = String(req.query.away || '');
+  const cacheKey = `superlig_match_context_v1_${eventId}_${homeTeamId || 0}_${awayTeamId || 0}_${home}_${away}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return res.json({ ok: true, data: cached });
+
+  try {
+    const event = await fetchSuperLigMatch(eventId);
+    if (!event) return apiError(res, 404, 'not_found', 'match not found', null);
+
+    const resolvedHomeId = homeTeamId || parseInt(event.idHomeTeam) || 0;
+    const resolvedAwayId = awayTeamId || parseInt(event.idAwayTeam) || 0;
+    const resolvedHome = home || event.strHomeTeam || '';
+    const resolvedAway = away || event.strAwayTeam || '';
+
+    const [homeContextR, awayContextR, h2hR] = await Promise.allSettled([
+      resolvedHomeId ? fetchSuperLigTeamContext(resolvedHomeId) : Promise.resolve(null),
+      resolvedAwayId ? fetchSuperLigTeamContext(resolvedAwayId) : Promise.resolve(null),
+      resolvedHome && resolvedAway ? fetchAllSportsH2HMatches(resolvedHome, resolvedAway) : Promise.resolve([]),
+    ]);
+
+    const issues = [];
+    if (homeContextR.status === 'rejected' || awayContextR.status === 'rejected') issues.push('form');
+    if (h2hR.status === 'rejected') issues.push('h2h');
+
+    const isFinished = ['FT', 'AET', 'PEN', 'Match Finished'].includes(event.strStatus || '');
+    const matchDate = event.dateEvent || new Date().toISOString().split('T')[0];
+    const payload = {
+      event,
+      homeContext: homeContextR.status === 'fulfilled' ? homeContextR.value : null,
+      awayContext: awayContextR.status === 'fulfilled' ? awayContextR.value : null,
+      h2h: h2hR.status === 'fulfilled' ? h2hR.value : [],
+      issues,
+      generatedAt: new Date().toISOString(),
+    };
+
+    await setCache(cacheKey, payload, isFinished ? TTL.historical : ttlForMatchDate(matchDate, isLiveStatus(event.strStatus)));
+    return res.json({ ok: true, data: payload });
+  } catch (e) {
+    console.error('/superlig/match/:eventId/context hata:', e.message);
+    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, null);
+  }
+});
+
 app.get('/superlig/match/:eventId', async (req, res) => {
   const { eventId } = req.params;
   const cacheKey = `superlig_match_v1_${eventId}`;
-  const cached = await getCache(cacheKey);
-  if (cached) return res.json(cached);
   try {
-    const data = await upstream.fetchJson(`${SPORTSDB_BASE}/lookupevent.php?id=${eventId}`, {}, 'sportsdb superlig match');
-    const event = data?.events?.[0] || null;
+    const event = await fetchSuperLigMatch(eventId);
     if (!event) return apiError(res, 404, 'not_found', 'match not found', null);
-    const isFinished = ['FT', 'AET', 'PEN', 'Match Finished'].includes(event.strStatus || '');
-    const matchDate = event.dateEvent || new Date().toISOString().split('T')[0];
-    await setCache(cacheKey, event, isFinished ? TTL.historical : ttlForMatchDate(matchDate, isLiveStatus(event.strStatus)));
     res.json(event);
   } catch (e) {
     console.error('/superlig/match/:eventId hata:', e.message);
@@ -1178,37 +1358,8 @@ app.get('/allsports/h2h', async (req, res) => {
   if (!ALLSPORTS_KEY) return missingConfig(res, 'ALLSPORTS_KEY', []);
 
   const cacheKey = `allsports_h2h_v1_${home}_${away}`;
-  const cached = await getCache(cacheKey);
-  if (cached) return res.json(cached);
-
   try {
-    const [homeTeam, awayTeam] = await Promise.all([
-      findAllSportsTeam(home),
-      findAllSportsTeam(away),
-    ]);
-    if (!homeTeam || !awayTeam) return res.json([]);
-
-    const h2hData = await upstream.fetchJson(`${ALLSPORTS_BASE}?met=H2H&APIkey=${ALLSPORTS_KEY}&firstTeamId=${homeTeam.team_key}&secondTeamId=${awayTeam.team_key}`, {}, 'allsports h2h');
-
-    const matches = (h2hData.result?.H2H || [])
-      .filter(m => m.event_status === 'Finished' && m.event_final_result)
-      .map(m => {
-        const parts = (m.event_final_result || '').split(' - ');
-        return {
-          date: m.event_date,
-          home: m.event_home_team,
-          away: m.event_away_team,
-          homeScore: parseInt(parts[0]) || 0,
-          awayScore: parseInt(parts[1]) || 0,
-          league: m.league_name,
-          team1Home: m.home_team_key === homeTeam.team_key,
-        };
-      })
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
-      .slice(0, 12);
-
-    if (matches.length > 0) await setCache(cacheKey, matches, TTL.historical);
-    res.json(matches);
+    res.json(await fetchAllSportsH2HMatches(home, away));
   } catch (e) {
     console.error('/allsports/h2h hata:', e.message);
     return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);

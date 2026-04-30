@@ -263,6 +263,34 @@ export async function getMatchStats(matchId: string): Promise<any> {
   }
 }
 
+export type MatchContextData = {
+  match: any | null;
+  homeForm: any[];
+  awayForm: any[];
+  h2h: any[];
+  issues?: string[];
+  generatedAt?: string;
+};
+
+export async function getMatchContext(matchId: string, isFinished?: boolean): Promise<MatchContextData | null> {
+  try {
+    const url = isFinished ? `${BASE_URL}/match/${matchId}/context?finished=1` : `${BASE_URL}/match/${matchId}/context`;
+    const res = await fetch(url);
+    const data = await readApiJson<MatchContextData | null>(res, null);
+    if (!data || !data.match) return null;
+    return {
+      ...data,
+      homeForm: arrayOrEmpty(data.homeForm),
+      awayForm: arrayOrEmpty(data.awayForm),
+      h2h: arrayOrEmpty(data.h2h),
+      issues: arrayOrEmpty<string>(data.issues),
+    };
+  } catch (e) {
+    logApiError('getMatchContext', e);
+    return null;
+  }
+}
+
 export async function getH2H(matchId: string, isFinished?: boolean): Promise<any[]> {
   try {
     const url = isFinished ? `${BASE_URL}/h2h/${matchId}?finished=1` : `${BASE_URL}/h2h/${matchId}`;
@@ -495,3 +523,45 @@ export async function getSuperLigMatch(eventId: string): Promise<any | null> {
   }
 }
 
+export type SuperLigMatchContextData = {
+  event: any | null;
+  homeContext: SuperLigTeamContext | null;
+  awayContext: SuperLigTeamContext | null;
+  h2h: any[];
+  issues?: string[];
+  generatedAt?: string;
+};
+
+export async function getSuperLigMatchContext({
+  eventId,
+  homeTeamId,
+  awayTeamId,
+  home,
+  away,
+}: {
+  eventId: string;
+  homeTeamId?: number;
+  awayTeamId?: number;
+  home?: string;
+  away?: string;
+}): Promise<SuperLigMatchContextData | null> {
+  try {
+    const params = new URLSearchParams();
+    if (homeTeamId) params.set('homeTeamId', String(homeTeamId));
+    if (awayTeamId) params.set('awayTeamId', String(awayTeamId));
+    if (home) params.set('home', home);
+    if (away) params.set('away', away);
+    const qs = params.toString();
+    const res = await fetch(`${BASE_URL}/superlig/match/${eventId}/context${qs ? `?${qs}` : ''}`);
+    const data = await readApiJson<SuperLigMatchContextData | null>(res, null);
+    if (!data || !data.event) return null;
+    return {
+      ...data,
+      h2h: arrayOrEmpty(data.h2h),
+      issues: arrayOrEmpty<string>(data.issues),
+    };
+  } catch (e) {
+    logApiError('getSuperLigMatchContext', e);
+    return null;
+  }
+}

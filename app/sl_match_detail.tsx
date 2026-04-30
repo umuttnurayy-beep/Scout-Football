@@ -9,7 +9,7 @@ import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-
 import { DetailDataNotice, DetailStatusBanner } from '../components/DetailDataState';
 import { useTheme } from '../context/ThemeContext';
 import {
-  SuperLigTeamContext, getAllSportsH2H, getCityForTeam, getSuperLigMatch, getSuperLigTeamContext, getWeather, isStaleApiData,
+  SuperLigTeamContext, getAllSportsH2H, getCityForTeam, getSuperLigMatch, getSuperLigMatchContext, getSuperLigTeamContext, getWeather, isStaleApiData,
 } from '../services/api';
 import { detailDataMessage, staleAnalysisMessage } from '../utils/emptyStates';
 import { DetailDataIssue, buildDetailDataIssues, buildDetailRadar, detailIssueFlags, fulfilledOr, hasStaleDetailData } from '../utils/matchDetailDataState';
@@ -529,26 +529,29 @@ export default function SLMatchDetail() {
     let cancelled = false;
     async function load() {
       setLoading(true);
-      const matchLoader = getSuperLigMatch(eventId);
-      const homeContextLoader = homeTeamId
-        ? getSuperLigTeamContext(homeTeamId)
-        : Promise.resolve(null);
-      const awayContextLoader = awayTeamId
-        ? getSuperLigTeamContext(awayTeamId)
-        : Promise.resolve(null);
-      const [evR, hcR, acR] = await Promise.allSettled([
-        matchLoader,
-        homeContextLoader,
-        awayContextLoader,
-      ]);
+      const contextPayload = await getSuperLigMatchContext({ eventId, homeTeamId, awayTeamId, home, away });
+      const contextIssues = new Set(contextPayload?.issues || []);
+      const [evR, hcR, acR] = contextPayload
+        ? [
+            { status: 'fulfilled' as const, value: contextPayload.event },
+            { status: 'fulfilled' as const, value: contextPayload.homeContext },
+            { status: 'fulfilled' as const, value: contextPayload.awayContext },
+          ]
+        : await Promise.allSettled([
+            getSuperLigMatch(eventId),
+            homeTeamId ? getSuperLigTeamContext(homeTeamId) : Promise.resolve(null),
+            awayTeamId ? getSuperLigTeamContext(awayTeamId) : Promise.resolve(null),
+          ]);
       if (cancelled) return;
       if (evR.status === 'fulfilled') setEvent(evR.value);
       const nextHomeContext = fulfilledOr(hcR, null);
       const nextAwayContext = fulfilledOr(acR, null);
+      let nextH2H = contextPayload?.h2h || [];
       setHomeContext(nextHomeContext);
       setAwayContext(nextAwayContext);
       setHomeForm(nextHomeContext?.recentMatches || []);
       setAwayForm(nextAwayContext?.recentMatches || []);
+      if (contextPayload) setH2HMatches(nextH2H);
       setStaleNotice(hasStaleDetailData([
         evR.status === 'fulfilled' ? evR.value : null,
         nextHomeContext,
@@ -556,8 +559,8 @@ export default function SLMatchDetail() {
       ], isStaleApiData));
       setDataIssues(buildDetailDataIssues({
         matchMissing: evR.status === 'rejected' || !evR.value,
-        formRejected: hcR.status === 'rejected' || acR.status === 'rejected',
-        h2hRejected: false,
+        formRejected: hcR.status === 'rejected' || acR.status === 'rejected' || contextIssues.has('form'),
+        h2hRejected: contextIssues.has('h2h'),
         weatherRejected: false,
       }));
       setLoading(false);
@@ -566,11 +569,11 @@ export default function SLMatchDetail() {
       try {
         const [weatherR, h2hR] = await Promise.allSettled([
           city ? getWeather(city) : Promise.resolve(null),
-          home && away ? getAllSportsH2H(home, away) : Promise.resolve([]),
+          contextPayload ? Promise.resolve(nextH2H) : (home && away ? getAllSportsH2H(home, away) : Promise.resolve([])),
         ]);
         if (cancelled) return;
       const nextWeather = fulfilledOr(weatherR, null);
-      const nextH2H = fulfilledOr(h2hR, []);
+      nextH2H = fulfilledOr(h2hR, []);
       if (nextWeather) setWeatherData(nextWeather);
       setH2HMatches(nextH2H);
       AsyncStorage.getItem(secondaryCacheKey)
@@ -588,7 +591,7 @@ export default function SLMatchDetail() {
         setDataIssues(prev => {
           const next = new Set(prev);
           if (weatherR.status === 'rejected') next.add('weather');
-          if (h2hR.status === 'rejected') next.add('h2h');
+          if (h2hR.status === 'rejected' || contextIssues.has('h2h')) next.add('h2h');
           return next;
         });
       } finally {

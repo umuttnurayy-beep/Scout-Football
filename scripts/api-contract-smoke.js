@@ -30,6 +30,34 @@ function makeResponse(payload, options = {}) {
   };
 }
 
+function assertObject(value, label) {
+  assert.equal(Boolean(value && typeof value === 'object' && !Array.isArray(value)), true, `${label} must be an object`);
+}
+
+function assertArray(value, label) {
+  assert.equal(Array.isArray(value), true, `${label} must be an array`);
+}
+
+function validateMatchContextPayload(payload) {
+  assertObject(payload, 'match context payload');
+  assertObject(payload.match, 'match context match');
+  assertArray(payload.homeForm, 'match context homeForm');
+  assertArray(payload.awayForm, 'match context awayForm');
+  assertArray(payload.h2h, 'match context h2h');
+  assertArray(payload.issues, 'match context issues');
+  assert.equal(typeof payload.generatedAt, 'string', 'match context generatedAt must be a string');
+}
+
+function validateSuperLigMatchContextPayload(payload) {
+  assertObject(payload, 'superlig match context payload');
+  assertObject(payload.event, 'superlig match context event');
+  assert.equal(payload.homeContext === null || typeof payload.homeContext === 'object', true, 'superlig homeContext must be object or null');
+  assert.equal(payload.awayContext === null || typeof payload.awayContext === 'object', true, 'superlig awayContext must be object or null');
+  assertArray(payload.h2h, 'superlig match context h2h');
+  assertArray(payload.issues, 'superlig match context issues');
+  assert.equal(typeof payload.generatedAt, 'string', 'superlig match context generatedAt must be a string');
+}
+
 async function main() {
   const apiResponse = loadTsModule(path.join(__dirname, '..', 'services', 'apiResponse.ts'));
   const {
@@ -54,6 +82,38 @@ async function main() {
   assert.equal(staleData.length, 1);
   assert.equal(isStaleApiData(staleData), true);
   assert.equal(Object.keys(staleData).includes('__apiMeta'), false);
+
+  const matchContext = await readApiJson(
+    makeResponse({
+      ok: true,
+      data: {
+        match: { id: 123, homeTeam: { id: 1 }, awayTeam: { id: 2 } },
+        homeForm: [],
+        awayForm: [],
+        h2h: [],
+        issues: [],
+        generatedAt: '2026-04-30T00:00:00.000Z',
+      },
+    }),
+    null,
+  );
+  validateMatchContextPayload(matchContext);
+
+  const superLigMatchContext = await readApiJson(
+    makeResponse({
+      ok: true,
+      data: {
+        event: { idEvent: '123', strHomeTeam: 'Galatasaray', strAwayTeam: 'Fenerbahce' },
+        homeContext: null,
+        awayContext: { teamId: 2, recentMatches: [], formMatchesCount: 0 },
+        h2h: [],
+        issues: ['form'],
+        generatedAt: '2026-04-30T00:00:00.000Z',
+      },
+    }),
+    null,
+  );
+  validateSuperLigMatchContextPayload(superLigMatchContext);
 
   await assert.rejects(
     () => readApiJson(

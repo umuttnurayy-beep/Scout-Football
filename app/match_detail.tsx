@@ -8,7 +8,7 @@ import {
 import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-svg';
 import { DetailDataNotice, DetailStatusBanner } from '../components/DetailDataState';
 import { useTheme } from '../context/ThemeContext';
-import { getCityForTeam, getH2H, getMatchStats, getOdds, getTeamForm, getWeather, isStaleApiData } from '../services/api';
+import { getCityForTeam, getH2H, getMatchContext, getMatchStats, getOdds, getTeamForm, getWeather, isStaleApiData } from '../services/api';
 import { detailDataMessage, staleAnalysisMessage } from '../utils/emptyStates';
 import { DetailDataIssue, buildDetailDataIssues, buildDetailRadar, detailIssueFlags, fulfilledOr, hasStaleDetailData } from '../utils/matchDetailDataState';
 import {
@@ -548,24 +548,36 @@ export default function MatchDetail() {
     let cancelled = false;
     async function load(){
       setLoading(true);
-      const stats = await getMatchStats(matchId);
+      const contextPayload = await getMatchContext(matchId, finishedParam);
+      const stats = contextPayload?.match || await getMatchStats(matchId);
       if (cancelled) return;
       const matchContext = resolveMatchContext(stats, { home, away, city, homeTeamId, awayTeamId });
-      const [hFormR,aFormR] = await Promise.allSettled([
-        getTeamForm(matchContext.homeTeamId),
-        getTeamForm(matchContext.awayTeamId),
-      ]);
-      if (cancelled) return;
-      const homeFormValue = fulfilledOr(hFormR, []);
-      const awayFormValue = fulfilledOr(aFormR, []);
+      const contextIssues = new Set(contextPayload?.issues || []);
+      let homeFormValue = contextPayload?.homeForm || [];
+      let awayFormValue = contextPayload?.awayForm || [];
+      let h2hValue = contextPayload?.h2h || [];
+      let formRejected = contextIssues.has('form');
+
+      if (!contextPayload) {
+        const [hFormR,aFormR] = await Promise.allSettled([
+          getTeamForm(matchContext.homeTeamId),
+          getTeamForm(matchContext.awayTeamId),
+        ]);
+        if (cancelled) return;
+        homeFormValue = fulfilledOr(hFormR, []);
+        awayFormValue = fulfilledOr(aFormR, []);
+        formRejected = hFormR.status === 'rejected' || aFormR.status === 'rejected';
+      }
+
       setMatchData(stats);
       setHomeForm(homeFormValue);
       setAwayForm(awayFormValue);
+      if (contextPayload) setH2hData(h2hValue);
       setStaleNotice(hasStaleDetailData([stats, homeFormValue, awayFormValue], isStaleApiData));
       setDataIssues(buildDetailDataIssues({
         matchMissing: !stats,
-        formRejected: hFormR.status === 'rejected' || aFormR.status === 'rejected',
-        h2hRejected: false,
+        formRejected,
+        h2hRejected: contextIssues.has('h2h'),
         weatherRejected: false,
         oddsRejected: false,
       }));
@@ -574,12 +586,12 @@ export default function MatchDetail() {
       setSecondaryLoading(true);
       try {
         const [h2hR, weatherR, oddsR] = await Promise.allSettled([
-          getH2H(matchId, finishedParam),
+          contextPayload ? Promise.resolve(h2hValue) : getH2H(matchId, finishedParam),
           matchContext.city ? getWeather(matchContext.city) : Promise.resolve(null),
           getOdds(matchContext.homeName, matchContext.awayName, leagueApiId),
         ]);
         if (cancelled) return;
-      const h2hValue = fulfilledOr(h2hR, []);
+      h2hValue = fulfilledOr(h2hR, []);
       const weatherValue = fulfilledOr(weatherR, null);
       const oddsValue = fulfilledOr(oddsR, null);
       setH2hData(h2hValue);
@@ -600,7 +612,7 @@ export default function MatchDetail() {
       setStaleNotice(prev => prev || hasStaleDetailData([h2hValue, weatherValue, oddsValue], isStaleApiData));
         setDataIssues(prev => {
           const next = new Set(prev);
-          if (h2hR.status === 'rejected') next.add('h2h');
+          if (h2hR.status === 'rejected' || contextIssues.has('h2h')) next.add('h2h');
           if (weatherR.status === 'rejected') next.add('weather');
           if (oddsR.status === 'rejected') next.add('odds');
           return next;
