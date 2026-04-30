@@ -1,8 +1,39 @@
 const ESPN_SL_SCOREBOARD = 'https://site.api.espn.com/apis/site/v2/sports/soccer/tur.1/scoreboard';
 const ESPN_SL_STANDINGS = 'https://site.api.espn.com/apis/v2/sports/soccer/tur.1/standings';
 
-// AllSports league ID for Turkish Süper Lig
+// AllSports league ID for Turkish Süper Lig (237 is common, but may vary by account)
 const ALLSPORTS_SL_LEAGUE_ID = '237';
+
+// TheSportsDB team ID → best AllSports search name for team-based fixture lookup
+const SL_SPORTSDB_TO_ALLSPORTS_NAME = {
+  133804: 'Galatasaray',
+  133807: 'Fenerbahce',
+  133796: 'Trabzonspor',
+  133794: 'Besiktas',
+  134589: 'Istanbul Basaksehir',
+  135891: 'Goztepe',
+  133797: 'Samsunspor',
+  133885: 'Caykur Rizespor',
+  133835: 'Konyaspor',
+  138092: 'Gaziantep FK',
+  133870: 'Kocaelispor',
+  135676: 'Alanyaspor',
+  133799: 'Antalyaspor',
+  133798: 'Genclerbirligi',
+  138977: 'Eyupspor',
+  133802: 'Kayserispor',
+  138983: 'Fatih Karagumruk',
+  133834: 'Kasimpasa',
+  133800: 'Sivasspor',
+  137630: 'Hatayspor',
+  134199: 'Adana Demirspor',
+  138094: 'Umraniyespor',
+  135534: 'Pendikspor',
+  133879: 'Sakaryaspor',
+  139327: 'Bodrum',
+  139328: 'Corum',
+  133867: 'Elazig',
+};
 
 // Keys: ESPN / AllSports / SportsDB name variants → TheSportsDB team ID
 const SL_ESPN_TO_SPORTSDB = {
@@ -164,7 +195,7 @@ function createSuperLigService({
     };
   }
 
-  // Fetch all finished SL fixtures for the current season from AllSports
+  // Fetch all finished SL fixtures for the current season from AllSports (league-wide)
   async function fetchAllSportsSeasonFixtures() {
     if (!allSportsKey || !allSportsBase) return [];
     const yearStart = (currentSportsDbSeason || '2025-2026').split('-')[0];
@@ -192,10 +223,57 @@ function createSuperLigService({
 
       if (finished.length > 0) {
         await setCache(cacheKey, finished, TTL.seasonFixtures);
-        console.log(`[superlig] AllSports season fixtures loaded: ${finished.length} matches`);
+        console.log(`[superlig] AllSports league fixtures loaded: ${finished.length} matches`);
+      } else {
+        console.warn(`[superlig] AllSports leagueId=${ALLSPORTS_SL_LEAGUE_ID} returned 0 finished matches — will use per-team fallback`);
       }
       return finished;
     });
+  }
+
+  // Per-team AllSports fixture lookup — fallback when league ID is wrong/unavailable
+  async function fetchAllSportsTeamFixtures(tid) {
+    if (!allSportsKey || !allSportsBase) return [];
+    const teamName = SL_SPORTSDB_TO_ALLSPORTS_NAME[tid];
+    if (!teamName) return [];
+
+    const yearStart = (currentSportsDbSeason || '2025-2026').split('-')[0];
+    const yearEnd   = (currentSportsDbSeason || '2025-2026').split('-')[1] || String(Number(yearStart) + 1);
+    const from = `${yearStart}-07-01`;
+    const to   = `${yearEnd}-07-01`;
+
+    // Cache the AllSports team_key for 30 days (team IDs don't change)
+    const teamKeyCacheKey = `sl_as_teamkey_v1_${tid}`;
+    let teamKey = await getCache(teamKeyCacheKey);
+    if (!teamKey) {
+      const teamData = await upstream.fetchJson(
+        `${allSportsBase}?met=Teams&APIkey=${allSportsKey}&teamName=${encodeURIComponent(teamName)}`,
+        {},
+        'allsports team lookup',
+      );
+      const team = (teamData.result || [])[0];
+      if (!team?.team_key) {
+        console.warn(`[superlig] AllSports team not found: ${teamName}`);
+        return [];
+      }
+      teamKey = team.team_key;
+      await setCache(teamKeyCacheKey, teamKey, 30 * 24 * 60 * 60 * 1000);
+    }
+
+    const fixtureData = await upstream.fetchJson(
+      `${allSportsBase}?met=Fixtures&APIkey=${allSportsKey}&teamId=${teamKey}&from=${from}&to=${to}`,
+      {},
+      'allsports team season fixtures',
+    );
+
+    const finished = (fixtureData.result || [])
+      .filter(f => f.event_status === 'Finished' && f.event_final_result)
+      .map(mapAllSportsFixture)
+      .filter(Boolean)
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    console.log(`[superlig] AllSports per-team fixtures for ${teamName} (key=${teamKey}): ${finished.length} matches`);
+    return finished;
   }
 
   async function fetchSeasonEvents() {
@@ -296,7 +374,7 @@ function createSuperLigService({
   async function fetchTeamFormMatches(teamId) {
     const tid = parseInt(teamId);
     if (!tid) return [];
-    const cacheKey = `superlig_form_season_v4_${tid}`;
+    const cacheKey = `superlig_form_season_v5_${tid}`;
     const cached = await getCache(cacheKey);
     if (cached) return cached;
 
@@ -304,23 +382,32 @@ function createSuperLigService({
       const fresh = await getCache(cacheKey);
       if (fresh) return fresh;
 
-      // Primary: AllSports full season fixtures (TheSportsDB free tier returns only ~15 events)
-      try {
-        const allSportsFixtures = await fetchAllSportsSeasonFixtures();
-        if (allSportsFixtures.length > 15) {
-          const teamMatches = allSportsFixtures.filter(
-            f => f.homeTeamId === tid || f.awayTeamId === tid,
-          );
+      if (allSportsKey && allSportsBase) {
+        try {
+          // Attempt 1: league-wide fixtures (single cached API call, shared across teams)
+          const allSportsFixtures = await fetchAllSportsSeasonFixtures();
+          if (allSportsFixtures.length > 15) {
+            const teamMatches = allSportsFixtures.filter(
+              f => f.homeTeamId === tid || f.awayTeamId === tid,
+            );
+            if (teamMatches.length > 0) {
+              await setCache(cacheKey, teamMatches, TTL.teamStats);
+              return teamMatches;
+            }
+          }
+
+          // Attempt 2: per-team lookup (handles wrong league ID)
+          const teamMatches = await fetchAllSportsTeamFixtures(tid);
           if (teamMatches.length > 0) {
             await setCache(cacheKey, teamMatches, TTL.teamStats);
             return teamMatches;
           }
+        } catch (e) {
+          console.error('[superlig] AllSports form fetch failed:', e.message);
         }
-      } catch (e) {
-        console.error('[superlig] AllSports fixtures fallback failed:', e.message);
       }
 
-      // Fallback: TheSportsDB season events
+      // Final fallback: TheSportsDB season events
       const allEvents = await fetchSeasonEvents();
       const teamMatches = allEvents
         .filter(e =>
