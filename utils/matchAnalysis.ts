@@ -29,6 +29,7 @@ export interface MotivationContext {
   homeBelowPts?: number;
   awayAbovePts?: number;
   awayBelowPts?: number;
+  safetyPts?: number;
 }
 
 export interface ScoutPick {
@@ -713,6 +714,22 @@ function hasMeaningfulGap(
   return cannotClimb && cannotFall;
 }
 
+function isGuaranteedRelegated(
+  pos?: number,
+  pts?: number,
+  played?: number,
+  safetyPts?: number,
+  totalTeams?: number,
+  leagueApiId?: number,
+): boolean {
+  if (!pos || pts == null || played == null || safetyPts == null || !totalTeams || totalTeams < 10) return false;
+  const bottomStart = totalTeams >= 18 ? totalTeams - 3 : Math.max(totalTeams - 2, 1);
+  if (pos < bottomStart) return false;
+  const remaining = getRemainingMatches(played, totalTeams, leagueApiId);
+  if (remaining == null) return false;
+  return pts + remaining * 3 < safetyPts;
+}
+
 // Motivation commentary based on standings position and reachable targets.
 export function getMotivationComment(
   homePos?: number,
@@ -724,12 +741,14 @@ export function getMotivationComment(
   const isUcl = leagueApiId === 2001;
   const {
     homePts, awayPts, homePlayed, awayPlayed, leaderPts, totalTeams,
-    homeAbovePts, homeBelowPts, awayAbovePts, awayBelowPts,
+    homeAbovePts, homeBelowPts, awayAbovePts, awayBelowPts, safetyPts,
   } = context;
   const homeCanCatchLeader = homePos === 1 || canReachTarget(homePts, homePlayed, leaderPts, totalTeams, leagueApiId);
   const awayCanCatchLeader = awayPos === 1 || canReachTarget(awayPts, awayPlayed, leaderPts, totalTeams, leagueApiId);
   const homeSettled = hasMeaningfulGap(homePts, homePlayed, homeAbovePts, homeBelowPts, totalTeams, leagueApiId);
   const awaySettled = hasMeaningfulGap(awayPts, awayPlayed, awayAbovePts, awayBelowPts, totalTeams, leagueApiId);
+  const homeRelegated = isGuaranteedRelegated(homePos, homePts, homePlayed, safetyPts, totalTeams, leagueApiId);
+  const awayRelegated = isGuaranteedRelegated(awayPos, awayPts, awayPlayed, safetyPts, totalTeams, leagueApiId);
   const bottomStart = totalTeams && totalTeams >= 18 ? totalTeams - 3 : 17;
 
   if (isUcl) {
@@ -749,6 +768,25 @@ export function getMotivationComment(
       const pos = homePos > 24 ? homePos : awayPos;
       return side + " UCL'de eleme hattının dışında (" + pos + '). Puan ihtiyacı motivasyonu belirgin biçimde artırıyor.';
     }
+  }
+
+  if (homeRelegated && awayRelegated) {
+    return 'İki takım için de ligde kalma hedefi matematiksel olarak kapanmış görünüyor. Motivasyon okuması puan ihtiyacından çok prestij, rotasyon ve sezonu iyi bitirme tarafında yapılmalı.';
+  }
+  if (homeRelegated) {
+    return 'Ev sahibinin ligde kalma hedefi matematiksel olarak kapanmış görünüyor. Bu nedenle motivasyon avantajı ev sahibi lehine değil; maç daha çok prestij, rotasyon ve reaksiyon kalitesi üzerinden okunmalı.';
+  }
+  if (awayRelegated) {
+    return 'Deplasman takımının ligde kalma hedefi matematiksel olarak kapanmış görünüyor. Bu tablo deplasman lehine ekstra puan motivasyonu üretmez; yorum prestij, rotasyon ve kalan sezon disiplini üzerinden yapılmalı.';
+  }
+  if (homeSettled && awaySettled) {
+    return 'Puan tablosunda iki tarafın da yakın hedef alanı daralmış görünüyor. Motivasyon daha çok prestij, rotasyon ve sezonu iyi bitirme üzerinden okunmalı.';
+  }
+  if (homeSettled) {
+    return 'Ev sahibinin yakın sıralama hedefi matematiksel olarak daralmış görünüyor. Bu maçtaki motivasyon puan zorunluluğundan çok prestij ve sezonu güçlü bitirme tarafında.';
+  }
+  if (awaySettled) {
+    return 'Deplasman takımının yakın sıralama hedefi matematiksel olarak daralmış görünüyor. Bu yüzden puan ihtiyacı yorumu sınırlı; oyun planı prestij ve rotasyon etkisiyle şekillenebilir.';
   }
 
   if (homePos <= 3 && awayPos <= 3) {

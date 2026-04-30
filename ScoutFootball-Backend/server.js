@@ -4,6 +4,8 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const fetch = require('node-fetch');
 const mongoose = require('mongoose');
+const CacheModel = require('./models/cache');
+const PushToken = require('./models/pushToken');
 const createAllSportsRouter = require('./routes/allsports');
 const createDiagnosticsRouter = require('./routes/diagnostics');
 const createFootballDataRouter = require('./routes/footballData');
@@ -13,6 +15,7 @@ const { createPushRouter } = require('./routes/push');
 const createSuperLigRouter = require('./routes/superlig');
 const { createUclRouter } = require('./routes/ucl');
 const createWeatherOddsRouter = require('./routes/weatherOdds');
+const { createAllSportsH2HService } = require('./services/allSportsH2HService');
 const { createHomeService } = require('./services/homeService');
 const { createApiResponder } = require('./utils/apiResponses');
 const { createUpstreamJsonClient } = require('./utils/upstream');
@@ -75,14 +78,6 @@ const writeLimiter = rateLimit({
 });
 
 app.use(publicLimiter);
-
-// --- MongoDB Persistent Cache ---
-const cacheSchema = new mongoose.Schema({
-  key:       { type: String, required: true, unique: true },
-  data:      mongoose.Schema.Types.Mixed,
-  expiresAt: { type: Date, required: true },
-});
-const CacheModel = mongoose.model('Cache', cacheSchema);
 
 let mongoConnected = false;
 if (MONGODB_URI) {
@@ -705,77 +700,15 @@ async function fetchSuperLigMatch(eventId) {
   });
 }
 
-function normalizeTeamLookupName(value) {
-  return (value || '')
-    .replace(/İ/g, 'I')
-    .replace(/ı/g, 'i')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]/g, '');
-}
-
-const ALLSPORTS_TEAM_ALIASES = {
-  besiktas: ['Besiktas', 'Besiktas JK'],
-  gaziantep: ['Gaziantep FK', 'Gaziantep'],
-  gaziantepfk: ['Gaziantep FK', 'Gaziantep'],
-  caykurrizespor: ['Rizespor', 'Caykur Rizespor', 'Rize'],
-  rizespor: ['Rizespor', 'Caykur Rizespor', 'Rize'],
-};
-
-function allSportsTeamQueries(name) {
-  const aliases = ALLSPORTS_TEAM_ALIASES[normalizeTeamLookupName(name)] || [];
-  return [...new Set([name, ...aliases].filter(Boolean))];
-}
-
-async function findAllSportsTeam(name) {
-  const queries = allSportsTeamQueries(name);
-  for (const query of queries) {
-    const data = await upstream.fetchJson(`${ALLSPORTS_BASE}?met=Teams&APIkey=${ALLSPORTS_KEY}&teamName=${encodeURIComponent(query)}`, {}, 'allsports team search');
-    const team = (data.result || [])[0];
-    if (team) return team;
-  }
-  return null;
-}
-
-async function fetchAllSportsH2HMatches(home, away) {
-  if (!ALLSPORTS_KEY) throw new Error('ALLSPORTS_KEY missing');
-  const cacheKey = `allsports_h2h_v1_${home}_${away}`;
-  const cached = await getCache(cacheKey);
-  if (cached) return cached;
-
-  return dedupe(cacheKey, async () => {
-    const fresh = await getCache(cacheKey);
-    if (fresh) return fresh;
-    const [homeTeam, awayTeam] = await Promise.all([
-      findAllSportsTeam(home),
-      findAllSportsTeam(away),
-    ]);
-    if (!homeTeam || !awayTeam) return [];
-
-    const h2hData = await upstream.fetchJson(`${ALLSPORTS_BASE}?met=H2H&APIkey=${ALLSPORTS_KEY}&firstTeamId=${homeTeam.team_key}&secondTeamId=${awayTeam.team_key}`, {}, 'allsports h2h');
-
-    const matches = (h2hData.result?.H2H || [])
-      .filter(m => m.event_status === 'Finished' && m.event_final_result)
-      .map(m => {
-        const parts = (m.event_final_result || '').split(' - ');
-        return {
-          date: m.event_date,
-          home: m.event_home_team,
-          away: m.event_away_team,
-          homeScore: parseInt(parts[0]) || 0,
-          awayScore: parseInt(parts[1]) || 0,
-          league: m.league_name,
-          team1Home: m.home_team_key === homeTeam.team_key,
-        };
-      })
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
-      .slice(0, 12);
-
-    if (matches.length > 0) await setCache(cacheKey, matches, TTL.historical);
-    return matches;
-  });
-}
+const { fetchAllSportsH2HMatches } = createAllSportsH2HService({
+  allSportsBase: ALLSPORTS_BASE,
+  allSportsKey: ALLSPORTS_KEY,
+  dedupe,
+  getCache,
+  setCache,
+  TTL,
+  upstream,
+});
 
 app.use(createSuperLigRouter({
   apiError,
@@ -843,16 +776,6 @@ app.use(createAllSportsRouter({
   TTL,
   upstream,
 }));
-
-// ─── Push Notifications ───────────────────────────────────────────────────────
-
-const pushTokenSchema = new mongoose.Schema({
-  token:        { type: String, required: true, unique: true },
-  prefs:        { daily: Boolean, favTeam: Boolean, featured: Boolean },
-  watchedTeams: [String],
-  updatedAt:    { type: Date, default: Date.now },
-});
-const PushToken = mongoose.model('PushToken', pushTokenSchema);
 
 app.use(createPushRouter({
   fetchImpl: fetch,

@@ -475,6 +475,7 @@ export default function SLMatchDetail() {
   const homeBelowPts = parseInt(p('homeBelowPts') || '0') || undefined;
   const awayAbovePts = parseInt(p('awayAbovePts') || '0') || undefined;
   const awayBelowPts = parseInt(p('awayBelowPts') || '0') || undefined;
+  const safetyPts    = parseInt(p('safetyPts') || '0') || undefined;
   const timeParam  = p('time');
   const scoreParam = p('score');
   const finishedParam = p('finished') === '1';
@@ -640,6 +641,7 @@ export default function SLMatchDetail() {
   const homeFormPts = calcFormPointsSL(homeForm, homeTeamId);
   const awayFormPts = calcFormPointsSL(awayForm,  awayTeamId);
   const hasFormData = homeStats.total > 0 && awayStats.total > 0;
+  const hasRealFormData = homeFormCalc.total > 0 && awayFormCalc.total > 0;
   const usingStandingsFallback = homeStandingStats !== null || awayStandingStats !== null;
   const { hasFormIssue, hasH2HIssue, hasWeatherIssue } = detailIssueFlags(dataIssues);
 
@@ -660,11 +662,11 @@ export default function SLMatchDetail() {
   const riskWarns     = getRiskWarnings(homeStats, awayStats, h2hData.length, analysis, 2);
   const compareComment    = hasFormData ? getCompareComment(homeStats, awayStats, home, away) : '';
   const h2hComment        = getH2HCommentSL(h2hData, home, away);
-  const homeAwayComment   = hasFormData ? getHomeAwayComment(homeStats, awayStats, home, away) : '';
+  const homeAwayComment   = hasRealFormData ? getHomeAwayComment(homeFormCalc, awayFormCalc, home, away) : '';
   const deepH2H           = getDeepH2HStatsSL(h2hData, home, away);
   const motivationComment = getMotivationComment(homePos, awayPos, leagueApiId, {
     homePts, awayPts, homePlayed, awayPlayed, leaderPts, totalTeams,
-    homeAbovePts, homeBelowPts, awayAbovePts, awayBelowPts,
+    homeAbovePts, homeBelowPts, awayAbovePts, awayBelowPts, safetyPts,
   });
 
   if (loading) return <View style={[styles.loaderContainer, { backgroundColor: c.bg }]}><ActivityIndicator size="large" color={c.primary}/></View>;
@@ -738,7 +740,7 @@ export default function SLMatchDetail() {
           textStyle={[styles.limitedDataText, { color: isDark ? '#3FB950' : '#1B6B3A' }]}
         />
       )}
-      {!hasFormData && !usingStandingsFallback && (
+      {!hasFormData && hasRealFormData && (
         <DetailStatusBanner
           message="⚠️ Bu maç için sezon form verisi sınırlı. Analiz genel lig profiline dayanıyor."
           boxStyle={[styles.limitedDataBanner, { backgroundColor: isDark ? '#1A1205' : '#FFF8E1', borderColor: isDark ? '#4A3600' : '#E6A817' }]}
@@ -857,17 +859,17 @@ export default function SLMatchDetail() {
             <CompareRow label="Gol / Maç"           homeVal={homeStats.totalAvgGf}         awayVal={awayStats.totalAvgGf}/>
             <CompareRow label="Yenilen / Maç"        homeVal={homeStats.totalAvgGa}         awayVal={awayStats.totalAvgGa}        higherIsBetter={false}/>
             <CompareRow label="Galibiyet %"           homeVal={`${homeStats.totalWinPct}%`} awayVal={`${awayStats.totalWinPct}%`}/>
-            {!usingStandingsFallback && <CompareRow label="Son 5 (puan)" homeVal={homeFormPts} awayVal={awayFormPts}/>}
+            {hasRealFormData && <CompareRow label="Son 5 (puan)" homeVal={homeFormPts} awayVal={awayFormPts}/>}
             <CompareRow label="2.5 Üst %"            homeVal={`${homeStats.over25Pct}%`}   awayVal={`${awayStats.over25Pct}%`}/>
-            {!usingStandingsFallback && <CompareRow label="KG Var %" homeVal={`${homeStats.kgVarPct}%`} awayVal={`${awayStats.kgVarPct}%`}/>}
-            {!usingStandingsFallback && <CompareRow label="İç Saha Galibiyet %"  homeVal={`${homeStats.homeWinPct}% (${homeStats.homePlayed})`}  awayVal={`${awayStats.homeWinPct}% (${awayStats.homePlayed})`}/>}
-            {!usingStandingsFallback && <CompareRow label="Deplasman Galibiyet %" homeVal={`${homeStats.awayWinPct}% (${homeStats.awayPlayed})`} awayVal={`${awayStats.awayWinPct}% (${awayStats.awayPlayed})`}/>}
+            {hasRealFormData && <CompareRow label="KG Var %" homeVal={`${homeFormCalc.kgVarPct}%`} awayVal={`${awayFormCalc.kgVarPct}%`}/>}
+            {hasRealFormData && <CompareRow label="İç Saha Galibiyet %"  homeVal={`${homeFormCalc.homeWinPct}% (${homeFormCalc.homePlayed})`}  awayVal={`${awayFormCalc.homeWinPct}% (${awayFormCalc.homePlayed})`}/>}
+            {hasRealFormData && <CompareRow label="Deplasman Galibiyet %" homeVal={`${homeFormCalc.awayWinPct}% (${homeFormCalc.awayPlayed})`} awayVal={`${awayFormCalc.awayWinPct}% (${awayFormCalc.awayPlayed})`}/>}
             <View style={[styles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
               <Text style={[styles.insightText, { color: c.text }]}>{compareComment}</Text>
             </View>
 
             {/* Son Form — sadece gerçek form verisi varsa göster */}
-            {!usingStandingsFallback && (
+            {hasRealFormData && (
               <>
             <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SON FORM  (İ = İç Saha · D = Deplasman)</Text>
             <FormHeatRowSL matches={homeForm} teamId={homeTeamId} label={home}/>
@@ -903,7 +905,7 @@ export default function SLMatchDetail() {
         )}
 
         {/* İç Saha / Deplasman Analizi — standings fallback'te iç/dış saha ayrımı yoktur */}
-        {!usingStandingsFallback && (
+        {hasRealFormData && (
           <>
             <Text style={[styles.sectionLabel, { color: c.textMuted }]}>İÇ SAHA / DEPLASMAN ANALİZİ</Text>
             {hasFormData ? (
@@ -1290,3 +1292,4 @@ const scStyles = StyleSheet.create({
   nedenBox:    { marginTop:8, paddingTop:8, borderTopWidth:0.5, borderTopColor:'#ddd6ff' },
   nedenBullet: { fontSize:12, color:'#444', lineHeight:19, marginBottom:3 },
 });
+

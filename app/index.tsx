@@ -110,6 +110,7 @@ type Metrics = {
   homeBelowPts?: number;
   awayAbovePts?: number;
   awayBelowPts?: number;
+  safetyPts?: number;
   reason?: string;         // hasData=false ise neden
   summary: string;         // kart altındaki açıklama cümlesi
 };
@@ -214,6 +215,12 @@ function getStandingNeighbors(standings: Standing[] | undefined, pos?: number) {
   };
 }
 
+function getSafetyLinePts(standings: Standing[] | undefined) {
+  if (!standings || standings.length < 10) return undefined;
+  const bottomStart = standings.length >= 18 ? standings.length - 3 : Math.max(standings.length - 2, 1);
+  return standings.find(s => s.pos === bottomStart - 1)?.pts;
+}
+
 function computeMetrics(home: Standing | null, away: Standing | null, standings?: Standing[], leagueApiId?: number): Metrics {
   if (!home || !away) {
     const reason = 'Takım tablo satırı eşleşmedi';
@@ -251,6 +258,7 @@ function computeMetrics(home: Standing | null, away: Standing | null, standings?
   const leaderPts = standings?.reduce((max, s) => Math.max(max, s.pts), 0);
   const homeNeighbors = getStandingNeighbors(standings, home.pos);
   const awayNeighbors = getStandingNeighbors(standings, away.pos);
+  const safetyPts = getSafetyLinePts(standings);
 
   return {
     hasData: true,
@@ -273,6 +281,7 @@ function computeMetrics(home: Standing | null, away: Standing | null, standings?
     homeBelowPts: homeNeighbors.belowPts,
     awayAbovePts: awayNeighbors.abovePts,
     awayBelowPts: awayNeighbors.belowPts,
+    safetyPts,
     summary: buildMatchSummary({ expectedGoals, favorite, confidence, tempo, homePpg, awayPpg }),
   };
 }
@@ -1368,6 +1377,7 @@ export default function HomeScreen() {
       homeBelowPts: metrics?.homeBelowPts != null ? String(metrics.homeBelowPts) : '',
       awayAbovePts: metrics?.awayAbovePts != null ? String(metrics.awayAbovePts) : '',
       awayBelowPts: metrics?.awayBelowPts != null ? String(metrics.awayBelowPts) : '',
+      safetyPts: metrics?.safetyPts != null ? String(metrics.safetyPts) : '',
       leagueAvg: metrics?.leagueAvg != null ? String(metrics.leagueAvg) : '',
     };
     if (m.leagueApiId === 203) {

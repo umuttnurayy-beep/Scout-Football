@@ -520,6 +520,7 @@ export default function MatchDetail() {
   const homeBelowPts   = parseInt(p('homeBelowPts') || '0') || undefined;
   const awayAbovePts   = parseInt(p('awayAbovePts') || '0') || undefined;
   const awayBelowPts   = parseInt(p('awayBelowPts') || '0') || undefined;
+  const safetyPts      = parseInt(p('safetyPts') || '0') || undefined;
   const leagueAvgParam = parseFloat(p('leagueAvg') || '0') || 1.5;
 
   const matchDate = utcDate ? new Date(utcDate).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'}) : '';
@@ -686,7 +687,7 @@ export default function MatchDetail() {
     ? getUclKnockoutMotivation(matchContext.stage)
     : getMotivationComment(homePos, awayPos, leagueApiId, {
         homePts, awayPts, homePlayed, awayPlayed, leaderPts, totalTeams,
-        homeAbovePts, homeBelowPts, awayAbovePts, awayBelowPts,
+        homeAbovePts, homeBelowPts, awayAbovePts, awayBelowPts, safetyPts,
       });
   const drawAnalysis      = hasFormData ? getDrawAnalysis(oddsData, homeStats, awayStats) : '';
 
