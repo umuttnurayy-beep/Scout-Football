@@ -1,4 +1,4 @@
-const { createCache } = require('../utils/cache');
+const { TTL, createCache, getCachePolicy } = require('../utils/cache');
 
 describe('cache helpers', () => {
   test('expired memory cache remains available as stale last-good data', async () => {
@@ -60,5 +60,16 @@ describe('cache helpers', () => {
         },
       },
     });
+  });
+
+  test('exposes cache policy metadata for diagnostics', () => {
+    const policy = getCachePolicy();
+    expect(policy.live).toMatchObject({
+      ttlMs: TTL.live,
+      realtime: true,
+      refresh: expect.any(String),
+    });
+    expect(policy.odds.ttlMs).toBe(TTL.odds);
+    expect(policy.seasonFixtures.ttlMs).toBe(TTL.seasonFixtures);
   });
 });

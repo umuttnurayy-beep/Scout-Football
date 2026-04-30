@@ -74,6 +74,18 @@ describe('ScoutFootball backend smoke tests', () => {
         inFlightCount: expect.any(Number),
         byPrefix: expect.any(Object),
       },
+      cachePolicy: {
+        live: {
+          ttlMs: expect.any(Number),
+          realtime: expect.any(Boolean),
+          refresh: expect.any(String),
+        },
+        odds: {
+          ttlMs: expect.any(Number),
+          realtime: expect.any(Boolean),
+          refresh: expect.any(String),
+        },
+      },
       fallbacks: {
         staleServedCount: expect.any(Number),
         errorWithoutStaleCount: expect.any(Number),

@@ -15,6 +15,83 @@ const TTL = {
   topscorers: 60 * 60 * 1000,
 };
 
+const CACHE_POLICY = {
+  live: {
+    ttlMs: TTL.live,
+    realtime: true,
+    refresh: 'Canlı maç skorları ve canlı durumlar için kısa TTL.',
+  },
+  matches: {
+    ttlMs: TTL.matches,
+    realtime: false,
+    refresh: 'Tarihi belirsiz fixture istekleri için güvenli kısa varsayılan.',
+  },
+  matchday: {
+    ttlMs: TTL.matchday,
+    realtime: false,
+    refresh: 'Bugünün maç listesi; sık değişebilir ama her istekte upstream çağrısı gerektirmez.',
+  },
+  futureMatches: {
+    ttlMs: TTL.futureMatches,
+    realtime: false,
+    refresh: 'Gelecek fikstürler düşük değişim hızına sahiptir.',
+  },
+  pastMatches: {
+    ttlMs: TTL.pastMatches,
+    realtime: false,
+    refresh: 'Geçmiş maçlar genellikle statiktir; geç düzeltmelere alan bırakılır.',
+  },
+  standings: {
+    ttlMs: TTL.standings,
+    realtime: false,
+    refresh: 'Puan tablosu maç günlerinde değişebilir, saatlik yenileme yeterli.',
+  },
+  h2h: {
+    ttlMs: TTL.h2h,
+    realtime: false,
+    refresh: 'Yakın geçmiş karşılaşmalar sık değişmez; finished maçlarda historical kullanılır.',
+  },
+  historical: {
+    ttlMs: TTL.historical,
+    realtime: false,
+    refresh: 'Tarihsel veri uzun süre sabit kabul edilir.',
+  },
+  weather: {
+    ttlMs: TTL.weather,
+    realtime: false,
+    refresh: 'Hava durumu maç saatine yaklaştıkça değişebilir; kısa-orta TTL.',
+  },
+  odds: {
+    ttlMs: TTL.odds,
+    realtime: false,
+    refresh: 'Oranlar maç öncesi oynak olabilir; kısa TTL ve frontend son-görülen oran cache’i birlikte kullanılır.',
+  },
+  team: {
+    ttlMs: TTL.team,
+    realtime: false,
+    refresh: 'Takım profili, kadro ve statik metadata günlük tutulabilir.',
+  },
+  teamStats: {
+    ttlMs: TTL.teamStats,
+    realtime: false,
+    refresh: 'Takım form/istatistik verisi günlük yenileme için uygundur.',
+  },
+  seasonFixtures: {
+    ttlMs: TTL.seasonFixtures,
+    realtime: false,
+    refresh: 'Sezon fikstürü düşük değişim hızına sahiptir.',
+  },
+  topscorers: {
+    ttlMs: TTL.topscorers,
+    realtime: false,
+    refresh: 'Gol krallığı maçlardan sonra değişebilir; saatlik yenileme yeterli.',
+  },
+};
+
+function getCachePolicy() {
+  return JSON.parse(JSON.stringify(CACHE_POLICY));
+}
+
 function startOfUtcDay(date) {
   return new Date(`${date}T00:00:00Z`).getTime();
 }
@@ -175,8 +252,10 @@ function createCache({ CacheModel, isMongoConnected }) {
 }
 
 module.exports = {
+  CACHE_POLICY,
   TTL,
   createCache,
+  getCachePolicy,
   isLiveStatus,
   ttlForMatchDate,
 };

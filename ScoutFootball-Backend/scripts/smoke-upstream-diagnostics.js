@@ -54,6 +54,10 @@ function validateStats(payload) {
   assert(typeof payload.cache.dedupeSharedCount === 'number', 'cache.dedupeSharedCount is a number');
   assert(typeof payload.cache.inFlightCount === 'number', 'cache.inFlightCount is a number');
   assert(payload.cache.byPrefix && typeof payload.cache.byPrefix === 'object' && !Array.isArray(payload.cache.byPrefix), 'cache.byPrefix is an object');
+  assert(payload.cachePolicy && typeof payload.cachePolicy === 'object', '/diagnostics/upstream includes cache policy');
+  assert(payload.cachePolicy.live && typeof payload.cachePolicy.live.ttlMs === 'number', 'cachePolicy.live.ttlMs is a number');
+  assert(payload.cachePolicy.live.realtime === true, 'cachePolicy.live is marked realtime');
+  assert(payload.cachePolicy.odds && typeof payload.cachePolicy.odds.refresh === 'string', 'cachePolicy.odds includes refresh note');
   assert(payload.fallbacks && typeof payload.fallbacks === 'object', '/diagnostics/upstream includes fallback metrics');
   assert(typeof payload.fallbacks.staleServedCount === 'number', 'fallbacks.staleServedCount is a number');
   assert(typeof payload.fallbacks.errorWithoutStaleCount === 'number', 'fallbacks.errorWithoutStaleCount is a number');

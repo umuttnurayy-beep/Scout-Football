@@ -10,6 +10,7 @@ const { createUpstreamJsonClient } = require('./utils/upstream');
 const {
   TTL,
   createCache,
+  getCachePolicy,
   isLiveStatus,
   ttlForMatchDate,
 } = require('./utils/cache');
@@ -483,7 +484,7 @@ app.get('/h2h/:matchId', async (req, res) => {
     const data = await upstream.fetchJson(`${FOOTBALL_DATA_BASE}/matches/${matchId}/head2head?limit=10`, {
       headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY },
     }, 'football-data h2h');
-    const ttl = isFinished ? TTL.historical : 24 * 60 * 60 * 1000;
+    const ttl = isFinished ? TTL.historical : TTL.h2h;
     await setCache(cacheKey, data.matches || [], ttl);
     res.json(data.matches || []);
   } catch (e) {
@@ -1162,7 +1163,7 @@ app.get('/allsports/team-stats/:teamName', async (req, res) => {
       avgPossession: possMatches > 0 ? Math.round(totalPoss / possMatches) : null,
       matchesAnalyzed: Math.max(cornerMatches, possMatches),
     };
-    await setCache(cacheKey, result, 24 * 60 * 60 * 1000);
+    await setCache(cacheKey, result, TTL.teamStats);
     res.json(result);
   } catch (e) {
     console.error('/allsports/team-stats hata:', e.message);
@@ -1285,6 +1286,7 @@ app.get('/diagnostics/upstream', async (req, res) => {
     ok: true,
     upstream: upstream.getStats(),
     cache: getCacheStats(),
+    cachePolicy: getCachePolicy(),
     fallbacks: getFallbackMetrics(),
   });
 });
