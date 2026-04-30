@@ -92,3 +92,23 @@ export function dataNoticeMessage(type: 'stale' | 'error'): string {
   }
   return 'Veri şu an alınamadı. Ekrandaki bilgiler eski cache veya sınırlı kaynakla yüklenmiş olabilir.';
 }
+
+export function summarizeSourceWarnings(warnings: string[] | undefined): string | null {
+  const items = Array.isArray(warnings)
+    ? warnings.map(item => String(item || '').trim()).filter(Boolean)
+    : [];
+  if (items.length === 0) return null;
+
+  const joined = items.join(' ').toLowerCase();
+  if (joined.includes('super lig')) {
+    return 'Süper Lig kaynağı şu an sınırlı çalışıyor; bazı kartlar eksik veya gecikmeli görünebilir.';
+  }
+  if (joined.includes('standings')) {
+    return 'Puan tablosu kaynağı şu an sınırlı çalışıyor; bazı sıralama karşılaştırmaları eksik kalabilir.';
+  }
+  if (joined.includes('main match feed')) {
+    return 'Ana maç kaynağı şu an sınırlı çalışıyor; bazı maçlar geç yüklenebilir.';
+  }
+
+  return 'Bazı veri kaynakları şu an sınırlı çalışıyor; ekrandaki içerik kısmi veriyle hazırlanmış olabilir.';
+}

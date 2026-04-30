@@ -188,6 +188,8 @@ export type HomeData = {
   standings: Record<number, Standing[]>;
   featuredMatchId?: number | null;
   stale?: boolean;
+  issues?: string[];
+  sourceWarnings?: string[];
   nextPreview: {
     date: string;
     matches: any[];
@@ -247,6 +249,8 @@ export async function getHomeData(date: string): Promise<HomeData | null> {
       ...data,
       stale: Boolean(data.stale || isStaleApiData(data)),
       standings: data.standings || {},
+      issues: arrayOrEmpty<string>(data.issues),
+      sourceWarnings: arrayOrEmpty<string>(data.sourceWarnings),
       nextPreview: data.nextPreview || null,
     };
   } catch (e) {

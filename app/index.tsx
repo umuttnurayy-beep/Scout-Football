@@ -11,7 +11,7 @@ import {
   clearLastApiError, getAllSportsH2H, getCityForTeam, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, HomeData, Standing,
 } from '../services/api';
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
-import { dataNoticeMessage, matchListEmptyMessage } from '../utils/emptyStates';
+import { dataNoticeMessage, matchListEmptyMessage, summarizeSourceWarnings } from '../utils/emptyStates';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -128,6 +128,7 @@ type ListItem = {
   summary?: string;
   filter?: string;
   notice?: 'stale' | 'error';
+  warningText?: string | null;
 };
 
 type FeaturedMatchCache = Record<string, number>;
@@ -740,14 +741,14 @@ function EmptyActionCard({
   );
 }
 
-function DataNoticeCard({ type }: { type: 'stale' | 'error' }) {
+function DataNoticeCard({ type, message }: { type: 'stale' | 'error'; message?: string | null }) {
   const { colors: c, isDark } = useTheme();
   const isStale = type === 'stale';
   return (
     <View style={[sc.noticeCard, { backgroundColor: isDark ? '#18202A' : '#F3F7FC', borderColor: c.cardBorder }]}>
       <Ionicons name={isStale ? 'time-outline' : 'cloud-offline-outline'} size={18} color={isStale ? c.primary : '#E3B341'} />
       <Text style={[sc.noticeText, { color: c.textSub }]}>
-        {dataNoticeMessage(type)}
+        {message || dataNoticeMessage(type)}
       </Text>
     </View>
   );
@@ -906,6 +907,7 @@ export default function HomeScreen() {
   const [featuredMatchCache, setFeaturedMatchCache] = useState<FeaturedMatchCache>({});
   const [backendFeaturedMatchId, setBackendFeaturedMatchId] = useState<number | null>(null);
   const [homeDataNotice, setHomeDataNotice] = useState<'stale' | 'error' | null>(null);
+  const [homeDataWarningText, setHomeDataWarningText] = useState<string | null>(null);
   const [loading, setLoading]           = useState(true);
   const [refreshing, setRefreshing]     = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -990,7 +992,7 @@ export default function HomeScreen() {
       if (homeData) {
         if (requestId !== loadSeq.current) return;
         applyHomeData(dateStr, homeData, {
-          notice: homeData.stale ? 'stale' : null,
+          notice: homeData.stale ? 'stale' : (homeData.issues?.length ? 'error' : null),
           persist: true,
         });
         return;
@@ -998,6 +1000,7 @@ export default function HomeScreen() {
 
       setBackendFeaturedMatchId(null);
       setHomeDataNotice('error');
+      setHomeDataWarningText(null);
       try {
         const rawHome = await AsyncStorage.getItem(`${HOME_DATA_CACHE_KEY}:${dateStr}`);
         if (rawHome) {
@@ -1037,6 +1040,7 @@ export default function HomeScreen() {
     setMatches(visible);
     setBackendFeaturedMatchId(homeData.featuredMatchId ?? null);
     setHomeDataNotice(options.notice);
+    setHomeDataWarningText(options.notice === 'error' ? summarizeSourceWarnings(homeData.sourceWarnings) : null);
     setNextDayPreview(visible.length <= 1 ? buildNextPreviewFromHomeData(homeData, homeStandings) : null);
 
     if (options.persist) {
@@ -1049,6 +1053,7 @@ export default function HomeScreen() {
       clearLastApiError();
       const syncFallbackNotice = () => {
         setHomeDataNotice(getLastApiError() ? 'error' : null);
+        setHomeDataWarningText(null);
       };
       const needsStandings = Object.keys(standingsMap).length === 0;
       if (!silent && needsStandings) {
@@ -1302,7 +1307,7 @@ export default function HomeScreen() {
     const scoutMode = activeFilter === 'Scout' && featuredMatches.length > 0;
     const items: ListItem[] = [];
     if (activeFilter === 'Scout' && homeDataNotice) {
-      items.push({ key: `notice-${homeDataNotice}`, type: 'notice', notice: homeDataNotice });
+      items.push({ key: `notice-${homeDataNotice}`, type: 'notice', notice: homeDataNotice, warningText: homeDataWarningText });
     }
 
     if (scoutMode) {
@@ -1362,7 +1367,7 @@ export default function HomeScreen() {
     }
 
     return items;
-  }, [featuredMatches, sortedMatches, metricsMap, activeFilter, selectedDate, nextDayPreview, singleH2H, homeDataNotice]);
+  }, [featuredMatches, sortedMatches, metricsMap, activeFilter, selectedDate, nextDayPreview, singleH2H, homeDataNotice, homeDataWarningText]);
 
   function goToMatch(m: Match, metrics?: Metrics) {
     const metricParams = {
@@ -1424,7 +1429,7 @@ export default function HomeScreen() {
   function renderListItem({ item }: { item: ListItem }) {
     switch (item.type) {
       case 'notice':
-        return <DataNoticeCard type={item.notice || 'error'} />;
+        return <DataNoticeCard type={item.notice || 'error'} message={item.warningText} />;
       case 'section-header':
         return (
           <View style={sc.sectionHeader}>

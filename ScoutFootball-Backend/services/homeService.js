@@ -133,19 +133,24 @@ function createHomeService(deps) {
   }
 
   async function buildStandingsMapForLeagueIds(leagueIds) {
+    const issues = [];
+    const sourceWarnings = [];
     const entries = await Promise.all(leagueIds.map(async leagueId => {
       try {
         if (leagueId === 203) return [leagueId, await fetchSuperLigStandingsCached()];
         return [leagueId, await fetchStandingsForLeague(leagueId)];
       } catch (e) {
         logger.error(`[home] standings failed for ${leagueId}:`, e.message);
+        issues.push(`standings:${leagueId}`);
+        sourceWarnings.push(`Standings fetch failed for league ${leagueId}.`);
         return [leagueId, []];
       }
     }));
-    return entries.reduce((map, [leagueId, rows]) => {
+    const map = entries.reduce((map, [leagueId, rows]) => {
       if (Array.isArray(rows) && rows.length > 0) map[leagueId] = rows;
       return map;
     }, {});
+    return { map, issues, sourceWarnings };
   }
 
   async function buildHome(rawDate) {
@@ -161,15 +166,18 @@ function createHomeService(deps) {
         if (fresh) return { payload: fresh, stale: false };
 
         const upstreamErrors = [];
+        const sourceWarnings = [];
         const [matches, superLigMatches] = await Promise.all([
           fetchFootballDataMatchesForDate(date).catch(e => {
             logger.error('/home matches hata:', e.message);
             upstreamErrors.push('matches');
+            sourceWarnings.push('Main match feed failed for the selected day.');
             return [];
           }),
           fetchSuperLigMatchesForDate(date).catch(e => {
             logger.error('/home superlig hata:', e.message);
             upstreamErrors.push('superlig');
+            sourceWarnings.push('Super Lig match feed failed for the selected day.');
             return [];
           }),
         ]);
@@ -206,14 +214,17 @@ function createHomeService(deps) {
           }
         }
 
-        const standings = await buildStandingsMapForLeagueIds([...new Set([...currentLeagueIds, ...nextLeagueIds])]);
+        const standingsBundle = await buildStandingsMapForLeagueIds([...new Set([...currentLeagueIds, ...nextLeagueIds])]);
+        const issues = [...new Set([...upstreamErrors, ...standingsBundle.issues])];
         const payload = {
           date,
           matches: supportedMatches,
           superLigMatches,
-          standings,
+          standings: standingsBundle.map,
           featuredMatchId,
           nextPreview,
+          issues,
+          sourceWarnings: [...new Set([...sourceWarnings, ...standingsBundle.sourceWarnings])],
           generatedAt: new Date().toISOString(),
         };
 

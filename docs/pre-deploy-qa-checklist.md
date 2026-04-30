@@ -8,12 +8,14 @@ Bu checklist, son değişikliklerde dokunulan ana ekran veri uyarıları, maç d
 - [ ] `npm.cmd run lint`
 - [ ] `npm.cmd run test:api-contract`
 - [ ] `cd ScoutFootball-Backend && npm.cmd test`
+- [ ] `cd ScoutFootball-Backend && npm.cmd run smoke:home`
 - [ ] `cd ScoutFootball-Backend && npm.cmd run smoke:upstream` (`DIAGNOSTICS_SECRET` env ile)
 - [ ] `cd ScoutFootball-Backend && npm.cmd run smoke:superlig:all`
 
 ## Ana Ekran
 
 - [ ] Bugün sekmesi ilk açılışta maçları yüklerken alt tab bar sabit kalıyor.
+- [ ] `smoke:home` çıktısında `issues` ve `sourceWarnings` alanları beklenen durumda görünüyor; temiz günlerde `smoke:home:clean` fail etmiyor.
 - [ ] Tarih değiştirince `Veriler yenileniyor...` ve sağ üst güncelleme durumu yükleme bitince kapanıyor.
 - [ ] Maç olan gün gerçek maç listesi gösteriliyor.
 - [ ] Maç olmayan gün boş ekran ve sonraki öne çıkan maç kartı düzgün görünüyor.

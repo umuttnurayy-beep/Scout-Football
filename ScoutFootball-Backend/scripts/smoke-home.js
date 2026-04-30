@@ -7,7 +7,10 @@ const SUPPORTED_COMPETITIONS = new Set([2021, 2014, 2002, 2019, 2015, 2001]);
 const SUPER_LIG_CONTEXT_TEAM_ID = 138092; // Gaziantep FK, often exposes limited SportsDB form data.
 
 const baseUrl = (process.env.SCOUT_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, '');
-const date = process.argv[2] || new Date().toISOString().slice(0, 10);
+const args = process.argv.slice(2);
+const requireClean = args.includes('--require-clean');
+const dateArg = args.find(arg => !arg.startsWith('--'));
+const date = dateArg || new Date().toISOString().slice(0, 10);
 
 function fail(message) {
   console.error(`FAIL ${message}`);
@@ -56,6 +59,8 @@ function validateHomePayload(payload, label) {
   assert(data.standings && typeof data.standings === 'object' && !Array.isArray(data.standings), `${label}: standings is an object`);
   assert('featuredMatchId' in data, `${label}: featuredMatchId field exists`);
   assert(typeof data.generatedAt === 'string' && data.generatedAt.length > 0, `${label}: generatedAt exists`);
+  assert(Array.isArray(data.issues || []), `${label}: issues is an array when present`);
+  assert(Array.isArray(data.sourceWarnings || []), `${label}: sourceWarnings is an array when present`);
 
   const competitionIds = [...new Set((data.matches || []).map(match => match?.competition?.id).filter(Boolean))].sort();
   const unsupported = competitionIds.filter(id => !SUPPORTED_COMPETITIONS.has(id));
@@ -73,6 +78,8 @@ function validateHomePayload(payload, label) {
     featuredMatchId: data.featuredMatchId ?? null,
     generatedAt: data.generatedAt,
     stale: Boolean(payload.stale || data.stale),
+    issues: Array.isArray(data.issues) ? data.issues : [],
+    sourceWarnings: Array.isArray(data.sourceWarnings) ? data.sourceWarnings : [],
     next,
   };
 }
@@ -126,6 +133,7 @@ async function main() {
   console.log(`ScoutFootball /home smoke`);
   console.log(`Base URL: ${baseUrl}`);
   console.log(`Date: ${date}`);
+  console.log(`Require clean payload: ${requireClean ? 'yes' : 'no'}`);
   console.log('');
 
   const health = unwrap(await readJson('/health'));
@@ -150,6 +158,16 @@ async function main() {
   if (first.next.exists && first.next.matchCount + first.next.superLigCount === 0) {
     warn('nextPreview exists but has no matches');
   }
+  if (first.issues.length > 0) {
+    warn(`/home returned issues: ${first.issues.join(', ')}`);
+  }
+  if (first.sourceWarnings.length > 0) {
+    warn(`/home returned sourceWarnings: ${first.sourceWarnings.join(' | ')}`);
+  }
+  if (requireClean) {
+    assert(first.issues.length === 0, '/home issues is empty in clean mode');
+    assert(first.sourceWarnings.length === 0, '/home sourceWarnings is empty in clean mode');
+  }
 
   console.log('');
   console.log('Summary');
@@ -162,6 +180,8 @@ async function main() {
   console.log(`nextPreviewMatches: ${first.next.matchCount}`);
   console.log(`nextPreviewSuperLigMatches: ${first.next.superLigCount}`);
   console.log(`nextPreviewCompetitionIds: ${first.next.competitionIds.join(',') || '-'}`);
+  console.log(`issues: ${first.issues.join(',') || '-'}`);
+  console.log(`sourceWarnings: ${first.sourceWarnings.join(' | ') || '-'}`);
   console.log(`superLigContextTeamId: ${superLigContext.teamId}`);
   console.log(`superLigContextSource: ${superLigContext.source}`);
   console.log(`superLigContextLimited: ${superLigContext.isLimited}`);

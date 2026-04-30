@@ -7,6 +7,7 @@
     "start": "node server.js",
     "smoke:match": "node scripts/smoke-match-detail.js",
     "smoke:home": "node scripts/smoke-home.js",
+    "smoke:home:clean": "node scripts/smoke-home.js --require-clean",
     "smoke:superlig": "node scripts/smoke-superlig-context.js",
     "smoke:superlig:all": "node scripts/smoke-superlig-context.js --all",
     "smoke:upstream": "node scripts/smoke-upstream-diagnostics.js",
