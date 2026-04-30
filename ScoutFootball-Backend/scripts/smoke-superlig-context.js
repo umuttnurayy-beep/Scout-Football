@@ -6,7 +6,13 @@ const DEFAULT_BASE_URL = 'https://scoutfootball-backend-production.up.railway.ap
 const DEFAULT_TEAM_IDS = [138092, 133794]; // Gaziantep FK, Besiktas
 
 const baseUrl = (process.env.SCOUT_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, '');
-const teamIds = process.argv.slice(2).map(id => parseInt(id)).filter(Boolean);
+const args = process.argv.slice(2);
+const checkAllTeams = args.includes('--all');
+const requireEspn = args.includes('--require-espn') || process.env.REQUIRE_ESPN === '1';
+const teamIds = args
+  .filter(arg => !arg.startsWith('--'))
+  .map(id => parseInt(id))
+  .filter(Boolean);
 const targetTeamIds = teamIds.length > 0 ? teamIds : DEFAULT_TEAM_IDS;
 
 function fail(message) {
@@ -47,7 +53,7 @@ function unwrap(payload) {
   return payload;
 }
 
-function validateContext(payload, teamId) {
+function validateContext(payload, teamId, standingRow = null) {
   const context = unwrap(payload);
   assert(context && typeof context === 'object', `team ${teamId}: context object exists`);
   assert(context.teamId === teamId, `team ${teamId}: teamId matches`);
@@ -67,13 +73,36 @@ function validateContext(payload, teamId) {
   }
 
   if (!context.standingsStats) warn(`team ${teamId}: standingsStats is empty`);
+  if (standingRow?.team && context.standingsStats?.team && context.standingsStats.team !== standingRow.team) {
+    warn(`team ${teamId}: standings name mismatch (${standingRow.team} -> ${context.standingsStats.team})`);
+  }
+  if (requireEspn) {
+    assert(context.source === 'espn', `team ${teamId}: source is espn`);
+  } else if (context.source !== 'espn') {
+    warn(`team ${teamId}: source is ${context.source}, ESPN mapping may be missing or fallback was used`);
+  }
   return context;
+}
+
+async function loadTargetTeams() {
+  if (!checkAllTeams) return targetTeamIds.map(teamId => ({ teamId }));
+  const standings = unwrap(await readJson('/superlig/standings'));
+  assert(Array.isArray(standings), '/superlig/standings returns an array');
+  const teams = standings
+    .map(row => ({ teamId: parseInt(row.teamId), team: row.team, row }))
+    .filter(item => item.teamId);
+  assert(teams.length >= 16, '/superlig/standings exposes current league teams');
+  const uniqueIds = new Set(teams.map(item => item.teamId));
+  assert(uniqueIds.size === teams.length, '/superlig/standings team IDs are unique');
+  return teams;
 }
 
 async function main() {
   console.log('ScoutFootball Super Lig context smoke');
   console.log(`Base URL: ${baseUrl}`);
-  console.log(`Team IDs: ${targetTeamIds.join(', ')}`);
+  console.log(`Mode: ${checkAllTeams ? 'all standings teams' : 'selected teams'}`);
+  console.log(`Require ESPN source: ${requireEspn ? 'yes' : 'no'}`);
+  if (!checkAllTeams) console.log(`Team IDs: ${targetTeamIds.join(', ')}`);
   console.log('');
 
   const health = unwrap(await readJson('/health'));
@@ -81,12 +110,15 @@ async function main() {
   if (health && health.mongo !== true) warn('/health mongo is not true');
   assert(health?.seasons && typeof health.seasons === 'object', '/health seasons metadata exists');
 
+  const targetTeams = await loadTargetTeams();
   const contexts = [];
-  for (const teamId of targetTeamIds) {
+  for (const target of targetTeams) {
+    const teamId = target.teamId;
     console.log('');
     const context = validateContext(
       await readJson(`/superlig/team-context/${encodeURIComponent(teamId)}`),
       teamId,
+      target.row,
     );
     contexts.push(context);
   }

@@ -9,6 +9,7 @@ Bu checklist, son değişikliklerde dokunulan ana ekran veri uyarıları, maç d
 - [ ] `npm.cmd run test:api-contract`
 - [ ] `cd ScoutFootball-Backend && npm.cmd test`
 - [ ] `cd ScoutFootball-Backend && npm.cmd run smoke:upstream` (`DIAGNOSTICS_SECRET` env ile)
+- [ ] `cd ScoutFootball-Backend && npm.cmd run smoke:superlig:all`
 
 ## Ana Ekran
 
@@ -34,6 +35,7 @@ Bu checklist, son değişikliklerde dokunulan ana ekran veri uyarıları, maç d
 ## Süper Lig Maç Detayı
 
 - [ ] Süper Lig takım context verisi gelirse form ve karşılaştırma alanları doluyor.
+- [ ] `smoke:superlig:all` tüm güncel Süper Lig takımlarında en az 5 form maçı ve tercihen `source=espn` döndürüyor.
 - [ ] Maç bazlı veri sınırlıysa sezon tablosu fallback uyarısı görünüyor.
 - [ ] Standings fallback kullanılırken iç/dış saha alanı yanıltıcı şekilde gösterilmiyor.
 - [ ] H2H, hava ve maç karakteri boş state mesajları normal maç detayıyla aynı tonda.
