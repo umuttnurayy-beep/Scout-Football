@@ -451,7 +451,7 @@ function createSuperLigService({
   async function fetchTeamFormMatches(teamId) {
     const tid = parseInt(teamId);
     if (!tid) return [];
-    const cacheKey = `superlig_form_season_v6_${tid}`;
+    const cacheKey = `superlig_form_season_v7_${tid}`;
     const cached = await getCache(cacheKey);
     if (cached) return cached;
 
@@ -479,7 +479,7 @@ function createSuperLigService({
             const teamMatches = allSportsFixtures.filter(
               f => f.homeTeamId === tid || f.awayTeamId === tid,
             );
-            if (teamMatches.length > 0) {
+            if (teamMatches.length >= 5) {
               await setCache(cacheKey, teamMatches, TTL.teamStats);
               return teamMatches;
             }
@@ -487,7 +487,7 @@ function createSuperLigService({
 
           // Attempt 3: AllSports per-team lookup
           const teamMatches = await fetchAllSportsTeamFixtures(tid);
-          if (teamMatches.length > 0) {
+          if (teamMatches.length >= 5) {
             await setCache(cacheKey, teamMatches, TTL.teamStats);
             return teamMatches;
           }
@@ -496,7 +496,7 @@ function createSuperLigService({
         }
       }
 
-      // Final fallback: TheSportsDB season events
+      // Final fallback: TheSportsDB season events (15-event limit — only cache if sufficient)
       const allEvents = await fetchSeasonEvents();
       const teamMatches = allEvents
         .filter(e =>
@@ -513,7 +513,9 @@ function createSuperLigService({
           home:       e.strHomeTeam,
           away:       e.strAwayTeam,
         }));
-      if (teamMatches.length > 0) await setCache(cacheKey, teamMatches, TTL.teamStats);
+      // Only cache if we got a reasonable number of matches — avoids poisoning the cache with
+      // TheSportsDB's 15-event-per-season hard limit that produces only 1–2 matches per team.
+      if (teamMatches.length >= 5) await setCache(cacheKey, teamMatches, TTL.teamStats);
       return teamMatches;
     });
   }
@@ -521,7 +523,7 @@ function createSuperLigService({
   async function fetchTeamContext(teamId) {
     const tid = parseInt(teamId);
     if (!tid) return null;
-    const cacheKey = `superlig_team_context_v1_${tid}`;
+    const cacheKey = `superlig_team_context_v2_${tid}`;
     const cached = await getCache(cacheKey);
     if (cached) return cached;
 
