@@ -50,6 +50,7 @@ function createHomeService(deps) {
     hasMatchTeamNames,
     isLiveStatus,
     ttlForMatchDate,
+    buildHistory,
     logger = console,
   } = deps;
 
@@ -234,6 +235,18 @@ function createHomeService(deps) {
         if (visibleMatchCountFromPayload(supportedMatches, superLigMatches) > 0) {
           await setCache(staleKey, payload, HOME_STALE_TTL);
         }
+
+        if (buildHistory) {
+          buildHistory.record({
+            date,
+            generatedAt: payload.generatedAt,
+            matchCount: visibleMatchCountFromPayload(supportedMatches, superLigMatches),
+            issues: payload.issues,
+            sourceWarnings: payload.sourceWarnings,
+            stale: false,
+          });
+        }
+
         return { payload, stale: false };
       });
 
@@ -245,7 +258,19 @@ function createHomeService(deps) {
     } catch (e) {
       logger.error('/home hata:', e.message);
       const stale = await getStaleCache(staleKey);
-      if (stale) return { ok: true, stale: true, data: stale };
+      if (stale) {
+        if (buildHistory) {
+          buildHistory.record({
+            date: normalizeHomeDate(rawDate),
+            generatedAt: stale.generatedAt || new Date().toISOString(),
+            matchCount: 0,
+            issues: stale.issues || ['upstream_error'],
+            sourceWarnings: stale.sourceWarnings || ['Serving stale data due to upstream error.'],
+            stale: true,
+          });
+        }
+        return { ok: true, stale: true, data: stale };
+      }
       throw e;
     }
   }

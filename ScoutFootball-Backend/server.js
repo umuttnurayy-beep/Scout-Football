@@ -25,6 +25,7 @@ const { createHomeService } = require('./services/homeService');
 const { createSuperLigService } = require('./services/superLigService');
 
 const { createApiResponder } = require('./utils/apiResponses');
+const { createBuildHistory } = require('./utils/buildHistory');
 const { createUpstreamJsonClient } = require('./utils/upstream');
 const {
   TTL,
@@ -59,6 +60,7 @@ const {
 
 const app = express();
 const upstream = createUpstreamJsonClient({ fetchImpl: fetch });
+const buildHistory = createBuildHistory({ maxEntries: 20 });
 
 const allowedOrigins = CORS_ORIGINS
   ? CORS_ORIGINS.split(',').map(origin => origin.trim()).filter(Boolean)
@@ -185,6 +187,7 @@ const homeService = createHomeService({
   hasMatchTeamNames,
   isLiveStatus,
   ttlForMatchDate,
+  buildHistory,
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -297,6 +300,7 @@ app.use(createPushRouter({
 }));
 
 app.use(createDiagnosticsRouter({
+  buildHistory,
   getCachePolicy,
   getCacheStats,
   getFallbackMetrics,

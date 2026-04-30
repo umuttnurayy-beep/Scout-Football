@@ -1,6 +1,7 @@
 const express = require('express');
 
 function createDiagnosticsRouter({
+  buildHistory,
   getCachePolicy,
   getCacheStats,
   getFallbackMetrics,
@@ -27,13 +28,20 @@ function createDiagnosticsRouter({
 
   router.get('/diagnostics/upstream', async (req, res) => {
     if (!requireDiagnosticsSecret(req, res)) return;
-    return res.json({
+    const payload = {
       ok: true,
       upstream: upstream.getStats(),
       cache: getCacheStats(),
       cachePolicy: getCachePolicy(),
       fallbacks: getFallbackMetrics(),
-    });
+    };
+    if (buildHistory) {
+      payload.buildHistory = {
+        summary: buildHistory.getSummary(),
+        recent: buildHistory.getHistory(),
+      };
+    }
+    return res.json(payload);
   });
 
   return router;
