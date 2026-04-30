@@ -1,24 +1,59 @@
 const ESPN_SL_SCOREBOARD = 'https://site.api.espn.com/apis/site/v2/sports/soccer/tur.1/scoreboard';
 const ESPN_SL_STANDINGS = 'https://site.api.espn.com/apis/v2/sports/soccer/tur.1/standings';
 
+// AllSports league ID for Turkish Süper Lig
+const ALLSPORTS_SL_LEAGUE_ID = '237';
+
+// Keys: ESPN / AllSports / SportsDB name variants → TheSportsDB team ID
 const SL_ESPN_TO_SPORTSDB = {
-  'Galatasaray':         133804,
-  'Fenerbahce':          133807,
-  'Trabzonspor':         133796,
-  'Besiktas':            133794,
-  'Istanbul Basaksehir': 134589,
-  'Goztepe':             135891,
-  'Samsunspor':          133797,
-  'Caykur Rizespor':     133885,
-  'Konyaspor':           133835,
-  'Gaziantep FK':        138092,
-  'Kocaelispor':         133870,
-  'Alanyaspor':          135676,
-  'Antalyaspor':         133799,
-  'Genclerbirligi':      133798,
-  'Eyupspor':            138977,
-  'Kayserispor':         133802,
-  'Fatih Karagumruk':    138983,
+  'Galatasaray':              133804,
+  'Galatasaray SK':           133804,
+  'Fenerbahce':               133807,
+  'Fenerbahce SK':            133807,
+  'Fenerbahçe':               133807,
+  'Trabzonspor':              133796,
+  'Trabzonspor AS':           133796,
+  'Besiktas':                 133794,
+  'Besiktas JK':              133794,
+  'Beşiktaş':                 133794,
+  'Istanbul Basaksehir':      134589,
+  'Istanbul Basaksehir FK':   134589,
+  'Basaksehir FK':            134589,
+  'Basaksehir':               134589,
+  'Goztepe':                  135891,
+  'Göztepe':                  135891,
+  'Samsunspor':               133797,
+  'Caykur Rizespor':          133885,
+  'Rizespor':                 133885,
+  'Çaykur Rizespor':          133885,
+  'Konyaspor':                133835,
+  'Konyaspor Kulubu':         133835,
+  'Gaziantep FK':             138092,
+  'Gaziantep':                138092,
+  'Kocaelispor':              133870,
+  'Alanyaspor':               135676,
+  'Antalyaspor':              133799,
+  'Genclerbirligi':           133798,
+  'Gençlerbirliği':           133798,
+  'Eyupspor':                 138977,
+  'Eyüpspor':                 138977,
+  'Kayserispor':              133802,
+  'Fatih Karagumruk':         138983,
+  'Fatih Karagümrük':         138983,
+  'Kasimpasa':                133834,
+  'Kasımpaşa':                133834,
+  'Sivasspor':                133800,
+  'Hatayspor':                137630,
+  'Adana Demirspor':          134199,
+  'Umraniyespor':             138094,
+  'Ümraniyespor':             138094,
+  'Pendikspor':               135534,
+  'Sakaryaspor':              133879,
+  'Bodrum FK':                139327,
+  'Bodrumspor':               139327,
+  'Çorum FK':                 139328,
+  'Corum FK':                 139328,
+  'Elazığspor':               133867,
 };
 
 function formatDateForEspn(date) {
@@ -34,6 +69,7 @@ function sportsDbTeamIdForName(name) {
   if (!name) return 0;
   if (SL_ESPN_TO_SPORTSDB[name]) return SL_ESPN_TO_SPORTSDB[name];
   const normalize = v => v
+    .replace(/İ/g, 'I').replace(/ı/g, 'i')
     .toLowerCase()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
@@ -85,6 +121,15 @@ function mapEspnSuperLigEvent(event, fallbackDate) {
   };
 }
 
+function normalizeForMap(v) {
+  return (v || '')
+    .replace(/İ/g, 'I').replace(/ı/g, 'i')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
 function createSuperLigService({
   upstream,
   getCache,
@@ -96,7 +141,63 @@ function createSuperLigService({
   sportsDbBase,
   slLeagueId,
   currentSportsDbSeason,
+  allSportsBase,
+  allSportsKey,
 }) {
+  // Map AllSports fixture → normalized form match (same shape as TheSportsDB path)
+  function mapAllSportsFixture(f) {
+    const parts = (f.event_final_result || '').split(' - ');
+    const homeScore = parseInt(parts[0]);
+    const awayScore = parseInt(parts[1]);
+    if (Number.isNaN(homeScore) || Number.isNaN(awayScore)) return null;
+    const homeId = sportsDbTeamIdForName(f.event_home_team);
+    const awayId = sportsDbTeamIdForName(f.event_away_team);
+    return {
+      homeTeamId: homeId,
+      awayTeamId: awayId,
+      homeScore,
+      awayScore,
+      date: f.event_date,
+      home: f.event_home_team,
+      away: f.event_away_team,
+      source: 'allsports',
+    };
+  }
+
+  // Fetch all finished SL fixtures for the current season from AllSports
+  async function fetchAllSportsSeasonFixtures() {
+    if (!allSportsKey || !allSportsBase) return [];
+    const yearStart = (currentSportsDbSeason || '2025-2026').split('-')[0];
+    const yearEnd   = (currentSportsDbSeason || '2025-2026').split('-')[1] || String(Number(yearStart) + 1);
+    const cacheKey  = `sl_allsports_fixtures_v1_${currentSportsDbSeason}`;
+    const cached = await getCache(cacheKey);
+    if (cached) return cached;
+
+    return dedupe(cacheKey, async () => {
+      const fresh = await getCache(cacheKey);
+      if (fresh) return fresh;
+
+      const from = `${yearStart}-07-01`;
+      const to   = `${yearEnd}-07-01`;
+      const data = await upstream.fetchJson(
+        `${allSportsBase}?met=Fixtures&leagueId=${ALLSPORTS_SL_LEAGUE_ID}&from=${from}&to=${to}&APIkey=${allSportsKey}`,
+        {},
+        'allsports superlig season fixtures',
+      );
+      const finished = (data.result || [])
+        .filter(f => f.event_status === 'Finished' && f.event_final_result)
+        .map(mapAllSportsFixture)
+        .filter(Boolean)
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      if (finished.length > 0) {
+        await setCache(cacheKey, finished, TTL.seasonFixtures);
+        console.log(`[superlig] AllSports season fixtures loaded: ${finished.length} matches`);
+      }
+      return finished;
+    });
+  }
+
   async function fetchSeasonEvents() {
     const cacheKey = `superlig_season_events_${currentSportsDbSeason}`;
     const cached = await getCache(cacheKey);
@@ -195,13 +296,31 @@ function createSuperLigService({
   async function fetchTeamFormMatches(teamId) {
     const tid = parseInt(teamId);
     if (!tid) return [];
-    const cacheKey = `superlig_form_season_v3_${tid}`;
+    const cacheKey = `superlig_form_season_v4_${tid}`;
     const cached = await getCache(cacheKey);
     if (cached) return cached;
 
     return dedupe(cacheKey, async () => {
       const fresh = await getCache(cacheKey);
       if (fresh) return fresh;
+
+      // Primary: AllSports full season fixtures (TheSportsDB free tier returns only ~15 events)
+      try {
+        const allSportsFixtures = await fetchAllSportsSeasonFixtures();
+        if (allSportsFixtures.length > 15) {
+          const teamMatches = allSportsFixtures.filter(
+            f => f.homeTeamId === tid || f.awayTeamId === tid,
+          );
+          if (teamMatches.length > 0) {
+            await setCache(cacheKey, teamMatches, TTL.teamStats);
+            return teamMatches;
+          }
+        }
+      } catch (e) {
+        console.error('[superlig] AllSports fixtures fallback failed:', e.message);
+      }
+
+      // Fallback: TheSportsDB season events
       const allEvents = await fetchSeasonEvents();
       const teamMatches = allEvents
         .filter(e =>

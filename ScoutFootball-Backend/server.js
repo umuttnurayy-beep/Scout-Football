@@ -159,6 +159,8 @@ const slService = createSuperLigService({
   sportsDbBase: SPORTSDB_BASE,
   slLeagueId: SL_LEAGUE_ID,
   currentSportsDbSeason: CURRENT_SPORTSDB_SEASON,
+  allSportsBase: ALLSPORTS_BASE,
+  allSportsKey: ALLSPORTS_KEY,
 });
 
 const { fetchAllSportsH2HMatches } = createAllSportsH2HService({
