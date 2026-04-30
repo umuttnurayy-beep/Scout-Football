@@ -46,7 +46,7 @@ function createSuperLigRouter({
     const { teamId } = req.params;
     const tid = parseInt(teamId);
     if (!tid) return apiError(res, 400, 'bad_request', 'invalid teamId', []);
-    const cacheKey = `superlig_form_season_v5_${tid}`;
+    const cacheKey = `superlig_form_season_v6_${tid}`;
 
     try {
       return res.json(await fetchSuperLigTeamFormMatches(tid));

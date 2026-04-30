@@ -1,5 +1,28 @@
 const ESPN_SL_SCOREBOARD = 'https://site.api.espn.com/apis/site/v2/sports/soccer/tur.1/scoreboard';
-const ESPN_SL_STANDINGS = 'https://site.api.espn.com/apis/v2/sports/soccer/tur.1/standings';
+const ESPN_SL_STANDINGS  = 'https://site.api.espn.com/apis/v2/sports/soccer/tur.1/standings';
+const ESPN_SL_TEAM_BASE  = 'https://site.api.espn.com/apis/site/v2/sports/soccer/tur.1/teams';
+
+// TheSportsDB team ID → ESPN team ID (for team schedule endpoint)
+const SL_SPORTSDB_TO_ESPN_ID = {
+  133804: 432,    // Galatasaray
+  133807: 436,    // Fenerbahce
+  133796: 997,    // Trabzonspor
+  133794: 1895,   // Besiktas
+  134589: 7914,   // Istanbul Basaksehir
+  135891: 789,    // Goztepe
+  133797: 11429,  // Samsunspor
+  133835: 7648,   // Konyaspor
+  133885: 7656,   // Caykur Rizespor
+  138092: 20070,  // Gaziantep FK
+  133870: 995,    // Kocaelispor
+  135676: 9078,   // Alanyaspor
+  133834: 6870,   // Kasimpasa
+  133798: 996,    // Genclerbirligi
+  138977: 20729,  // Eyupspor
+  133799: 3794,   // Antalyaspor
+  133802: 3643,   // Kayserispor
+  138983: 20736,  // Fatih Karagumruk
+};
 
 // AllSports league ID for Turkish Süper Lig (237 is common, but may vary by account)
 const ALLSPORTS_SL_LEAGUE_ID = '237';
@@ -231,6 +254,60 @@ function createSuperLigService({
     });
   }
 
+  // ESPN team schedule — primary source for SL team form (no key needed, full season)
+  async function fetchEspnTeamSchedule(tid) {
+    const espnId = SL_SPORTSDB_TO_ESPN_ID[tid];
+    if (!espnId) return [];
+
+    const data = await upstream.fetchJson(
+      `${ESPN_SL_TEAM_BASE}/${espnId}/schedule`,
+      {},
+      'espn sl team schedule',
+    );
+
+    const events = Array.isArray(data.events) ? data.events : [];
+    const finished = [];
+
+    for (const event of events) {
+      const comp = (event.competitions || [])[0];
+      if (!comp) continue;
+      if (!comp.status?.type?.completed) continue;
+
+      const comps = comp.competitors || [];
+      const home = comps.find(c => c.homeAway === 'home');
+      const away = comps.find(c => c.homeAway === 'away');
+      if (!home || !away) continue;
+
+      const getScore = c => {
+        const s = c.score;
+        if (s === null || s === undefined) return null;
+        if (typeof s === 'object') return parseInt(s.displayValue ?? s.value ?? 0);
+        return parseInt(s);
+      };
+
+      const homeScore = getScore(home);
+      const awayScore = getScore(away);
+      if (homeScore === null || isNaN(homeScore) || awayScore === null || isNaN(awayScore)) continue;
+
+      const homeName = home.team?.displayName || home.team?.name || '';
+      const awayName = away.team?.displayName || away.team?.name || '';
+      const isHome   = parseInt(home.team?.id) === espnId;
+
+      finished.push({
+        homeTeamId: isHome ? tid : (sportsDbTeamIdForName(homeName) || 0),
+        awayTeamId: isHome ? (sportsDbTeamIdForName(awayName) || 0) : tid,
+        homeScore,
+        awayScore,
+        date:  (event.date || '').split('T')[0],
+        home:  homeName,
+        away:  awayName,
+        source: 'espn',
+      });
+    }
+
+    return finished.sort((a, b) => new Date(a.date) - new Date(b.date));
+  }
+
   // Per-team AllSports fixture lookup — fallback when league ID is wrong/unavailable
   async function fetchAllSportsTeamFixtures(tid) {
     if (!allSportsKey || !allSportsBase) return [];
@@ -374,7 +451,7 @@ function createSuperLigService({
   async function fetchTeamFormMatches(teamId) {
     const tid = parseInt(teamId);
     if (!tid) return [];
-    const cacheKey = `superlig_form_season_v5_${tid}`;
+    const cacheKey = `superlig_form_season_v6_${tid}`;
     const cached = await getCache(cacheKey);
     if (cached) return cached;
 
@@ -382,9 +459,21 @@ function createSuperLigService({
       const fresh = await getCache(cacheKey);
       if (fresh) return fresh;
 
+      // Attempt 1: ESPN team schedule (public API, no key, full season ~30 matches)
+      try {
+        const espnMatches = await fetchEspnTeamSchedule(tid);
+        if (espnMatches.length > 0) {
+          await setCache(cacheKey, espnMatches, TTL.teamStats);
+          console.log(`[superlig] ESPN team schedule for tid=${tid}: ${espnMatches.length} matches`);
+          return espnMatches;
+        }
+      } catch (e) {
+        console.error('[superlig] ESPN team schedule failed:', e.message);
+      }
+
+      // Attempt 2: AllSports league-wide fixtures
       if (allSportsKey && allSportsBase) {
         try {
-          // Attempt 1: league-wide fixtures (single cached API call, shared across teams)
           const allSportsFixtures = await fetchAllSportsSeasonFixtures();
           if (allSportsFixtures.length > 15) {
             const teamMatches = allSportsFixtures.filter(
@@ -396,7 +485,7 @@ function createSuperLigService({
             }
           }
 
-          // Attempt 2: per-team lookup (handles wrong league ID)
+          // Attempt 3: AllSports per-team lookup
           const teamMatches = await fetchAllSportsTeamFixtures(tid);
           if (teamMatches.length > 0) {
             await setCache(cacheKey, teamMatches, TTL.teamStats);
