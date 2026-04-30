@@ -44,6 +44,16 @@ function validateStats(payload) {
   assert(typeof payload.upstream.dedupedCount === 'number', 'dedupedCount is a number');
   assert(typeof payload.upstream.inFlightCount === 'number', 'inFlightCount is a number');
   assert(payload.upstream.byLabel && typeof payload.upstream.byLabel === 'object' && !Array.isArray(payload.upstream.byLabel), 'byLabel is an object');
+  assert(payload.cache && typeof payload.cache === 'object', '/diagnostics/upstream includes cache metrics');
+  assert(typeof payload.cache.hitCount === 'number', 'cache.hitCount is a number');
+  assert(typeof payload.cache.missCount === 'number', 'cache.missCount is a number');
+  assert(typeof payload.cache.staleHitCount === 'number', 'cache.staleHitCount is a number');
+  assert(typeof payload.cache.staleMissCount === 'number', 'cache.staleMissCount is a number');
+  assert(typeof payload.cache.setCount === 'number', 'cache.setCount is a number');
+  assert(typeof payload.cache.dedupeStartedCount === 'number', 'cache.dedupeStartedCount is a number');
+  assert(typeof payload.cache.dedupeSharedCount === 'number', 'cache.dedupeSharedCount is a number');
+  assert(typeof payload.cache.inFlightCount === 'number', 'cache.inFlightCount is a number');
+  assert(payload.cache.byPrefix && typeof payload.cache.byPrefix === 'object' && !Array.isArray(payload.cache.byPrefix), 'cache.byPrefix is an object');
   assert(payload.fallbacks && typeof payload.fallbacks === 'object', '/diagnostics/upstream includes fallback metrics');
   assert(typeof payload.fallbacks.staleServedCount === 'number', 'fallbacks.staleServedCount is a number');
   assert(typeof payload.fallbacks.errorWithoutStaleCount === 'number', 'fallbacks.errorWithoutStaleCount is a number');

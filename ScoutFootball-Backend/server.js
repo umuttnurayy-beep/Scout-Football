@@ -163,6 +163,7 @@ const {
   dedupe,
   getCache,
   getStaleCache,
+  getStats: getCacheStats,
   setCache,
 } = createCache({
   CacheModel,
@@ -1283,6 +1284,7 @@ app.get('/diagnostics/upstream', async (req, res) => {
   res.json({
     ok: true,
     upstream: upstream.getStats(),
+    cache: getCacheStats(),
     fallbacks: getFallbackMetrics(),
   });
 });

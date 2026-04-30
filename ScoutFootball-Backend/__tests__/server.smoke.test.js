@@ -63,6 +63,17 @@ describe('ScoutFootball backend smoke tests', () => {
         dedupedCount: expect.any(Number),
         inFlightCount: expect.any(Number),
       },
+      cache: {
+        hitCount: expect.any(Number),
+        missCount: expect.any(Number),
+        staleHitCount: expect.any(Number),
+        staleMissCount: expect.any(Number),
+        setCount: expect.any(Number),
+        dedupeStartedCount: expect.any(Number),
+        dedupeSharedCount: expect.any(Number),
+        inFlightCount: expect.any(Number),
+        byPrefix: expect.any(Object),
+      },
       fallbacks: {
         staleServedCount: expect.any(Number),
         errorWithoutStaleCount: expect.any(Number),
