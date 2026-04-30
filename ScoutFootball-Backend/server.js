@@ -4,10 +4,14 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const fetch = require('node-fetch');
 const mongoose = require('mongoose');
+const createAllSportsRouter = require('./routes/allsports');
 const createDiagnosticsRouter = require('./routes/diagnostics');
 const createFootballDataRouter = require('./routes/footballData');
 const createHealthRouter = require('./routes/health');
+const createHomeRouter = require('./routes/home');
 const { createPushRouter } = require('./routes/push');
+const createSuperLigRouter = require('./routes/superlig');
+const { createUclRouter } = require('./routes/ucl');
 const createWeatherOddsRouter = require('./routes/weatherOdds');
 const { createHomeService } = require('./services/homeService');
 const { createApiResponder } = require('./utils/apiResponses');
@@ -773,27 +777,27 @@ async function fetchAllSportsH2HMatches(home, away) {
   });
 }
 
-app.get('/superlig/standings', async (req, res) => {
-  const cacheKey = 'superlig_standings_v3';
-  try {
-    res.json(await fetchSuperLigStandingsCached());
-  } catch (e) {
-    console.error('/superlig/standings hata:', e.message);
-    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
-  }
-});
-
-app.get('/superlig/matches', async (req, res) => {
-  const { date } = req.query;
-  const d = date || new Date().toISOString().split('T')[0];
-  const cacheKey = `superlig_matches_v2_${d}`;
-  try {
-    res.json(await fetchSuperLigMatchesForDate(date));
-  } catch (e) {
-    console.error('/superlig/matches hata:', e.message);
-    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
-  }
-});
+app.use(createSuperLigRouter({
+  apiError,
+  apiStaleOrError,
+  config: {
+    CURRENT_SPORTSDB_SEASON,
+    SL_LEAGUE_ID,
+    SPORTSDB_BASE,
+  },
+  fetchAllSportsH2HMatches,
+  fetchSuperLigMatch,
+  fetchSuperLigMatchesForDate,
+  fetchSuperLigStandingsCached,
+  fetchSuperLigTeamContext,
+  fetchSuperLigTeamFormMatches,
+  getCache,
+  isLiveStatus,
+  setCache,
+  TTL,
+  ttlForMatchDate,
+  upstream,
+}));
 
 const homeService = createHomeService({
   dedupe,
@@ -809,314 +813,36 @@ const homeService = createHomeService({
   ttlForMatchDate,
 });
 
-app.get('/home', async (req, res) => {
-  try {
-    res.json(await homeService.buildHome(req.query.date));
-  } catch (e) {
-    apiError(res, 502, 'upstream_error', e.message, null);
-  }
-});
+app.use(createHomeRouter({ apiError, homeService }));
 
-app.get('/superlig/team-form/:teamId', async (req, res) => {
-  const { teamId } = req.params;
-  const tid = parseInt(teamId);
-  if (!tid) return apiError(res, 400, 'bad_request', 'invalid teamId', []);
-  const cacheKey = `superlig_form_season_v3_${tid}`;
+app.use(createUclRouter({
+  apiStaleOrError,
+  config: {
+    CURRENT_FOOTBALL_DATA_SEASON,
+    FOOTBALL_DATA_BASE,
+    FOOTBALL_DATA_KEY,
+  },
+  getCache,
+  missingConfig,
+  setCache,
+  TTL,
+  upstream,
+}));
 
-  try {
-    res.json(await fetchSuperLigTeamFormMatches(tid));
-  } catch (e) {
-    console.error('/superlig/team-form hata:', e.message);
-    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
-  }
-});
-
-app.get('/superlig/team-context/:teamId', async (req, res) => {
-  const { teamId } = req.params;
-  const tid = parseInt(teamId);
-  if (!tid) return apiError(res, 400, 'bad_request', 'invalid teamId', null);
-  const cacheKey = `superlig_team_context_v1_${tid}`;
-
-  try {
-    res.json(await fetchSuperLigTeamContext(tid));
-  } catch (e) {
-    console.error('/superlig/team-context hata:', e.message);
-    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, null);
-  }
-});
-
-app.get('/superlig/players/:teamId', async (req, res) => {
-  const { teamId } = req.params;
-  const cacheKey = `superlig_players_v1_${teamId}`;
-  const cached = await getCache(cacheKey);
-  if (cached) return res.json(cached);
-  try {
-    const data = await upstream.fetchJson(`${SPORTSDB_BASE}/lookup_all_players.php?id=${teamId}`, {}, 'sportsdb superlig players');
-    const players = data.player || [];
-    const result = players.map(p => ({
-      id:          p.idPlayer,
-      name:        p.strPlayer,
-      position:    p.strPosition,
-      nationality: p.strNationality,
-    }));
-    if (result.length > 0) await setCache(cacheKey, result, TTL.team);
-    res.json(result);
-  } catch (e) {
-    console.error('/superlig/players hata:', e.message);
-    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
-  }
-});
-
-app.get('/superlig/scorers', async (req, res) => {
-  const cacheKey = 'superlig_scorers_v2';
-  const cached = await getCache(cacheKey);
-  if (Array.isArray(cached) && cached.length > 0) return res.json(cached);
-  try {
-    const data = await upstream.fetchJson(`${SPORTSDB_BASE}/eventspastleague.php?l=${SL_LEAGUE_ID}&s=${CURRENT_SPORTSDB_SEASON}`, {}, 'sportsdb superlig scorers');
-    const events = data.events || [];
-
-    const scorerMap = {};
-
-    function parseGoalDetails(details, teamName) {
-      if (!details) return;
-      const parts = details.split(';');
-      for (const part of parts) {
-        const trimmed = part.trim();
-        if (!trimmed) continue;
-        // Format: "45':PlayerName" or "45' PlayerName"
-        const match = trimmed.match(/^\d+['+]?[:\s](.+)/);
-        if (!match) continue;
-        const playerName = match[1].trim();
-        if (!playerName) continue;
-        // Skip own goals
-        const lower = playerName.toLowerCase();
-        if (lower.includes('og') || lower.includes('own goal') || lower.includes('kendi')) continue;
-        if (!scorerMap[playerName]) {
-          scorerMap[playerName] = { name: playerName, goals: 0, team: teamName };
-        }
-        scorerMap[playerName].goals++;
-      }
-    }
-
-    for (const e of events) {
-      parseGoalDetails(e.strHomeGoalDetails, e.strHomeTeam);
-      parseGoalDetails(e.strAwayGoalDetails, e.strAwayTeam);
-    }
-
-    const result = Object.values(scorerMap)
-      .filter(s => s.goals > 0)
-      .sort((a, b) => b.goals - a.goals)
-      .slice(0, 50);
-
-    if (result.length > 0) await setCache(cacheKey, result, TTL.topscorers);
-    res.json(result);
-  } catch (e) {
-    console.error('/superlig/scorers hata:', e.message);
-    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
-  }
-});
-
-app.get('/superlig/match/:eventId/context', async (req, res) => {
-  const { eventId } = req.params;
-  const homeTeamId = parseInt(req.query.homeTeamId);
-  const awayTeamId = parseInt(req.query.awayTeamId);
-  const home = String(req.query.home || '');
-  const away = String(req.query.away || '');
-  const cacheKey = `superlig_match_context_v1_${eventId}_${homeTeamId || 0}_${awayTeamId || 0}_${home}_${away}`;
-  const cached = await getCache(cacheKey);
-  if (cached) return res.json({ ok: true, data: cached });
-
-  try {
-    const event = await fetchSuperLigMatch(eventId);
-    if (!event) return apiError(res, 404, 'not_found', 'match not found', null);
-
-    const resolvedHomeId = homeTeamId || parseInt(event.idHomeTeam) || 0;
-    const resolvedAwayId = awayTeamId || parseInt(event.idAwayTeam) || 0;
-    const resolvedHome = home || event.strHomeTeam || '';
-    const resolvedAway = away || event.strAwayTeam || '';
-
-    const [homeContextR, awayContextR, h2hR] = await Promise.allSettled([
-      resolvedHomeId ? fetchSuperLigTeamContext(resolvedHomeId) : Promise.resolve(null),
-      resolvedAwayId ? fetchSuperLigTeamContext(resolvedAwayId) : Promise.resolve(null),
-      resolvedHome && resolvedAway ? fetchAllSportsH2HMatches(resolvedHome, resolvedAway) : Promise.resolve([]),
-    ]);
-
-    const issues = [];
-    if (homeContextR.status === 'rejected' || awayContextR.status === 'rejected') issues.push('form');
-    if (h2hR.status === 'rejected') issues.push('h2h');
-
-    const isFinished = ['FT', 'AET', 'PEN', 'Match Finished'].includes(event.strStatus || '');
-    const matchDate = event.dateEvent || new Date().toISOString().split('T')[0];
-    const payload = {
-      event,
-      homeContext: homeContextR.status === 'fulfilled' ? homeContextR.value : null,
-      awayContext: awayContextR.status === 'fulfilled' ? awayContextR.value : null,
-      h2h: h2hR.status === 'fulfilled' ? h2hR.value : [],
-      issues,
-      generatedAt: new Date().toISOString(),
-    };
-
-    await setCache(cacheKey, payload, isFinished ? TTL.historical : ttlForMatchDate(matchDate, isLiveStatus(event.strStatus)));
-    return res.json({ ok: true, data: payload });
-  } catch (e) {
-    console.error('/superlig/match/:eventId/context hata:', e.message);
-    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, null);
-  }
-});
-
-app.get('/superlig/match/:eventId', async (req, res) => {
-  const { eventId } = req.params;
-  const cacheKey = `superlig_match_v1_${eventId}`;
-  try {
-    const event = await fetchSuperLigMatch(eventId);
-    if (!event) return apiError(res, 404, 'not_found', 'match not found', null);
-    res.json(event);
-  } catch (e) {
-    console.error('/superlig/match/:eventId hata:', e.message);
-    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, null);
-  }
-});
-
-// =====================
-// UCL KNOCKOUT BRACKET
-// =====================
-
-// Lig aşaması / eleme stage'leri — bunlar dışındaki her şey knockout sayılır
-const NON_KNOCKOUT_STAGES = new Set([
-  'LEAGUE_PHASE', 'GROUP_STAGE',
-  '1ST_QUALIFYING_ROUND', '2ND_QUALIFYING_ROUND', '3RD_QUALIFYING_ROUND',
-  'PRELIMINARY_ROUND', 'PRELIMINARY_SEMI_FINALS', 'PRELIMINARY_FINAL',
-]);
-
-// Bilinen play-off varyantlarını tek bir key'e normalize et
-function normalizeStage(raw) {
-  if (raw === 'LAST_16')                return 'ROUND_OF_16';
-  if (raw === 'ROUND_OF_16')            return 'ROUND_OF_16';
-  if (raw === 'QUARTER_FINALS')         return 'QUARTER_FINALS';
-  if (raw === 'SEMI_FINALS')            return 'SEMI_FINALS';
-  if (raw === 'FINAL')                  return 'FINAL';
-  // Play-off adı her sezonda değişebilir — hepsini tek key'e topla
-  if (raw.includes('PLAY_OFF') || raw.includes('PLAYOFF')) return 'KNOCKOUT_ROUND_PLAY_OFF';
-  return raw; // bilinmeyen ama non-knockout değil → olduğu gibi koy
-}
-
-app.get('/ucl/knockouts', async (req, res) => {
-  const season = req.query.season || CURRENT_FOOTBALL_DATA_SEASON;
-  if (!FOOTBALL_DATA_KEY) return missingConfig(res, 'FOOTBALL_DATA_KEY', {});
-  const cacheKey = `ucl_knockouts_v5_${season}`;
-  const cached = await getCache(cacheKey);
-  if (cached) return res.json(cached);
-  try {
-    const data = await upstream.fetchJson(
-      `${FOOTBALL_DATA_BASE}/competitions/CL/matches?season=${season}`,
-      { headers: { 'X-Auth-Token': FOOTBALL_DATA_KEY } },
-      'football-data ucl knockouts'
-    );
-    const allMatches = data.matches || [];
-
-    const uniqueStages = [...new Set(allMatches.map(m => m.stage))];
-    console.log(`[UCL ${season}] Tüm stage'ler:`, uniqueStages);
-
-    const result = {};
-    for (const match of allMatches) {
-      const raw = match.stage;
-      if (!raw || NON_KNOCKOUT_STAGES.has(raw)) continue;
-      const key = normalizeStage(raw);
-      if (!result[key]) result[key] = [];
-      result[key].push(match);
-    }
-
-    console.log(`[UCL ${season}] Sonuç key'leri:`, Object.keys(result));
-    await setCache(cacheKey, result, TTL.team);
-    res.json(result);
-  } catch (e) {
-    console.error('/ucl/knockouts hata:', e.message);
-    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, {});
-  }
-});
-
-// =====================
-// ALLSPORTS — Korner & Possession
-// =====================
-
-app.get('/allsports/team-stats/:teamName', async (req, res) => {
-  const teamName = decodeURIComponent(req.params.teamName);
-  const cacheKey = `allsports_v1_${teamName}`;
-  const cached = await getCache(cacheKey);
-  if (cached) return res.json(cached);
-  if (!ALLSPORTS_KEY) return missingConfig(res, 'ALLSPORTS_KEY', null);
-  try {
-    // Takım adıyla arama
-    const teamData = await upstream.fetchJson(`${ALLSPORTS_BASE}?met=Teams&APIkey=${ALLSPORTS_KEY}&teamName=${encodeURIComponent(teamName)}`, {}, 'allsports team search');
-    const teams = teamData.result || [];
-    if (teams.length === 0) return res.json(null);
-
-    const team = teams.find(t => {
-      const n = (t.team_name || '').toLowerCase();
-      const q = teamName.toLowerCase();
-      return n.includes(q) || q.includes(n);
-    }) || teams[0];
-
-    const teamId = team.team_key;
-
-    // Son 3 ayın maçları
-    const today = new Date().toISOString().split('T')[0];
-    const ago = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const fixData = await upstream.fetchJson(`${ALLSPORTS_BASE}?met=Fixtures&APIkey=${ALLSPORTS_KEY}&teamId=${teamId}&from=${ago}&to=${today}`, {}, 'allsports fixtures');
-    const fixtures = (fixData.result || []).filter(f => f.event_final_result && f.event_final_result !== '?');
-    if (fixtures.length === 0) return res.json(null);
-
-    let totalCorners = 0, totalOppCorners = 0, cornerMatches = 0;
-    let totalPoss = 0, possMatches = 0;
-
-    for (const f of fixtures) {
-      const stats = f.statistics;
-      if (!Array.isArray(stats)) continue;
-      const isHome = String(f.home_team_key) === String(teamId);
-
-      const cs = stats.find(s => s.type === 'Corners' || s.type === 'Corner Kicks');
-      if (cs) {
-        const my = parseInt(isHome ? cs.home : cs.away) || 0;
-        const opp = parseInt(isHome ? cs.away : cs.home) || 0;
-        totalCorners += my; totalOppCorners += opp; cornerMatches++;
-      }
-      const ps = stats.find(s => s.type === 'Ball Possession' || s.type === 'Possession');
-      if (ps) {
-        const pct = parseFloat((isHome ? ps.home : ps.away) || '0');
-        if (pct > 0) { totalPoss += pct; possMatches++; }
-      }
-    }
-
-    if (cornerMatches === 0 && possMatches === 0) return res.json(null);
-
-    const result = {
-      avgCorners:    cornerMatches > 0 ? (totalCorners / cornerMatches).toFixed(1) : null,
-      avgOppCorners: cornerMatches > 0 ? (totalOppCorners / cornerMatches).toFixed(1) : null,
-      avgPossession: possMatches > 0 ? Math.round(totalPoss / possMatches) : null,
-      matchesAnalyzed: Math.max(cornerMatches, possMatches),
-    };
-    await setCache(cacheKey, result, TTL.teamStats);
-    res.json(result);
-  } catch (e) {
-    console.error('/allsports/team-stats hata:', e.message);
-    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, null);
-  }
-});
-
-// ─── AllSports H2H ────────────────────────────────────────────────────────────
-app.get('/allsports/h2h', async (req, res) => {
-  const { home, away } = req.query;
-  if (!home || !away) return apiError(res, 400, 'bad_request', 'home ve away parametreleri gerekli', []);
-  if (!ALLSPORTS_KEY) return missingConfig(res, 'ALLSPORTS_KEY', []);
-
-  const cacheKey = `allsports_h2h_v1_${home}_${away}`;
-  try {
-    res.json(await fetchAllSportsH2HMatches(home, away));
-  } catch (e) {
-    console.error('/allsports/h2h hata:', e.message);
-    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
-  }
-});
+app.use(createAllSportsRouter({
+  apiError,
+  apiStaleOrError,
+  config: {
+    ALLSPORTS_BASE,
+    ALLSPORTS_KEY,
+  },
+  fetchAllSportsH2HMatches,
+  getCache,
+  missingConfig,
+  setCache,
+  TTL,
+  upstream,
+}));
 
 // ─── Push Notifications ───────────────────────────────────────────────────────
 
