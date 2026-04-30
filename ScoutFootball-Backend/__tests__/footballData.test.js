@@ -1,0 +1,122 @@
+const express = require('express');
+const request = require('supertest');
+const createFootballDataRouter = require('../routes/footballData');
+const { createApiResponder } = require('../utils/apiResponses');
+const { TTL } = require('../utils/cache');
+
+function createApp(overrides = {}) {
+  const cache = new Map();
+  const responder = createApiResponder({
+    getStaleCache: async key => cache.get(key) || null,
+    diagnosticsSecret: 'secret',
+  });
+  const calls = {
+    match: [],
+    matches: [],
+    h2h: [],
+    teamMatches: [],
+    standings: [],
+  };
+  const upstream = {
+    fetchJson: jest.fn(async () => ({ scorers: [] })),
+  };
+  const app = express();
+  app.use(createFootballDataRouter({
+    ...responder,
+    config: {
+      FOOTBALL_DATA_BASE: 'https://football-data.example',
+      FOOTBALL_DATA_KEY: overrides.FOOTBALL_DATA_KEY ?? 'fd-key',
+    },
+    fetchFootballDataH2H: async (matchId, isFinished) => {
+      calls.h2h.push({ matchId, isFinished });
+      return overrides.h2h ?? [{ id: 9001 }];
+    },
+    fetchFootballDataMatch: async matchId => {
+      calls.match.push(matchId);
+      return overrides.match ?? {
+        id: Number(matchId),
+        status: 'TIMED',
+        utcDate: '2026-05-01T18:00:00Z',
+        homeTeam: { id: 10, name: 'Home FC' },
+        awayTeam: { id: 20, name: 'Away FC' },
+      };
+    },
+    fetchFootballDataMatchesForDate: async date => {
+      calls.matches.push(date);
+      return overrides.matches ?? [{ id: 1 }];
+    },
+    fetchFootballDataTeamMatches: async teamId => {
+      calls.teamMatches.push(teamId);
+      return [{ id: teamId * 100 }];
+    },
+    fetchStandingsForLeague: async leagueId => {
+      calls.standings.push(leagueId);
+      return [{ team: 'Team', pts: 10 }];
+    },
+    footballDataMatchCacheTtl: () => 60000,
+    getCache: async key => cache.get(key) || null,
+    setCache: async (key, value) => cache.set(key, value),
+    TTL,
+    upstream,
+  }));
+  return { app, cache, calls, upstream };
+}
+
+describe('footballData router', () => {
+  test('GET /matches uses date query and returns matches', async () => {
+    const { app, calls } = createApp();
+
+    const res = await request(app).get('/matches?date=2026-05-01');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([{ id: 1 }]);
+    expect(calls.matches).toEqual(['2026-05-01']);
+  });
+
+  test('GET /match/:matchId/context returns context envelope before /match/:matchId route', async () => {
+    const { app, calls } = createApp();
+
+    const res = await request(app).get('/match/123/context');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      ok: true,
+      data: {
+        match: { id: 123 },
+        homeForm: [{ id: 1000 }],
+        awayForm: [{ id: 2000 }],
+        h2h: [{ id: 9001 }],
+        issues: [],
+        generatedAt: expect.any(String),
+      },
+    });
+    expect(calls.match).toEqual(['123']);
+    expect(calls.teamMatches).toEqual([10, 20]);
+    expect(calls.h2h).toEqual([{ matchId: '123', isFinished: false }]);
+  });
+
+  test('GET /match/:matchId/context marks h2h issue when h2h fetch fails', async () => {
+    const { app } = createApp({
+      h2h: Promise.reject(new Error('h2h failed')),
+    });
+
+    const res = await request(app).get('/match/123/context');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.issues).toEqual(['h2h']);
+    expect(res.body.data.h2h).toEqual([]);
+  });
+
+  test('GET /standings/:leagueId validates missing football-data config', async () => {
+    const { app } = createApp({ FOOTBALL_DATA_KEY: '' });
+
+    const res = await request(app).get('/standings/2021');
+
+    expect(res.status).toBe(503);
+    expect(res.body).toMatchObject({
+      ok: false,
+      error: { code: 'missing_config' },
+      data: [],
+    });
+  });
+});
