@@ -4,8 +4,12 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const fetch = require('node-fetch');
 const mongoose = require('mongoose');
+const createDiagnosticsRouter = require('./routes/diagnostics');
 const createHealthRouter = require('./routes/health');
+const { createPushRouter } = require('./routes/push');
+const createWeatherOddsRouter = require('./routes/weatherOdds');
 const { createHomeService } = require('./services/homeService');
+const { createApiResponder } = require('./utils/apiResponses');
 const { createUpstreamJsonClient } = require('./utils/upstream');
 const {
   TTL,
@@ -67,83 +71,6 @@ const writeLimiter = rateLimit({
 
 app.use(publicLimiter);
 
-const fallbackMetrics = {
-  staleServedCount: 0,
-  errorWithoutStaleCount: 0,
-  byCode: {},
-  byCachePrefix: {},
-};
-
-function cachePrefix(cacheKey) {
-  return String(cacheKey || 'unknown').split('_').slice(0, 2).join('_') || 'unknown';
-}
-
-function bumpMetric(bucket, key, field) {
-  const safeKey = key || 'unknown';
-  if (!bucket[safeKey]) bucket[safeKey] = { staleServed: 0, errorWithoutStale: 0 };
-  bucket[safeKey][field] += 1;
-}
-
-function recordFallbackMetric({ cacheKey, code, servedStale }) {
-  const field = servedStale ? 'staleServed' : 'errorWithoutStale';
-  if (servedStale) fallbackMetrics.staleServedCount += 1;
-  else fallbackMetrics.errorWithoutStaleCount += 1;
-  bumpMetric(fallbackMetrics.byCode, code, field);
-  bumpMetric(fallbackMetrics.byCachePrefix, cachePrefix(cacheKey), field);
-}
-
-function getFallbackMetrics() {
-  return {
-    staleServedCount: fallbackMetrics.staleServedCount,
-    errorWithoutStaleCount: fallbackMetrics.errorWithoutStaleCount,
-    byCode: JSON.parse(JSON.stringify(fallbackMetrics.byCode)),
-    byCachePrefix: JSON.parse(JSON.stringify(fallbackMetrics.byCachePrefix)),
-  };
-}
-
-function apiError(res, status, code, message, data) {
-  return res.status(status).json({
-    ok: false,
-    error: { code, message },
-    data,
-  });
-}
-
-function apiStale(res, data, code, message) {
-  return res.json({
-    ok: true,
-    stale: true,
-    warning: { code, message },
-    data,
-  });
-}
-
-async function apiStaleOrError(res, cacheKey, status, code, message, data) {
-  const stale = await getStaleCache(cacheKey);
-  if (stale !== null && stale !== undefined) {
-    recordFallbackMetric({ cacheKey, code, servedStale: true });
-    return apiStale(res, stale, code, message);
-  }
-  recordFallbackMetric({ cacheKey, code, servedStale: false });
-  return apiError(res, status, code, message, data);
-}
-
-function missingConfig(res, name, data) {
-  return apiError(res, 503, 'missing_config', `${name} is not configured`, data);
-}
-
-function requireDiagnosticsSecret(req, res) {
-  if (!DIAGNOSTICS_SECRET) {
-    apiError(res, 404, 'not_found', 'diagnostics disabled', null);
-    return false;
-  }
-  if (req.headers['x-diagnostics-secret'] !== DIAGNOSTICS_SECRET) {
-    apiError(res, 403, 'forbidden', 'forbidden', null);
-    return false;
-  }
-  return true;
-}
-
 // --- MongoDB Persistent Cache ---
 const cacheSchema = new mongoose.Schema({
   key:       { type: String, required: true, unique: true },
@@ -169,6 +96,17 @@ const {
 } = createCache({
   CacheModel,
   isMongoConnected: () => mongoConnected,
+});
+
+const {
+  apiError,
+  apiStaleOrError,
+  getFallbackMetrics,
+  missingConfig,
+  requireDiagnosticsSecret,
+} = createApiResponder({
+  getStaleCache,
+  diagnosticsSecret: DIAGNOSTICS_SECRET,
 });
 
 // =====================
@@ -626,56 +564,21 @@ app.get('/scorers/:leagueId', async (req, res) => {
   }
 });
 
-// =====================
-// WEATHER & ODDS
-// =====================
-
-app.get('/weather', async (req, res) => {
-  const { city } = req.query;
-  if (!city) return apiError(res, 400, 'bad_request', 'city is required', null);
-  if (!WEATHER_API_KEY) return missingConfig(res, 'WEATHER_API_KEY', null);
-  const cacheKey = `weather_${city}`;
-  const cached = await getCache(cacheKey);
-  if (cached) return res.json(cached);
-  try {
-    const data = await upstream.fetchJson(
-      `${WEATHER_BASE}/current.json?key=${WEATHER_API_KEY}&q=${encodeURIComponent(city)}&lang=tr`,
-      {},
-      'weather'
-    );
-    const result = {
-      temp:      data.current.temp_c,
-      condition: data.current.condition.text,
-      wind:      data.current.wind_kph,
-      humidity:  data.current.humidity,
-      city:      data.location.name,
-    };
-    await setCache(cacheKey, result, TTL.weather);
-    res.json(result);
-  } catch (e) {
-    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, null);
-  }
-});
-
-app.get('/odds', async (req, res) => {
-  const { sport } = req.query;
-  if (!sport) return apiError(res, 400, 'bad_request', 'sport is required', []);
-  if (!ODDS_API_KEY) return missingConfig(res, 'ODDS_API_KEY', []);
-  const cacheKey = `odds_${sport}`;
-  const cached = await getCache(cacheKey);
-  if (cached) return res.json(cached);
-  try {
-    const data = await upstream.fetchJson(
-      `${ODDS_BASE}/sports/${sport}/odds/?apiKey=${ODDS_API_KEY}&regions=eu&markets=h2h&oddsFormat=decimal`,
-      {},
-      'odds'
-    );
-    await setCache(cacheKey, data, TTL.odds);
-    res.json(data);
-  } catch (e) {
-    return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
-  }
-});
+app.use(createWeatherOddsRouter({
+  apiError,
+  apiStaleOrError,
+  config: {
+    ODDS_API_KEY,
+    ODDS_BASE,
+    WEATHER_API_KEY,
+    WEATHER_BASE,
+  },
+  getCache,
+  missingConfig,
+  setCache,
+  TTL,
+  upstream,
+}));
 
 // =====================
 // HEALTH
@@ -1376,114 +1279,23 @@ const pushTokenSchema = new mongoose.Schema({
 });
 const PushToken = mongoose.model('PushToken', pushTokenSchema);
 
-function isPlainObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
+app.use(createPushRouter({
+  fetchImpl: fetch,
+  getMongoConnected: () => mongoConnected,
+  PushToken,
+  pushTestSecret: PUSH_TEST_SECRET,
+  writeLimiter,
+}));
 
-function cleanPushPrefs(value) {
-  const prefs = isPlainObject(value) ? value : {};
-  return {
-    daily: Boolean(prefs.daily),
-    favTeam: Boolean(prefs.favTeam),
-    featured: Boolean(prefs.featured),
-  };
-}
-
-function cleanWatchedTeams(value) {
-  if (!Array.isArray(value)) return [];
-  return value
-    .filter(item => typeof item === 'string')
-    .map(item => item.trim())
-    .filter(Boolean)
-    .slice(0, 30);
-}
-
-app.post('/register-token', writeLimiter, async (req, res) => {
-  const { token, prefs, watchedTeams } = req.body;
-  if (typeof token !== 'string' || !/^(ExponentPushToken|ExpoPushToken)\[[A-Za-z0-9_-]+\]$/.test(token)) {
-    return res.status(400).json({ ok: false, error: 'geçerli token gerekli' });
-  }
-  if (!mongoConnected) return res.json({ ok: false, error: 'db yok' });
-  try {
-    await PushToken.findOneAndUpdate(
-      { token },
-      { token, prefs: cleanPushPrefs(prefs), watchedTeams: cleanWatchedTeams(watchedTeams), updatedAt: new Date() },
-      { upsert: true, new: true },
-    );
-    res.json({ ok: true });
-  } catch (e) {
-    console.error('register-token hatası:', e.message);
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
-app.get('/push/status', async (req, res) => {
-  if (!requireDiagnosticsSecret(req, res)) return;
-  if (!mongoConnected) return res.json({ ok: false, mongo: false, tokenCount: 0 });
-  try {
-    const tokenCount = await PushToken.countDocuments();
-    const dailyCount = await PushToken.countDocuments({ 'prefs.daily': true });
-    const favTeamCount = await PushToken.countDocuments({ 'prefs.favTeam': true });
-    const featuredCount = await PushToken.countDocuments({ 'prefs.featured': true });
-    res.json({ ok: true, mongo: true, tokenCount, dailyCount, favTeamCount, featuredCount });
-  } catch (e) {
-    res.status(500).json({ ok: false, mongo: true, error: e.message });
-  }
-});
-
-app.get('/diagnostics/upstream', async (req, res) => {
-  if (!requireDiagnosticsSecret(req, res)) return;
-  res.json({
-    ok: true,
-    upstream: upstream.getStats(),
-    cache: getCacheStats(),
-    cachePolicy: getCachePolicy(),
-    fallbacks: getFallbackMetrics(),
-  });
-});
-
-app.post('/push/test', writeLimiter, async (req, res) => {
-  if (!PUSH_TEST_SECRET || req.headers['x-push-test-secret'] !== PUSH_TEST_SECRET) {
-    return res.status(403).json({ ok: false, error: 'forbidden' });
-  }
-  const { token, title = 'ScoutFootball test', body = 'Push bildirimi test mesajı' } = req.body || {};
-  if (!token) return res.status(400).json({ ok: false, error: 'token gerekli' });
-  try {
-    await sendPushNotifications([token], title, body);
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
-// Expo Push Service üzerinden bildirim gönder
-async function sendPushNotifications(tokens, title, body) {
-  if (!tokens.length) return;
-  const messages = tokens.map(t => ({ to: t, title, body, sound: 'default' }));
-  // Max 100 mesaj per request
-  for (let i = 0; i < messages.length; i += 100) {
-    const chunk = messages.slice(i, i + 100);
-    try {
-      const res = await fetch('https://exp.host/--/api/v2/push/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(chunk),
-      });
-      const data = await res.json();
-      // Geçersiz token'ları temizle
-      if (data.data) {
-        for (let j = 0; j < data.data.length; j++) {
-          if (data.data[j].status === 'error' &&
-              data.data[j].details?.error === 'DeviceNotRegistered') {
-            try { await PushToken.deleteOne({ token: chunk[j].to }); } catch {}
-          }
-        }
-      }
-    } catch (e) {
-      console.error('Expo push hatası:', e.message);
-    }
-  }
-}
+app.use(createDiagnosticsRouter({
+  getCachePolicy,
+  getCacheStats,
+  getFallbackMetrics,
+  getMongoConnected: () => mongoConnected,
+  PushToken,
+  requireDiagnosticsSecret,
+  upstream,
+}));
 
 // Notification scheduling is handled locally in the mobile app. The backend
 // keeps token registration/status/test endpoints for diagnostics and future
