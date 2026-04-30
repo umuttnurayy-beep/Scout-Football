@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -37,6 +38,8 @@ import {
 } from '../utils/matchAnalysis';
 import { MEDIUM_BANK, SHORT_BANK } from '../utils/matchTextBanks';
 import { SCOUT_HELP, ScoutHelpKey } from '../utils/scoutHelpText';
+
+const DETAIL_SECONDARY_CACHE_PREFIX = 'match_detail_secondary_v1';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -488,6 +491,7 @@ export default function MatchDetail() {
   const [showNeden,  setShowNeden]  = useState(false);
   const [showScoutHelp, setShowScoutHelp] = useState<ScoutHelpKey | null>(null);
   const [staleNotice, setStaleNotice] = useState(false);
+  const [secondaryLoading, setSecondaryLoading] = useState(false);
   const [dataIssues, setDataIssues] = useState<Set<DetailDataIssue>>(new Set());
 
   const p = (k: string) => Array.isArray(params[k]) ? (params[k] as string[])[0] : ((params[k] as string) || '');
@@ -520,40 +524,93 @@ export default function MatchDetail() {
 
   const matchDate = utcDate ? new Date(utcDate).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'}) : '';
   const matchTime = utcDate ? new Date(utcDate).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}) : '';
+  const secondaryCacheKey = `${DETAIL_SECONDARY_CACHE_PREFIX}_${matchId || 'unknown'}`;
 
-  useEffect(()=>{ setMatchData(null);setH2hData([]);setWeatherData(null);setOddsData(null);setHomeForm([]);setAwayForm([]);setStaleNotice(false);setDataIssues(new Set()); },[matchId]);
+  useEffect(()=>{ setMatchData(null);setH2hData([]);setWeatherData(null);setOddsData(null);setHomeForm([]);setAwayForm([]);setStaleNotice(false);setSecondaryLoading(false);setDataIssues(new Set()); },[matchId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCachedSecondaryData() {
+      try {
+        const raw = await AsyncStorage.getItem(secondaryCacheKey);
+        if (!raw || cancelled) return;
+        const cached = JSON.parse(raw);
+        if (Array.isArray(cached.h2h)) setH2hData(cached.h2h);
+        if (cached.weather) setWeatherData(cached.weather);
+        if (cached.odds) setOddsData(cached.odds);
+      } catch {}
+    }
+    if (matchId) loadCachedSecondaryData();
+    return () => { cancelled = true; };
+  }, [matchId, secondaryCacheKey]);
 
   useEffect(()=>{
+    let cancelled = false;
     async function load(){
       setLoading(true);
       const stats = await getMatchStats(matchId);
+      if (cancelled) return;
       const matchContext = resolveMatchContext(stats, { home, away, city, homeTeamId, awayTeamId });
-      const [h2hR,weatherR,oddsR,hFormR,aFormR] = await Promise.allSettled([
-        getH2H(matchId,finishedParam),matchContext.city ? getWeather(matchContext.city) : Promise.resolve(null),
-        getOdds(matchContext.homeName,matchContext.awayName,leagueApiId),getTeamForm(matchContext.homeTeamId),getTeamForm(matchContext.awayTeamId),
+      const [hFormR,aFormR] = await Promise.allSettled([
+        getTeamForm(matchContext.homeTeamId),
+        getTeamForm(matchContext.awayTeamId),
       ]);
-      const h2hValue = fulfilledOr(h2hR, []);
-      const weatherValue = fulfilledOr(weatherR, null);
-      const oddsValue = fulfilledOr(oddsR, null);
+      if (cancelled) return;
       const homeFormValue = fulfilledOr(hFormR, []);
       const awayFormValue = fulfilledOr(aFormR, []);
       setMatchData(stats);
-      setH2hData(h2hValue);
-      setWeatherData(weatherValue);
-      setOddsData(oddsValue);
       setHomeForm(homeFormValue);
       setAwayForm(awayFormValue);
-      setStaleNotice(hasStaleDetailData([stats, h2hValue, weatherValue, oddsValue, homeFormValue, awayFormValue], isStaleApiData));
+      setStaleNotice(hasStaleDetailData([stats, homeFormValue, awayFormValue], isStaleApiData));
       setDataIssues(buildDetailDataIssues({
         matchMissing: !stats,
         formRejected: hFormR.status === 'rejected' || aFormR.status === 'rejected',
-        h2hRejected: h2hR.status === 'rejected',
-        weatherRejected: weatherR.status === 'rejected',
-        oddsRejected: oddsR.status === 'rejected',
+        h2hRejected: false,
+        weatherRejected: false,
+        oddsRejected: false,
       }));
       setLoading(false);
+
+      setSecondaryLoading(true);
+      try {
+        const [h2hR, weatherR, oddsR] = await Promise.allSettled([
+          getH2H(matchId, finishedParam),
+          matchContext.city ? getWeather(matchContext.city) : Promise.resolve(null),
+          getOdds(matchContext.homeName, matchContext.awayName, leagueApiId),
+        ]);
+        if (cancelled) return;
+      const h2hValue = fulfilledOr(h2hR, []);
+      const weatherValue = fulfilledOr(weatherR, null);
+      const oddsValue = fulfilledOr(oddsR, null);
+      setH2hData(h2hValue);
+      if (weatherValue) setWeatherData(weatherValue);
+      if (oddsValue) setOddsData(oddsValue);
+      AsyncStorage.getItem(secondaryCacheKey)
+        .then(raw => {
+          const cached = raw ? JSON.parse(raw) : {};
+          return AsyncStorage.setItem(secondaryCacheKey, JSON.stringify({
+            ...cached,
+            h2h: h2hValue,
+            weather: weatherValue || cached.weather || null,
+            odds: oddsValue || cached.odds || null,
+            storedAt: new Date().toISOString(),
+          }));
+        })
+        .catch(() => {});
+      setStaleNotice(prev => prev || hasStaleDetailData([h2hValue, weatherValue, oddsValue], isStaleApiData));
+        setDataIssues(prev => {
+          const next = new Set(prev);
+          if (h2hR.status === 'rejected') next.add('h2h');
+          if (weatherR.status === 'rejected') next.add('weather');
+          if (oddsR.status === 'rejected') next.add('odds');
+          return next;
+        });
+      } finally {
+        if (!cancelled) setSecondaryLoading(false);
+      }
     }
     if(matchId) load(); else setLoading(false);
+    return () => { cancelled = true; setSecondaryLoading(false); };
     // Route params are captured for this match load; matchId is the intended reload key.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[matchId]);
@@ -1066,7 +1123,7 @@ export default function MatchDetail() {
           </>
         ) : (
           <DetailDataNotice
-            message={detailDataMessage('odds', hasOddsIssue ? 'sourceError' : 'notPublished')}
+            message={secondaryLoading ? 'Oran verisi kontrol ediliyor...' : detailDataMessage('odds', hasOddsIssue ? 'sourceError' : 'notPublished')}
             boxStyle={[styles.noDataBox, ts.noDataBox]}
             textStyle={[styles.noDataText, ts.noDataText]}
           />
@@ -1114,7 +1171,7 @@ export default function MatchDetail() {
           </>
         ) : (
           <DetailDataNotice
-            message={detailDataMessage('weather', hasWeatherIssue ? 'sourceError' : 'empty')}
+            message={secondaryLoading ? 'Hava durumu yükleniyor...' : detailDataMessage('weather', hasWeatherIssue ? 'sourceError' : 'empty')}
             boxStyle={[styles.noDataBox, ts.noDataBox]}
             textStyle={[styles.noDataText, ts.noDataText]}
           />
@@ -1178,7 +1235,7 @@ export default function MatchDetail() {
         )}
         {h2hData.length===0 ? (
           <DetailDataNotice
-            message={detailDataMessage('h2h', hasH2HIssue ? 'sourceError' : 'empty')}
+            message={secondaryLoading ? 'H2H verisi yükleniyor...' : detailDataMessage('h2h', hasH2HIssue ? 'sourceError' : 'empty')}
             boxStyle={[styles.noDataBox, ts.noDataBox]}
             textStyle={[styles.noDataText, ts.noDataText]}
           />

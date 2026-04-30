@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -36,6 +37,8 @@ import {
 } from '../utils/matchAnalysis';
 import { MEDIUM_BANK, SHORT_BANK } from '../utils/matchTextBanks';
 import { SCOUT_HELP, ScoutHelpKey } from '../utils/scoutHelpText';
+
+const SL_DETAIL_SECONDARY_CACHE_PREFIX = 'sl_match_detail_secondary_v1';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -487,12 +490,43 @@ export default function SLMatchDetail() {
   const [showNeden,   setShowNeden]    = useState(false);
   const [showScoutHelp, setShowScoutHelp] = useState<ScoutHelpKey | null>(null);
   const [staleNotice, setStaleNotice] = useState(false);
+  const [secondaryLoading, setSecondaryLoading] = useState(false);
   const [dataIssues, setDataIssues] = useState<Set<DetailDataIssue>>(new Set());
 
   const city = getCityForTeam(home);
   const isSuperLig = true;
+  const secondaryCacheKey = `${SL_DETAIL_SECONDARY_CACHE_PREFIX}_${eventId || 'unknown'}`;
 
   useEffect(() => {
+    setEvent(null);
+    setHomeContext(null);
+    setAwayContext(null);
+    setHomeForm([]);
+    setAwayForm([]);
+    setWeatherData(null);
+    setH2HMatches([]);
+    setStaleNotice(false);
+    setSecondaryLoading(false);
+    setDataIssues(new Set());
+  }, [eventId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCachedSecondaryData() {
+      try {
+        const raw = await AsyncStorage.getItem(secondaryCacheKey);
+        if (!raw || cancelled) return;
+        const cached = JSON.parse(raw);
+        if (cached.weather) setWeatherData(cached.weather);
+        if (Array.isArray(cached.h2h)) setH2HMatches(cached.h2h);
+      } catch {}
+    }
+    if (eventId) loadCachedSecondaryData();
+    return () => { cancelled = true; };
+  }, [eventId, secondaryCacheKey]);
+
+  useEffect(() => {
+    let cancelled = false;
     async function load() {
       setLoading(true);
       const matchLoader = getSuperLigMatch(eventId);
@@ -502,13 +536,12 @@ export default function SLMatchDetail() {
       const awayContextLoader = awayTeamId
         ? getSuperLigTeamContext(awayTeamId)
         : Promise.resolve(null);
-      const [evR, hcR, acR, weatherR, h2hR] = await Promise.allSettled([
+      const [evR, hcR, acR] = await Promise.allSettled([
         matchLoader,
         homeContextLoader,
         awayContextLoader,
-        city ? getWeather(city) : Promise.resolve(null),
-        home && away ? getAllSportsH2H(home, away) : Promise.resolve([]),
       ]);
+      if (cancelled) return;
       if (evR.status === 'fulfilled') setEvent(evR.value);
       const nextHomeContext = fulfilledOr(hcR, null);
       const nextAwayContext = fulfilledOr(acR, null);
@@ -516,26 +549,54 @@ export default function SLMatchDetail() {
       setAwayContext(nextAwayContext);
       setHomeForm(nextHomeContext?.recentMatches || []);
       setAwayForm(nextAwayContext?.recentMatches || []);
-      const nextWeather = fulfilledOr(weatherR, null);
-      const nextH2H = fulfilledOr(h2hR, []);
-      setWeatherData(nextWeather);
-      setH2HMatches(nextH2H);
       setStaleNotice(hasStaleDetailData([
         evR.status === 'fulfilled' ? evR.value : null,
         nextHomeContext,
         nextAwayContext,
-        nextWeather,
-        nextH2H,
       ], isStaleApiData));
       setDataIssues(buildDetailDataIssues({
         matchMissing: evR.status === 'rejected' || !evR.value,
         formRejected: hcR.status === 'rejected' || acR.status === 'rejected',
-        h2hRejected: h2hR.status === 'rejected',
-        weatherRejected: weatherR.status === 'rejected',
+        h2hRejected: false,
+        weatherRejected: false,
       }));
       setLoading(false);
+
+      setSecondaryLoading(true);
+      try {
+        const [weatherR, h2hR] = await Promise.allSettled([
+          city ? getWeather(city) : Promise.resolve(null),
+          home && away ? getAllSportsH2H(home, away) : Promise.resolve([]),
+        ]);
+        if (cancelled) return;
+      const nextWeather = fulfilledOr(weatherR, null);
+      const nextH2H = fulfilledOr(h2hR, []);
+      if (nextWeather) setWeatherData(nextWeather);
+      setH2HMatches(nextH2H);
+      AsyncStorage.getItem(secondaryCacheKey)
+        .then(raw => {
+          const cached = raw ? JSON.parse(raw) : {};
+          return AsyncStorage.setItem(secondaryCacheKey, JSON.stringify({
+            ...cached,
+            weather: nextWeather || cached.weather || null,
+            h2h: nextH2H,
+            storedAt: new Date().toISOString(),
+          }));
+        })
+        .catch(() => {});
+      setStaleNotice(prev => prev || hasStaleDetailData([nextWeather, nextH2H], isStaleApiData));
+        setDataIssues(prev => {
+          const next = new Set(prev);
+          if (weatherR.status === 'rejected') next.add('weather');
+          if (h2hR.status === 'rejected') next.add('h2h');
+          return next;
+        });
+      } finally {
+        if (!cancelled) setSecondaryLoading(false);
+      }
     }
     if (eventId) load(); else setLoading(false);
+    return () => { cancelled = true; setSecondaryLoading(false); };
     // Route params are captured for this event load; eventId is the intended reload key.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId, isSuperLig, leagueApiId]);
@@ -934,7 +995,7 @@ export default function SLMatchDetail() {
           </>
         ) : (
           <DetailDataNotice
-            message={detailDataMessage('weather', hasWeatherIssue ? 'sourceError' : 'empty')}
+            message={secondaryLoading ? 'Hava durumu yükleniyor...' : detailDataMessage('weather', hasWeatherIssue ? 'sourceError' : 'empty')}
             boxStyle={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}
             textStyle={[styles.noDataText, { color: c.textSub }]}
           />
@@ -998,7 +1059,7 @@ export default function SLMatchDetail() {
         )}
         {h2hData.length === 0 ? (
           <DetailDataNotice
-            message={detailDataMessage('h2h', hasH2HIssue ? 'sourceError' : 'empty')}
+            message={secondaryLoading ? 'H2H verisi yükleniyor...' : detailDataMessage('h2h', hasH2HIssue ? 'sourceError' : 'empty')}
             boxStyle={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}
             textStyle={[styles.noDataText, { color: c.textSub }]}
           />
