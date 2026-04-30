@@ -60,7 +60,7 @@ function createSuperLigRouter({
     const { teamId } = req.params;
     const tid = parseInt(teamId);
     if (!tid) return apiError(res, 400, 'bad_request', 'invalid teamId', null);
-    const cacheKey = `superlig_team_context_v2_${tid}`;
+    const cacheKey = `superlig_team_context_v3_${tid}`;
 
     try {
       return res.json(await fetchSuperLigTeamContext(tid));
@@ -144,7 +144,7 @@ function createSuperLigRouter({
     const awayTeamId = parseInt(req.query.awayTeamId);
     const home = String(req.query.home || '');
     const away = String(req.query.away || '');
-    const cacheKey = `superlig_match_context_v2_${eventId}_${homeTeamId || 0}_${awayTeamId || 0}_${home}_${away}`;
+    const cacheKey = `superlig_match_context_v3_${eventId}_${homeTeamId || 0}_${awayTeamId || 0}_${home}_${away}`;
     const cached = await getCache(cacheKey);
     if (cached) return res.json({ ok: true, data: cached });
 

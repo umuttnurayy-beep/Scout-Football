@@ -83,6 +83,7 @@ const NEXT_MATCH_LOOKAHEAD_DAYS = 7;
 type Match = {
   id: number; leagueApiId: number; league: string;
   home: string; away: string; time: string;
+  date?: string;
   score: string | null; finished: boolean;
   city: string | null; utcDate: string;
   homeTeamId: number; awayTeamId: number;
@@ -1231,13 +1232,13 @@ export default function HomeScreen() {
       });
 
       // Favori + watchlist takımlarının bugünkü maçları
-      const watchedMatches: { home: string; away: string; time: string }[] = [];
+      const watchedMatches: { home: string; away: string; time: string; date?: string }[] = [];
       if (prefs.favTeam) {
         const favRaw = await AsyncStorage.getItem('scout_fav_team');
         if (favRaw) {
           const fav = JSON.parse(favRaw);
           const m = findTeamMatch(fav.name);
-          if (m) watchedMatches.push({ home: m.home, away: m.away, time: m.time });
+          if (m) watchedMatches.push({ home: m.home, away: m.away, time: m.time, date: m.date });
         }
         const watchRaw = await AsyncStorage.getItem('scout_watchlist');
         if (watchRaw) {
@@ -1245,7 +1246,7 @@ export default function HomeScreen() {
           for (const team of watchlist) {
             const m = findTeamMatch(team.name);
             if (m && !watchedMatches.some(w => w.home === m.home && w.away === m.away)) {
-              watchedMatches.push({ home: m.home, away: m.away, time: m.time });
+              watchedMatches.push({ home: m.home, away: m.away, time: m.time, date: m.date });
             }
           }
         }

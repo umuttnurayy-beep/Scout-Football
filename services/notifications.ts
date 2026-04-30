@@ -16,6 +16,7 @@ export type WatchedMatch = {
   home: string;
   away: string;
   time: string; // "HH:mm" formatında
+  date?: string; // "YYYY-MM-DD" — sağlanırsa sadece o gün bildirim zamanlanır
 };
 
 export type NotifData = {
@@ -137,14 +138,18 @@ function secondsUntilDailyNotification(): number | null {
   return diff > 30 ? diff : null;
 }
 
-// Maçtan minutesBefore dk önceye kadar saniye — geçtiyse null döner
-function secondsUntilReminder(timeStr: string, minutesBefore: number): number | null {
+// Maçtan minutesBefore dk önceye kadar saniye — geçtiyse veya bugün değilse null döner
+function secondsUntilReminder(timeStr: string, minutesBefore: number, matchDate?: string): number | null {
+  const now = new Date();
+  if (matchDate) {
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    if (matchDate !== todayStr) return null;
+  }
   const parts = timeStr.split(':');
   if (parts.length < 2) return null;
   const h = parseInt(parts[0], 10);
   const m = parseInt(parts[1], 10);
   if (isNaN(h) || isNaN(m)) return null;
-  const now = new Date();
   const matchTime = new Date();
   matchTime.setHours(h, m, 0, 0);
   const reminderTime = new Date(matchTime.getTime() - minutesBefore * 60 * 1000);
@@ -218,7 +223,7 @@ export async function scheduleNotifications(
   // 3. Maç hatırlatması — maçtan 30 dk önce (favori + watchlist)
   if (prefs.favTeam) {
     for (const wm of data.watchedMatches) {
-      const secs = secondsUntilReminder(wm.time, 30);
+      const secs = secondsUntilReminder(wm.time, 30, wm.date);
       if (secs === null) continue;
       const id = `${MATCH_PREFIX}${wm.home}_${wm.away}`.replace(/\s+/g, '_').slice(0, 64);
       await Notifications.scheduleNotificationAsync({

@@ -474,7 +474,7 @@ export async function getSuperLigTeamForm(teamId: number): Promise<any[]> {
 
 export interface SuperLigTeamContext {
   teamId: number;
-  source: 'sportsdb' | 'mixed';
+  source: 'espn' | 'allsports' | 'sportsdb' | 'mixed';
   isLimited: boolean;
   fallbackReason: string | null;
   formMatchesCount: number;

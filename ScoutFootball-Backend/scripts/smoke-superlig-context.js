@@ -55,13 +55,15 @@ function validateContext(payload, teamId) {
   assert(typeof context.formMatchesCount === 'number', `team ${teamId}: formMatchesCount is a number`);
   assert(context.formMatchesCount === context.recentMatches.length, `team ${teamId}: formMatchesCount matches recentMatches length`);
   assert(typeof context.isLimited === 'boolean', `team ${teamId}: isLimited is boolean`);
-  assert(['sportsdb', 'mixed'].includes(context.source), `team ${teamId}: source is known`);
+  assert(['espn', 'allsports', 'sportsdb', 'mixed'].includes(context.source), `team ${teamId}: source is known`);
   assert('standingsStats' in context, `team ${teamId}: standingsStats field exists`);
 
   if (context.isLimited) {
     assert(context.source === 'mixed', `team ${teamId}: limited data uses mixed source`);
     assert(Boolean(context.fallbackReason), `team ${teamId}: fallbackReason exists`);
     assert(context.standingsStats && typeof context.standingsStats === 'object', `team ${teamId}: standingsStats exists for limited data`);
+  } else {
+    assert(context.formMatchesCount >= 5, `team ${teamId}: non-limited context has at least 5 form matches`);
   }
 
   if (!context.standingsStats) warn(`team ${teamId}: standingsStats is empty`);

@@ -108,13 +108,15 @@ function validateSuperLigTeamContext(payload, teamId) {
   assert(typeof context.formMatchesCount === 'number', '/superlig/team-context/:teamId formMatchesCount is a number');
   assert(context.formMatchesCount === context.recentMatches.length, '/superlig/team-context/:teamId formMatchesCount matches recentMatches length');
   assert(typeof context.isLimited === 'boolean', '/superlig/team-context/:teamId isLimited is boolean');
-  assert(['sportsdb', 'mixed'].includes(context.source), '/superlig/team-context/:teamId source is known');
+  assert(['espn', 'allsports', 'sportsdb', 'mixed'].includes(context.source), '/superlig/team-context/:teamId source is known');
   assert('standingsStats' in context, '/superlig/team-context/:teamId standingsStats field exists');
 
   if (context.isLimited) {
     assert(context.source === 'mixed', '/superlig/team-context/:teamId limited data uses mixed source');
     assert(Boolean(context.fallbackReason), '/superlig/team-context/:teamId limited data explains fallbackReason');
     assert(context.standingsStats && typeof context.standingsStats === 'object', '/superlig/team-context/:teamId limited data includes standingsStats');
+  } else {
+    assert(context.formMatchesCount >= 5, '/superlig/team-context/:teamId non-limited context has at least 5 form matches');
   }
 
   return context;

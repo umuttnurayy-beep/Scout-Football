@@ -638,16 +638,17 @@ export default function SLMatchDetail() {
     ? statsFromStanding(awayContext.standingsStats) : null;
   const homeStats   = homeStandingStats || homeFormCalc;
   const awayStats   = awayStandingStats || awayFormCalc;
-  const homeFormPts = calcFormPointsSL(homeForm, homeTeamId);
-  const awayFormPts = calcFormPointsSL(awayForm,  awayTeamId);
   const hasFormData = homeStats.total > 0 && awayStats.total > 0;
-  const hasRealFormData = homeFormCalc.total > 0 && awayFormCalc.total > 0;
+  const hasAnyRealFormData = homeFormCalc.total > 0 || awayFormCalc.total > 0;
+  const hasRealFormData = homeFormCalc.total >= 5 && awayFormCalc.total >= 5;
+  const homeFormPts = hasRealFormData ? calcFormPointsSL(homeForm, homeTeamId) : 0;
+  const awayFormPts = hasRealFormData ? calcFormPointsSL(awayForm,  awayTeamId) : 0;
   const usingStandingsFallback = homeStandingStats !== null || awayStandingStats !== null;
   const { hasFormIssue, hasH2HIssue, hasWeatherIssue } = detailIssueFlags(dataIssues);
 
   const weatherRisk = isWeatherRisk(weatherData);
-  const homeTrend   = hasFormData ? getFormTrendSL(homeForm, homeTeamId) : null;
-  const awayTrend   = hasFormData ? getFormTrendSL(awayForm, awayTeamId) : null;
+  const homeTrend   = hasRealFormData ? getFormTrendSL(homeForm, homeTeamId) : null;
+  const awayTrend   = hasRealFormData ? getFormTrendSL(awayForm, awayTeamId) : null;
   const analysis    = buildMatchAnalysis(home, away, homeStats, awayStats, homeFormPts, awayFormPts, h2hData.length, weatherRisk, hasFormData, homeTrend, awayTrend);
 
   const { homeRadar, awayRadar, radarLabels, homeLeadsRadar: hLeadsRadar } =
@@ -740,9 +741,9 @@ export default function SLMatchDetail() {
           textStyle={[styles.limitedDataText, { color: isDark ? '#3FB950' : '#1B6B3A' }]}
         />
       )}
-      {!hasFormData && hasRealFormData && (
+      {!hasRealFormData && hasAnyRealFormData && (
         <DetailStatusBanner
-          message="⚠️ Bu maç için sezon form verisi sınırlı. Analiz genel lig profiline dayanıyor."
+          message="⚠️ Bu maç için maç bazlı form örneği 5 maçın altında. Son form ve iç/dış saha yüzdeleri yeterli veri gelene kadar gizleniyor."
           boxStyle={[styles.limitedDataBanner, { backgroundColor: isDark ? '#1A1205' : '#FFF8E1', borderColor: isDark ? '#4A3600' : '#E6A817' }]}
           textStyle={[styles.limitedDataText, { color: isDark ? '#E3B341' : '#7A5700' }]}
         />

@@ -523,7 +523,7 @@ function createSuperLigService({
   async function fetchTeamContext(teamId) {
     const tid = parseInt(teamId);
     if (!tid) return null;
-    const cacheKey = `superlig_team_context_v2_${tid}`;
+    const cacheKey = `superlig_team_context_v3_${tid}`;
     const cached = await getCache(cacheKey);
     if (cached) return cached;
 
@@ -537,9 +537,10 @@ function createSuperLigService({
       const standingsRow = standings.find(row => row.teamId === tid) || null;
       const formMatchesCount = recentMatches.length;
       const isLimited = formMatchesCount < 5;
+      const formSource = recentMatches.find(m => m?.source)?.source || 'sportsdb';
       const result = {
         teamId: tid,
-        source: isLimited && standingsRow ? 'mixed' : 'sportsdb',
+        source: isLimited && standingsRow ? 'mixed' : formSource,
         isLimited,
         fallbackReason: isLimited
           ? 'TheSportsDB sezon maç listesi bu takım için sınırlı maç bazlı form verisi döndürüyor.'
