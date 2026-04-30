@@ -9,7 +9,7 @@ import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-
 import { DetailDataNotice, DetailStatusBanner } from '../components/DetailDataState';
 import { useTheme } from '../context/ThemeContext';
 import {
-  SuperLigTeamContext, getAllSportsH2H, getCityForTeam, getSuperLigMatch, getSuperLigMatchContext, getSuperLigTeamContext, getWeather, isStaleApiData,
+  SuperLigTeamContext, getAllSportsH2H, getCityForTeam, getSuperLigMatch, getSuperLigMatchContext, getSuperLigTeamContext, getWeather, isStaleApiData, recordContextFallback,
 } from '../services/api';
 import { detailDataMessage, staleAnalysisMessage } from '../utils/emptyStates';
 import { DetailDataIssue, buildDetailDataIssues, buildDetailRadar, detailIssueFlags, fulfilledOr, hasStaleDetailData } from '../utils/matchDetailDataState';
@@ -537,11 +537,14 @@ export default function SLMatchDetail() {
             { status: 'fulfilled' as const, value: contextPayload.homeContext },
             { status: 'fulfilled' as const, value: contextPayload.awayContext },
           ]
-        : await Promise.allSettled([
-            getSuperLigMatch(eventId),
-            homeTeamId ? getSuperLigTeamContext(homeTeamId) : Promise.resolve(null),
-            awayTeamId ? getSuperLigTeamContext(awayTeamId) : Promise.resolve(null),
-          ]);
+        : await (async () => {
+            recordContextFallback('superlig', 'missing_context_payload', eventId);
+            return Promise.allSettled([
+              getSuperLigMatch(eventId),
+              homeTeamId ? getSuperLigTeamContext(homeTeamId) : Promise.resolve(null),
+              awayTeamId ? getSuperLigTeamContext(awayTeamId) : Promise.resolve(null),
+            ]);
+          })();
       if (cancelled) return;
       if (evR.status === 'fulfilled') setEvent(evR.value);
       const nextHomeContext = fulfilledOr(hcR, null);

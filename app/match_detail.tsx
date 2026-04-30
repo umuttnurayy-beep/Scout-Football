@@ -8,7 +8,7 @@ import {
 import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-svg';
 import { DetailDataNotice, DetailStatusBanner } from '../components/DetailDataState';
 import { useTheme } from '../context/ThemeContext';
-import { getCityForTeam, getH2H, getMatchContext, getMatchStats, getOdds, getTeamForm, getWeather, isStaleApiData } from '../services/api';
+import { getCityForTeam, getH2H, getMatchContext, getMatchStats, getOdds, getTeamForm, getWeather, isStaleApiData, recordContextFallback } from '../services/api';
 import { detailDataMessage, staleAnalysisMessage } from '../utils/emptyStates';
 import { DetailDataIssue, buildDetailDataIssues, buildDetailRadar, detailIssueFlags, fulfilledOr, hasStaleDetailData } from '../utils/matchDetailDataState';
 import {
@@ -559,6 +559,7 @@ export default function MatchDetail() {
       let formRejected = contextIssues.has('form');
 
       if (!contextPayload) {
+        recordContextFallback('match', 'missing_context_payload', matchId);
         const [hFormR,aFormR] = await Promise.allSettled([
           getTeamForm(matchContext.homeTeamId),
           getTeamForm(matchContext.awayTeamId),

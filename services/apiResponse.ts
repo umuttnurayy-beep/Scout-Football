@@ -26,7 +26,27 @@ export type ApiErrorInfo = {
   at: number;
 };
 
+export type ContextFallbackScope = 'match' | 'superlig';
+
+export type ContextFallbackEvent = {
+  scope: ContextFallbackScope;
+  reason: string;
+  key: string;
+  at: string;
+};
+
 let lastApiError: ApiErrorInfo | null = null;
+const CONTEXT_FALLBACK_RECENT_LIMIT = 20;
+
+const contextFallbackStats = {
+  total: 0,
+  byScope: {
+    match: 0,
+    superlig: 0,
+  } as Record<ContextFallbackScope, number>,
+  byReason: {} as Record<string, number>,
+  recent: [] as ContextFallbackEvent[],
+};
 
 export type ApiMeta = {
   stale: boolean;
@@ -84,6 +104,36 @@ export function clearLastApiError() {
 
 export function getLastApiError() {
   return lastApiError;
+}
+
+export function recordContextFallback(scope: ContextFallbackScope, reason: string, key: string) {
+  const event = {
+    scope,
+    reason,
+    key,
+    at: new Date().toISOString(),
+  };
+  contextFallbackStats.total += 1;
+  contextFallbackStats.byScope[scope] += 1;
+  contextFallbackStats.byReason[reason] = (contextFallbackStats.byReason[reason] || 0) + 1;
+  contextFallbackStats.recent = [event, ...contextFallbackStats.recent].slice(0, CONTEXT_FALLBACK_RECENT_LIMIT);
+}
+
+export function getContextFallbackStats() {
+  return {
+    total: contextFallbackStats.total,
+    byScope: { ...contextFallbackStats.byScope },
+    byReason: { ...contextFallbackStats.byReason },
+    recent: contextFallbackStats.recent.map(event => ({ ...event })),
+  };
+}
+
+export function clearContextFallbackStats() {
+  contextFallbackStats.total = 0;
+  contextFallbackStats.byScope.match = 0;
+  contextFallbackStats.byScope.superlig = 0;
+  contextFallbackStats.byReason = {};
+  contextFallbackStats.recent = [];
 }
 
 export function logApiError(scope: string, error: unknown) {

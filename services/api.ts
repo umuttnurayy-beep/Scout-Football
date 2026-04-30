@@ -4,11 +4,14 @@ import { API_BASE_URL } from './config';
 import { isOddsGameMatch } from './oddsMatching';
 export {
   ApiResponseError,
+  clearContextFallbackStats,
   clearLastApiError,
+  getContextFallbackStats,
   getLastApiError,
   isStaleApiData,
+  recordContextFallback,
 } from './apiResponse';
-import { isStaleApiData, logApiError, readApiJson } from './apiResponse';
+import { isStaleApiData, logApiError, readApiJson, recordContextFallback } from './apiResponse';
 
 const BASE_URL = API_BASE_URL;
 

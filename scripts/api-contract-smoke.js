@@ -62,10 +62,13 @@ async function main() {
   const apiResponse = loadTsModule(path.join(__dirname, '..', 'services', 'apiResponse.ts'));
   const {
     ApiResponseError,
+    clearContextFallbackStats,
     clearLastApiError,
+    getContextFallbackStats,
     getLastApiError,
     isStaleApiData,
     logApiError,
+    recordContextFallback,
     readApiJson,
   } = apiResponse;
 
@@ -114,6 +117,19 @@ async function main() {
     null,
   );
   validateSuperLigMatchContextPayload(superLigMatchContext);
+
+  clearContextFallbackStats();
+  recordContextFallback('match', 'missing_context_payload', '123');
+  recordContextFallback('superlig', 'missing_context_payload', '456');
+  const contextFallbackStats = getContextFallbackStats();
+  assert.equal(contextFallbackStats.total, 2);
+  assert.equal(contextFallbackStats.byScope.match, 1);
+  assert.equal(contextFallbackStats.byScope.superlig, 1);
+  assert.equal(contextFallbackStats.byReason.missing_context_payload, 2);
+  assert.equal(contextFallbackStats.recent.length, 2);
+  assert.equal(contextFallbackStats.recent[0].key, '456');
+  clearContextFallbackStats();
+  assert.equal(getContextFallbackStats().total, 0);
 
   await assert.rejects(
     () => readApiJson(
