@@ -1158,7 +1158,7 @@ export default function MatchDetail() {
           <>
             <View style={[styles.weatherCard,ts.weatherCard]}>
               <Text style={[styles.weatherCity,ts.weatherCity]}>{weatherData.city}</Text>
-              <Text style={styles.weatherIcon}>{weatherData.temp>25?'☀️':weatherData.temp>15?'⛅':weatherData.temp>5?'🌥️':'❄️'}</Text>
+              <Text style={styles.weatherIcon}>{(weatherData.temp??0)>25?'☀️':(weatherData.temp??0)>15?'⛅':(weatherData.temp??0)>5?'🌥️':'❄️'}</Text>
               <Text style={[styles.weatherTemp,ts.weatherTemp]}>{weatherData.temp}°C</Text>
               <Text style={[styles.weatherDesc,ts.weatherDesc]}>{weatherData.condition}</Text>
               <View style={styles.weatherBadgeRow}>
@@ -1169,8 +1169,8 @@ export default function MatchDetail() {
             <View style={{flexDirection:'row',gap:8,paddingHorizontal:14,marginBottom:6}}>
               {[
                 {icon:'🌧️',label:'Yağmur',level:/rain|shower|drizzle/.test((weatherData.condition||'').toLowerCase())?'orta':'yok',color:'#42A5F5'},
-                {icon:'💨',label:'Rüzgar',level:weatherData.wind>40?'yüksek':weatherData.wind>25?'orta':'düşük',color:weatherData.wind>40?'#E65100':weatherData.wind>25?'#FF8F00':c.textFaint},
-                {icon:'🌡️',label:'Sıcaklık',level:weatherData.temp>28||weatherData.temp<5?'orta':'düşük',color:weatherData.temp>28||weatherData.temp<5?'#6A1B9A':c.textFaint},
+                {icon:'💨',label:'Rüzgar',level:(weatherData.wind??0)>40?'yüksek':(weatherData.wind??0)>25?'orta':'düşük',color:(weatherData.wind??0)>40?'#E65100':(weatherData.wind??0)>25?'#FF8F00':c.textFaint},
+                {icon:'🌡️',label:'Sıcaklık',level:(weatherData.temp??0)>28||(weatherData.temp??0)<5?'orta':'düşük',color:(weatherData.temp??0)>28||(weatherData.temp??0)<5?'#6A1B9A':c.textFaint},
               ].map(item=>(
                 <View key={item.label} style={[styles.impactBadge,ts.impactBadge,{borderColor:item.color}]}>
                   <Text style={styles.impactIcon}>{item.icon}</Text>

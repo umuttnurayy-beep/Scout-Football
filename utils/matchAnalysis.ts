@@ -1,4 +1,4 @@
-import type { FDMatch, OddsData } from '../services/api';
+import type { FDMatch, OddsData, WeatherData } from '../services/api';
 
 export type Stil = 'Hücumcu' | 'Savunmacı' | 'Dengeli';
 export type Level = 'Düşük' | 'Orta' | 'Yüksek';
@@ -535,7 +535,7 @@ export function getGuven(
   return 'Düşük';
 }
 
-export function getWeatherComment(weatherData: any): { impact: Level; sentence: string } {
+export function getWeatherComment(weatherData: WeatherData | null): { impact: Level; sentence: string } {
   if (!weatherData) return { impact: 'Düşük', sentence: 'Hava durumu verisi alınamadı.' };
   const t = weatherData.temp ?? 15;
   const w = weatherData.wind ?? 0;
@@ -555,7 +555,7 @@ export function getWeatherComment(weatherData: any): { impact: Level; sentence: 
   };
 }
 
-export function isWeatherRisk(weatherData: any): boolean {
+export function isWeatherRisk(weatherData: WeatherData | null): boolean {
   if (!weatherData) return false;
   const wind = weatherData.wind ?? 0;
   const condition = (weatherData.condition || '').toLowerCase();

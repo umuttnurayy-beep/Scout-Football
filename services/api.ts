@@ -238,8 +238,8 @@ export type SLScorer = {
 };
 
 export type WeatherData = {
-  temp: number;
-  wind: number;
+  temp?: number;
+  wind?: number;
   condition: string;
   city?: string;
   humidity?: number;

@@ -244,7 +244,7 @@ export default function TeamStatsScreen() {
     try {
       const raw = await AsyncStorage.getItem('scout_recent');
       const list = raw ? JSON.parse(raw) : [];
-      const filtered = list.filter((r: any) => !(r.id === teamId && r.apiId === apiId));
+      const filtered = (list as { id: number; apiId: number }[]).filter((r) => !(r.id === teamId && r.apiId === apiId));
       const updated = [{ id: teamId, name: teamName, leagueName, apiId, timestamp: Date.now() }, ...filtered].slice(0, 10);
       await AsyncStorage.setItem('scout_recent', JSON.stringify(updated));
     } catch {}
