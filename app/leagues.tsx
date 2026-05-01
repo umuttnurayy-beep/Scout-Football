@@ -319,20 +319,26 @@ export default function LeaguesScreen() {
 
   async function onRefresh() {
     setRefreshing(true);
-    await loadStandings(activeLeague.apiId);
-    if (activeLeague.apiId === 2) await loadKnockouts();
-    setRefreshing(false);
+    try {
+      await loadStandings(activeLeague.apiId, false);
+      if (activeLeague.apiId === 2) await loadKnockouts();
+    } finally {
+      setRefreshing(false);
+    }
   }
 
-  async function loadStandings(apiId: number) {
-    setLoading(true);
+  async function loadStandings(apiId: number, showLoader = true) {
+    if (showLoader) setLoading(true);
     try {
       const data = apiId === 203
         ? await getSuperLigStandings()
         : await getStandings(apiId);
       setStandings(data && data.length > 0 ? data : []);
-    } catch { setStandings([]); }
-    setLoading(false);
+    } catch {
+      setStandings([]);
+    } finally {
+      if (showLoader) setLoading(false);
+    }
   }
 
   async function loadKnockouts() {

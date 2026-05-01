@@ -26,12 +26,15 @@ export default function TeamDetailScreen() {
 
   async function onRefresh() {
     setRefreshing(true);
-    await loadTeams();
-    setRefreshing(false);
+    try {
+      await loadTeams(false);
+    } finally {
+      setRefreshing(false);
+    }
   }
 
-  async function loadTeams() {
-    setLoading(true);
+  async function loadTeams(showLoader = true) {
+    if (showLoader) setLoading(true);
     try {
       const data = apiId === 203
         ? await getSuperLigStandings()
@@ -40,8 +43,9 @@ export default function TeamDetailScreen() {
     } catch (e) {
       console.error('loadTeams hata:', e);
       setTeams([]);
+    } finally {
+      if (showLoader) setLoading(false);
     }
-    setLoading(false);
   }
 
   return (

@@ -250,13 +250,16 @@ export default function TeamStatsScreen() {
     setFdSquad([]);
     setFdScorers([]);
     setAllSportsStats(null);
-    await Promise.allSettled([
-      loadForm(),
-      loadPlayers(),
-      loadAllSports(),
-      isSportsDbLeague ? loadSLData() : Promise.resolve(),
-    ]);
-    setRefreshing(false);
+    try {
+      await Promise.allSettled([
+        loadForm(),
+        loadPlayers(),
+        loadAllSports(),
+        isSportsDbLeague ? loadSLData() : Promise.resolve(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   async function recordRecentlyViewed() {
