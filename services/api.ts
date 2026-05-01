@@ -191,6 +191,13 @@ export type FDMatch = {
   referees?: Array<{ id: number; name: string; type?: string }>;
 };
 
+export type FDFixtureStat = { type: string; value: string };
+
+export type FDMatchDetail = FDMatch & {
+  stage?: string;
+  statistics?: Array<{ statistics?: FDFixtureStat[] }>;
+};
+
 export type SLMatch = {
   id: string | number;
   home: string;
@@ -301,10 +308,10 @@ export async function getHomeData(date: string): Promise<HomeData | null> {
   }
 }
 
-export async function getMatchStats(matchId: string): Promise<any> {
+export async function getMatchStats(matchId: string): Promise<FDMatchDetail | null> {
   try {
     const res = await fetch(`${BASE_URL}/match/${matchId}`);
-    const data = await readApiJson<any | null>(res, null);
+    const data = await readApiJson<FDMatchDetail | null>(res, null);
     return data || null;
   } catch (e) {
     logApiError('getMatchStats', e);
@@ -313,7 +320,7 @@ export async function getMatchStats(matchId: string): Promise<any> {
 }
 
 export type MatchContextData = {
-  match: any | null;
+  match: FDMatchDetail | null;
   homeForm: FDMatch[];
   awayForm: FDMatch[];
   h2h: FDMatch[];

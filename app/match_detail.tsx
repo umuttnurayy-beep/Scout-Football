@@ -8,7 +8,7 @@ import {
 import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-svg';
 import { DetailDataNotice, DetailStatusBanner } from '../components/DetailDataState';
 import { useTheme } from '../context/ThemeContext';
-import { FDMatch, getCityForTeam, getH2H, getMatchContext, getMatchStats, getOdds, getTeamForm, getWeather, isStaleApiData, recordContextFallback } from '../services/api';
+import { FDMatch, FDMatchDetail, getCityForTeam, getH2H, getMatchContext, getMatchStats, getOdds, getTeamForm, getWeather, isStaleApiData, recordContextFallback } from '../services/api';
 import { detailDataMessage, staleAnalysisMessage } from '../utils/emptyStates';
 import { DetailDataIssue, buildDetailDataIssues, buildDetailRadar, detailIssueFlags, fulfilledOr, hasStaleDetailData } from '../utils/matchDetailDataState';
 import {
@@ -444,21 +444,21 @@ function getUclKnockoutMotivation(stage: string): string {
 
 // ── Main Screen ────────────────────────────────────────────────────────────
 
-function resolveFormTeamIds(stats: any, routeHomeTeamId: number, routeAwayTeamId: number) {
+function resolveFormTeamIds(stats: FDMatchDetail | null, routeHomeTeamId: number, routeAwayTeamId: number) {
   return {
     home: stats?.homeTeam?.id || routeHomeTeamId,
     away: stats?.awayTeam?.id || routeAwayTeamId,
   };
 }
 
-function resolveWeatherCity(routeCity: string | null, stats: any, routeHomeName: string) {
+function resolveWeatherCity(routeCity: string | null, stats: FDMatchDetail | null, routeHomeName: string) {
   return routeCity ||
     getCityForTeam(stats?.homeTeam?.name || '') ||
     getCityForTeam(stats?.homeTeam?.shortName || '') ||
     getCityForTeam(routeHomeName);
 }
 
-function resolveMatchContext(stats: any, route: {
+function resolveMatchContext(stats: FDMatchDetail | null, route: {
   home: string;
   away: string;
   city: string | null;
@@ -481,7 +481,7 @@ export default function MatchDetail() {
   const { colors: c, isDark } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams();
-  const [matchData,  setMatchData]  = useState<any>(null);
+  const [matchData,  setMatchData]  = useState<FDMatchDetail | null>(null);
   const [h2hData,    setH2hData]    = useState<FDMatch[]>([]);
   const [weatherData,setWeatherData]= useState<any>(null);
   const [oddsData,   setOddsData]   = useState<any>(null);
@@ -642,10 +642,10 @@ export default function MatchDetail() {
   const formTeamIds = { home: matchContext.homeTeamId, away: matchContext.awayTeamId };
 
   let displayHome: number|string|null=null, displayAway: number|string|null=null;
-  if (isFinished&&fullHome!=null)       { displayHome=fullHome; displayAway=fullAway; }
+  if (isFinished&&fullHome!=null)       { displayHome=fullHome; displayAway=fullAway??null; }
   else if (isLive) {
-    if (fullHome!=null)                 { displayHome=fullHome; displayAway=fullAway; }
-    else if (halfHome!=null)            { displayHome=halfHome; displayAway=halfAway; }
+    if (fullHome!=null)                 { displayHome=fullHome; displayAway=fullAway??null; }
+    else if (halfHome!=null)            { displayHome=halfHome; displayAway=halfAway??null; }
   } else if ((finishedParam || isFromLive) && scoreParam) {
     const [routeHomeScore, routeAwayScore] = scoreParam.split(/\s*[-:]\s*/);
     if (routeHomeScore !== undefined && routeAwayScore !== undefined) {
@@ -684,7 +684,7 @@ export default function MatchDetail() {
   const deepH2H           = getDeepH2HStats(h2hData, displayHomeName, displayAwayName, formTeamIds.home);
   const isUclKnockout = leagueApiId === 2001 && matchContext.stage && !UCL_LEAGUE_PHASE_STAGES.has(matchContext.stage);
   const motivationComment = isUclKnockout
-    ? getUclKnockoutMotivation(matchContext.stage)
+    ? getUclKnockoutMotivation(matchContext.stage!)
     : getMotivationComment(homePos, awayPos, leagueApiId, {
         homePts, awayPts, homePlayed, awayPlayed, leaderPts, totalTeams,
         homeAbovePts, homeBelowPts, awayAbovePts, awayBelowPts, safetyPts,
@@ -873,9 +873,10 @@ export default function MatchDetail() {
       </View>
 
         {/* Canlı / Biten Maç İstatistikleri */}
-        {matchData?.statistics?.length>0 && (() => {
-          const hS=matchData.statistics[0]?.statistics;
-          const aS=matchData.statistics[1]?.statistics;
+        {(matchData?.statistics?.length ?? 0) > 0 && (() => {
+          const stats=matchData!.statistics!;
+          const hS=stats[0]?.statistics;
+          const aS=stats[1]?.statistics;
           const hOn=getStat(hS,'shots on goal'), hTot=getStat(hS,'total shots');
           const aOn=getStat(aS,'shots on goal'), aTot=getStat(aS,'total shots');
           const fouls=getStat(hS,'fouls')+getStat(aS,'fouls');
@@ -892,9 +893,9 @@ export default function MatchDetail() {
                 <Text style={[styles.legendHome,{color:c.primary}]}>{displayHomeName}</Text>
                 <Text style={[styles.legendAway,{color:c.loss}]}>{displayAwayName}</Text>
               </View>
-              {matchData.statistics[0]?.statistics?.map((stat:any,i:number)=>{
+              {stats[0]?.statistics?.map((stat,i)=>{
                 const hv=parseInt(stat.value)||0;
-                const av=parseInt(matchData.statistics[1]?.statistics?.[i]?.value)||0;
+                const av=parseInt(stats[1]?.statistics?.[i]?.value??'')||0;
                 const tot=hv+av, hp=tot>0?(hv/tot)*100:50;
                 return(
                   <View key={i} style={styles.statRow}>
@@ -902,7 +903,7 @@ export default function MatchDetail() {
                     <View style={[styles.barWrap,{backgroundColor:c.border}]}><View style={[styles.barHome,{width:`${hp}%`,backgroundColor:c.primary}]}/></View>
                     <Text style={[styles.statName,{color:c.textMuted}]}>{stat.type}</Text>
                     <View style={[styles.barWrap,{backgroundColor:c.border}]}><View style={[styles.barAway,{width:`${100-hp}%`,backgroundColor:c.loss}]}/></View>
-                    <Text style={[styles.statVal,{color:c.text}]}>{matchData.statistics[1]?.statistics?.[i]?.value??'-'}</Text>
+                    <Text style={[styles.statVal,{color:c.text}]}>{stats[1]?.statistics?.[i]?.value??'-'}</Text>
                   </View>
                 );
               })}
