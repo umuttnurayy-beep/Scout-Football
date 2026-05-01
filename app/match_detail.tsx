@@ -1143,10 +1143,12 @@ export default function MatchDetail() {
             textStyle={[styles.noDataText, ts.noDataText]}
           />
         )}
-        <View style={[styles.insightBox,ts.insightBox]}>
-          <Text style={[styles.insightText,ts.insightText]}>{oddsComment}</Text>
-        </View>
-        {drawAnalysis ? (
+        {oddsData && (
+          <View style={[styles.insightBox,ts.insightBox]}>
+            <Text style={[styles.insightText,ts.insightText]}>{oddsComment}</Text>
+          </View>
+        )}
+        {oddsData && drawAnalysis ? (
           <View style={[styles.insightBox,ts.insightBox,{marginTop:0}]}>
             <Text style={[styles.insightText,ts.insightText]}>🤝 {drawAnalysis}</Text>
           </View>

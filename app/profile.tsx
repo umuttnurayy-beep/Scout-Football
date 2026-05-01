@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
@@ -861,7 +862,7 @@ export default function ProfileScreen() {
 
           <View style={styles.settingsRow}>
             <Text style={[styles.settingsLabel, { color: c.text }]}>Versiyon</Text>
-            <Text style={[styles.settingsValue, { color: c.primary }]}>1.0.0</Text>
+            <Text style={[styles.settingsValue, { color: c.primary }]}>{Constants.expoConfig?.version ?? '1.0.0'}</Text>
           </View>
         </View>
 

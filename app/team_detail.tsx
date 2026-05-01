@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { Standing, getSuperLigStandings, getStandings } from '../services/api';
 import { teamDataEmptyMessage } from '../utils/emptyStates';
@@ -16,12 +16,19 @@ export default function TeamDetailScreen() {
 
   const [teams, setTeams] = useState<Standing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadTeams();
     // League route params are fixed for this screen instance.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function onRefresh() {
+    setRefreshing(true);
+    await loadTeams();
+    setRefreshing(false);
+  }
 
   async function loadTeams() {
     setLoading(true);
@@ -57,7 +64,10 @@ export default function TeamDetailScreen() {
       ) : teams.length === 0 ? (
         <Text style={[styles.emptyText, { color: c.textMuted }]}>{teamDataEmptyMessage(String(leagueName))}</Text>
       ) : (
-        <ScrollView style={styles.scroll}>
+        <ScrollView
+          style={styles.scroll}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} colors={[c.primary]} />}
+        >
           {[...teams]
             .filter(t => t.team)
             .sort((a, b) => a.team.localeCompare(b.team, 'tr'))
