@@ -93,7 +93,10 @@
       "Bash(python3 -c \"import sys, json; d=json.load\\(sys.stdin\\); t=d['message']['content'][0]['text'] if d['message']['content'] and d['message']['content'][0].get\\('type'\\)=='text' else ''; print\\(t[:500] if t else 'No text content'\\)\")",
       "Bash(python3 -c \"import sys, json; d=json.load\\(sys.stdin\\); print\\(type\\(d.get\\('message'\\)\\), d.get\\('message'\\) if d.get\\('message'\\) else 'NA'\\)\")",
       "Bash(python3 -c 'import sys, json; d=json.load\\(sys.stdin\\); t = '\\\\'''\\\\''; *)",
-      "Bash(grep -v \"//.*any\")"
+      "Bash(grep -v \"//.*any\")",
+      "Bash(awk '/^function |^const .*= \\\\\\(/ {start=NR; name=$0} /^}/ {if\\(start\\) {count=NR-start; if\\(count>100\\) print start \"-\" NR \": \" count \" lines\"}}' app/index.tsx)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\umutn\\\\Desktop\\\\ScoutFootball\" -Recurse -Include \"*.tsx\")",
+      "Bash(Select-Object -First 20)"
     ],
     "additionalDirectories": [
       "C:\\tmp"
