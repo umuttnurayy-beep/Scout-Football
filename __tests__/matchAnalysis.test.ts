@@ -40,6 +40,8 @@ function makeH2H(count: number, homeWins: number, awayWins: number) {
     const homeScore = e.type === 'home' ? 3 : e.type === 'away' ? 1 : 1;
     const awayScore = e.type === 'home' ? 1 : e.type === 'away' ? 3 : 1;
     return {
+      id: i + 1,
+      status: 'FINISHED',
       utcDate: new Date(2025, 0, i + 1).toISOString(),
       homeTeam: { id: 1, name: 'Home FC', shortName: 'Home FC' },
       awayTeam: { id: 2, name: 'Away FC', shortName: 'Away FC' },
@@ -237,7 +239,7 @@ describe('getDeepH2HStats', () => {
 
   it('filters out matches with missing scores', () => {
     const valid = makeH2H(3, 2, 1);
-    const invalid = [{ utcDate: '2025-01-01', homeTeam: { id: 1, name: 'X' }, awayTeam: { id: 2, name: 'Y' }, score: { fullTime: { home: null, away: null } } }];
+    const invalid = [{ id: 99, status: 'FINISHED', utcDate: '2025-01-01', homeTeam: { id: 1, name: 'X' }, awayTeam: { id: 2, name: 'Y' }, score: { fullTime: { home: null, away: null } } }];
     const result = getDeepH2HStats([...valid, ...invalid], 'Home FC', 'Away FC', 1);
     expect(result).not.toBeNull();
   });

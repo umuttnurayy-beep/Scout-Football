@@ -8,7 +8,7 @@ import {
 import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-svg';
 import { DetailDataNotice, DetailStatusBanner } from '../components/DetailDataState';
 import { useTheme } from '../context/ThemeContext';
-import { getCityForTeam, getH2H, getMatchContext, getMatchStats, getOdds, getTeamForm, getWeather, isStaleApiData, recordContextFallback } from '../services/api';
+import { FDMatch, getCityForTeam, getH2H, getMatchContext, getMatchStats, getOdds, getTeamForm, getWeather, isStaleApiData, recordContextFallback } from '../services/api';
 import { detailDataMessage, staleAnalysisMessage } from '../utils/emptyStates';
 import { DetailDataIssue, buildDetailDataIssues, buildDetailRadar, detailIssueFlags, fulfilledOr, hasStaleDetailData } from '../utils/matchDetailDataState';
 import {
@@ -158,12 +158,12 @@ function getTagColor(type: string, value: string, isDark: boolean): { bg: string
 
 // ── Stat Helpers ───────────────────────────────────────────────────────────
 
-function calcFormStats(matches: any[], teamId: number) {
+function calcFormStats(matches: FDMatch[], teamId: number) {
   let homeWin=0,homeDraw=0,homeLoss=0,homeGf=0,homeGa=0,homePlayed=0;
   let awayWin=0,awayDraw=0,awayLoss=0,awayGf=0,awayGa=0,awayPlayed=0;
   let over25=0,kgVar=0,total=0;
 
-  matches.forEach((m: any) => {
+  matches.forEach(m => {
     const fh=m.score?.fullTime?.home, fa=m.score?.fullTime?.away;
     if (fh==null||fa==null) return;
     total++;
@@ -198,16 +198,16 @@ function calcFormStats(matches: any[], teamId: number) {
   };
 }
 
-function calcFormPoints(matches: any[], teamId: number): number {
+function calcFormPoints(matches: FDMatch[], teamId: number): number {
   return [...matches]
-    .filter((m:any)=>m.score?.fullTime?.home!=null)
-    .sort((a:any,b:any)=>new Date(a.utcDate??0).getTime()-new Date(b.utcDate??0).getTime())
+    .filter(m=>m.score?.fullTime?.home!=null)
+    .sort((a,b)=>new Date(a.utcDate??0).getTime()-new Date(b.utcDate??0).getTime())
     .slice(-5)
-    .reduce((pts:number,m:any)=>{
+    .reduce((pts,m)=>{
       const isHome=m.homeTeam?.id===teamId;
       const gf=isHome?m.score.fullTime.home:m.score.fullTime.away;
       const ga=isHome?m.score.fullTime.away:m.score.fullTime.home;
-      return pts+(gf>ga?3:gf===ga?1:0);
+      return pts+(gf!=null&&ga!=null?(gf>ga?3:gf===ga?1:0):0);
     },0);
 }
 
@@ -234,10 +234,10 @@ function getTeamStyle(stats: ReturnType<typeof calcFormStats>): { label: string;
 
 // ── Commentary Helpers ─────────────────────────────────────────────────────
 
-function getH2HComment(h2hData: any[], home: string, away: string): string {
+function getH2HComment(h2hData: FDMatch[], home: string, away: string): string {
   if (h2hData.length < 3) return 'Geçmiş karşılaşma sayısı sınırlı; bu veriye fazla ağırlık vermemek gerekebilir.';
   let hw=0,d=0,aw=0,totalG=0,cnt=0;
-  h2hData.forEach((m:any)=>{
+  h2hData.forEach(m=>{
     const fh=m.score?.fullTime?.home, fa=m.score?.fullTime?.away;
     if (fh==null||fa==null) return;
     cnt++; totalG+=fh+fa;
@@ -371,22 +371,22 @@ function RadarChart({homeVals,awayVals,labels}:{homeVals:number[];awayVals:numbe
   );
 }
 
-function FormHeatRow({matches,teamId,label}:{matches:any[];teamId:number;label:string}){
+function FormHeatRow({matches,teamId,label}:{matches:FDMatch[];teamId:number;label:string}){
   const { colors: fc } = useTheme();
   const last5=[...matches]
-    .filter((m:any)=>m.score?.fullTime?.home!=null)
-    .sort((a:any,b:any)=>new Date(a.utcDate??0).getTime()-new Date(b.utcDate??0).getTime())
+    .filter(m=>m.score?.fullTime?.home!=null)
+    .sort((a,b)=>new Date(a.utcDate??0).getTime()-new Date(b.utcDate??0).getTime())
     .slice(-5);
   if(last5.length===0) return null;
   return (
     <View style={fStyles.row}>
       <Text style={[fStyles.label,{color:fc.textSub}]} numberOfLines={1}>{label}</Text>
       <View style={fStyles.badges}>
-        {last5.map((m:any,i:number)=>{
+        {last5.map((m,i)=>{
           const isHome=m.homeTeam?.id===teamId;
           const gf=isHome?m.score.fullTime.home:m.score.fullTime.away;
           const ga=isHome?m.score.fullTime.away:m.score.fullTime.home;
-          const result=gf>ga?'G':gf===ga?'B':'M';
+          const result=gf!=null&&ga!=null?(gf>ga?'G':gf===ga?'B':'M'):'M';
           const bg=result==='G'?fc.win:result==='B'?fc.draw:fc.loss;
           return(
             <View key={i} style={[fStyles.badge,{backgroundColor:bg}]}>
@@ -482,11 +482,11 @@ export default function MatchDetail() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [matchData,  setMatchData]  = useState<any>(null);
-  const [h2hData,    setH2hData]    = useState<any[]>([]);
+  const [h2hData,    setH2hData]    = useState<FDMatch[]>([]);
   const [weatherData,setWeatherData]= useState<any>(null);
   const [oddsData,   setOddsData]   = useState<any>(null);
-  const [homeForm,   setHomeForm]   = useState<any[]>([]);
-  const [awayForm,   setAwayForm]   = useState<any[]>([]);
+  const [homeForm,   setHomeForm]   = useState<FDMatch[]>([]);
+  const [awayForm,   setAwayForm]   = useState<FDMatch[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [showNeden,  setShowNeden]  = useState(false);
   const [showScoutHelp, setShowScoutHelp] = useState<ScoutHelpKey | null>(null);
@@ -1257,7 +1257,7 @@ export default function MatchDetail() {
           <>
             {(() => {
               let hw=0,d=0,aw=0;
-              h2hData.forEach((m:any)=>{
+              h2hData.forEach(m=>{
                 const fh=m.score?.fullTime?.home,fa=m.score?.fullTime?.away;
                 if(fh==null||fa==null)return;
                 const ih=formTeamIds.home>0?m.homeTeam?.id===formTeamIds.home:(m.homeTeam?.shortName===displayHomeName||m.homeTeam?.name?.includes(displayHomeName));
@@ -1277,7 +1277,7 @@ export default function MatchDetail() {
                 </View>
               );
             })()}
-            {h2hData.map((m:any,i:number)=>{
+            {h2hData.map((m,i)=>{
               const fh=m.score?.fullTime?.home,fa=m.score?.fullTime?.away;
               const date=new Date(m.utcDate).toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'});
               return(

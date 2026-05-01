@@ -1,3 +1,5 @@
+import type { FDMatch } from '../services/api';
+
 export type Stil = 'Hücumcu' | 'Savunmacı' | 'Dengeli';
 export type Level = 'Düşük' | 'Orta' | 'Yüksek';
 
@@ -649,10 +651,10 @@ export function getHomeAwayComment(
 
 // Form trend: last 5 vs prior 5 matches
 export function getFormTrend(
-  matches: any[],
+  matches: FDMatch[],
   teamId: number,
 ): FormTrend | null {
-  const finished = [...matches.filter((m: any) => m.score?.fullTime?.home != null)].sort(
+  const finished = [...matches.filter(m => m.score?.fullTime?.home != null)].sort(
     (a, b) => new Date(a.utcDate ?? 0).getTime() - new Date(b.utcDate ?? 0).getTime(),
   );
   if (finished.length < 6) return null;
@@ -660,11 +662,11 @@ export function getFormTrend(
   const recent5  = finished.slice(-5);
   const prev5    = finished.slice(-10, -5);
 
-  const calcPts = (ms: any[]) => ms.reduce((pts: number, m: any) => {
+  const calcPts = (ms: FDMatch[]) => ms.reduce((pts: number, m) => {
     const isHome = m.homeTeam?.id === teamId;
     const gf = isHome ? m.score.fullTime.home : m.score.fullTime.away;
     const ga = isHome ? m.score.fullTime.away : m.score.fullTime.home;
-    return pts + (gf > ga ? 3 : gf === ga ? 1 : 0);
+    return pts + (gf != null && ga != null ? (gf > ga ? 3 : gf === ga ? 1 : 0) : 0);
   }, 0);
 
   const pts5    = calcPts(recent5);
@@ -833,19 +835,19 @@ export function getMotivationComment(
 
 // Deep H2H analysis — over2.5%, BTTS%, recent trend, streak
 export function getDeepH2HStats(
-  h2hData: any[],
+  h2hData: FDMatch[],
   home: string,
   away: string,
   homeTeamId?: number,
 ): { over25Pct: number; bttsPct: number; trendDir: 'home' | 'away' | 'balanced'; recentTrend: string; deepComment: string } | null {
   const valid = h2hData.filter(
-    (m: any) => m.score?.fullTime?.home != null && m.score?.fullTime?.away != null,
+    m => m.score?.fullTime?.home != null && m.score?.fullTime?.away != null,
   );
   if (valid.length < 3) return null;
 
   let over25 = 0, btts = 0;
-  valid.forEach((m: any) => {
-    const fh = m.score.fullTime.home, fa = m.score.fullTime.away;
+  valid.forEach(m => {
+    const fh = m.score.fullTime.home!, fa = m.score.fullTime.away!;
     if (fh + fa > 2.5) over25++;
     if (fh > 0 && fa > 0) btts++;
   });
@@ -860,8 +862,8 @@ export function getDeepH2HStats(
   );
   const recent3 = sorted.slice(-3);
   let rHw = 0, rAw = 0;
-  recent3.forEach((m: any) => {
-    const fh = m.score.fullTime.home, fa = m.score.fullTime.away;
+  recent3.forEach(m => {
+    const fh = m.score.fullTime.home!, fa = m.score.fullTime.away!;
     // homeTeamId > 0 guard: id=0 would never match any real team
     const h2hHomeName = m.homeTeam?.name ?? '';
     const isHomeTeam = (homeTeamId != null && homeTeamId > 0)

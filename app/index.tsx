@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import {
-  clearLastApiError, getAllSportsH2H, getCityForTeam, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, HomeData, Standing,
+  FDMatch, clearLastApiError, getAllSportsH2H, getCityForTeam, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, HomeData, Standing,
 } from '../services/api';
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
 import { dataNoticeMessage, matchListEmptyMessage, summarizeSourceWarnings } from '../utils/emptyStates';
@@ -442,13 +442,13 @@ function mapSLMatch(m: any): Match {
   };
 }
 
-function mapMatch(m: any): Match {
+function mapMatch(m: FDMatch): Match {
   const finished = m.status === 'FINISHED';
   const fh = m.score?.fullTime?.home, fa = m.score?.fullTime?.away;
   return {
     id:          m.id,
     leagueApiId: m.competition?.id || 0,
-    league:      LEAGUE_NAMES[m.competition?.id] || m.competition?.name || 'Diğer',
+    league:      LEAGUE_NAMES[m.competition?.id ?? 0] || m.competition?.name || 'Diğer',
     home:        m.homeTeam?.shortName || m.homeTeam?.name || '',
     away:        m.awayTeam?.shortName || m.awayTeam?.name || '',
     time:        formatTime(m.utcDate),
@@ -467,9 +467,9 @@ function isRenderableMatch(m: Match) {
   return Boolean(m.home?.trim() && m.away?.trim() && m.time && m.league);
 }
 
-function buildVisibleMatches(data: any[], slData: any[]) {
+function buildVisibleMatches(data: FDMatch[], slData: any[]) {
   const mainMatches = data
-    .filter((m: any) => SUPPORTED_LEAGUES.includes(m.competition?.id))
+    .filter(m => SUPPORTED_LEAGUES.includes(m.competition?.id ?? 0))
     .map(mapMatch)
     .filter(isRenderableMatch);
   const superLigMatches = slData

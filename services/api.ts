@@ -168,6 +168,29 @@ export type Standing = {
   pts: number;
 };
 
+export type FDScore = {
+  fullTime: { home: number | null; away: number | null };
+  halfTime?: { home: number | null; away: number | null };
+};
+
+export type FDTeamRef = {
+  id: number;
+  name?: string;
+  shortName?: string;
+  crest?: string;
+};
+
+export type FDMatch = {
+  id: number;
+  utcDate: string;
+  status: string;
+  homeTeam: FDTeamRef;
+  awayTeam: FDTeamRef;
+  score: FDScore;
+  competition?: { id: number; name?: string; code?: string };
+  referees?: Array<{ id: number; name: string; type?: string }>;
+};
+
 export type WeatherData = {
   temp: number;
   wind: number;
@@ -183,7 +206,7 @@ export type OddsData = {
 
 export type HomeData = {
   date: string;
-  matches: any[];
+  matches: FDMatch[];
   superLigMatches: any[];
   standings: Record<number, Standing[]>;
   featuredMatchId?: number | null;
@@ -193,7 +216,7 @@ export type HomeData = {
   sourceSeverity?: 'warning' | 'error' | null;
   nextPreview: {
     date: string;
-    matches: any[];
+    matches: FDMatch[];
     superLigMatches: any[];
     featuredMatchId?: number | null;
     source?: 'fresh' | 'cache' | 'stale' | null;
@@ -231,12 +254,12 @@ export async function getStandings(leagueId: number): Promise<Standing[]> {
   }
 }
 
-export async function getTodayMatches(date?: string): Promise<any[]> {
+export async function getTodayMatches(date?: string): Promise<FDMatch[]> {
   try {
     const url = date ? `${BASE_URL}/matches?date=${date}` : `${BASE_URL}/matches`;
     const res = await fetch(url);
-    const data = await readApiJson<any[]>(res, []);
-    return arrayOrEmpty(data);
+    const data = await readApiJson<FDMatch[]>(res, []);
+    return arrayOrEmpty<FDMatch>(data);
   } catch (e) {
     logApiError('getTodayMatches', e);
     return [];
@@ -278,9 +301,9 @@ export async function getMatchStats(matchId: string): Promise<any> {
 
 export type MatchContextData = {
   match: any | null;
-  homeForm: any[];
-  awayForm: any[];
-  h2h: any[];
+  homeForm: FDMatch[];
+  awayForm: FDMatch[];
+  h2h: FDMatch[];
   issues?: string[];
   generatedAt?: string;
 };
@@ -304,23 +327,23 @@ export async function getMatchContext(matchId: string, isFinished?: boolean): Pr
   }
 }
 
-export async function getH2H(matchId: string, isFinished?: boolean): Promise<any[]> {
+export async function getH2H(matchId: string, isFinished?: boolean): Promise<FDMatch[]> {
   try {
     const url = isFinished ? `${BASE_URL}/h2h/${matchId}?finished=1` : `${BASE_URL}/h2h/${matchId}`;
     const res = await fetch(url);
-    const data = await readApiJson<any[]>(res, []);
-    return arrayOrEmpty(data);
+    const data = await readApiJson<FDMatch[]>(res, []);
+    return arrayOrEmpty<FDMatch>(data);
   } catch (e) {
     logApiError('getH2H', e);
     return [];
   }
 }
 
-export async function getTeamForm(teamId: number): Promise<any[]> {
+export async function getTeamForm(teamId: number): Promise<FDMatch[]> {
   try {
     const res = await fetch(`${BASE_URL}/team/${teamId}/matches`);
-    const data = await readApiJson<any[]>(res, []);
-    return arrayOrEmpty(data);
+    const data = await readApiJson<FDMatch[]>(res, []);
+    return arrayOrEmpty<FDMatch>(data);
   } catch (e) {
     logApiError('getTeamForm', e);
     return [];
