@@ -1043,7 +1043,7 @@ export default function SLMatchDetail() {
         )}
 
         {/* H2H */}
-        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>H2H — GEÇMIŞ KARŞILAŞMALAR</Text>
+        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>H2H — GEÇMİŞ KARŞILAŞMALAR</Text>
         <View style={[styles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
           <Text style={[styles.insightText, { color: c.text }]}>{h2hComment}</Text>
         </View>

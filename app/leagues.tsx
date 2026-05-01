@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { CURRENT_FOOTBALL_SEASON, DISPLAY_FOOTBALL_SEASON } from '../constants/seasons';
 import { FDMatch, UCLKnockouts, getStandings, getSuperLigStandings, getUclKnockouts } from '../services/api';
@@ -309,12 +309,20 @@ export default function LeaguesScreen() {
   const [standings, setStandings]       = useState<Standing[]>([]);
   const [knockouts, setKnockouts]       = useState<UCLKnockouts | null>(null);
   const [loading, setLoading]           = useState(false);
+  const [refreshing, setRefreshing]     = useState(false);
 
   useEffect(() => {
     setUclView('standings');
     loadStandings(activeLeague.apiId);
     if (activeLeague.apiId === 2) loadKnockouts();
   }, [activeLeague]);
+
+  async function onRefresh() {
+    setRefreshing(true);
+    await loadStandings(activeLeague.apiId);
+    if (activeLeague.apiId === 2) await loadKnockouts();
+    setRefreshing(false);
+  }
 
   async function loadStandings(apiId: number) {
     setLoading(true);
@@ -421,7 +429,10 @@ export default function LeaguesScreen() {
         ))}
       </View>
 
-      <ScrollView style={styles.scroll}>
+      <ScrollView
+        style={styles.scroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} colors={[c.primary]} />}
+      >
         {loading ? (
           <ActivityIndicator style={{ marginTop: 40 }} color={c.primary} />
         ) : (

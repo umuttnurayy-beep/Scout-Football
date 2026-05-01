@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Image, ScrollView, StyleSheet,
+  ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
 import {
@@ -214,6 +214,7 @@ export default function TeamStatsScreen() {
 
   // AllSports (korner + possession)
   const [allSportsStats, setAllSportsStats] = useState<AllSportsTeamStats | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Süper Lig specific
   const [slForm, setSlForm]           = useState<string[]>([]);
@@ -239,6 +240,24 @@ export default function TeamStatsScreen() {
     // Team route params are fixed for this screen instance.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function onRefresh() {
+    setRefreshing(true);
+    setRecentForm([]);
+    setSeasonStats(null);
+    setSlForm([]);
+    setSlSeasonStats(null);
+    setFdSquad([]);
+    setFdScorers([]);
+    setAllSportsStats(null);
+    await Promise.allSettled([
+      loadForm(),
+      loadPlayers(),
+      loadAllSports(),
+      isSportsDbLeague ? loadSLData() : Promise.resolve(),
+    ]);
+    setRefreshing(false);
+  }
 
   async function recordRecentlyViewed() {
     try {
@@ -373,7 +392,10 @@ export default function TeamStatsScreen() {
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView style={styles.scroll}>
+      <ScrollView
+        style={styles.scroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} colors={[c.primary]} />}
+      >
         <View style={[styles.teamHeader, { borderBottomColor: c.border }]}>
           <View style={[styles.teamLogo, { backgroundColor: c.primaryLight }]}>
             <Text style={[styles.teamLogoText, { color: c.primaryDark }]}>{initials}</Text>

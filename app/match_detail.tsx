@@ -1225,7 +1225,7 @@ export default function MatchDetail() {
         )}
 
         {/* H2H */}
-        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>H2H — GEÇMIŞ KARŞILAŞMALAR</Text>
+        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>H2H — GEÇMİŞ KARŞILAŞMALAR</Text>
         <View style={[styles.insightBox,ts.insightBox]}>
           <Text style={[styles.insightText,ts.insightText]}>{h2hComment}</Text>
         </View>
