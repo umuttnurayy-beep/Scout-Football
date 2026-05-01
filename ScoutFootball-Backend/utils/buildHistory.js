@@ -1,6 +1,16 @@
 function createBuildHistory({ maxEntries = 20 } = {}) {
   const entries = [];
   const NEXT_PREVIEW_SOURCES = ['fresh', 'cache', 'stale'];
+  const ISSUE_BUCKETS = ['matches', 'superlig', 'standings', 'other'];
+
+  function issueBucket(issue) {
+    const value = String(issue || '').trim().toLowerCase();
+    if (!value) return 'other';
+    if (value === 'matches') return 'matches';
+    if (value === 'superlig') return 'superlig';
+    if (value.startsWith('standings:')) return 'standings';
+    return 'other';
+  }
 
   function record({
     date,
@@ -47,11 +57,39 @@ function createBuildHistory({ maxEntries = 20 } = {}) {
       if (entry.sourceSeverity) acc[entry.sourceSeverity] += 1;
       return acc;
     }, { warning: 0, error: 0 });
+    const issueByBucket = entries.reduce((acc, entry) => {
+      for (const issue of entry.issues) {
+        const bucket = issueBucket(issue);
+        acc[bucket] += 1;
+      }
+      return acc;
+    }, { matches: 0, superlig: 0, standings: 0, other: 0 });
+    const severityReasonBreakdown = entries.reduce((acc, entry) => {
+      if (!entry.sourceSeverity) return acc;
+      for (const issue of entry.issues) {
+        const bucket = issueBucket(issue);
+        acc[entry.sourceSeverity][bucket] += 1;
+      }
+      return acc;
+    }, {
+      warning: { matches: 0, superlig: 0, standings: 0, other: 0 },
+      error: { matches: 0, superlig: 0, standings: 0, other: 0 },
+    });
     const nextPreviewBySource = entries.reduce((acc, entry) => {
       if (entry.nextPreviewSource) acc[entry.nextPreviewSource] += 1;
       return acc;
     }, { fresh: 0, cache: 0, stale: 0 });
-    return { total, withIssues, withWarnings, staleServed, withNextPreview, bySeverity, nextPreviewBySource };
+    return {
+      total,
+      withIssues,
+      withWarnings,
+      staleServed,
+      withNextPreview,
+      bySeverity,
+      issueByBucket,
+      severityReasonBreakdown,
+      nextPreviewBySource,
+    };
   }
 
   return { record, getHistory, getSummary };

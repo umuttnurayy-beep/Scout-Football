@@ -57,6 +57,11 @@ describe('createBuildHistory', () => {
     expect(s.staleServed).toBe(1);
     expect(s.withNextPreview).toBe(1);
     expect(s.bySeverity).toEqual({ warning: 0, error: 0 });
+    expect(s.issueByBucket).toEqual({ matches: 1, superlig: 0, standings: 0, other: 0 });
+    expect(s.severityReasonBreakdown).toEqual({
+      warning: { matches: 0, superlig: 0, standings: 0, other: 0 },
+      error: { matches: 0, superlig: 0, standings: 0, other: 0 },
+    });
     expect(s.nextPreviewBySource).toEqual({ fresh: 1, cache: 0, stale: 0 });
   });
 
@@ -69,6 +74,11 @@ describe('createBuildHistory', () => {
       staleServed: 0,
       withNextPreview: 0,
       bySeverity: { warning: 0, error: 0 },
+      issueByBucket: { matches: 0, superlig: 0, standings: 0, other: 0 },
+      severityReasonBreakdown: {
+        warning: { matches: 0, superlig: 0, standings: 0, other: 0 },
+        error: { matches: 0, superlig: 0, standings: 0, other: 0 },
+      },
       nextPreviewBySource: { fresh: 0, cache: 0, stale: 0 },
     });
   });
@@ -104,9 +114,16 @@ describe('createBuildHistory', () => {
 
   test('getSummary counts warning and error severities', () => {
     const h = createBuildHistory();
-    h.record({ ...baseEntry, date: 'a', sourceSeverity: 'warning', nextPreviewDate: null, nextPreviewFeaturedMatchId: null, nextPreviewSource: null });
-    h.record({ ...baseEntry, date: 'b', sourceSeverity: 'error', nextPreviewDate: null, nextPreviewFeaturedMatchId: null, nextPreviewSource: null });
+    h.record({ ...baseEntry, date: 'a', sourceSeverity: 'warning', issues: ['standings:2021'], nextPreviewDate: null, nextPreviewFeaturedMatchId: null, nextPreviewSource: null });
+    h.record({ ...baseEntry, date: 'b', sourceSeverity: 'error', issues: ['matches', 'superlig'], nextPreviewDate: null, nextPreviewFeaturedMatchId: null, nextPreviewSource: null });
     h.record({ ...baseEntry, date: 'c', sourceSeverity: null, nextPreviewDate: null, nextPreviewFeaturedMatchId: null, nextPreviewSource: null });
-    expect(h.getSummary().bySeverity).toEqual({ warning: 1, error: 1 });
+    expect(h.getSummary()).toMatchObject({
+      bySeverity: { warning: 1, error: 1 },
+      issueByBucket: { matches: 1, superlig: 1, standings: 1, other: 0 },
+      severityReasonBreakdown: {
+        warning: { matches: 0, superlig: 0, standings: 1, other: 0 },
+        error: { matches: 1, superlig: 1, standings: 0, other: 0 },
+      },
+    });
   });
 });

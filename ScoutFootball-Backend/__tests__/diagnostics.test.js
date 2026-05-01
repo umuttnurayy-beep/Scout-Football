@@ -21,6 +21,11 @@ function createApp(overrides = {}) {
         staleServed: 0,
         withNextPreview: 1,
         bySeverity: { warning: 1, error: 0 },
+        issueByBucket: { matches: 1, superlig: 0, standings: 0, other: 0 },
+        severityReasonBreakdown: {
+          warning: { matches: 0, superlig: 0, standings: 0, other: 0 },
+          error: { matches: 1, superlig: 0, standings: 0, other: 0 },
+        },
         nextPreviewBySource: { fresh: 1, cache: 0, stale: 0 },
       }),
       getHistory: () => ([{
@@ -82,6 +87,11 @@ describe('diagnostics router', () => {
           staleServed: 0,
           withNextPreview: 1,
           bySeverity: { warning: 1, error: 0 },
+          issueByBucket: { matches: 1, superlig: 0, standings: 0, other: 0 },
+          severityReasonBreakdown: {
+            warning: { matches: 0, superlig: 0, standings: 0, other: 0 },
+            error: { matches: 1, superlig: 0, standings: 0, other: 0 },
+          },
           nextPreviewBySource: { fresh: 1, cache: 0, stale: 0 },
         },
         recent: [{

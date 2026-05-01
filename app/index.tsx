@@ -758,12 +758,21 @@ function DataNoticeCard({ type, message }: { type: 'stale' | 'warning' | 'error'
   const { colors: c, isDark } = useTheme();
   const isStale = type === 'stale';
   const isWarning = type === 'warning';
+  const accentColor = isStale ? c.primary : isWarning ? '#E3B341' : '#E16F3D';
+  const backgroundColor = isDark
+    ? isWarning ? '#2A2416' : type === 'error' ? '#2B1F1A' : '#18202A'
+    : isWarning ? '#FFF7E5' : type === 'error' ? '#FFF1EC' : '#F3F7FC';
+  const borderColor = isWarning
+    ? (isDark ? '#6E5A1F' : '#F3D07B')
+    : type === 'error'
+      ? (isDark ? '#7B4A37' : '#F2B39A')
+      : c.cardBorder;
   return (
-    <View style={[sc.noticeCard, { backgroundColor: isDark ? '#18202A' : '#F3F7FC', borderColor: c.cardBorder }]}>
+    <View style={[sc.noticeCard, { backgroundColor, borderColor }]}>
       <Ionicons
         name={isStale ? 'time-outline' : isWarning ? 'alert-circle-outline' : 'cloud-offline-outline'}
         size={18}
-        color={isStale ? c.primary : '#E3B341'}
+        color={accentColor}
       />
       <Text style={[sc.noticeText, { color: c.textSub }]}>
         {message || dataNoticeMessage(type)}

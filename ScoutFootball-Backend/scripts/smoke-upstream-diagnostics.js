@@ -73,6 +73,16 @@ function validateStats(payload) {
   assert(payload.buildHistory.summary.bySeverity && typeof payload.buildHistory.summary.bySeverity === 'object', 'buildHistory.summary.bySeverity is an object');
   assert(typeof payload.buildHistory.summary.bySeverity.warning === 'number', 'buildHistory.summary.bySeverity.warning is a number');
   assert(typeof payload.buildHistory.summary.bySeverity.error === 'number', 'buildHistory.summary.bySeverity.error is a number');
+  assert(payload.buildHistory.summary.issueByBucket && typeof payload.buildHistory.summary.issueByBucket === 'object', 'buildHistory.summary.issueByBucket is an object');
+  assert(typeof payload.buildHistory.summary.issueByBucket.matches === 'number', 'buildHistory.summary.issueByBucket.matches is a number');
+  assert(typeof payload.buildHistory.summary.issueByBucket.superlig === 'number', 'buildHistory.summary.issueByBucket.superlig is a number');
+  assert(typeof payload.buildHistory.summary.issueByBucket.standings === 'number', 'buildHistory.summary.issueByBucket.standings is a number');
+  assert(typeof payload.buildHistory.summary.issueByBucket.other === 'number', 'buildHistory.summary.issueByBucket.other is a number');
+  assert(payload.buildHistory.summary.severityReasonBreakdown && typeof payload.buildHistory.summary.severityReasonBreakdown === 'object', 'buildHistory.summary.severityReasonBreakdown is an object');
+  assert(payload.buildHistory.summary.severityReasonBreakdown.warning && typeof payload.buildHistory.summary.severityReasonBreakdown.warning === 'object', 'buildHistory.summary.severityReasonBreakdown.warning is an object');
+  assert(payload.buildHistory.summary.severityReasonBreakdown.error && typeof payload.buildHistory.summary.severityReasonBreakdown.error === 'object', 'buildHistory.summary.severityReasonBreakdown.error is an object');
+  assert(typeof payload.buildHistory.summary.severityReasonBreakdown.warning.standings === 'number', 'buildHistory.summary.severityReasonBreakdown.warning.standings is a number');
+  assert(typeof payload.buildHistory.summary.severityReasonBreakdown.error.matches === 'number', 'buildHistory.summary.severityReasonBreakdown.error.matches is a number');
   assert(payload.buildHistory.summary.nextPreviewBySource && typeof payload.buildHistory.summary.nextPreviewBySource === 'object', 'buildHistory.summary.nextPreviewBySource is an object');
   assert(typeof payload.buildHistory.summary.nextPreviewBySource.fresh === 'number', 'buildHistory.summary.nextPreviewBySource.fresh is a number');
   assert(typeof payload.buildHistory.summary.nextPreviewBySource.cache === 'number', 'buildHistory.summary.nextPreviewBySource.cache is a number');
