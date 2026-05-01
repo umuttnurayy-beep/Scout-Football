@@ -13,6 +13,17 @@ function createApp(overrides = {}) {
   };
   const app = express();
   app.use(createDiagnosticsRouter({
+    buildHistory: overrides.buildHistory || {
+      getSummary: () => ({ total: 2, withIssues: 1, withWarnings: 1, staleServed: 0 }),
+      getHistory: () => ([{
+        date: '2026-05-01',
+        generatedAt: '2026-05-01T12:00:00.000Z',
+        matchCount: 5,
+        issues: ['matches'],
+        sourceWarnings: ['Main match feed failed for the selected day.'],
+        stale: false,
+      }]),
+    },
     getCachePolicy: () => ({ live: { ttlMs: 30000 } }),
     getCacheStats: () => ({ hitCount: 1, missCount: 2 }),
     getFallbackMetrics: () => ({ staleServedCount: 0, errorWithoutStaleCount: 0 }),
@@ -50,6 +61,16 @@ describe('diagnostics router', () => {
       cache: { hitCount: 1, missCount: 2 },
       cachePolicy: { live: { ttlMs: 30000 } },
       fallbacks: { staleServedCount: 0, errorWithoutStaleCount: 0 },
+      buildHistory: {
+        summary: { total: 2, withIssues: 1, withWarnings: 1, staleServed: 0 },
+        recent: [{
+          date: '2026-05-01',
+          matchCount: 5,
+          issues: ['matches'],
+          sourceWarnings: ['Main match feed failed for the selected day.'],
+          stale: false,
+        }],
+      },
     });
   });
 

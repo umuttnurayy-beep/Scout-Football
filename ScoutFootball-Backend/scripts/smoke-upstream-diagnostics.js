@@ -63,6 +63,22 @@ function validateStats(payload) {
   assert(typeof payload.fallbacks.errorWithoutStaleCount === 'number', 'fallbacks.errorWithoutStaleCount is a number');
   assert(payload.fallbacks.byCode && typeof payload.fallbacks.byCode === 'object' && !Array.isArray(payload.fallbacks.byCode), 'fallbacks.byCode is an object');
   assert(payload.fallbacks.byCachePrefix && typeof payload.fallbacks.byCachePrefix === 'object' && !Array.isArray(payload.fallbacks.byCachePrefix), 'fallbacks.byCachePrefix is an object');
+  assert(payload.buildHistory && typeof payload.buildHistory === 'object', '/diagnostics/upstream includes buildHistory');
+  assert(payload.buildHistory.summary && typeof payload.buildHistory.summary === 'object', 'buildHistory.summary is an object');
+  assert(typeof payload.buildHistory.summary.total === 'number', 'buildHistory.summary.total is a number');
+  assert(typeof payload.buildHistory.summary.withIssues === 'number', 'buildHistory.summary.withIssues is a number');
+  assert(typeof payload.buildHistory.summary.withWarnings === 'number', 'buildHistory.summary.withWarnings is a number');
+  assert(typeof payload.buildHistory.summary.staleServed === 'number', 'buildHistory.summary.staleServed is a number');
+  assert(Array.isArray(payload.buildHistory.recent), 'buildHistory.recent is an array');
+  if (payload.buildHistory.recent.length > 0) {
+    const recent = payload.buildHistory.recent[0];
+    assert(typeof recent.date === 'string', 'buildHistory.recent[0].date is a string');
+    assert(typeof recent.generatedAt === 'string', 'buildHistory.recent[0].generatedAt is a string');
+    assert(typeof recent.matchCount === 'number', 'buildHistory.recent[0].matchCount is a number');
+    assert(Array.isArray(recent.issues), 'buildHistory.recent[0].issues is an array');
+    assert(Array.isArray(recent.sourceWarnings), 'buildHistory.recent[0].sourceWarnings is an array');
+    assert(typeof recent.stale === 'boolean', 'buildHistory.recent[0].stale is a boolean');
+  }
 }
 
 async function main() {

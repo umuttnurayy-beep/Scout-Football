@@ -58,6 +58,35 @@ function validateSuperLigMatchContextPayload(payload) {
   assert.equal(typeof payload.generatedAt, 'string', 'superlig match context generatedAt must be a string');
 }
 
+function validateHomePayload(payload) {
+  assertObject(payload, 'home payload');
+  assert.equal(typeof payload.date, 'string', 'home payload date must be a string');
+  assertArray(payload.matches, 'home payload matches');
+  assertArray(payload.superLigMatches, 'home payload superLigMatches');
+  assertObject(payload.standings, 'home payload standings');
+  assert.equal(
+    payload.featuredMatchId === null || payload.featuredMatchId === undefined || typeof payload.featuredMatchId === 'number',
+    true,
+    'home payload featuredMatchId must be number, null, or undefined',
+  );
+  assertArray(payload.issues, 'home payload issues');
+  assertArray(payload.sourceWarnings, 'home payload sourceWarnings');
+  assert.equal(payload.nextPreview === null || typeof payload.nextPreview === 'object', true, 'home payload nextPreview must be object or null');
+  if (payload.nextPreview) {
+    assert.equal(typeof payload.nextPreview.date, 'string', 'home nextPreview date must be a string');
+    assertArray(payload.nextPreview.matches, 'home nextPreview matches');
+    assertArray(payload.nextPreview.superLigMatches, 'home nextPreview superLigMatches');
+    assert.equal(
+      payload.nextPreview.featuredMatchId === null ||
+      payload.nextPreview.featuredMatchId === undefined ||
+      typeof payload.nextPreview.featuredMatchId === 'number',
+      true,
+      'home nextPreview featuredMatchId must be number, null, or undefined',
+    );
+  }
+  assert.equal(typeof payload.generatedAt, 'string', 'home payload generatedAt must be a string');
+}
+
 async function main() {
   const apiResponse = loadTsModule(path.join(__dirname, '..', 'services', 'apiResponse.ts'));
   const {
@@ -117,6 +146,30 @@ async function main() {
     null,
   );
   validateSuperLigMatchContextPayload(superLigMatchContext);
+
+  const homePayload = await readApiJson(
+    makeResponse({
+      ok: true,
+      data: {
+        date: '2026-05-01',
+        matches: [],
+        superLigMatches: [],
+        standings: { 2021: [] },
+        featuredMatchId: 12,
+        issues: ['matches'],
+        sourceWarnings: ['Main match feed failed for the selected day.'],
+        nextPreview: {
+          date: '2026-05-02',
+          matches: [],
+          superLigMatches: [],
+          featuredMatchId: 99,
+        },
+        generatedAt: '2026-05-01T00:00:00.000Z',
+      },
+    }),
+    null,
+  );
+  validateHomePayload(homePayload);
 
   clearContextFallbackStats();
   recordContextFallback('match', 'missing_context_payload', '123');

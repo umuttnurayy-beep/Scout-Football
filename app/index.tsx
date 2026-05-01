@@ -499,6 +499,19 @@ function rankMatchesWithMetrics(matches: Match[], rowsMap: Record<number, Standi
 function buildNextPreviewFromHomeData(homeData: Pick<HomeData, 'nextPreview'>, rowsMap: Record<number, Standing[]>) {
   if (!homeData.nextPreview) return null;
   const nextVisible = buildVisibleMatches(homeData.nextPreview.matches || [], homeData.nextPreview.superLigMatches || []);
+  const backendFeaturedMatchId = homeData.nextPreview.featuredMatchId ?? null;
+  if (backendFeaturedMatchId) {
+    const backendFeatured = nextVisible.find(match => match.id === backendFeaturedMatchId);
+    if (backendFeatured) {
+      const rows = rowsMap[backendFeatured.leagueApiId];
+      const home = findStanding(rows, backendFeatured.home, backendFeatured.homeTeamId);
+      const away = findStanding(rows, backendFeatured.away, backendFeatured.awayTeamId);
+      return {
+        m: backendFeatured,
+        metrics: computeMetrics(home, away, rows, backendFeatured.leagueApiId),
+      };
+    }
+  }
   return rankMatchesWithMetrics(nextVisible, rowsMap)[0] || null;
 }
 

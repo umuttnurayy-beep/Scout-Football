@@ -194,6 +194,7 @@ export type HomeData = {
     date: string;
     matches: any[];
     superLigMatches: any[];
+    featuredMatchId?: number | null;
   } | null;
   generatedAt: string;
 };

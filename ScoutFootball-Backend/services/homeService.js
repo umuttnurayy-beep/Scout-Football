@@ -205,10 +205,16 @@ function createHomeService(deps) {
             const leagueIds = visibleLeagueIdsFromPayload(supportedNextMatches, nextSuperLigMatches);
             if (leagueIds.length > 0) {
               nextLeagueIds = leagueIds;
+              const nextFeaturedMatchId = await selectStableFeaturedMatchId(
+                nextDate,
+                supportedNextMatches,
+                nextSuperLigMatches,
+              );
               nextPreview = {
                 date: nextDate,
                 matches: supportedNextMatches,
                 superLigMatches: nextSuperLigMatches,
+                featuredMatchId: nextFeaturedMatchId,
               };
               break;
             }

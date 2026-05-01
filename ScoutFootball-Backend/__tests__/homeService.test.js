@@ -133,6 +133,26 @@ describe('homeService', () => {
     expect(calls.fd).toEqual(['2026-05-01', '2026-05-02', '2026-05-03']);
   });
 
+  test('stores a stable featuredMatchId inside nextPreview payload', async () => {
+    const { service } = createService({
+      fdByDate: {
+        '2026-05-01': [fdMatch(1, 2021, 'Leeds', 'Burnley')],
+        '2026-05-02': [
+          fdMatch(21, 2014, 'Girona', 'Mallorca'),
+          fdMatch(22, 2001, 'PSG', 'Bayern'),
+        ],
+      },
+    });
+
+    const res = await service.buildHome('2026-05-01');
+
+    expect(res.ok).toBe(true);
+    expect(res.data.nextPreview).toMatchObject({
+      date: '2026-05-02',
+      featuredMatchId: 22,
+    });
+  });
+
   test('returns stale last-good payload when upstreams fail', async () => {
     const stalePayload = {
       date: '2026-05-01',
