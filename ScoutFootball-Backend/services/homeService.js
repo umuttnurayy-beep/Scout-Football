@@ -37,6 +37,22 @@ function minutesFromSportsDbTime(time) {
   return (parseInt(parts[0]) || 0) * 60 + (parseInt(parts[1]) || 0);
 }
 
+function homeCacheKey(date) {
+  return `home_${HOME_CACHE_VERSION}_${date}`;
+}
+
+function homeStaleCacheKey(date) {
+  return `home_last_good_${HOME_CACHE_VERSION}_${date}`;
+}
+
+function normalizeNextPreviewSource(source) {
+  return ['fresh', 'cache', 'stale'].includes(source) ? source : null;
+}
+
+function normalizeSourceSeverity(severity) {
+  return ['warning', 'error'].includes(severity) ? severity : null;
+}
+
 function createHomeService(deps) {
   const {
     dedupe,
@@ -114,6 +130,67 @@ function createHomeService(deps) {
     return score;
   }
 
+  function deriveSourceSeverity(upstreamErrors, standingsIssues) {
+    if ((upstreamErrors || []).length > 0) return 'error';
+    if ((standingsIssues || []).length > 0) return 'warning';
+    return null;
+  }
+
+  function deriveSourceSeverityFromPayload(payload) {
+    if (!payload || typeof payload !== 'object') return null;
+    if (payload.sourceSeverity === 'warning' || payload.sourceSeverity === 'error') {
+      return payload.sourceSeverity;
+    }
+    const issues = Array.isArray(payload.issues) ? payload.issues : [];
+    if (issues.some(issue => issue === 'matches' || issue === 'superlig')) return 'error';
+    if (issues.some(issue => String(issue).startsWith('standings:'))) return 'warning';
+    return null;
+  }
+
+  function withDerivedPayloadFields(payload) {
+    if (!payload || typeof payload !== 'object') return payload;
+    return {
+      ...payload,
+      sourceSeverity: deriveSourceSeverityFromPayload(payload),
+    };
+  }
+
+  async function readCachedHomePreview(date) {
+    const freshCached = await getCache(homeCacheKey(date));
+    if (freshCached) {
+      const supportedMatches = filterSupportedMatches(freshCached.matches);
+      const superLigMatches = (freshCached.superLigMatches || []).filter(match => match.home && match.away);
+      const leagueIds = visibleLeagueIdsFromPayload(supportedMatches, superLigMatches);
+      if (leagueIds.length > 0) {
+        return {
+          date,
+          matches: supportedMatches,
+          superLigMatches,
+          leagueIds,
+          featuredMatchId: Number(freshCached.featuredMatchId) || null,
+          source: 'cache',
+        };
+      }
+    }
+
+    const staleCached = await getStaleCache(homeStaleCacheKey(date));
+    if (!staleCached) return null;
+
+    const supportedMatches = filterSupportedMatches(staleCached.matches);
+    const superLigMatches = (staleCached.superLigMatches || []).filter(match => match.home && match.away);
+    const leagueIds = visibleLeagueIdsFromPayload(supportedMatches, superLigMatches);
+    if (leagueIds.length === 0) return null;
+
+    return {
+      date,
+      matches: supportedMatches,
+      superLigMatches,
+      leagueIds,
+      featuredMatchId: Number(staleCached.featuredMatchId) || null,
+      source: 'stale',
+    };
+  }
+
   async function selectStableFeaturedMatchId(date, matches, superLigMatches) {
     const candidates = visibleFeaturedCandidates(matches, superLigMatches);
     if (candidates.length === 0) return null;
@@ -156,10 +233,10 @@ function createHomeService(deps) {
 
   async function buildHome(rawDate) {
     const date = normalizeHomeDate(rawDate);
-    const cacheKey = `home_${HOME_CACHE_VERSION}_${date}`;
-    const staleKey = `home_last_good_${HOME_CACHE_VERSION}_${date}`;
+    const cacheKey = homeCacheKey(date);
+    const staleKey = homeStaleCacheKey(date);
     const cached = await getCache(cacheKey);
-    if (cached) return { ok: true, data: cached };
+    if (cached) return { ok: true, data: withDerivedPayloadFields(cached) };
 
     try {
       const result = await dedupe(cacheKey, async () => {
@@ -185,7 +262,7 @@ function createHomeService(deps) {
 
         if (upstreamErrors.length > 0 && visibleMatchCountFromPayload(matches, superLigMatches) === 0) {
           const stale = await getStaleCache(staleKey);
-          if (stale) return { payload: stale, stale: true };
+          if (stale) return { payload: withDerivedPayloadFields(stale), stale: true };
         }
 
         const supportedMatches = filterSupportedMatches(matches);
@@ -197,6 +274,19 @@ function createHomeService(deps) {
         if (visibleMatchCountFromPayload(supportedMatches, superLigMatches) <= 1) {
           for (let offset = 1; offset <= HOME_LOOKAHEAD_DAYS; offset += 1) {
             const nextDate = addDays(date, offset);
+            const cachedPreview = await readCachedHomePreview(nextDate);
+            if (cachedPreview) {
+              nextLeagueIds = cachedPreview.leagueIds;
+              nextPreview = {
+                date: cachedPreview.date,
+                matches: cachedPreview.matches,
+                superLigMatches: cachedPreview.superLigMatches,
+                featuredMatchId: cachedPreview.featuredMatchId,
+                source: cachedPreview.source,
+              };
+              break;
+            }
+
             const [nextMatches, nextSuperLigMatches] = await Promise.all([
               fetchFootballDataMatchesForDate(nextDate).catch(() => []),
               fetchSuperLigMatchesForDate(nextDate).catch(() => []),
@@ -215,6 +305,7 @@ function createHomeService(deps) {
                 matches: supportedNextMatches,
                 superLigMatches: nextSuperLigMatches,
                 featuredMatchId: nextFeaturedMatchId,
+                source: 'fresh',
               };
               break;
             }
@@ -223,7 +314,8 @@ function createHomeService(deps) {
 
         const standingsBundle = await buildStandingsMapForLeagueIds([...new Set([...currentLeagueIds, ...nextLeagueIds])]);
         const issues = [...new Set([...upstreamErrors, ...standingsBundle.issues])];
-        const payload = {
+        const sourceSeverity = deriveSourceSeverity(upstreamErrors, standingsBundle.issues);
+        const payload = withDerivedPayloadFields({
           date,
           matches: supportedMatches,
           superLigMatches,
@@ -232,8 +324,9 @@ function createHomeService(deps) {
           nextPreview,
           issues,
           sourceWarnings: [...new Set([...sourceWarnings, ...standingsBundle.sourceWarnings])],
+          sourceSeverity,
           generatedAt: new Date().toISOString(),
-        };
+        });
 
         const hasLive = supportedMatches.some(m => isLiveStatus(m.status)) ||
           superLigMatches.some(m => isLiveStatus(m.status));
@@ -249,7 +342,12 @@ function createHomeService(deps) {
             matchCount: visibleMatchCountFromPayload(supportedMatches, superLigMatches),
             issues: payload.issues,
             sourceWarnings: payload.sourceWarnings,
+            sourceSeverity: normalizeSourceSeverity(payload.sourceSeverity),
             stale: false,
+            featuredMatchId: payload.featuredMatchId,
+            nextPreviewDate: payload.nextPreview?.date,
+            nextPreviewFeaturedMatchId: payload.nextPreview?.featuredMatchId,
+            nextPreviewSource: normalizeNextPreviewSource(payload.nextPreview?.source),
           });
         }
 
@@ -265,17 +363,23 @@ function createHomeService(deps) {
       logger.error('/home hata:', e.message);
       const stale = await getStaleCache(staleKey);
       if (stale) {
+        const normalizedStale = withDerivedPayloadFields(stale);
         if (buildHistory) {
           buildHistory.record({
             date: normalizeHomeDate(rawDate),
-            generatedAt: stale.generatedAt || new Date().toISOString(),
+            generatedAt: normalizedStale.generatedAt || new Date().toISOString(),
             matchCount: 0,
-            issues: stale.issues || ['upstream_error'],
-            sourceWarnings: stale.sourceWarnings || ['Serving stale data due to upstream error.'],
+            issues: normalizedStale.issues || ['upstream_error'],
+            sourceWarnings: normalizedStale.sourceWarnings || ['Serving stale data due to upstream error.'],
+            sourceSeverity: normalizeSourceSeverity(normalizedStale.sourceSeverity) || 'error',
             stale: true,
+            featuredMatchId: normalizedStale.featuredMatchId,
+            nextPreviewDate: normalizedStale.nextPreview?.date,
+            nextPreviewFeaturedMatchId: normalizedStale.nextPreview?.featuredMatchId,
+            nextPreviewSource: normalizeNextPreviewSource(normalizedStale.nextPreview?.source),
           });
         }
-        return { ok: true, stale: true, data: stale };
+        return { ok: true, stale: true, data: normalizedStale };
       }
       throw e;
     }

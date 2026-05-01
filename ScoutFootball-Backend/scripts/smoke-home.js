@@ -61,6 +61,12 @@ function validateHomePayload(payload, label) {
   assert(typeof data.generatedAt === 'string' && data.generatedAt.length > 0, `${label}: generatedAt exists`);
   assert(Array.isArray(data.issues || []), `${label}: issues is an array when present`);
   assert(Array.isArray(data.sourceWarnings || []), `${label}: sourceWarnings is an array when present`);
+  assert(
+    data.sourceSeverity === null ||
+    data.sourceSeverity === undefined ||
+    ['warning', 'error'].includes(data.sourceSeverity),
+    `${label}: sourceSeverity is known when present`,
+  );
 
   const competitionIds = [...new Set((data.matches || []).map(match => match?.competition?.id).filter(Boolean))].sort();
   const unsupported = competitionIds.filter(id => !SUPPORTED_COMPETITIONS.has(id));
@@ -80,6 +86,7 @@ function validateHomePayload(payload, label) {
     stale: Boolean(payload.stale || data.stale),
     issues: Array.isArray(data.issues) ? data.issues : [],
     sourceWarnings: Array.isArray(data.sourceWarnings) ? data.sourceWarnings : [],
+    sourceSeverity: data.sourceSeverity || null,
     next,
   };
 }
@@ -93,6 +100,12 @@ function validateNextPreview(nextPreview, label) {
   assert(typeof nextPreview.date === 'string' && nextPreview.date.length > 0, `${label}: nextPreview.date exists`);
   assert(Array.isArray(nextPreview.matches), `${label}: nextPreview.matches is an array`);
   assert(Array.isArray(nextPreview.superLigMatches), `${label}: nextPreview.superLigMatches is an array`);
+  assert(
+    nextPreview.source === null ||
+    nextPreview.source === undefined ||
+    ['fresh', 'cache', 'stale'].includes(nextPreview.source),
+    `${label}: nextPreview.source is known when present`,
+  );
 
   const competitionIds = [...new Set((nextPreview.matches || []).map(match => match?.competition?.id).filter(Boolean))].sort();
   const unsupported = competitionIds.filter(id => !SUPPORTED_COMPETITIONS.has(id));
@@ -104,6 +117,7 @@ function validateNextPreview(nextPreview, label) {
     matchCount: Array.isArray(nextPreview.matches) ? nextPreview.matches.length : 0,
     superLigCount: Array.isArray(nextPreview.superLigMatches) ? nextPreview.superLigMatches.length : 0,
     competitionIds,
+    source: nextPreview.source || null,
   };
 }
 
@@ -180,8 +194,10 @@ async function main() {
   console.log(`nextPreviewMatches: ${first.next.matchCount}`);
   console.log(`nextPreviewSuperLigMatches: ${first.next.superLigCount}`);
   console.log(`nextPreviewCompetitionIds: ${first.next.competitionIds.join(',') || '-'}`);
+  console.log(`nextPreviewSource: ${first.next.source || '-'}`);
   console.log(`issues: ${first.issues.join(',') || '-'}`);
   console.log(`sourceWarnings: ${first.sourceWarnings.join(' | ') || '-'}`);
+  console.log(`sourceSeverity: ${first.sourceSeverity || '-'}`);
   console.log(`superLigContextTeamId: ${superLigContext.teamId}`);
   console.log(`superLigContextSource: ${superLigContext.source}`);
   console.log(`superLigContextLimited: ${superLigContext.isLimited}`);

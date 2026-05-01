@@ -6,7 +6,12 @@ const baseEntry = {
   matchCount: 10,
   issues: [],
   sourceWarnings: [],
+  sourceSeverity: null,
   stale: false,
+  featuredMatchId: 77,
+  nextPreviewDate: '2026-05-02',
+  nextPreviewFeaturedMatchId: 88,
+  nextPreviewSource: 'fresh',
 };
 
 describe('createBuildHistory', () => {
@@ -43,29 +48,65 @@ describe('createBuildHistory', () => {
   test('getSummary counts entries with issues, warnings, and stale', () => {
     const h = createBuildHistory();
     h.record({ ...baseEntry, issues: [], sourceWarnings: [], stale: false });
-    h.record({ ...baseEntry, issues: ['matches'], sourceWarnings: ['Main feed failed.'], stale: false });
-    h.record({ ...baseEntry, issues: [], sourceWarnings: [], stale: true });
+    h.record({ ...baseEntry, issues: ['matches'], sourceWarnings: ['Main feed failed.'], stale: false, nextPreviewDate: null, nextPreviewFeaturedMatchId: null, nextPreviewSource: null });
+    h.record({ ...baseEntry, issues: [], sourceWarnings: [], stale: true, nextPreviewDate: null, nextPreviewFeaturedMatchId: null, nextPreviewSource: null });
     const s = h.getSummary();
     expect(s.total).toBe(3);
     expect(s.withIssues).toBe(1);
     expect(s.withWarnings).toBe(1);
     expect(s.staleServed).toBe(1);
+    expect(s.withNextPreview).toBe(1);
+    expect(s.bySeverity).toEqual({ warning: 0, error: 0 });
+    expect(s.nextPreviewBySource).toEqual({ fresh: 1, cache: 0, stale: 0 });
   });
 
   test('getSummary returns zeros on empty history', () => {
     const h = createBuildHistory();
-    expect(h.getSummary()).toEqual({ total: 0, withIssues: 0, withWarnings: 0, staleServed: 0 });
+    expect(h.getSummary()).toEqual({
+      total: 0,
+      withIssues: 0,
+      withWarnings: 0,
+      staleServed: 0,
+      withNextPreview: 0,
+      bySeverity: { warning: 0, error: 0 },
+      nextPreviewBySource: { fresh: 0, cache: 0, stale: 0 },
+    });
   });
 
   test('record coerces types and ignores malformed input', () => {
     const h = createBuildHistory();
-    h.record({ date: null, generatedAt: undefined, matchCount: 'nope', issues: null, sourceWarnings: undefined, stale: 1 });
+    h.record({
+      date: null,
+      generatedAt: undefined,
+      matchCount: 'nope',
+      issues: null,
+      sourceWarnings: undefined,
+      sourceSeverity: 'loud',
+      stale: 1,
+      featuredMatchId: 'bad',
+      nextPreviewDate: undefined,
+      nextPreviewFeaturedMatchId: 'oops',
+      nextPreviewSource: 'mystery',
+    });
     const entry = h.getHistory()[0];
     expect(entry.date).toBe('');
     expect(typeof entry.generatedAt).toBe('string');
     expect(entry.matchCount).toBe(0);
     expect(entry.issues).toEqual([]);
     expect(entry.sourceWarnings).toEqual([]);
+    expect(entry.sourceSeverity).toBeNull();
     expect(entry.stale).toBe(true);
+    expect(entry.featuredMatchId).toBeNull();
+    expect(entry.nextPreviewDate).toBeNull();
+    expect(entry.nextPreviewFeaturedMatchId).toBeNull();
+    expect(entry.nextPreviewSource).toBeNull();
+  });
+
+  test('getSummary counts warning and error severities', () => {
+    const h = createBuildHistory();
+    h.record({ ...baseEntry, date: 'a', sourceSeverity: 'warning', nextPreviewDate: null, nextPreviewFeaturedMatchId: null, nextPreviewSource: null });
+    h.record({ ...baseEntry, date: 'b', sourceSeverity: 'error', nextPreviewDate: null, nextPreviewFeaturedMatchId: null, nextPreviewSource: null });
+    h.record({ ...baseEntry, date: 'c', sourceSeverity: null, nextPreviewDate: null, nextPreviewFeaturedMatchId: null, nextPreviewSource: null });
+    expect(h.getSummary().bySeverity).toEqual({ warning: 1, error: 1 });
   });
 });

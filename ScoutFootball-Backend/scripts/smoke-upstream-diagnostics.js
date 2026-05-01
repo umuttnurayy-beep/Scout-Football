@@ -69,6 +69,14 @@ function validateStats(payload) {
   assert(typeof payload.buildHistory.summary.withIssues === 'number', 'buildHistory.summary.withIssues is a number');
   assert(typeof payload.buildHistory.summary.withWarnings === 'number', 'buildHistory.summary.withWarnings is a number');
   assert(typeof payload.buildHistory.summary.staleServed === 'number', 'buildHistory.summary.staleServed is a number');
+  assert(typeof payload.buildHistory.summary.withNextPreview === 'number', 'buildHistory.summary.withNextPreview is a number');
+  assert(payload.buildHistory.summary.bySeverity && typeof payload.buildHistory.summary.bySeverity === 'object', 'buildHistory.summary.bySeverity is an object');
+  assert(typeof payload.buildHistory.summary.bySeverity.warning === 'number', 'buildHistory.summary.bySeverity.warning is a number');
+  assert(typeof payload.buildHistory.summary.bySeverity.error === 'number', 'buildHistory.summary.bySeverity.error is a number');
+  assert(payload.buildHistory.summary.nextPreviewBySource && typeof payload.buildHistory.summary.nextPreviewBySource === 'object', 'buildHistory.summary.nextPreviewBySource is an object');
+  assert(typeof payload.buildHistory.summary.nextPreviewBySource.fresh === 'number', 'buildHistory.summary.nextPreviewBySource.fresh is a number');
+  assert(typeof payload.buildHistory.summary.nextPreviewBySource.cache === 'number', 'buildHistory.summary.nextPreviewBySource.cache is a number');
+  assert(typeof payload.buildHistory.summary.nextPreviewBySource.stale === 'number', 'buildHistory.summary.nextPreviewBySource.stale is a number');
   assert(Array.isArray(payload.buildHistory.recent), 'buildHistory.recent is an array');
   if (payload.buildHistory.recent.length > 0) {
     const recent = payload.buildHistory.recent[0];
@@ -77,7 +85,27 @@ function validateStats(payload) {
     assert(typeof recent.matchCount === 'number', 'buildHistory.recent[0].matchCount is a number');
     assert(Array.isArray(recent.issues), 'buildHistory.recent[0].issues is an array');
     assert(Array.isArray(recent.sourceWarnings), 'buildHistory.recent[0].sourceWarnings is an array');
+    assert(
+      recent.sourceSeverity === null || ['warning', 'error'].includes(recent.sourceSeverity),
+      'buildHistory.recent[0].sourceSeverity is known or null',
+    );
     assert(typeof recent.stale === 'boolean', 'buildHistory.recent[0].stale is a boolean');
+    assert(
+      recent.featuredMatchId === null || typeof recent.featuredMatchId === 'number',
+      'buildHistory.recent[0].featuredMatchId is a number or null',
+    );
+    assert(
+      recent.nextPreviewDate === null || typeof recent.nextPreviewDate === 'string',
+      'buildHistory.recent[0].nextPreviewDate is a string or null',
+    );
+    assert(
+      recent.nextPreviewFeaturedMatchId === null || typeof recent.nextPreviewFeaturedMatchId === 'number',
+      'buildHistory.recent[0].nextPreviewFeaturedMatchId is a number or null',
+    );
+    assert(
+      recent.nextPreviewSource === null || ['fresh', 'cache', 'stale'].includes(recent.nextPreviewSource),
+      'buildHistory.recent[0].nextPreviewSource is known or null',
+    );
   }
 }
 

@@ -190,11 +190,13 @@ export type HomeData = {
   stale?: boolean;
   issues?: string[];
   sourceWarnings?: string[];
+  sourceSeverity?: 'warning' | 'error' | null;
   nextPreview: {
     date: string;
     matches: any[];
     superLigMatches: any[];
     featuredMatchId?: number | null;
+    source?: 'fresh' | 'cache' | 'stale' | null;
   } | null;
   generatedAt: string;
 };
@@ -252,6 +254,9 @@ export async function getHomeData(date: string): Promise<HomeData | null> {
       standings: data.standings || {},
       issues: arrayOrEmpty<string>(data.issues),
       sourceWarnings: arrayOrEmpty<string>(data.sourceWarnings),
+      sourceSeverity: data.sourceSeverity === 'warning' || data.sourceSeverity === 'error'
+        ? data.sourceSeverity
+        : null,
       nextPreview: data.nextPreview || null,
     };
   } catch (e) {

@@ -71,6 +71,14 @@ function validateHomePayload(payload) {
   );
   assertArray(payload.issues, 'home payload issues');
   assertArray(payload.sourceWarnings, 'home payload sourceWarnings');
+  assert.equal(
+    payload.sourceSeverity === null ||
+    payload.sourceSeverity === undefined ||
+    payload.sourceSeverity === 'warning' ||
+    payload.sourceSeverity === 'error',
+    true,
+    'home payload sourceSeverity must be warning, error, null, or undefined',
+  );
   assert.equal(payload.nextPreview === null || typeof payload.nextPreview === 'object', true, 'home payload nextPreview must be object or null');
   if (payload.nextPreview) {
     assert.equal(typeof payload.nextPreview.date, 'string', 'home nextPreview date must be a string');
@@ -82,6 +90,13 @@ function validateHomePayload(payload) {
       typeof payload.nextPreview.featuredMatchId === 'number',
       true,
       'home nextPreview featuredMatchId must be number, null, or undefined',
+    );
+    assert.equal(
+      payload.nextPreview.source === null ||
+      payload.nextPreview.source === undefined ||
+      ['fresh', 'cache', 'stale'].includes(payload.nextPreview.source),
+      true,
+      'home nextPreview source must be fresh, cache, stale, null, or undefined',
     );
   }
   assert.equal(typeof payload.generatedAt, 'string', 'home payload generatedAt must be a string');
@@ -158,11 +173,13 @@ async function main() {
         featuredMatchId: 12,
         issues: ['matches'],
         sourceWarnings: ['Main match feed failed for the selected day.'],
+        sourceSeverity: 'error',
         nextPreview: {
           date: '2026-05-02',
           matches: [],
           superLigMatches: [],
           featuredMatchId: 99,
+          source: 'fresh',
         },
         generatedAt: '2026-05-01T00:00:00.000Z',
       },

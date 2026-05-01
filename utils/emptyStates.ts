@@ -1,20 +1,20 @@
 export function matchListEmptyMessage(activeFilter: string): string {
   if (activeFilter !== 'Scout') {
-    return `${activeFilter} için maç bulunamadı. Seçili tarihte bu ligde maç olmayabilir veya veri sağlayıcı henüz programı yayınlamamış olabilir.`;
+    return `${activeFilter} iÃ§in maÃ§ bulunamadÄ±. SeÃ§ili tarihte bu ligde maÃ§ olmayabilir veya veri saÄŸlayÄ±cÄ± henÃ¼z programÄ± yayÄ±nlamamÄ±ÅŸ olabilir.`;
   }
-  return 'Bu tarihte maç bulunamadı. Farklı bir tarih seçebilir veya daha sonra tekrar güncelleyebilirsin.';
+  return 'Bu tarihte maÃ§ bulunamadÄ±. FarklÄ± bir tarih seÃ§ebilir veya daha sonra tekrar gÃ¼ncelleyebilirsin.';
 }
 
 export function leagueDataEmptyMessage(leagueName: string): string {
-  return `${leagueName} verisi yüklenemedi. Veri sağlayıcı geçici olarak yanıt vermiyor olabilir; birkaç dakika sonra yeniden denemek iyi olur.`;
+  return `${leagueName} verisi yÃ¼klenemedi. Veri saÄŸlayÄ±cÄ± geÃ§ici olarak yanÄ±t vermiyor olabilir; birkaÃ§ dakika sonra yeniden denemek iyi olur.`;
 }
 
 export function teamDataEmptyMessage(leagueName: string): string {
-  return `${leagueName} için takım verisi alınamadı. Puan tablosu kaynağı boş döndü veya geçici olarak erişilemiyor.`;
+  return `${leagueName} iÃ§in takÄ±m verisi alÄ±namadÄ±. Puan tablosu kaynaÄŸÄ± boÅŸ dÃ¶ndÃ¼ veya geÃ§ici olarak eriÅŸilemiyor.`;
 }
 
 export function formDataEmptyMessage(): string {
-  return 'Form verisi bulunamadı. Bu takım için son maç bilgisi sağlayıcıda eksik olabilir.';
+  return 'Form verisi bulunamadÄ±. Bu takÄ±m iÃ§in son maÃ§ bilgisi saÄŸlayÄ±cÄ±da eksik olabilir.';
 }
 
 export type DetailDataKind =
@@ -32,49 +32,49 @@ export type DetailDataState = 'sourceError' | 'empty' | 'notPublished';
 
 const DETAIL_DATA_MESSAGES: Record<DetailDataKind, Record<DetailDataState, string>> = {
   performance: {
-    sourceError: 'Performans verisi şu an yenilenemedi; analiz son güvenilir kaynaklarla sınırlı tutuluyor.',
-    empty: 'Bu maç için yeterli performans verisi bulunamadı.',
-    notPublished: 'Performans verisi henüz yayınlanmadı.',
+    sourceError: 'Performans verisi ÅŸu an yenilenemedi; analiz son gÃ¼venilir kaynaklarla sÄ±nÄ±rlÄ± tutuluyor.',
+    empty: 'Bu maÃ§ iÃ§in yeterli performans verisi bulunamadÄ±.',
+    notPublished: 'Performans verisi henÃ¼z yayÄ±nlanmadÄ±.',
   },
   comparison: {
-    sourceError: 'Takım karşılaştırma verisi şu an yenilenemedi.',
-    empty: 'Bu maç için yeterli karşılaştırma verisi bulunamadı.',
-    notPublished: 'Takım karşılaştırma verisi henüz yayınlanmadı.',
+    sourceError: 'TakÄ±m karÅŸÄ±laÅŸtÄ±rma verisi ÅŸu an yenilenemedi.',
+    empty: 'Bu maÃ§ iÃ§in yeterli karÅŸÄ±laÅŸtÄ±rma verisi bulunamadÄ±.',
+    notPublished: 'TakÄ±m karÅŸÄ±laÅŸtÄ±rma verisi henÃ¼z yayÄ±nlanmadÄ±.',
   },
   form: {
-    sourceError: 'Form verisi şu an yenilenemedi; son maç trendi temkinli okunmalı.',
-    empty: 'Bu maç için yeterli form verisi bulunamadı.',
-    notPublished: 'Form verisi henüz yayınlanmadı.',
+    sourceError: 'Form verisi ÅŸu an yenilenemedi; son maÃ§ trendi temkinli okunmalÄ±.',
+    empty: 'Bu maÃ§ iÃ§in yeterli form verisi bulunamadÄ±.',
+    notPublished: 'Form verisi henÃ¼z yayÄ±nlanmadÄ±.',
   },
   homeAway: {
-    sourceError: 'İç saha / deplasman verisi şu an yenilenemedi.',
-    empty: 'İç saha / deplasman ayrımı için yeterli veri bulunamadı.',
-    notPublished: 'İç saha / deplasman verisi henüz yayınlanmadı.',
+    sourceError: 'Ä°Ã§ saha / deplasman verisi ÅŸu an yenilenemedi.',
+    empty: 'Ä°Ã§ saha / deplasman ayrÄ±mÄ± iÃ§in yeterli veri bulunamadÄ±.',
+    notPublished: 'Ä°Ã§ saha / deplasman verisi henÃ¼z yayÄ±nlanmadÄ±.',
   },
   prediction: {
-    sourceError: 'Tahmin için gerekli form verisi şu an yenilenemedi.',
-    empty: 'Tahmin için yeterli form verisi bulunamadı.',
-    notPublished: 'Tahmin verisi henüz yayınlanmadı.',
+    sourceError: 'Tahmin iÃ§in gerekli form verisi ÅŸu an yenilenemedi.',
+    empty: 'Tahmin iÃ§in yeterli form verisi bulunamadÄ±.',
+    notPublished: 'Tahmin verisi henÃ¼z yayÄ±nlanmadÄ±.',
   },
   odds: {
-    sourceError: 'Oran verisi şu an yenilenemedi; daha önce görünen oran sağlayıcı tarafında geçici olarak boş dönmüş olabilir.',
-    empty: 'Bu maç için oran verisi bulunamadı.',
-    notPublished: 'Bu maç için oran verisi henüz yayınlanmadı.',
+    sourceError: 'Oran verisi ÅŸu an yenilenemedi; daha Ã¶nce gÃ¶rÃ¼nen oran saÄŸlayÄ±cÄ± tarafÄ±nda geÃ§ici olarak boÅŸ dÃ¶nmÃ¼ÅŸ olabilir.',
+    empty: 'Bu maÃ§ iÃ§in oran verisi bulunamadÄ±.',
+    notPublished: 'Bu maÃ§ iÃ§in oran verisi henÃ¼z yayÄ±nlanmadÄ±.',
   },
   weather: {
-    sourceError: 'Hava durumu verisi şu an yenilenemedi.',
-    empty: 'Hava durumu verisi alınamadı.',
-    notPublished: 'Hava durumu verisi maç saatine yakın netleşebilir.',
+    sourceError: 'Hava durumu verisi ÅŸu an yenilenemedi.',
+    empty: 'Hava durumu verisi alÄ±namadÄ±.',
+    notPublished: 'Hava durumu verisi maÃ§ saatine yakÄ±n netleÅŸebilir.',
   },
   h2h: {
-    sourceError: 'H2H verisi şu an yenilenemedi.',
-    empty: 'Geçmiş karşılaşma verisi bulunamadı.',
-    notPublished: 'Geçmiş karşılaşma verisi henüz yayınlanmadı.',
+    sourceError: 'H2H verisi ÅŸu an yenilenemedi.',
+    empty: 'GeÃ§miÅŸ karÅŸÄ±laÅŸma verisi bulunamadÄ±.',
+    notPublished: 'GeÃ§miÅŸ karÅŸÄ±laÅŸma verisi henÃ¼z yayÄ±nlanmadÄ±.',
   },
   character: {
-    sourceError: 'Maç karakteri için form verisi şu an yenilenemedi.',
-    empty: 'Maç karakteri için yeterli form verisi bulunamadı.',
-    notPublished: 'Maç karakteri verisi henüz yayınlanmadı.',
+    sourceError: 'MaÃ§ karakteri iÃ§in form verisi ÅŸu an yenilenemedi.',
+    empty: 'MaÃ§ karakteri iÃ§in yeterli form verisi bulunamadÄ±.',
+    notPublished: 'MaÃ§ karakteri verisi henÃ¼z yayÄ±nlanmadÄ±.',
   },
 };
 
@@ -83,17 +83,23 @@ export function detailDataMessage(kind: DetailDataKind, state: DetailDataState):
 }
 
 export function staleAnalysisMessage(): string {
-  return 'Bazı veri kaynakları şu anda yenilenemedi. Ekrandaki analiz son başarılı verilerle hazırlanıyor; bu yüzden yorumları güncel canlı veri gibi değil, sınırlı kaynak notuyla okumak daha doğru.';
+  return 'BazÄ± veri kaynaklarÄ± ÅŸu anda yenilenemedi. Ekrandaki analiz son baÅŸarÄ±lÄ± verilerle hazÄ±rlanÄ±yor; bu yÃ¼zden yorumlarÄ± gÃ¼ncel canlÄ± veri gibi deÄŸil, sÄ±nÄ±rlÄ± kaynak notuyla okumak daha doÄŸru.';
 }
 
-export function dataNoticeMessage(type: 'stale' | 'error'): string {
+export function dataNoticeMessage(type: 'stale' | 'warning' | 'error'): string {
   if (type === 'stale') {
-    return 'Veri kaynağı yenilenemedi; ekranda son başarılı maç verisi gösteriliyor.';
+    return 'Veri kaynaÄŸÄ± yenilenemedi; ekranda son baÅŸarÄ±lÄ± maÃ§ verisi gÃ¶steriliyor.';
   }
-  return 'Veri şu an alınamadı. Ekrandaki bilgiler eski cache veya sınırlı kaynakla yüklenmiş olabilir.';
+  if (type === 'warning') {
+    return 'BazÄ± yardÄ±mcÄ± veri kaynaklarÄ± sÄ±nÄ±rlÄ± Ã§alÄ±ÅŸÄ±yor; ana maÃ§ listesi mevcut ama bazÄ± karÅŸÄ±laÅŸtÄ±rmalar eksik olabilir.';
+  }
+  return 'Veri ÅŸu an alÄ±namadÄ±. Ekrandaki bilgiler eski cache veya sÄ±nÄ±rlÄ± kaynakla yÃ¼klenmiÅŸ olabilir.';
 }
 
-export function summarizeSourceWarnings(warnings: string[] | undefined): string | null {
+export function summarizeSourceWarnings(
+  warnings: string[] | undefined,
+  severity?: 'warning' | 'error' | null,
+): string | null {
   const items = Array.isArray(warnings)
     ? warnings.map(item => String(item || '').trim()).filter(Boolean)
     : [];
@@ -101,14 +107,16 @@ export function summarizeSourceWarnings(warnings: string[] | undefined): string 
 
   const joined = items.join(' ').toLowerCase();
   if (joined.includes('super lig')) {
-    return 'Süper Lig kaynağı şu an sınırlı çalışıyor; bazı kartlar eksik veya gecikmeli görünebilir.';
+    return 'SÃ¼per Lig kaynaÄŸÄ± ÅŸu an sÄ±nÄ±rlÄ± Ã§alÄ±ÅŸÄ±yor; bazÄ± kartlar eksik veya gecikmeli gÃ¶rÃ¼nebilir.';
   }
   if (joined.includes('standings')) {
-    return 'Puan tablosu kaynağı şu an sınırlı çalışıyor; bazı sıralama karşılaştırmaları eksik kalabilir.';
+    return severity === 'warning'
+      ? 'Puan tablosu kaynaÄŸÄ± ÅŸu an sÄ±nÄ±rlÄ± Ã§alÄ±ÅŸÄ±yor; ana maÃ§ listesi gÃ¶rÃ¼nse de bazÄ± sÄ±ralama karÅŸÄ±laÅŸtÄ±rmalarÄ± eksik kalabilir.'
+      : 'Puan tablosu kaynaÄŸÄ± ÅŸu an sÄ±nÄ±rlÄ± Ã§alÄ±ÅŸÄ±yor; bazÄ± sÄ±ralama karÅŸÄ±laÅŸtÄ±rmalarÄ± eksik kalabilir.';
   }
   if (joined.includes('main match feed')) {
-    return 'Ana maç kaynağı şu an sınırlı çalışıyor; bazı maçlar geç yüklenebilir.';
+    return 'Ana maÃ§ kaynaÄŸÄ± ÅŸu an sÄ±nÄ±rlÄ± Ã§alÄ±ÅŸÄ±yor; bazÄ± maÃ§lar geÃ§ yÃ¼klenebilir.';
   }
 
-  return 'Bazı veri kaynakları şu an sınırlı çalışıyor; ekrandaki içerik kısmi veriyle hazırlanmış olabilir.';
+  return 'BazÄ± veri kaynaklarÄ± ÅŸu an sÄ±nÄ±rlÄ± Ã§alÄ±ÅŸÄ±yor; ekrandaki iÃ§erik kÄ±smi veriyle hazÄ±rlanmÄ±ÅŸ olabilir.';
 }

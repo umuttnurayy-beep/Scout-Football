@@ -150,7 +150,68 @@ describe('homeService', () => {
     expect(res.data.nextPreview).toMatchObject({
       date: '2026-05-02',
       featuredMatchId: 22,
+      source: 'fresh',
     });
+  });
+
+  test('reuses cached future home payload for nextPreview before hitting upstream again', async () => {
+    const cache = createMemoryCache({
+      'home_v2_2026-05-02': {
+        date: '2026-05-02',
+        matches: [
+          fdMatch(21, 2014, 'Girona', 'Mallorca'),
+          fdMatch(22, 2001, 'PSG', 'Bayern'),
+        ],
+        superLigMatches: [],
+        standings: {},
+        featuredMatchId: 22,
+        nextPreview: null,
+        issues: [],
+        sourceWarnings: [],
+        generatedAt: '2026-05-01T10:00:00.000Z',
+      },
+    });
+    const { service, calls } = createService({
+      cache,
+      fdByDate: {
+        '2026-05-01': [fdMatch(1, 2021, 'Leeds', 'Burnley')],
+      },
+    });
+
+    const res = await service.buildHome('2026-05-01');
+
+    expect(res.ok).toBe(true);
+    expect(res.data.nextPreview).toMatchObject({
+      date: '2026-05-02',
+      featuredMatchId: 22,
+      source: 'cache',
+    });
+    expect(calls.fd).toEqual(['2026-05-01']);
+    expect(calls.sl).toEqual(['2026-05-01']);
+  });
+
+  test('derives sourceSeverity from legacy cached payloads without explicit severity', async () => {
+    const cache = createMemoryCache({
+      'home_v2_2026-05-01': {
+        date: '2026-05-01',
+        matches: [fdMatch(1, 2021, 'Leeds', 'Burnley')],
+        superLigMatches: [],
+        standings: {},
+        featuredMatchId: 1,
+        nextPreview: null,
+        issues: ['standings:2021'],
+        sourceWarnings: ['Standings fetch failed for league 2021.'],
+        generatedAt: '2026-05-01T10:00:00.000Z',
+      },
+    });
+    const { service, calls } = createService({ cache });
+
+    const res = await service.buildHome('2026-05-01');
+
+    expect(res.ok).toBe(true);
+    expect(res.data.sourceSeverity).toBe('warning');
+    expect(calls.fd).toEqual([]);
+    expect(calls.sl).toEqual([]);
   });
 
   test('returns stale last-good payload when upstreams fail', async () => {
@@ -195,6 +256,7 @@ describe('homeService', () => {
     expect(res.stale).toBeUndefined();
     expect(res.data.matches).toEqual([]);
     expect(res.data.superLigMatches).toHaveLength(1);
+    expect(res.data.sourceSeverity).toBe('error');
     expect(res.data.issues).toContain('matches');
     expect(res.data.sourceWarnings).toContain('Main match feed failed for the selected day.');
   });
@@ -213,6 +275,7 @@ describe('homeService', () => {
 
     expect(res.ok).toBe(true);
     expect(res.data.matches).toHaveLength(1);
+    expect(res.data.sourceSeverity).toBe('warning');
     expect(res.data.issues).toContain('standings:2021');
     expect(res.data.sourceWarnings).toContain('Standings fetch failed for league 2021.');
   });
