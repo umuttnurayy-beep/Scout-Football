@@ -264,7 +264,7 @@ export function buildScoutSummary(
   const lines: string[] = [];
 
   if (hAtk >= 1.7 && aAtk >= 1.7 && hDef >= 1.3 && aDef >= 1.3) {
-    lines.push('\u0130ki tak\u0131m da h\u00fccumda \u00fcretken ama savunmada a\u00e7\u0131k veriyor. Bu profil, ma\u00e7\u0131 tek tarafl\u0131 tahminden \u00e7ok tempo ve gol senaryosu \u00fczerinden okumay\u0131 daha mant\u0131kl\u0131 k\u0131l\u0131yor.');
+    lines.push('Iki takim da hucumda uretken ama savunmada acik veriyor. Bu nedenle macin ana hikayesi taraf seciminden cok tempo ve gol akisi olabilir.');
   }
   if (hAtk - aDef >= 0.45 && hFP >= aFP) {
     lines.push(home + ' i\u00e7in h\u00fccum e\u015fle\u015fmesi olumlu: kendi gol ortalamas\u0131, ' + away + ' savunmas\u0131n\u0131n verdi\u011fi ortalaman\u0131n \u00fczerinde kal\u0131yor. Ev sahibi \u00f6ne ge\u00e7erse ma\u00e7 kontrol\u00fcn\u00fc alabilir.');
@@ -273,42 +273,42 @@ export function buildScoutSummary(
     lines.push(away + ' deplasmanda gol tehdidi ta\u015f\u0131yor; h\u00fccum \u00fcretimi ' + home + ' savunma verisiyle e\u015fle\u015fince ge\u00e7i\u015f oyunu ve ikinci toplar kritik hale geliyor.');
   }
   if (hDef <= 1.0 && aDef <= 1.0 && avgOver <= 45) {
-    lines.push('Savunma verileri iki tarafta da g\u00fc\u00e7l\u00fc ve 2.5 \u00fcst trendi s\u0131n\u0131rl\u0131. Bu nedenle ma\u00e7\u0131n ilk b\u00f6l\u00fcm\u00fcnde sab\u0131r, duran top ve tek hata senaryosu \u00f6ne \u00e7\u0131k\u0131yor.');
+    lines.push('Savunma verileri iki tarafta da guclu ve gol trendi sinirli. Bu tip maclarda ilk hata, duran top veya sabir oyunu belirleyici olabilir.');
   }
   if (Math.abs(hFP - aFP) <= 2 && Math.abs(hAtk - aAtk) < 0.3 && Math.abs(hDef - aDef) < 0.3) {
-    lines.push('Tak\u0131mlar\u0131n form, h\u00fccum ve savunma \u00e7izgisi birbirine yak\u0131n. Bu tip e\u015fle\u015fmede net taraf yorumu zay\u0131flar; ilk gol ve oyun i\u00e7i momentum daha belirleyici olur.');
+    lines.push('Takimlarin form, hucum ve savunma cizgisi birbirine yakin. Net taraf sinyali zayif; ilk gol ve oyun ici momentum daha belirleyici olabilir.');
   }
   if (hTrend && aTrend && Math.abs(hMove - aMove) >= 5) {
     const side = hMove > aMove ? home : away;
-    lines.push(side + ' son d\u00f6nem ivmesinde belirgin ayr\u0131\u015f\u0131yor. Sezon ortalamas\u0131 tek ba\u015f\u0131na yeterli de\u011fil; g\u00fcncel form bu ma\u00e7\u0131n ana okuma katman\u0131.');
+    lines.push(side + ' son donemde daha guclu bir ivme yakalamis gorunuyor. Bu maci sezon ortalamasindan cok guncel form uzerinden okumak daha dogru.');
   }
   if (hHomeWin >= 60 && hHomePlayed >= 4 && aAwayWin <= 35 && aAwayPlayed >= 4) {
-    lines.push(home + ' i\u00e7 sahada g\u00fc\u00e7l\u00fc, ' + away + ' deplasmanda daha k\u0131r\u0131lgan g\u00f6r\u00fcn\u00fcyor. \u0130\u00e7 saha etkisi bu ma\u00e7ta sadece psikolojik de\u011fil, say\u0131sal olarak da destekleniyor.');
+    lines.push(home + ' ic sahada daha guclu, ' + away + ' ise deplasmanda daha kirilgan gorunuyor. Ev sahibi avantajinin veri destegi var.');
   } else if (aAwayWin >= 50 && aAwayPlayed >= 4) {
-    lines.push(away + ' deplasman performans\u0131yla oyunda kalabilecek bir profil \u00e7iziyor. Ev sahibi bask\u0131 kursa bile deplasman taraf\u0131n\u0131n puan \u00e7\u0131karma ihtimali veride kar\u015f\u0131l\u0131k buluyor.');
+    lines.push(away + ' deplasman performansiyla oyunda kalabilecek bir profil ciziyor. Ev sahibi baski kursa bile deplasmanin puan alma ihtimali masada.');
   }
   if (avgOver >= 60 && avgKg >= 55) {
-    lines.push('Gol trendi ve KG Var oran\u0131 ayn\u0131 y\u00f6nde. Bu tablo, ma\u00e7\u0131n sadece a\u00e7\u0131lmas\u0131n\u0131 de\u011fil iki taraf\u0131n da skora katk\u0131 verme ihtimalini g\u00fc\u00e7lendiriyor.');
+    lines.push('Gol trendi ve karsilikli skor verisi ayni yone bakiyor. Bu tablo iki tarafin da skora katki verme ihtimalini guclendiriyor.');
   } else if (avgOver >= 60 && avgKg <= 45) {
-    lines.push('2.5 \u00fcst e\u011filimi g\u00fc\u00e7l\u00fc fakat KG Var ayn\u0131 \u015fiddette destek vermiyor. Goll\u00fc ama tek taraf\u0131n daha bask\u0131n oldu\u011fu senaryo da dikkate al\u0131nmal\u0131.');
+    lines.push('Gol cizgisi yuksek gorunuyor ama karsilikli skor ayni gucte desteklenmiyor. Gollu ama tek tarafin daha baskin oldugu bir mac da ihtimaller arasinda.');
   } else if (avgOver <= 40 && avgKg >= 55) {
-    lines.push('Toplam gol trendi d\u00fc\u015f\u00fck olsa da KG Var canl\u0131 kal\u0131yor. Bu profil 1-1 gibi dar skorlu, dengeli bir ma\u00e7 ihtimalini y\u00fckseltir.');
+    lines.push('Toplam gol trendi dusuk olsa da karsilikli skor ihtimali tamamen kapanmiyor. 1-1 gibi dar skorlu ve dengeli bir senaryo hala masada.');
   }
 
-  const main = lines.length > 0 ? lines[hash % lines.length] : 'Veriler tek bir y\u00f6ne sert bi\u00e7imde akm\u0131yor; form, gol profili ve savunma dengesi birlikte okunmal\u0131. Ma\u00e7\u0131n k\u0131r\u0131lma an\u0131 b\u00fcy\u00fck olas\u0131l\u0131kla ilk gol veya tempo de\u011fi\u015fimi olacak.';
+  const main = lines.length > 0 ? lines[hash % lines.length] : 'Veriler tek bir yone sert bicimde akmiyor. Form, gol profili ve savunma dengesi birlikte dusunuldugunde macin kirilma ani buyuk olasilikla ilk gol veya tempo degisimi olacak.';
   const outlook: string[] = [];
 
   if (totalSample < 6) {
-    outlook.push('Yine de y\u00fczdeler keskin bir h\u00fck\u00fcmden \u00e7ok ma\u00e7 senaryosu olarak okunmal\u0131.');
+    outlook.push('Veri orneklemi sinirli oldugu icin yuzdeleri kesin sonuc gibi degil, olasi mac senaryolari gibi okumak daha dogru.');
   } else if (avgOver >= 58 && avgKg >= 55) {
-    outlook.push('\u00d6ne \u00e7\u0131kan okuma: iki taraf\u0131n da skora katk\u0131 verebildi\u011fi hareketli bir ma\u00e7.');
+    outlook.push('Genel beklenti: iki tarafin da skora katki verebildigi hareketli bir mac.');
   } else if (avgOver <= 42) {
-    outlook.push('\u00d6ne \u00e7\u0131kan okuma: sab\u0131rl\u0131 ba\u015flang\u0131\u00e7 ve d\u00fc\u015f\u00fck tempolu skor ak\u0131\u015f\u0131.');
+    outlook.push('Genel beklenti: sabirli baslangic ve dusuk tempolu skor akisi.');
   } else if (Math.abs(hFP - aFP) <= 2) {
-    outlook.push('\u00d6ne \u00e7\u0131kan okuma: dengeli oyun, ilk gol\u00fcn psikolojik etkisi ve ikinci yar\u0131 ayarlar\u0131.');
+    outlook.push('Genel beklenti: dengeli oyun, ilk golun psikolojik etkisi ve ikinci yari ayarlari.');
   } else {
     const side = hFP > aFP ? home : away;
-    outlook.push('\u00d6ne \u00e7\u0131kan okuma: ' + side + ' form avantaj\u0131n\u0131 oyun kontrol\u00fcne \u00e7evirebilirse ma\u00e7\u0131 kendi ritmine alabilir.');
+    outlook.push('Genel beklenti: ' + side + ' form avantajini oyun kontrolune cevirebilirse maci kendi ritmine alabilir.');
   }
   if (weatherRisk) {
     outlook.push('Hava ko\u015fulu riski pas kalitesi ve ritimde sapma yaratabilir.');
@@ -345,110 +345,110 @@ export function buildScoutPick(
   if (lowConfidence) {
     if (avgOver >= 58 || hAtk + aAtk >= 2.6) {
       return {
-        label: 'Gol için canlı tempo teyidi gerekir',
-        detail: `Veri güveni sınırlı ama hücum üretimi gol tarafını tamamen kapatmıyor. İlk 15-20 dakikada tempo, şut ve ceza sahası girişi oluşursa 1.5 üst gibi daha düşük gol çizgileri daha anlamlı okunur.`,
+        label: 'Gol temposu mac icinde netlesir',
+        detail: `Veri guveni sinirli ama hucum uretimi gol ihtimalini tamamen kapatmiyor. Ilk 15-20 dakikada tempo, sut ve ceza sahasi girisleri artarsa gol beklentisi de daha guvenli hale gelir.`,
         tone: 'goals',
       };
     }
     if (avgOver <= 42 || hAtk + aAtk <= 2.0) {
       return {
-        label: 'İlk okuma kontrollü skor',
-        detail: `Örneklem sınırlı ve gol profili patlayıcı görünmüyor: 2.5 üst ortalaması %${overLabel}. Maç hızlı başlamazsa 2.5 üst yerine dar skor ve sabırlı oyun daha mantıklı senaryo olur.`,
+        label: 'Ilk beklenti kontrollu skor',
+        detail: `Orneklem sinirli ve gol profili hizli acilan bir maca isaret etmiyor: gol ortalamasi %${overLabel}. Mac hizli baslamazsa dar skor ve sabirli oyun cizgisi daha uyumlu duruyor.`,
         tone: 'draw',
       };
     }
     if (homeEdge >= awayEdge + 3) {
       return {
-        label: `${home} kaybetmeme daha güvenli`,
-        detail: `${home} tarafında hafif üstünlük var, fakat galibiyet sinyali tek başına güçlü değil. Doğrudan kazanır demek yerine ev sahibi kaybetmeme profili daha dengeli risk sunuyor.`,
+        label: `${home} tarafi daha guvenli`,
+        detail: `${home} tarafinda hafif ustunluk var, fakat dogrudan galibiyet sinyali tek basina guclu degil. Bu nedenle ev sahibinin oyunda kalma ihtimali daha net gorunuyor.`,
         tone: 'home',
       };
     }
     if (awayEdge >= homeEdge + 3) {
       return {
         label: `${away} oyunda kalabilir`,
-        detail: `${away} tarafında oyunda kalma sinyali var. Veri sınırlı olduğu için doğrudan galibiyet yerine deplasman kaybetmeme veya maç içinde direnç okuması daha sağlıklı olur.`,
+        detail: `${away} tarafinda oyunda kalma sinyali var. Veri sinirli oldugu icin dogrudan galibiyet yerine deplasmanin direnc gostermesi daha olasi duruyor.`,
         tone: 'away',
       };
     }
     if (avgKg >= 52) {
       return {
-        label: 'KG Var için erken tempo önemli',
-        detail: `İki takımın gol bulma ortalaması %${kgLabel}. Maç önü güven düşük olsa da karşılıklı skor ihtimali kapanmıyor; iki taraf da ilk bölümde kaleye gidebilirse KG Var senaryosu güçlenir.`,
+        label: 'Karsilikli gol icin tempo onemli',
+        detail: `Iki takimin da gol bulma ortalamasi %${kgLabel}. Mac oncesi guven dusuk olsa da iki taraf erken bolumde kaleye gidebilirse karsilikli skor ihtimali canli kalir.`,
         tone: 'goals',
       };
     }
     return {
-      label: 'Maç önü net seçim yok',
-      detail: 'Veri güveni düşük ve taraf sinyalleri net değil. Bu profilde ilk gol, tempo ve şut hacmi görülmeden taraf ya da gol senaryosunu zorlamak riskli olur.',
+      label: 'Mac onunde net yon yok',
+      detail: 'Veri guveni dusuk ve taraf sinyalleri net degil. Ilk gol, tempo ve sut hacmi gorulmeden tarafa ya da gole fazla guvenmek riskli olur.',
       tone: 'caution',
     };
   }
 
   if (avgOver >= 64 && avgKg >= 58 && hAtk >= 1.4 && aAtk >= 1.4) {
     return {
-      label: '2.5 Üst + KG Var güçlü senaryo',
-      detail: `Gol profili iki taraftan destek alıyor: 2.5 üst ortalaması %${overLabel}, KG Var ortalaması %${kgLabel}. Taraf seçiminden çok maç temposu ve iki takımın skora katkısı öne çıkıyor.`,
+      label: 'Gollu mac senaryosu guclu',
+      detail: `Gol profili iki taraftan da destek aliyor: gol ortalamasi %${overLabel}, karsilikli skor ortalamasi %${kgLabel}. Bu tabloda taraf seciminden cok mac temposu one cikiyor.`,
       tone: 'goals',
     };
   }
 
   if (avgOver >= 62 && hAtk + aAtk >= 2.8) {
     return {
-      label: 'Gol çizgisi taraf seçiminden daha net',
-      detail: `Toplam gol trendi güçlü (%${overLabel}). KG Var aynı ölçüde desteklemese bile maçın düşük skora sıkışmama ihtimali yüksek; taraf yerine toplam gol tarafı daha okunabilir.`,
+      label: 'Gol beklentisi taraf seciminden daha net',
+      detail: `Toplam gol trendi guclu (%${overLabel}). Karsilikli skor ayni olcude desteklenmese bile macin dusuk skora sikismama ihtimali yuksek gorunuyor.`,
       tone: 'goals',
     };
   }
 
   if (avgOver <= 38 && avgKg <= 48) {
     return {
-      label: '2.5 Alt tarafı daha uyumlu',
-      detail: `Gol trendi düşük kalıyor: 2.5 üst ortalaması %${overLabel}. Öncelikli okuma dar skor, sabırlı başlangıç ve düşük tempolu maç profili.`,
+      label: 'Dusuk skorlu mac daha uyumlu',
+      detail: `Gol trendi dusuk kaliyor: gol ortalamasi %${overLabel}. Bu nedenle dar skor, sabirli baslangic ve dusuk tempolu mac profili daha olasi gorunuyor.`,
       tone: 'draw',
     };
   }
 
   if (avgOver <= 42 && Math.abs(hFP - aFP) <= 3) {
     return {
-      label: 'Denge + düşük tempo',
-      detail: 'Form farkı sınırlı, gol trendi düşük. Beraberlik veya tek farkla bitecek kontrollü skor çizgisi daha güçlü senaryo olarak duruyor.',
+      label: 'Denge ve dusuk tempo one cikiyor',
+      detail: 'Form farki sinirli, gol trendi dusuk. Beraberlik ya da tek farkla bitecek kontrollu skor cizgisi daha guclu duruyor.',
       tone: 'draw',
     };
   }
 
   if (homeEdge >= awayEdge + 7) {
     return {
-      label: `${home} tarafı daha güçlü`,
-      detail: `${home} tarafında form, iç saha ve hücum-savunma eşleşmesi belirgin üstün. Oran çok kısaysa doğrudan galibiyet yerine kaybetmeme tarafı daha dengeli risk sunar.`,
+      label: `${home} tarafi daha guclu`,
+      detail: `${home} tarafinda form, ic saha ve hucum-savunma eslesmesi belirgin ustun. Ev sahibinin maci kendi ritmine cekme sansi daha yuksek gorunuyor.`,
       tone: 'home',
     };
   }
   if (awayEdge >= homeEdge + 7) {
     return {
-      label: `${away} tarafı daha güçlü`,
-      detail: `${away} form ve deplasman üretimiyle net sinyal veriyor. Deplasman riski nedeniyle doğrudan galibiyet yerine kaybetmeme profili daha dengeli okunabilir.`,
+      label: `${away} tarafi daha guclu`,
+      detail: `${away} form ve deplasman uretimiyle net sinyal veriyor. Deplasman riskine ragmen oyunda kalma ihtimali dikkat cekiyor.`,
       tone: 'away',
     };
   }
   if (homeEdge >= awayEdge + 4) {
     return {
-      label: `${home} kaybetmeme tarafı`,
-      detail: `${home} kaybetmeme çizgisinde daha güçlü duruyor. Doğrudan galibiyet yerine güvenlik payı olan taraf profili veriye daha uyumlu.`,
+      label: `${home} oyunda kalmaya daha yakin`,
+      detail: `${home} kaybetmeme cizgisinde daha guclu duruyor. Dogrudan galibiyet yerine mac boyunca avantajli tarafta kalmasi daha olasi.`,
       tone: 'home',
     };
   }
   if (awayEdge >= homeEdge + 4) {
     return {
-      label: `${away} kaybetmeme tarafı`,
-      detail: `${away} oyunda kalma ve sonuç alma tarafında daha iyi sinyal veriyor. Deplasman riskini azaltan okuma daha mantıklı görünüyor.`,
+      label: `${away} oyunda kalmaya daha yakin`,
+      detail: `${away} oyunda kalma ve sonuc alma tarafinda daha iyi sinyal veriyor. Deplasman riskine ragmen direnc gostermesi olasi.`,
       tone: 'away',
     };
   }
 
   return {
-    label: 'Maç önü pas geçilebilir',
-    detail: 'Maç önü sinyaller birbirini kesiyor. İlk gol, tempo ve ceza sahası girişleri görülmeden taraf ya da gol senaryosu zorlanmamalı.',
+    label: 'Mac onunde temkinli kalinabilir',
+    detail: 'Mac oncesi sinyaller birbirini net desteklemiyor. Ilk gol, tempo ve ceza sahasi girisleri gorulmeden tarafa ya da gole fazla yuklenmemek daha saglikli olur.',
     tone: 'draw',
   };
 }
@@ -755,40 +755,40 @@ export function getMotivationComment(
 
   if (isUcl) {
     if (homePos <= 8 && awayPos <= 8) {
-      return 'İki takım da UCL lig aşamasında ilk 8 hattında (' + homePos + '. vs ' + awayPos + '.). Direkt tur avantajı için puanlar değerli; tempo artabilir.';
+      return 'Iki takim da UCL lig asamasinda ilk 8 hattinda (' + homePos + '. vs ' + awayPos + '.). Direkt tur avantaji icin puanlar degerli; motivasyon yuksek olabilir.';
     }
     if (homePos <= 8 || awayPos <= 8) {
-      const side = homePos <= 8 ? 'Ev sahibi' : 'Deplasman takımı';
+      const side = homePos <= 8 ? 'Ev sahibi' : 'Deplasman takimi';
       const pos = homePos <= 8 ? homePos : awayPos;
-      return side + " UCL'de ilk 8 hattında (" + pos + '). Direkt üst tur avantajını koruma motivasyonu öne çıkıyor.';
+      return side + " UCL'de ilk 8 hattinda (" + pos + '). Direkt ust tur avantajini koruma motivasyonu one cikiyor.';
     }
     if (homePos >= 9 && homePos <= 24 && awayPos >= 9 && awayPos <= 24) {
-      return 'İki takım da UCL play-off hattında (' + homePos + '. vs ' + awayPos + '.). Sıralama avantajı ve eşleşme kalitesi için her puan değerli.';
+      return 'Iki takim da UCL play-off hattinda (' + homePos + '. vs ' + awayPos + '.). Siralama avantaji ve eslesme kalitesi icin her puan degerli.';
     }
     if (homePos > 24 || awayPos > 24) {
-      const side = homePos > 24 ? 'Ev sahibi' : 'Deplasman takımı';
+      const side = homePos > 24 ? 'Ev sahibi' : 'Deplasman takimi';
       const pos = homePos > 24 ? homePos : awayPos;
-      return side + " UCL'de eleme hattının dışında (" + pos + '). Puan ihtiyacı motivasyonu belirgin biçimde artırıyor.';
+      return side + " UCL'de eleme hattinin disinda (" + pos + '). Puan ihtiyaci motivasyonu belirgin bicimde artiriyor.';
     }
   }
 
   if (homeRelegated && awayRelegated) {
-    return 'İki takım için de ligde kalma hedefi matematiksel olarak kapanmış görünüyor. Motivasyon okuması puan ihtiyacından çok prestij, rotasyon ve sezonu iyi bitirme tarafında yapılmalı.';
+    return 'Iki takim icin de ligde kalma hedefi matematiksel olarak kapanmis gorunuyor. Bu noktada motivasyon puan ihtiyacindan cok prestij, rotasyon ve sezonu iyi bitirme istegiyle okunmali.';
   }
   if (homeRelegated) {
-    return 'Ev sahibinin ligde kalma hedefi matematiksel olarak kapanmış görünüyor. Bu nedenle motivasyon avantajı ev sahibi lehine değil; maç daha çok prestij, rotasyon ve reaksiyon kalitesi üzerinden okunmalı.';
+    return 'Ev sahibinin ligde kalma hedefi matematiksel olarak kapanmis gorunuyor. Bu nedenle ekstra motivasyon avantaji otomatik olarak ev sahibine yazilmamali; mac daha cok prestij, rotasyon ve reaksiyon kalitesi uzerinden okunmali.';
   }
   if (awayRelegated) {
-    return 'Deplasman takımının ligde kalma hedefi matematiksel olarak kapanmış görünüyor. Bu tablo deplasman lehine ekstra puan motivasyonu üretmez; yorum prestij, rotasyon ve kalan sezon disiplini üzerinden yapılmalı.';
+    return 'Deplasman takiminin ligde kalma hedefi matematiksel olarak kapanmis gorunuyor. Bu tablo deplasman lehine ekstra puan motivasyonu uretmez; yorum prestij, rotasyon ve kalan sezon disiplini uzerinden yapilmali.';
   }
   if (homeSettled && awaySettled) {
-    return 'Puan tablosunda iki tarafın da yakın hedef alanı daralmış görünüyor. Motivasyon daha çok prestij, rotasyon ve sezonu iyi bitirme üzerinden okunmalı.';
+    return 'Puan tablosunda iki tarafin da yakin hedef alani daralmis gorunuyor. Motivasyon daha cok prestij, rotasyon ve sezonu iyi bitirme istegi uzerinden okunmali.';
   }
   if (homeSettled) {
-    return 'Ev sahibinin yakın sıralama hedefi matematiksel olarak daralmış görünüyor. Bu maçtaki motivasyon puan zorunluluğundan çok prestij ve sezonu güçlü bitirme tarafında.';
+    return 'Ev sahibinin yakin siralama hedefi matematiksel olarak daralmis gorunuyor. Bu mactaki motivasyon puan zorunlulugundan cok prestij ve sezonu guclu bitirme tarafinda.';
   }
   if (awaySettled) {
-    return 'Deplasman takımının yakın sıralama hedefi matematiksel olarak daralmış görünüyor. Bu yüzden puan ihtiyacı yorumu sınırlı; oyun planı prestij ve rotasyon etkisiyle şekillenebilir.';
+    return 'Deplasman takiminin yakin siralama hedefi matematiksel olarak daralmis gorunuyor. Bu yuzden puan ihtiyaci yorumu sinirli; oyun plani prestij ve rotasyon etkisiyle sekillenebilir.';
   }
 
   if (homePos <= 3 && awayPos <= 3) {
