@@ -10,13 +10,13 @@ import { leagueDataEmptyMessage } from '../utils/emptyStates';
 type UCLTie = { leg1: FDMatch; leg2: FDMatch | null };
 
 const leagues = [
-  { id: 1, apiId: 39,  name: 'Premier Lig', country: 'İngiltere', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
-  { id: 2, apiId: 140, name: 'La Liga',     country: 'İspanya',   flag: '🇪🇸' },
-  { id: 3, apiId: 78,  name: 'Bundesliga',  country: 'Almanya',   flag: '🇩🇪' },
-  { id: 4, apiId: 135, name: 'Serie A',     country: 'İtalya',    flag: '🇮🇹' },
-  { id: 5, apiId: 61,  name: 'Ligue 1',     country: 'Fransa',    flag: '🇫🇷' },
-  { id: 6, apiId: 2,   name: 'UCL',         country: 'Avrupa',    flag: '🌍' },
-  { id: 7, apiId: 203, name: 'Süper Lig',   country: 'Türkiye',   flag: '🇹🇷' },
+  { id: 1, apiId: 39,  name: 'Premier Lig', country: 'Ãƒâ€Ã‚Â°ngiltere', flag: 'Ã„Å¸Ã…Â¸Ã‚ÂÃ‚Â´ÃƒÂ³Ã‚Â Ã‚ÂÃ‚Â§ÃƒÂ³Ã‚Â Ã‚ÂÃ‚Â¢ÃƒÂ³Ã‚Â Ã‚ÂÃ‚Â¥ÃƒÂ³Ã‚Â Ã‚ÂÃ‚Â®ÃƒÂ³Ã‚Â Ã‚ÂÃ‚Â§ÃƒÂ³Ã‚Â Ã‚ÂÃ‚Â¿' },
+  { id: 2, apiId: 140, name: 'La Liga',     country: 'Ãƒâ€Ã‚Â°spanya',   flag: 'Ã„Å¸Ã…Â¸Ã¢â‚¬Â¡Ã‚ÂªÃ„Å¸Ã…Â¸Ã¢â‚¬Â¡Ã‚Â¸' },
+  { id: 3, apiId: 78,  name: 'Bundesliga',  country: 'Almanya',   flag: 'Ã„Å¸Ã…Â¸Ã¢â‚¬Â¡Ã‚Â©Ã„Å¸Ã…Â¸Ã¢â‚¬Â¡Ã‚Âª' },
+  { id: 4, apiId: 135, name: 'Serie A',     country: 'Ãƒâ€Ã‚Â°talya',    flag: 'Ã„Å¸Ã…Â¸Ã¢â‚¬Â¡Ã‚Â®Ã„Å¸Ã…Â¸Ã¢â‚¬Â¡Ã‚Â¹' },
+  { id: 5, apiId: 61,  name: 'Ligue 1',     country: 'Fransa',    flag: 'Ã„Å¸Ã…Â¸Ã¢â‚¬Â¡Ã‚Â«Ã„Å¸Ã…Â¸Ã¢â‚¬Â¡Ã‚Â·' },
+  { id: 6, apiId: 2,   name: 'UCL',         country: 'Avrupa',    flag: 'Ã„Å¸Ã…Â¸Ã…â€™Ã‚Â' },
+  { id: 7, apiId: 203, name: 'SÃƒÆ’Ã‚Â¼per Lig',   country: 'TÃƒÆ’Ã‚Â¼rkiye',   flag: 'Ã„Å¸Ã…Â¸Ã¢â‚¬Â¡Ã‚Â¹Ã„Å¸Ã…Â¸Ã¢â‚¬Â¡Ã‚Â·' },
 ];
 
 const configuredLeagues = leagues.map(league => ({
@@ -27,20 +27,20 @@ const configuredLeagues = leagues.map(league => ({
 const UCL_STAGES = [
   { key: 'KNOCKOUT_ROUND_PLAY_OFF', label: 'Play-off'     },
   { key: 'ROUND_OF_16',             label: 'Son 16'       },
-  { key: 'QUARTER_FINALS',          label: 'Çeyrek Final' },
-  { key: 'SEMI_FINALS',             label: 'Yarı Final'   },
+  { key: 'QUARTER_FINALS',          label: 'ÃƒÆ’Ã¢â‚¬Â¡eyrek Final' },
+  { key: 'SEMI_FINALS',             label: 'YarÃƒâ€Ã‚Â± Final'   },
   { key: 'FINAL',                   label: 'Final'        },
 ];
 
 const SUB_TABS = [
   { key: 'genel',    label: 'Genel'        },
   { key: 'tablo',    label: 'Puan Tablosu' },
-  { key: 'takimlar', label: 'Takımlar'     },
+  { key: 'takimlar', label: 'TakÃƒâ€Ã‚Â±mlar'     },
   { key: 'trendler', label: 'Trendler'     },
 ] as const;
 type SubTab = typeof SUB_TABS[number]['key'];
 
-type Level    = 'Düşük' | 'Orta' | 'Yüksek';
+type Level    = 'DÃƒÆ’Ã‚Â¼Ãƒâ€¦Ã…Â¸ÃƒÆ’Ã‚Â¼k' | 'Orta' | 'YÃƒÆ’Ã‚Â¼ksek';
 type League   = typeof configuredLeagues[0];
 type Standing = { pos: number; team: string; teamId: number; played: number; win: number; draw: number; loss: number; gf: number; ga: number; pts: number; };
 type LeagueChar = {
@@ -48,7 +48,7 @@ type LeagueChar = {
   gol: Level; tempo: Level; risk: Level; stil: string;
 };
 
-// ── UCL TIE HELPERS ───────────────────────────────────────────
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ UCL TIE HELPERS ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 function groupTies(matches: FDMatch[]): UCLTie[] {
   const ties: UCLTie[] = [];
@@ -113,11 +113,11 @@ function TieCard({ tie, isFinal }: { tie: UCLTie; isFinal?: boolean }) {
         <View style={bkStyles.scoreBlock}>
           {hasScore ? (
             <>
-              <Text style={[bkStyles.aggScore, { color: c.text }]}>{homeAgg} – {awayAgg}</Text>
-              <Text style={[bkStyles.aggLabel, { color: c.textFaint }]}>{l2 ? 'TOPLAM' : 'SONUÇ'}</Text>
+              <Text style={[bkStyles.aggScore, { color: c.text }]}>{homeAgg} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ {awayAgg}</Text>
+              <Text style={[bkStyles.aggLabel, { color: c.textFaint }]}>{l2 ? 'TOPLAM' : 'SONUÃƒÆ’Ã¢â‚¬Â¡'}</Text>
             </>
           ) : (
-            <Text style={[bkStyles.tbd, { color: c.textVeryFaint }]}>— : —</Text>
+            <Text style={[bkStyles.tbd, { color: c.textVeryFaint }]}>ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â : ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</Text>
           )}
         </View>
         <Text style={[bkStyles.teamName, { color: c.text, textAlign: 'right' }, awayWins && { color: c.primary, fontWeight: '700' }]} numberOfLines={1}>
@@ -127,9 +127,9 @@ function TieCard({ tie, isFinal }: { tie: UCLTie; isFinal?: boolean }) {
 
       {hasScore && l2 && (
         <View style={bkStyles.legsRow}>
-          <Text style={[bkStyles.legText, { color: c.textMuted }]}>1. Maç ({fmt(l1.utcDate)}): {l1h}–{l1a}</Text>
-          <Text style={[bkStyles.legSep, { color: c.textVeryFaint }]}>·</Text>
-          <Text style={[bkStyles.legText, { color: c.textMuted }]}>2. Maç ({fmt(l2.utcDate)}): {l2h ?? '?'}–{l2a ?? '?'}</Text>
+          <Text style={[bkStyles.legText, { color: c.textMuted }]}>1. MaÃƒÆ’Ã‚Â§ ({fmt(l1.utcDate)}): {l1h}ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“{l1a}</Text>
+          <Text style={[bkStyles.legSep, { color: c.textVeryFaint }]}>Ãƒâ€šÃ‚Â·</Text>
+          <Text style={[bkStyles.legText, { color: c.textMuted }]}>2. MaÃƒÆ’Ã‚Â§ ({fmt(l2.utcDate)}): {l2h ?? '?'}ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“{l2a ?? '?'}</Text>
         </View>
       )}
       {hasScore && !l2 && (
@@ -139,12 +139,12 @@ function TieCard({ tie, isFinal }: { tie: UCLTie; isFinal?: boolean }) {
       {winner ? (
         <View style={[bkStyles.winnerBadge, { backgroundColor: c.primaryLight }]}>
           <Text style={[bkStyles.winnerText, { color: c.primary }]}>
-            {isFinal ? '🏆' : '✅'} {winner}
+            {isFinal ? 'Ã„Å¸Ã…Â¸Ã‚ÂÃ¢â‚¬Â ' : 'ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦'} {winner}
           </Text>
         </View>
       ) : hasScore ? (
         <View style={[bkStyles.winnerBadge, { backgroundColor: c.surfaceAlt }]}>
-          <Text style={[bkStyles.winnerText, { color: c.textMuted }]}>⏳ Uzatma / Penaltı</Text>
+          <Text style={[bkStyles.winnerText, { color: c.textMuted }]}>ÃƒÂ¢Ã‚ÂÃ‚Â³ Uzatma / PenaltÃƒâ€Ã‚Â±</Text>
         </View>
       ) : null}
     </View>
@@ -166,7 +166,7 @@ const bkStyles = StyleSheet.create({
   winnerText:  { fontSize: 12, fontWeight: '600' },
 });
 
-// ── ANALYSIS HELPERS ──────────────────────────────────────────
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ ANALYSIS HELPERS ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 type CP = { color: string; bg: string };
 const SC: Record<string, { l: CP; d: CP }> = {
@@ -180,49 +180,49 @@ const SC: Record<string, { l: CP; d: CP }> = {
 const cp = (key: string, isDark: boolean): CP => isDark ? SC[key].d : SC[key].l;
 
 function getTagColor(level: Level, isDark = false): { color: string; bg: string } {
-  if (level === 'Yüksek') return cp('red', isDark);
+  if (level === 'YÃƒÆ’Ã‚Â¼ksek') return cp('red', isDark);
   if (level === 'Orta')   return cp('yellow', isDark);
   return cp('gray', isDark);
 }
 
 function getLeagueCharacter(avgGoals: number, drawRate: number, isDark = false): LeagueChar {
-  const gol: Level   = avgGoals >= 2.8 ? 'Yüksek' : avgGoals >= 2.2 ? 'Orta' : 'Düşük';
-  const tempo: Level = avgGoals >= 2.7 ? 'Yüksek' : avgGoals >= 2.2 ? 'Orta' : 'Düşük';
-  const risk: Level  = drawRate >= 0.30 ? 'Yüksek' : drawRate >= 0.25 ? 'Orta' : 'Düşük';
-  const stil         = gol === 'Yüksek' ? 'Hücumcu' : gol === 'Düşük' ? 'Savunmacı' : 'Dengeli';
+  const gol: Level   = avgGoals >= 2.8 ? 'YÃƒÆ’Ã‚Â¼ksek' : avgGoals >= 2.2 ? 'Orta' : 'DÃƒÆ’Ã‚Â¼Ãƒâ€¦Ã…Â¸ÃƒÆ’Ã‚Â¼k';
+  const tempo: Level = avgGoals >= 2.7 ? 'YÃƒÆ’Ã‚Â¼ksek' : avgGoals >= 2.2 ? 'Orta' : 'DÃƒÆ’Ã‚Â¼Ãƒâ€¦Ã…Â¸ÃƒÆ’Ã‚Â¼k';
+  const risk: Level  = drawRate >= 0.30 ? 'YÃƒÆ’Ã‚Â¼ksek' : drawRate >= 0.25 ? 'Orta' : 'DÃƒÆ’Ã‚Â¼Ãƒâ€¦Ã…Â¸ÃƒÆ’Ã‚Â¼k';
+  const stil         = gol === 'YÃƒÆ’Ã‚Â¼ksek' ? 'HÃƒÆ’Ã‚Â¼cumcu' : gol === 'DÃƒÆ’Ã‚Â¼Ãƒâ€¦Ã…Â¸ÃƒÆ’Ã‚Â¼k' ? 'SavunmacÃƒâ€Ã‚Â±' : 'Dengeli';
 
   let label: string, color: string, bg: string, traits: string[], rec: string, ozet: string;
 
   if (avgGoals >= 3.0) {
-    label = 'Hücum Ağırlıklı'; ({ color, bg } = cp('red', isDark));
-    traits = ['Yüksek gol ortalaması', 'Over 2.5 eğilimi güçlü', 'Savunma açıkları belirgin'];
-    rec  = 'Over 2.5, KG Var kombinasyonları öne çıkar';
-    ozet = 'Yüksek tempolu ve gollü bir lig. Savunmalar açık, her iki kale tehlikede — favoriler baskı kuruyor.';
+    label = 'HÃƒÆ’Ã‚Â¼cum AÃƒâ€Ã…Â¸Ãƒâ€Ã‚Â±rlÃƒâ€Ã‚Â±klÃƒâ€Ã‚Â±'; ({ color, bg } = cp('red', isDark));
+    traits = ['YÃƒÆ’Ã‚Â¼ksek gol ortalamasÃƒâ€Ã‚Â±', 'Over 2.5 eÃƒâ€Ã…Â¸ilimi gÃƒÆ’Ã‚Â¼ÃƒÆ’Ã‚Â§lÃƒÆ’Ã‚Â¼', 'Savunma aÃƒÆ’Ã‚Â§Ãƒâ€Ã‚Â±klarÃƒâ€Ã‚Â± belirgin'];
+    rec  = 'Bu ligde en sık görülen profil gollü ve karşılıklı pozisyon üreten maçlar.';
+    ozet = 'Yüksek tempolu ve gollü bir lig. Savunmalar zaman zaman açık veriyor; maçlar sık sık iki kaleye de gidiyor.';
   } else if (avgGoals < 2.0 && drawRate >= 0.28) {
-    label = 'Savunma & Sıkışık'; ({ color, bg } = cp('green', isDark));
-    traits = ['Az gol, beraberlik eğilimi yüksek', 'Alt 2.5 çok sık', 'Favori avantajı sınırlı'];
-    rec  = 'Alt 2.5 ve çift şans senaryoları veriyle uyumlu';
-    ozet = 'Sıkı savunma anlayışı ve yüksek beraberlik oranıyla öne çıkan bir lig. Sürpriz sonuçlar sık yaşanıyor.';
+    label = 'Savunma & SÃƒâ€Ã‚Â±kÃƒâ€Ã‚Â±Ãƒâ€¦Ã…Â¸Ãƒâ€Ã‚Â±k'; ({ color, bg } = cp('green', isDark));
+    traits = ['Az gol, beraberlik eÃƒâ€Ã…Â¸ilimi yÃƒÆ’Ã‚Â¼ksek', 'Alt 2.5 ÃƒÆ’Ã‚Â§ok sÃƒâ€Ã‚Â±k', 'Favori avantajÃƒâ€Ã‚Â± sÃƒâ€Ã‚Â±nÃƒâ€Ã‚Â±rlÃƒâ€Ã‚Â±'];
+    rec  = 'Bu ligde en sık görülen profil düşük tempolu ve son bölüme kadar dengede kalan maçlar.';
+    ozet = 'Sıkı savunma anlayışı ve yüksek beraberlik oranıyla öne çıkan bir lig. Maçlar uzun süre kilitli kalabiliyor.';
   } else if (avgGoals < 2.0) {
-    label = 'Savunma Ağırlıklı'; ({ color, bg } = cp('green', isDark));
-    traits = ['Düşük gol ortalaması', 'Sıkı savunma anlayışı', 'Net sonuçlar ağırlıkta'];
-    rec  = "Alt 2.5, maç galibi — over'dan kaçın";
-    ozet = 'Savunma disiplini ön planda; gol sayısı düşük. Maçlar sıkışık seyrediyor, net galibiyetler belirleyici.';
+    label = 'Savunma AÃƒâ€Ã…Â¸Ãƒâ€Ã‚Â±rlÃƒâ€Ã‚Â±klÃƒâ€Ã‚Â±'; ({ color, bg } = cp('green', isDark));
+    traits = ['DÃƒÆ’Ã‚Â¼Ãƒâ€¦Ã…Â¸ÃƒÆ’Ã‚Â¼k gol ortalamasÃƒâ€Ã‚Â±', 'SÃƒâ€Ã‚Â±kÃƒâ€Ã‚Â± savunma anlayÃƒâ€Ã‚Â±Ãƒâ€¦Ã…Â¸Ãƒâ€Ã‚Â±', 'Net sonuÃƒÆ’Ã‚Â§lar aÃƒâ€Ã…Â¸Ãƒâ€Ã‚Â±rlÃƒâ€Ã‚Â±kta'];
+    rec  = 'Bu ligde en sık görülen profil düşük gol ve savunma disiplininin öne çıktığı maçlar.';
+    ozet = 'Savunma disiplini ön planda; gol sayısı düşük. Maçlar sıkışık geçse de küçük kalite farkları sonucu belirleyebiliyor.';
   } else if (drawRate >= 0.30) {
-    label = 'Beraberlik Eğilimli'; ({ color, bg } = cp('purple', isDark));
-    traits = ['Yüksek beraberlik oranı', 'Sonuç belirsizliği fazla', 'Güçlü savunma dengeleri'];
-    rec  = 'Beraberlik, çift şans — net galibiyet riski var';
-    ozet = 'Beraberlikler sık, sonuçlar belirsiz. Dengeli güç dağılımı sürprizlere zemin hazırlıyor.';
+    label = 'Beraberlik EÃƒâ€Ã…Â¸ilimli'; ({ color, bg } = cp('purple', isDark));
+    traits = ['YÃƒÆ’Ã‚Â¼ksek beraberlik oranÃƒâ€Ã‚Â±', 'SonuÃƒÆ’Ã‚Â§ belirsizliÃƒâ€Ã…Â¸i fazla', 'GÃƒÆ’Ã‚Â¼ÃƒÆ’Ã‚Â§lÃƒÆ’Ã‚Â¼ savunma dengeleri'];
+    rec  = 'Bu ligde sık görülen tablo, son ana kadar açık kalan ve net favori çıkarmayan maçlar.';
+    ozet = 'Beraberlikler sık, sonuçlar belirsiz. Dengeli güç dağılımı sürprizlere ve son bölüm kırılmalarına zemin hazırlıyor.';
   } else if (avgGoals >= 2.5 && drawRate <= 0.24) {
-    label = 'Hücumcu & Sonuç Odaklı'; ({ color, bg } = cp('yellow', isDark));
-    traits = ['Gollü ve net galibiyetli', 'Takımlar arası fark belirgin', 'Over + galibiyet birlikte güçlü'];
-    rec  = 'Over 2.5 + maç galibi kombinasyonu etkili';
-    ozet = 'Gollü ve sonuç odaklı bir lig. Favoriler genelde kazanıyor; güçlü takımlar farkı büyütüyor.';
+    label = 'HÃƒÆ’Ã‚Â¼cumcu & SonuÃƒÆ’Ã‚Â§ OdaklÃƒâ€Ã‚Â±'; ({ color, bg } = cp('yellow', isDark));
+    traits = ['GollÃƒÆ’Ã‚Â¼ ve net galibiyetli', 'TakÃƒâ€Ã‚Â±mlar arasÃƒâ€Ã‚Â± fark belirgin', 'Over + galibiyet birlikte gÃƒÆ’Ã‚Â¼ÃƒÆ’Ã‚Â§lÃƒÆ’Ã‚Â¼'];
+    rec  = 'Bu ligde sık görülen tablo, gollü başlayıp sonunda daha güçlü tarafın öne geçtiği maçlar.';
+    ozet = 'Gollü ve sonuç odaklı bir lig. Favoriler genelde kazanıyor; güçlü takımlar farkı ikinci yarıda açabiliyor.';
   } else {
     label = 'Dengeli'; ({ color, bg } = cp('blue', isDark));
-    traits = ['Dengeli hücum-savunma', 'Çeşitli sonuç profilleri', 'Maç özelinde analiz gerekli'];
-    rec  = 'Maç bazında değerlendirme yapılmalı';
-    ozet = 'Dengeli yapıda bir lig. Hücum ve savunma birbirine yakın; maç özelinde derin analiz şart.';
+    traits = ['Dengeli hÃƒÆ’Ã‚Â¼cum-savunma', 'ÃƒÆ’Ã¢â‚¬Â¡eÃƒâ€¦Ã…Â¸itli sonuÃƒÆ’Ã‚Â§ profilleri', 'MaÃƒÆ’Ã‚Â§ ÃƒÆ’Ã‚Â¶zelinde analiz gerekli'];
+    rec  = 'Bu ligde genel şablondan çok maç özelindeki form ve eşleşme farkı belirleyici oluyor.';
+    ozet = 'Dengeli yapıda bir lig. Hücum ve savunma birbirine yakın; her maçın kendi form ve eşleşme hikayesi daha belirleyici.';
   }
 
   return { label, color, bg, traits, rec, ozet, gol, tempo, risk, stil };
@@ -240,24 +240,24 @@ function getLiderTags(
   const isTopScorer = sortedByGfR[0]?.team === leader.team;
   const isBestDef   = sortedByGaR[0]?.team === leader.team;
 
-  if (isTopScorer)       tags.push({ label: '⚽ En Golcü',        ...cp('red',    isDark) });
-  if (isBestDef)         tags.push({ label: '🛡️ Sağlam Savunma', ...cp('green',  isDark) });
-  if (winRate >= 0.65)   tags.push({ label: '🔥 Dominant',        ...cp('yellow', isDark) });
-  if (leaderGap >= 8)    tags.push({ label: '📏 Açık Ara Lider',  ...cp('purple', isDark) });
-  if (leader.loss === 0) tags.push({ label: '✅ Yenilmez',        ...cp('blue',   isDark) });
-  if (tags.length === 0) tags.push({ label: '🏆 Lider',           ...cp('blue',   isDark) });
+  if (isTopScorer)       tags.push({ label: 'ÃƒÂ¢Ã…Â¡Ã‚Â½ En GolcÃƒÆ’Ã‚Â¼',        ...cp('red',    isDark) });
+  if (isBestDef)         tags.push({ label: 'Ã„Å¸Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â SaÃƒâ€Ã…Â¸lam Savunma', ...cp('green',  isDark) });
+  if (winRate >= 0.65)   tags.push({ label: 'Ã„Å¸Ã…Â¸Ã¢â‚¬ÂÃ‚Â¥ Dominant',        ...cp('yellow', isDark) });
+  if (leaderGap >= 8)    tags.push({ label: 'Ã„Å¸Ã…Â¸Ã¢â‚¬Å“Ã‚Â AÃƒÆ’Ã‚Â§Ãƒâ€Ã‚Â±k Ara Lider',  ...cp('purple', isDark) });
+  if (leader.loss === 0) tags.push({ label: 'ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Yenilmez',        ...cp('blue',   isDark) });
+  if (tags.length === 0) tags.push({ label: 'Ã„Å¸Ã…Â¸Ã‚ÂÃ¢â‚¬Â  Lider',           ...cp('blue',   isDark) });
 
   return tags;
 }
 
 function getTeamPersonality(lblLabel: string, avgGf: number, avgGa: number, winRate: number, avgLeagueGfPer: number): string {
   const winPct = Math.round(winRate * 100);
-  if (lblLabel === 'Formda')             return `${winPct}% galibiyet oranı — bu sezonun en tutarlı takımlarından.`;
-  if (lblLabel === 'Hücumcu & Kırılgan') return `${avgGf.toFixed(1)} gol atıp ${avgGa.toFixed(1)} gol yiyor — tahmin etmesi güç profil.`;
-  if (lblLabel === 'Hücumcu')            return `${avgGf.toFixed(1)} gol/maç — takım başına lig ort. (${avgLeagueGfPer.toFixed(1)}) üzerinde hücum üretimi.`;
-  if (lblLabel === 'Savunmacı')          return `Maç başı yalnızca ${avgGa.toFixed(1)} gol yiyen sıkı savunma profili.`;
-  if (lblLabel === 'Dengesiz')           return `${winPct}% galibiyet — istikrarsız yapı, sürprizlere açık.`;
-  return 'Dengeli skor profili; büyük sürpriz ya da hayal kırıklığı beklentisi düşük.';
+  if (lblLabel === 'Formda')             return `${winPct}% galibiyet oranÃƒâ€Ã‚Â± ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â bu sezonun en tutarlÃƒâ€Ã‚Â± takÃƒâ€Ã‚Â±mlarÃƒâ€Ã‚Â±ndan.`;
+  if (lblLabel === 'HÃƒÆ’Ã‚Â¼cumcu & KÃƒâ€Ã‚Â±rÃƒâ€Ã‚Â±lgan') return `${avgGf.toFixed(1)} gol atÃƒâ€Ã‚Â±p ${avgGa.toFixed(1)} gol yiyor ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â tahmin etmesi gÃƒÆ’Ã‚Â¼ÃƒÆ’Ã‚Â§ profil.`;
+  if (lblLabel === 'HÃƒÆ’Ã‚Â¼cumcu')            return `${avgGf.toFixed(1)} gol/maÃƒÆ’Ã‚Â§ ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â takÃƒâ€Ã‚Â±m baÃƒâ€¦Ã…Â¸Ãƒâ€Ã‚Â±na lig ort. (${avgLeagueGfPer.toFixed(1)}) ÃƒÆ’Ã‚Â¼zerinde hÃƒÆ’Ã‚Â¼cum ÃƒÆ’Ã‚Â¼retimi.`;
+  if (lblLabel === 'SavunmacÃƒâ€Ã‚Â±')          return `MaÃƒÆ’Ã‚Â§ baÃƒâ€¦Ã…Â¸Ãƒâ€Ã‚Â± yalnÃƒâ€Ã‚Â±zca ${avgGa.toFixed(1)} gol yiyen sÃƒâ€Ã‚Â±kÃƒâ€Ã‚Â± savunma profili.`;
+  if (lblLabel === 'Dengesiz')           return `${winPct}% galibiyet ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â istikrarsÃƒâ€Ã‚Â±z yapÃƒâ€Ã‚Â±, sÃƒÆ’Ã‚Â¼rprizlere aÃƒÆ’Ã‚Â§Ãƒâ€Ã‚Â±k.`;
+  return 'Dengeli skor profili; bÃƒÆ’Ã‚Â¼yÃƒÆ’Ã‚Â¼k sÃƒÆ’Ã‚Â¼rpriz ya da hayal kÃƒâ€Ã‚Â±rÃƒâ€Ã‚Â±klÃƒâ€Ã‚Â±Ãƒâ€Ã…Â¸Ãƒâ€Ã‚Â± beklentisi dÃƒÆ’Ã‚Â¼Ãƒâ€¦Ã…Â¸ÃƒÆ’Ã‚Â¼k.';
 }
 
 function getLeaderNarrative(leader: Standing, second: Standing | undefined): string {
@@ -265,19 +265,19 @@ function getLeaderNarrative(leader: Standing, second: Standing | undefined): str
   const gfPer   = leader.played > 0 ? leader.gf / leader.played : 0;
   const gaPer   = leader.played > 0 ? leader.ga / leader.played : 0;
   const gap     = second ? leader.pts - second.pts : 0;
-  if (leader.loss === 0)  return `${leader.played} maçta yenilmedi — sezonun en istikrarlı takımı.`;
-  if (winRate >= 0.70)    return `Her 10 maçtan ${Math.round(winRate * 10)}'ini kazanıyor — ligin tartışmasız lideri.`;
-  if (gfPer >= 2.5)       return `Maç başı ${gfPer.toFixed(1)} golle ligin golcü motoru.`;
-  if (gaPer < 0.9)        return `Savunma gücüyle öne çıkıyor — maç başı yalnızca ${gaPer.toFixed(1)} gol yiyor.`;
-  if (gap >= 8)           return `İkinciden ${gap} puan önde — şampiyonluğa en yakın aday.`;
-  return `${gap} puanlık avantajla önde, tablo henüz netleşmedi.`;
+  if (leader.loss === 0)  return `${leader.played} maÃƒÆ’Ã‚Â§ta yenilmedi ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â sezonun en istikrarlÃƒâ€Ã‚Â± takÃƒâ€Ã‚Â±mÃƒâ€Ã‚Â±.`;
+  if (winRate >= 0.70)    return `Her 10 maÃƒÆ’Ã‚Â§tan ${Math.round(winRate * 10)}'ini kazanÃƒâ€Ã‚Â±yor ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ligin tartÃƒâ€Ã‚Â±Ãƒâ€¦Ã…Â¸masÃƒâ€Ã‚Â±z lideri.`;
+  if (gfPer >= 2.5)       return `MaÃƒÆ’Ã‚Â§ baÃƒâ€¦Ã…Â¸Ãƒâ€Ã‚Â± ${gfPer.toFixed(1)} golle ligin golcÃƒÆ’Ã‚Â¼ motoru.`;
+  if (gaPer < 0.9)        return `Savunma gÃƒÆ’Ã‚Â¼cÃƒÆ’Ã‚Â¼yle ÃƒÆ’Ã‚Â¶ne ÃƒÆ’Ã‚Â§Ãƒâ€Ã‚Â±kÃƒâ€Ã‚Â±yor ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â maÃƒÆ’Ã‚Â§ baÃƒâ€¦Ã…Â¸Ãƒâ€Ã‚Â± yalnÃƒâ€Ã‚Â±zca ${gaPer.toFixed(1)} gol yiyor.`;
+  if (gap >= 8)           return `Ãƒâ€Ã‚Â°kinciden ${gap} puan ÃƒÆ’Ã‚Â¶nde ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Ãƒâ€¦Ã…Â¸ampiyonluÃƒâ€Ã…Â¸a en yakÃƒâ€Ã‚Â±n aday.`;
+  return `${gap} puanlÃƒâ€Ã‚Â±k avantajla ÃƒÆ’Ã‚Â¶nde, tablo henÃƒÆ’Ã‚Â¼z netleÃƒâ€¦Ã…Â¸medi.`;
 }
 
 function getTeamLabel(gfPer: number, gaPer: number, winRate: number, pos: number, total: number, avgGfPer: number, avgGaPer: number, isDark = false) {
   if (winRate >= 0.60)                                        return { label: 'Formda',             ...cp('blue',   isDark) };
-  if (gfPer >= avgGfPer * 1.25 && gaPer >= avgGaPer * 1.15) return { label: 'Hücumcu & Kırılgan', ...cp('yellow', isDark) };
-  if (gfPer >= avgGfPer * 1.20)                              return { label: 'Hücumcu',            ...cp('red',    isDark) };
-  if (gaPer <= avgGaPer * 0.80)                              return { label: 'Savunmacı',          ...cp('green',  isDark) };
+  if (gfPer >= avgGfPer * 1.25 && gaPer >= avgGaPer * 1.15) return { label: 'HÃƒÆ’Ã‚Â¼cumcu & KÃƒâ€Ã‚Â±rÃƒâ€Ã‚Â±lgan', ...cp('yellow', isDark) };
+  if (gfPer >= avgGfPer * 1.20)                              return { label: 'HÃƒÆ’Ã‚Â¼cumcu',            ...cp('red',    isDark) };
+  if (gaPer <= avgGaPer * 0.80)                              return { label: 'SavunmacÃƒâ€Ã‚Â±',          ...cp('green',  isDark) };
   if (winRate < 0.25 && pos > total * 0.60)                  return { label: 'Dengesiz',           ...cp('red',    isDark) };
   return                                                             { label: 'Dengeli',            ...cp('gray',   isDark) };
 }
@@ -297,7 +297,7 @@ function getBadgeStyle(pos: number, total: number, apiId: number) {
   return styles.posNormal;
 }
 
-// ── SCREEN ────────────────────────────────────────────────────
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ SCREEN ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 export default function LeaguesScreen() {
   const router = useRouter();
@@ -416,7 +416,7 @@ export default function LeaguesScreen() {
         <Text style={styles.leagueHeaderFlag}>{activeLeague.flag}</Text>
         <View style={{ flex: 1 }}>
           <Text style={[styles.leagueHeaderName, { color: c.text }]}>{activeLeague.name}</Text>
-          <Text style={[styles.leagueHeaderSub, { color: c.textMuted }]}>{activeLeague.country} · {activeLeague.season}</Text>
+          <Text style={[styles.leagueHeaderSub, { color: c.textMuted }]}>{activeLeague.country} Ãƒâ€šÃ‚Â· {activeLeague.season}</Text>
         </View>
         {ligChar && (
           <View style={[stStyles.ligCharBadge, { backgroundColor: ligChar.bg }]}>
@@ -451,7 +451,7 @@ export default function LeaguesScreen() {
                 <>
                   {ligChar && (
                     <View style={[ozStyles.card, { backgroundColor: isDark ? '#0D2F4F' : '#0C447C' }]}>
-                      <Text style={ozStyles.header}>🏟️ LİG ÖZETİ</Text>
+                      <Text style={ozStyles.header}>Ã„Å¸Ã…Â¸Ã‚ÂÃ…Â¸ÃƒÂ¯Ã‚Â¸Ã‚Â LÃƒâ€Ã‚Â°G ÃƒÆ’Ã¢â‚¬â€œZETÃƒâ€Ã‚Â°</Text>
                       <View style={ozStyles.pillRow}>
                         <View style={[ozStyles.pill, { backgroundColor: c.primaryLight }]}>
                           <Text style={[ozStyles.pillLabel, { color: c.textMuted }]}>Stil</Text>
@@ -479,7 +479,7 @@ export default function LeaguesScreen() {
                       <View style={stStyles.ligCharTraits}>
                         {ligChar.traits.map((t, i) => (
                           <View key={i} style={stStyles.ligCharTrait}>
-                            <Text style={[stStyles.ligCharTraitDot, { color: c.textFaint }]}>·</Text>
+                            <Text style={[stStyles.ligCharTraitDot, { color: c.textFaint }]}>Ãƒâ€šÃ‚Â·</Text>
                             <Text style={[stStyles.ligCharTraitText, { color: c.textSub }]}>{t}</Text>
                           </View>
                         ))}
@@ -489,7 +489,7 @@ export default function LeaguesScreen() {
                           { label: 'Gol Pot.',  score: goalScore     },
                           { label: 'Tempo',     score: tempoScore    },
                           { label: 'Rekabet',   score: compScore     },
-                          { label: 'Sürpriz',   score: surpriseScore },
+                          { label: 'SÃƒÆ’Ã‚Â¼rpriz',   score: surpriseScore },
                         ].map(s => (
                           <View key={s.label} style={stStyles.scoutScoreItem}>
                             <Text style={[stStyles.scoutScoreVal, { color: c.primary }]}>{s.score}</Text>
@@ -498,7 +498,7 @@ export default function LeaguesScreen() {
                         ))}
                       </View>
                       <View style={[stStyles.scoutRecBox, { backgroundColor: c.bg, borderTopColor: c.border }]}>
-                        <Text style={[stStyles.scoutRecLabel, { color: c.textMuted }]}>Scout Öneri</Text>
+                        <Text style={[stStyles.scoutRecLabel, { color: c.textMuted }]}>Scout Notu</Text>
                         <Text style={[stStyles.scoutRecText, { color: c.text }]}>{ligChar.rec}</Text>
                       </View>
                     </View>
@@ -508,8 +508,8 @@ export default function LeaguesScreen() {
                     <View style={stStyles.summaryRow}>
                       {[
                         { val: totalGoals.toString(),             lbl: 'Toplam Gol' },
-                        { val: avgGoals.toFixed(2),               lbl: 'Gol/Maç'   },
-                        { val: Math.round(totalGames).toString(), lbl: 'Toplam Maç' },
+                        { val: avgGoals.toFixed(2),               lbl: 'Gol/MaÃƒÆ’Ã‚Â§'   },
+                        { val: Math.round(totalGames).toString(), lbl: 'Toplam MaÃƒÆ’Ã‚Â§' },
                       ].map(s => (
                         <View key={s.lbl} style={stStyles.summaryStat}>
                           <Text style={[stStyles.summaryVal, { color: c.text }]}>{s.val}</Text>
@@ -522,8 +522,8 @@ export default function LeaguesScreen() {
                   {leader && (
                     <View style={[stStyles.leaderCard, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
                       <View style={stStyles.leaderTop}>
-                        <Text style={[stStyles.leaderBadge, { color: c.primary }]}>🏆 LİDER</Text>
-                        {leaderGap > 0 && <Text style={[stStyles.leaderGap, { color: c.primary }]}>+{leaderGap} puan önde</Text>}
+                        <Text style={[stStyles.leaderBadge, { color: c.primary }]}>Ã„Å¸Ã…Â¸Ã‚ÂÃ¢â‚¬Â  LÃƒâ€Ã‚Â°DER</Text>
+                        {leaderGap > 0 && <Text style={[stStyles.leaderGap, { color: c.primary }]}>+{leaderGap} puan ÃƒÆ’Ã‚Â¶nde</Text>}
                       </View>
                       <Text style={[stStyles.leaderTeam, { color: c.text }]}>{leader.team}</Text>
                       <Text style={[stStyles.leaderNarr, { color: c.textSub }]}>{leaderNarr}</Text>
@@ -551,25 +551,25 @@ export default function LeaguesScreen() {
                       </View>
                       <View style={[stStyles.leaderPowerRow, { borderTopColor: c.cardBorder }]}>
                         <View style={stStyles.leaderPower}>
-                          <Text style={[stStyles.leaderPowerLbl, { color: c.textMuted }]}>Hücum Gücü</Text>
+                          <Text style={[stStyles.leaderPowerLbl, { color: c.textMuted }]}>HÃƒÆ’Ã‚Â¼cum GÃƒÆ’Ã‚Â¼cÃƒÆ’Ã‚Â¼</Text>
                           <Text style={[stStyles.leaderPowerVal, { color: c.primary }]}>{attackPower.toFixed(2)}/10</Text>
                         </View>
                         <View style={[stStyles.leaderPowerDiv, { backgroundColor: c.cardBorder }]} />
                         <View style={stStyles.leaderPower}>
-                          <Text style={[stStyles.leaderPowerLbl, { color: c.textMuted }]}>Savunma Gücü</Text>
+                          <Text style={[stStyles.leaderPowerLbl, { color: c.textMuted }]}>Savunma GÃƒÆ’Ã‚Â¼cÃƒÆ’Ã‚Â¼</Text>
                           <Text style={[stStyles.leaderPowerVal, { color: c.primary }]}>{defPower.toFixed(2)}/10</Text>
                         </View>
                       </View>
                     </View>
                   )}
 
-                  <Text style={[styles.sectionLabel, { color: c.textMuted }]}>ÖNE ÇIKAN PROFİLLER</Text>
+                  <Text style={[styles.sectionLabel, { color: c.textMuted }]}>ÃƒÆ’Ã¢â‚¬â€œNE ÃƒÆ’Ã¢â‚¬Â¡IKAN PROFÃƒâ€Ã‚Â°LLER</Text>
                   {([
-                    mostGoals    ? { icon: '⚽', label: 'En Golcü',        team: mostGoals,    stat: (mostGoals.gf / Math.max(mostGoals.played, 1)).toFixed(1) + ' gol/maç',           insight: 'Over 2.5 eğilimi güçlü; rakip kale her an tehlikede.' }           : null,
-                    bestDef      ? { icon: '🛡️', label: 'En İyi Savunma', team: bestDef,      stat: (bestDef.ga  / Math.max(bestDef.played,   1)).toFixed(1) + ' yenilen/maç',        insight: 'Kale sıfır potansiyeli yüksek; düşük skorlu senaryolar için referans.' }        : null,
-                    mostTempo    ? { icon: '⚡', label: 'En Tempolu',       team: mostTempo,    stat: ((mostTempo.gf + mostTempo.ga) / Math.max(mostTempo.played, 1)).toFixed(1) + ' gol/maç', insight: 'Bu takımın maçları over eğilimi için en güçlü adaylar.' } : null,
-                    bestWinRate  ? { icon: '📈', label: 'En Formda',        team: bestWinRate,  stat: Math.round(bestWinRate.win / Math.max(bestWinRate.played, 1) * 100) + '% galibiyet', insight: 'Tutarlı profil — tahmin edilebilir, güvenilir seçenek.' } : null,
-                    surpriseTeam ? { icon: '🌀', label: 'Sürpriz',          team: surpriseTeam, stat: surpriseTeam.pos + '. sıra · ' + (surpriseTeam.gf / Math.max(surpriseTeam.played, 1)).toFixed(1) + ' gol/maç', insight: 'Sıralama beklenenden üst — dikkatle izlenmeyi hak ediyor.' } : null,
+                    mostGoals    ? { icon: 'ÃƒÂ¢Ã…Â¡Ã‚Â½', label: 'En GolcÃƒÆ’Ã‚Â¼',        team: mostGoals,    stat: (mostGoals.gf / Math.max(mostGoals.played, 1)).toFixed(1) + ' gol/maÃƒÆ’Ã‚Â§',           insight: 'Over 2.5 eÃƒâ€Ã…Â¸ilimi gÃƒÆ’Ã‚Â¼ÃƒÆ’Ã‚Â§lÃƒÆ’Ã‚Â¼; rakip kale her an tehlikede.' }           : null,
+                    bestDef      ? { icon: 'Ã„Å¸Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â', label: 'En Ãƒâ€Ã‚Â°yi Savunma', team: bestDef,      stat: (bestDef.ga  / Math.max(bestDef.played,   1)).toFixed(1) + ' yenilen/maÃƒÆ’Ã‚Â§',        insight: 'Kale sÃƒâ€Ã‚Â±fÃƒâ€Ã‚Â±r potansiyeli yÃƒÆ’Ã‚Â¼ksek; dÃƒÆ’Ã‚Â¼Ãƒâ€¦Ã…Â¸ÃƒÆ’Ã‚Â¼k skorlu senaryolar iÃƒÆ’Ã‚Â§in referans.' }        : null,
+                    mostTempo    ? { icon: 'ÃƒÂ¢Ã…Â¡Ã‚Â¡', label: 'En Tempolu',       team: mostTempo,    stat: ((mostTempo.gf + mostTempo.ga) / Math.max(mostTempo.played, 1)).toFixed(1) + ' gol/maÃƒÆ’Ã‚Â§', insight: 'Bu takÃƒâ€Ã‚Â±mÃƒâ€Ã‚Â±n maÃƒÆ’Ã‚Â§larÃƒâ€Ã‚Â± over eÃƒâ€Ã…Â¸ilimi iÃƒÆ’Ã‚Â§in en gÃƒÆ’Ã‚Â¼ÃƒÆ’Ã‚Â§lÃƒÆ’Ã‚Â¼ adaylar.' } : null,
+                    bestWinRate  ? { icon: 'Ã„Å¸Ã…Â¸Ã¢â‚¬Å“Ã‹â€ ', label: 'En Formda',        team: bestWinRate,  stat: Math.round(bestWinRate.win / Math.max(bestWinRate.played, 1) * 100) + '% galibiyet', insight: 'TutarlÃƒâ€Ã‚Â± profil ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â tahmin edilebilir, gÃƒÆ’Ã‚Â¼venilir seÃƒÆ’Ã‚Â§enek.' } : null,
+                    surpriseTeam ? { icon: 'Ã„Å¸Ã…Â¸Ã…â€™Ã¢â€šÂ¬', label: 'SÃƒÆ’Ã‚Â¼rpriz',          team: surpriseTeam, stat: surpriseTeam.pos + '. sÃƒâ€Ã‚Â±ra Ãƒâ€šÃ‚Â· ' + (surpriseTeam.gf / Math.max(surpriseTeam.played, 1)).toFixed(1) + ' gol/maÃƒÆ’Ã‚Â§', insight: 'SÃƒâ€Ã‚Â±ralama beklenenden ÃƒÆ’Ã‚Â¼st ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â dikkatle izlenmeyi hak ediyor.' } : null,
                   ] as const).filter(Boolean).map((p, i) => p && (
                     <View key={i} style={[stStyles.profileRow, { borderBottomColor: c.borderLight }]}>
                       <Text style={stStyles.profileIcon}>{p.icon}</Text>
@@ -587,8 +587,8 @@ export default function LeaguesScreen() {
                     const maxGf = sorted[0]?.gf || 1;
                     return (
                       <>
-                        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>GOL VERİMLİLİĞİ</Text>
-                        <Text style={[styles.effSubtitle, { color: c.textFaint }]}>En fazla gol atan takım 100 birim alır, diğerleri ona oranlanır.</Text>
+                        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>GOL VERÃƒâ€Ã‚Â°MLÃƒâ€Ã‚Â°LÃƒâ€Ã‚Â°Ãƒâ€Ã‚ÂÃƒâ€Ã‚Â°</Text>
+                        <Text style={[styles.effSubtitle, { color: c.textFaint }]}>En fazla gol atan takÃƒâ€Ã‚Â±m 100 birim alÃƒâ€Ã‚Â±r, diÃƒâ€Ã…Â¸erleri ona oranlanÃƒâ€Ã‚Â±r.</Text>
                         {sorted.map((row, i) => {
                           const ratio = row.gf / maxGf;
                           const color = i === 0 ? c.primary : i < 3 ? '#E6A817' : i < 5 ? '#4CAF50' : c.textVeryFaint;
@@ -613,29 +613,29 @@ export default function LeaguesScreen() {
 
                   {ligChar && (
                     <View style={[ozStyles.noynanirCard, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
-                      <Text style={[ozStyles.noynanirHeader, { color: c.primary }]}>🎯 BU LİGDE NE OYNANIR?</Text>
+                      <Text style={[ozStyles.noynanirHeader, { color: c.primary }]}>🎯 BU LİGDE ÖNE ÇIKAN MAÇ PROFİLİ</Text>
                       {[
                         {
                           ok: avgGoals >= 2.3,
-                          text: `Gol ort. ${avgGoals.toFixed(1)}/maç — ${avgGoals >= 2.8 ? 'over 2.5 eğilimi güçlü' : avgGoals >= 2.3 ? 'orta gol beklentisi' : 'alt 2.5 eğilimi baskın'}`,
+                          text: `Gol ort. ${avgGoals.toFixed(1)}/maÃƒÆ’Ã‚Â§ ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${avgGoals >= 2.8 ? 'over 2.5 eÃƒâ€Ã…Â¸ilimi gÃƒÆ’Ã‚Â¼ÃƒÆ’Ã‚Â§lÃƒÆ’Ã‚Â¼' : avgGoals >= 2.3 ? 'orta gol beklentisi' : 'alt 2.5 eÃƒâ€Ã…Â¸ilimi baskÃƒâ€Ã‚Â±n'}`,
                         },
                         {
                           ok: leaderGap >= 6,
                           text: leaderGap >= 8
-                            ? 'Favoriler genelde kazanıyor — lider farkı belirgin'
+                            ? 'Favoriler genelde kazanÃƒâ€Ã‚Â±yor ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â lider farkÃƒâ€Ã‚Â± belirgin'
                             : leaderGap >= 4
-                            ? 'Favoriler avantajlı ama sürpriz mümkün'
-                            : 'Favoriler her zaman kazanamıyor — rekabet yoğun',
+                            ? 'Favoriler avantajlÃƒâ€Ã‚Â± ama sÃƒÆ’Ã‚Â¼rpriz mÃƒÆ’Ã‚Â¼mkÃƒÆ’Ã‚Â¼n'
+                            : 'Favoriler her zaman kazanamÃƒâ€Ã‚Â±yor ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â rekabet yoÃƒâ€Ã…Â¸un',
                         },
                         {
                           ok: drawRate < 0.28,
-                          text: `Beraberlik oranı %${Math.round(drawRate * 100)} — ${drawRate >= 0.28 ? 'yüksek, çift şans değerli' : 'düşük, net sonuçlar baskın'}`,
+                          text: `Beraberlik oranÃƒâ€Ã‚Â± %${Math.round(drawRate * 100)} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${drawRate >= 0.28 ? 'yÃƒÆ’Ã‚Â¼ksek, ÃƒÆ’Ã‚Â§ift Ãƒâ€¦Ã…Â¸ans deÃƒâ€Ã…Â¸erli' : 'dÃƒÆ’Ã‚Â¼Ãƒâ€¦Ã…Â¸ÃƒÆ’Ã‚Â¼k, net sonuÃƒÆ’Ã‚Â§lar baskÃƒâ€Ã‚Â±n'}`,
                         },
                         { ok: true, text: ligChar.rec },
                       ].map((b, i) => (
                         <View key={i} style={ozStyles.noynanirRow}>
                           <Text style={[ozStyles.noynanirIcon, { color: b.ok ? '#27AE60' : '#E6A817' }]}>
-                            {b.ok ? '✔' : '⚠'}
+                            {b.ok ? 'ÃƒÂ¢Ã…â€œÃ¢â‚¬Â' : 'ÃƒÂ¢Ã…Â¡Ã‚Â '}
                           </Text>
                           <Text style={[ozStyles.noynanirText, { color: c.text }]}>{b.text}</Text>
                         </View>
@@ -659,7 +659,7 @@ export default function LeaguesScreen() {
                     <TouchableOpacity
                       style={[styles.uclToggleBtn, uclView === 'bracket' && styles.uclToggleBtnActive]}
                       onPress={() => setUclView('bracket')}>
-                      <Text style={[styles.uclToggleText, { color: c.textMuted }, uclView === 'bracket' && styles.uclToggleTextActive]}>🏆 Eşleşmeler</Text>
+                      <Text style={[styles.uclToggleText, { color: c.textMuted }, uclView === 'bracket' && styles.uclToggleTextActive]}>Ã„Å¸Ã…Â¸Ã‚ÂÃ¢â‚¬Â  EÃƒâ€¦Ã…Â¸leÃƒâ€¦Ã…Â¸meler</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -681,7 +681,7 @@ export default function LeaguesScreen() {
                     {knockouts == null ? (
                       <ActivityIndicator style={{ marginTop: 30 }} color={c.primary} />
                     ) : (knockouts[activeStage] || []).length === 0 ? (
-                      <Text style={[styles.emptyText, { color: c.textMuted }]}>Bu tura ait veri bulunamadı</Text>
+                      <Text style={[styles.emptyText, { color: c.textMuted }]}>Bu tura ait veri bulunamadÃƒâ€Ã‚Â±</Text>
                     ) : (
                       groupTies(knockouts[activeStage] || []).map((tie, i) => (
                         <TieCard key={i} tie={tie} isFinal={activeStage === 'FINAL'} />
@@ -698,7 +698,7 @@ export default function LeaguesScreen() {
                       <Text style={[styles.sectionLabel, { color: c.textMuted }]}>PUAN TABLOSU</Text>
                       <View style={[styles.tableHeader, { backgroundColor: c.surfaceAlt, borderBottomColor: c.border }]}>
                         <Text style={[styles.rankCell, { color: c.textMuted }]}>#</Text>
-                        <Text style={[styles.teamCell, { color: c.textMuted }]}>Takım</Text>
+                        <Text style={[styles.teamCell, { color: c.textMuted }]}>TakÃƒâ€Ã‚Â±m</Text>
                         <Text style={[styles.dataCell, { color: c.textMuted }]}>O</Text>
                         <Text style={[styles.dataCell, { color: c.textMuted }]}>G</Text>
                         <Text style={[styles.dataCell, { color: c.textMuted }]}>B</Text>
@@ -721,11 +721,11 @@ export default function LeaguesScreen() {
                         </View>
                       ))}
                       <View style={styles.legendBox}>
-                        <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: '#185FA5' }]} /><Text style={[styles.legendText, { color: c.textMuted }]}>Şampiyonlar Ligi</Text></View>
+                        <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: '#185FA5' }]} /><Text style={[styles.legendText, { color: c.textMuted }]}>Ãƒâ€¦Ã‚Âampiyonlar Ligi</Text></View>
                         <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: '#E6A817' }]} /><Text style={[styles.legendText, { color: c.textMuted }]}>Avrupa Ligi</Text></View>
 
                         {activeLeague.apiId === 203 && (
-                          <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: '#C0392B' }]} /><Text style={[styles.legendText, { color: c.textMuted }]}>Küme Düşme</Text></View>
+                          <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: '#C0392B' }]} /><Text style={[styles.legendText, { color: c.textMuted }]}>KÃƒÆ’Ã‚Â¼me DÃƒÆ’Ã‚Â¼Ãƒâ€¦Ã…Â¸me</Text></View>
                         )}
                       </View>
                     </>
@@ -740,8 +740,8 @@ export default function LeaguesScreen() {
                   <Text style={[styles.emptyText, { color: c.textMuted }]}>{leagueDataEmptyMessage(activeLeague.name)}</Text>
               ) : (
                 <>
-                  <Text style={[styles.sectionLabel, { color: c.textMuted }]}>TAKIM KİMLİKLERİ</Text>
-                  <Text style={[styles.effSubtitle, { color: c.textFaint }]}>Alfabetik sırada · sezon ortalamaları + karakter profili</Text>
+                  <Text style={[styles.sectionLabel, { color: c.textMuted }]}>TAKIM KÃƒâ€Ã‚Â°MLÃƒâ€Ã‚Â°KLERÃƒâ€Ã‚Â°</Text>
+                  <Text style={[styles.effSubtitle, { color: c.textFaint }]}>Alfabetik sÃƒâ€Ã‚Â±rada Ãƒâ€šÃ‚Â· sezon ortalamalarÃƒâ€Ã‚Â± + karakter profili</Text>
                   {[...standings].sort((a, b) => a.team.localeCompare(b.team, 'tr')).map((row, i) => {
                     const avgGf      = row.played > 0 ? row.gf / row.played : 0;
                     const avgGa      = row.played > 0 ? row.ga / row.played : 0;
@@ -764,8 +764,8 @@ export default function LeaguesScreen() {
                         </View>
                         <Text style={[stStyles.tkPersonality, { color: c.textSub }]}>{personality}</Text>
                         <View style={stStyles.tkPowerRow}>
-                          <Text style={[stStyles.tkPowerText, { color: c.textSub }]}>Hücum <Text style={[stStyles.tkPowerVal, { color: c.primary }]}>{atkS.toFixed(2)}</Text>/10</Text>
-                          <Text style={[stStyles.tkPowerDot, { color: c.textVeryFaint }]}>·</Text>
+                          <Text style={[stStyles.tkPowerText, { color: c.textSub }]}>HÃƒÆ’Ã‚Â¼cum <Text style={[stStyles.tkPowerVal, { color: c.primary }]}>{atkS.toFixed(2)}</Text>/10</Text>
+                          <Text style={[stStyles.tkPowerDot, { color: c.textVeryFaint }]}>Ãƒâ€šÃ‚Â·</Text>
                           <Text style={[stStyles.tkPowerText, { color: c.textSub }]}>Savunma <Text style={[stStyles.tkPowerVal, { color: c.primary }]}>{defS.toFixed(2)}</Text>/10</Text>
                         </View>
                         <View style={[stStyles.tkStats, { borderTopColor: c.border }]}>
@@ -812,19 +812,19 @@ export default function LeaguesScreen() {
                   <>
                     <View style={[stStyles.trendNote, { backgroundColor: c.primaryLight }]}>
                       <Text style={[stStyles.trendNoteText, { color: c.text }]}>
-                        Maç başı {avgGoals.toFixed(2)} gol ·
-                        {avgGoals >= 2.8 ? ' Yüksek tempolu lig' : avgGoals >= 2.3 ? ' Orta tempolu lig' : ' Düşük tempolu lig'}
+                        MaÃƒÆ’Ã‚Â§ baÃƒâ€¦Ã…Â¸Ãƒâ€Ã‚Â± {avgGoals.toFixed(2)} gol Ãƒâ€šÃ‚Â·
+                        {avgGoals >= 2.8 ? ' YÃƒÆ’Ã‚Â¼ksek tempolu lig' : avgGoals >= 2.3 ? ' Orta tempolu lig' : ' DÃƒÆ’Ã‚Â¼Ãƒâ€¦Ã…Â¸ÃƒÆ’Ã‚Â¼k tempolu lig'}
                       </Text>
                     </View>
 
-                    <Text style={[styles.sectionLabel, { color: c.textMuted }]}>HÜCUM GÜCÜ (Gol/Maç)</Text>
-                    <Text style={[styles.effSubtitle, { color: c.textFaint }]}>Maç başı en fazla gol atan takımlar</Text>
+                    <Text style={[styles.sectionLabel, { color: c.textMuted }]}>HÃƒÆ’Ã…â€œCUM GÃƒÆ’Ã…â€œCÃƒÆ’Ã…â€œ (Gol/MaÃƒÆ’Ã‚Â§)</Text>
+                    <Text style={[styles.effSubtitle, { color: c.textFaint }]}>MaÃƒÆ’Ã‚Â§ baÃƒâ€¦Ã…Â¸Ãƒâ€Ã‚Â± en fazla gol atan takÃƒâ€Ã‚Â±mlar</Text>
                     {attackTop[0] && (
                       <View style={[stStyles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
                         <Text style={[stStyles.insightText, { color: c.text }]}>
-                          En golcü {attackTop[0].team}, maç başı {attackTop[0].gfPer.toFixed(1)} golle ligin hücum motorunu temsil ediyor.
+                          En golcÃƒÆ’Ã‚Â¼ {attackTop[0].team}, maÃƒÆ’Ã‚Â§ baÃƒâ€¦Ã…Â¸Ãƒâ€Ã‚Â± {attackTop[0].gfPer.toFixed(1)} golle ligin hÃƒÆ’Ã‚Â¼cum motorunu temsil ediyor.
                         </Text>
-                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Yüksek hücum gücü, 2.5 üst ve KG-var senaryolarında güçlü bir ipucu sunar.</Text>
+                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden ÃƒÆ’Ã‚Â¶nemli: YÃƒÆ’Ã‚Â¼ksek hÃƒÆ’Ã‚Â¼cum gÃƒÆ’Ã‚Â¼cÃƒÆ’Ã‚Â¼, 2.5 ÃƒÆ’Ã‚Â¼st ve KG-var senaryolarÃƒâ€Ã‚Â±nda gÃƒÆ’Ã‚Â¼ÃƒÆ’Ã‚Â§lÃƒÆ’Ã‚Â¼ bir ipucu sunar.</Text>
                       </View>
                     )}
                     {attackTop.map((row, i) => {
@@ -846,14 +846,14 @@ export default function LeaguesScreen() {
                       );
                     })}
 
-                    <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SAVUNMA DİRENCİ (Yenilen/Maç)</Text>
-                    <Text style={[styles.effSubtitle, { color: c.textFaint }]}>En az gol yiyen takımlar — düşük değer daha iyi</Text>
+                    <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SAVUNMA DÃƒâ€Ã‚Â°RENCÃƒâ€Ã‚Â° (Yenilen/MaÃƒÆ’Ã‚Â§)</Text>
+                    <Text style={[styles.effSubtitle, { color: c.textFaint }]}>En az gol yiyen takÃƒâ€Ã‚Â±mlar ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â dÃƒÆ’Ã‚Â¼Ãƒâ€¦Ã…Â¸ÃƒÆ’Ã‚Â¼k deÃƒâ€Ã…Â¸er daha iyi</Text>
                     {defTop[0] && (
                       <View style={[stStyles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
                         <Text style={[stStyles.insightText, { color: c.text }]}>
-                          {defTop[0].team} maç başı yalnızca {defTop[0].gaPer.toFixed(1)} gol yiyor — ligin en sağlam savunması.
+                          {defTop[0].team} maÃƒÆ’Ã‚Â§ baÃƒâ€¦Ã…Â¸Ãƒâ€Ã‚Â± yalnÃƒâ€Ã‚Â±zca {defTop[0].gaPer.toFixed(1)} gol yiyor ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ligin en saÃƒâ€Ã…Â¸lam savunmasÃƒâ€Ã‚Â±.
                         </Text>
-                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Az gol yiyen takımlar, alt 2.5 ve kale sıfır senaryolarında güvenilir referans noktasıdır.</Text>
+                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden ÃƒÆ’Ã‚Â¶nemli: Az gol yiyen takÃƒâ€Ã‚Â±mlar, alt 2.5 ve kale sÃƒâ€Ã‚Â±fÃƒâ€Ã‚Â±r senaryolarÃƒâ€Ã‚Â±nda gÃƒÆ’Ã‚Â¼venilir referans noktasÃƒâ€Ã‚Â±dÃƒâ€Ã‚Â±r.</Text>
                       </View>
                     )}
                     {defTop.map((row, i) => {
@@ -875,14 +875,14 @@ export default function LeaguesScreen() {
                       );
                     })}
 
-                    <Text style={[styles.sectionLabel, { color: c.textMuted }]}>TEMPO ENDEKSİ (Toplam Gol/Maç)</Text>
-                    <Text style={[styles.effSubtitle, { color: c.textFaint }]}>Maçlarında en fazla toplam gol oynanan takımlar — over eğilimi göstergesi</Text>
+                    <Text style={[styles.sectionLabel, { color: c.textMuted }]}>TEMPO ENDEKSÃƒâ€Ã‚Â° (Toplam Gol/MaÃƒÆ’Ã‚Â§)</Text>
+                    <Text style={[styles.effSubtitle, { color: c.textFaint }]}>MaÃƒÆ’Ã‚Â§larÃƒâ€Ã‚Â±nda en fazla toplam gol oynanan takÃƒâ€Ã‚Â±mlar ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â over eÃƒâ€Ã…Â¸ilimi gÃƒÆ’Ã‚Â¶stergesi</Text>
                     {tempoTop[0] && (
                       <View style={[stStyles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
                         <Text style={[stStyles.insightText, { color: c.text }]}>
-                          {tempoTop[0].team} maçları bu ligde en heyecanlı seyrediyor — maç başı {tempoTop[0].tempoPer.toFixed(1)} toplam gol.
+                          {tempoTop[0].team} maÃƒÆ’Ã‚Â§larÃƒâ€Ã‚Â± bu ligde en heyecanlÃƒâ€Ã‚Â± seyrediyor ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â maÃƒÆ’Ã‚Â§ baÃƒâ€¦Ã…Â¸Ãƒâ€Ã‚Â± {tempoTop[0].tempoPer.toFixed(1)} toplam gol.
                         </Text>
-                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Toplam gol ortalaması, over/alt kararlarının en doğrudan göstergesidir.</Text>
+                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden ÃƒÆ’Ã‚Â¶nemli: Toplam gol ortalamasÃƒâ€Ã‚Â±, over/alt kararlarÃƒâ€Ã‚Â±nÃƒâ€Ã‚Â±n en doÃƒâ€Ã…Â¸rudan gÃƒÆ’Ã‚Â¶stergesidir.</Text>
                       </View>
                     )}
                     {tempoTop.map((row, i) => {
@@ -900,20 +900,20 @@ export default function LeaguesScreen() {
                               </View>
                               <Text style={[styles.effGoals, { color }]}>{row.tempoPer.toFixed(2)}</Text>
                             </View>
-                            {isOver && <Text style={[styles.effLabel, { color: c.textFaint }]}>Over 2.5 eğilimi güçlü</Text>}
+                            {isOver && <Text style={[styles.effLabel, { color: c.textFaint }]}>Over 2.5 eÃƒâ€Ã…Â¸ilimi gÃƒÆ’Ã‚Â¼ÃƒÆ’Ã‚Â§lÃƒÆ’Ã‚Â¼</Text>}
                           </View>
                         </View>
                       );
                     })}
 
-                    <Text style={[styles.sectionLabel, { color: c.textMuted }]}>BERABERLİK EĞİLİMİ</Text>
-                    <Text style={[styles.effSubtitle, { color: c.textFaint }]}>En fazla beraberlikle biten maç oynayan takımlar</Text>
+                    <Text style={[styles.sectionLabel, { color: c.textMuted }]}>BERABERLÃƒâ€Ã‚Â°K EÃƒâ€Ã‚ÂÃƒâ€Ã‚Â°LÃƒâ€Ã‚Â°MÃƒâ€Ã‚Â°</Text>
+                    <Text style={[styles.effSubtitle, { color: c.textFaint }]}>En fazla beraberlikle biten maÃƒÆ’Ã‚Â§ oynayan takÃƒâ€Ã‚Â±mlar</Text>
                     {drawTop[0] && (
                       <View style={[stStyles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
                         <Text style={[stStyles.insightText, { color: c.text }]}>
-                          {drawTop[0].team} bu sezon en sık beraberlik oynayan takım — {drawTop[0].draw} kez eşit bitti, sonuç belirsizliği yüksek.
+                          {drawTop[0].team} bu sezon en sÃƒâ€Ã‚Â±k beraberlik oynayan takÃƒâ€Ã‚Â±m ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â {drawTop[0].draw} kez eÃƒâ€¦Ã…Â¸it bitti, sonuÃƒÆ’Ã‚Â§ belirsizliÃƒâ€Ã…Â¸i yÃƒÆ’Ã‚Â¼ksek.
                         </Text>
-                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Beraberlik eğilimi yüksek takımlar sonuç belirsizliği ve çift ihtimal senaryolarında öne çıkar.</Text>
+                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden ÃƒÆ’Ã‚Â¶nemli: Beraberlik eÃƒâ€Ã…Â¸ilimi yÃƒÆ’Ã‚Â¼ksek takÃƒâ€Ã‚Â±mlar sonuÃƒÆ’Ã‚Â§ belirsizliÃƒâ€Ã…Â¸i ve ÃƒÆ’Ã‚Â§ift ihtimal senaryolarÃƒâ€Ã‚Â±nda ÃƒÆ’Ã‚Â¶ne ÃƒÆ’Ã‚Â§Ãƒâ€Ã‚Â±kar.</Text>
                       </View>
                     )}
                     {drawTop.map((row, i) => {
@@ -947,7 +947,7 @@ export default function LeaguesScreen() {
       <View style={[styles.tabBar, { backgroundColor: c.surface, borderTopColor: c.border }]}>
         <TouchableOpacity style={styles.tab} onPress={() => router.push('/')}>
           <Ionicons name="football-outline" size={22} color={c.textMuted} />
-          <Text style={[styles.tabText, { color: c.textMuted }]}>Maçlar</Text>
+          <Text style={[styles.tabText, { color: c.textMuted }]}>MaÃƒÆ’Ã‚Â§lar</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tab}>
           <Ionicons name="trophy" size={22} color={c.primary} />
@@ -955,7 +955,7 @@ export default function LeaguesScreen() {
         </TouchableOpacity>
         <TouchableOpacity style={styles.tab} onPress={() => router.push('/stats')}>
           <Ionicons name="stats-chart-outline" size={22} color={c.textMuted} />
-          <Text style={[styles.tabText, { color: c.textMuted }]}>İstatistik</Text>
+          <Text style={[styles.tabText, { color: c.textMuted }]}>Ãƒâ€Ã‚Â°statistik</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tab} onPress={() => router.push('/profile')}>
           <Ionicons name="person-outline" size={22} color={c.textMuted} />
