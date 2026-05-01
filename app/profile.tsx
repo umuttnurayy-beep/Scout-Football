@@ -374,7 +374,7 @@ export default function ProfileScreen() {
     const stats: Record<string, { played: number; win: number; draw: number; loss: number; gf: number; ga: number; pts: number; pos: number }> = {};
     for (const item of items) {
       const rows = standingsMap[item.apiId] || [];
-      const found = rows.find((s: any) =>
+      const found = rows.find((s) =>
         tr(s.team || '').includes(tr(item.name)) || tr(item.name).includes(tr(s.team || ''))
       );
       if (found) {

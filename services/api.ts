@@ -444,21 +444,26 @@ export async function getOdds(homeTeam: string, awayTeam: string, leagueApiId: n
     } catch (_) {}
 
     const res = await fetch(`${BASE_URL}/odds?sport=${sport}`);
-    const data = await readApiJson<any[]>(res, []);
+    type OddsOutcome = { name: string; price: number };
+    type OddsMarket = { key: string; outcomes: OddsOutcome[] };
+    type OddsBookmaker = { markets?: OddsMarket[] };
+    type OddsGame = { home_team: string; away_team: string; bookmakers?: OddsBookmaker[] };
+
+    const data = await readApiJson<OddsGame[]>(res, []);
     if (!Array.isArray(data)) return null;
 
-    const match = data.find((game: any) => isOddsGameMatch(game, homeTeam, awayTeam));
+    const match = data.find((game) => isOddsGameMatch(game, homeTeam, awayTeam));
 
     if (!match) return null;
 
     let bestHome = 0, bestDraw = 0, bestAway = 0;
     for (const bookmaker of match.bookmakers || []) {
-      const market = bookmaker.markets?.find((m: any) => m.key === 'h2h');
+      const market = bookmaker.markets?.find((m) => m.key === 'h2h');
       if (!market) continue;
       const outcomes = market.outcomes || [];
-      const h = outcomes.find((o: any) => o.name === match.home_team)?.price || 0;
-      const d = outcomes.find((o: any) => o.name === 'Draw')?.price || 0;
-      const a = outcomes.find((o: any) => o.name === match.away_team)?.price || 0;
+      const h = outcomes.find((o) => o.name === match.home_team)?.price || 0;
+      const d = outcomes.find((o) => o.name === 'Draw')?.price || 0;
+      const a = outcomes.find((o) => o.name === match.away_team)?.price || 0;
       if (h > bestHome) bestHome = h;
       if (d > bestDraw) bestDraw = d;
       if (a > bestAway) bestAway = a;
