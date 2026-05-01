@@ -6,6 +6,7 @@ import {
   Text, TouchableOpacity, View,
 } from 'react-native';
 import {
+  FDMatch, FDScorer, FDSquadPlayer, FDTeamData,
   SLFormMatch, SLPlayer, SLScorer,
   getAllSportsTeamStats, getFdTeamData, getTeamForm, getTopScorers,
   getSuperLigTeamForm, getSuperLigPlayers, getSuperLigScorers,
@@ -53,8 +54,8 @@ function teamsMatch(a: string, b: string): boolean {
   return na === nb || na.includes(nb) || nb.includes(na);
 }
 
-function calcSeasonStats(matches: any[], teamId: number) {
-  const finished = matches.filter((m: any) => m.score?.fullTime?.home != null);
+function calcSeasonStats(matches: FDMatch[], teamId: number) {
+  const finished = matches.filter((m) => m.score?.fullTime?.home != null);
   const total = finished.length;
   if (total === 0) return null;
 
@@ -66,8 +67,8 @@ function calcSeasonStats(matches: any[], teamId: number) {
 
   for (const m of finished) {
     const isHome = m.homeTeam?.id === teamId;
-    const gf = isHome ? m.score.fullTime.home : m.score.fullTime.away;
-    const ga = isHome ? m.score.fullTime.away : m.score.fullTime.home;
+    const gf = (isHome ? m.score.fullTime.home : m.score.fullTime.away)!;
+    const ga = (isHome ? m.score.fullTime.away : m.score.fullTime.home)!;
     const totalGoals = (m.score.fullTime.home ?? 0) + (m.score.fullTime.away ?? 0);
 
     totalGF += gf;
@@ -197,8 +198,8 @@ export default function TeamStatsScreen() {
   const [loadingForm, setLoadingForm] = useState(false);
 
   // Kadro + golcüler (football-data.org, güncel sezon)
-  const [fdSquad,      setFdSquad]      = useState<any[]>([]);
-  const [fdScorers,    setFdScorers]    = useState<any[]>([]);
+  const [fdSquad,      setFdSquad]      = useState<FDSquadPlayer[]>([]);
+  const [fdScorers,    setFdScorers]    = useState<FDScorer[]>([]);
   const [loadingPlayers, setLoadingPlayers] = useState(false);
   const [showFullSquad, setShowFullSquad]   = useState(false);
 
@@ -246,13 +247,13 @@ export default function TeamStatsScreen() {
     try {
       const matches = await getTeamForm(teamId);
       const form = matches
-        .filter((m: any) => m.score?.fullTime?.home != null)
+        .filter((m) => m.score?.fullTime?.home != null)
         .slice(-5)
-        .map((m: any) => {
+        .map((m) => {
           const isHome = m.homeTeam?.id === teamId;
           const gfor = isHome ? m.score.fullTime.home : m.score.fullTime.away;
           const gag  = isHome ? m.score.fullTime.away : m.score.fullTime.home;
-          return gfor > gag ? 'G' : gfor === gag ? 'B' : 'M';
+          return (gfor ?? 0) > (gag ?? 0) ? 'G' : (gfor ?? 0) === (gag ?? 0) ? 'B' : 'M';
         });
       setRecentForm(form);
       setSeasonStats(calcSeasonStats(matches, teamId));
@@ -271,7 +272,7 @@ export default function TeamStatsScreen() {
         getTopScorers(fdId),
       ]);
       if (teamData?.squad) setFdSquad(teamData.squad);
-      const teamScorers = (scorers || []).filter((s: any) =>
+      const teamScorers = scorers.filter((s) =>
         s.team?.id === teamId || teamsMatch(s.team?.name || '', teamName)
       );
       setFdScorers(teamScorers);
@@ -336,19 +337,19 @@ export default function TeamStatsScreen() {
   }
 
   const topScorers = [...fdScorers]
-    .sort((a: any, b: any) => (b.goals || 0) - (a.goals || 0))
+    .sort((a, b) => (b.goals || 0) - (a.goals || 0))
     .slice(0, 5);
 
   const topAssists = [...fdScorers]
-    .filter((s: any) => (s.assists || 0) > 0)
-    .sort((a: any, b: any) => (b.assists || 0) - (a.assists || 0))
+    .filter((s) => (s.assists || 0) > 0)
+    .sort((a, b) => (b.assists || 0) - (a.assists || 0))
     .slice(0, 5);
 
   const groupedSquad = AF_POSITION_ORDER.reduce((acc, pos) => {
-    const players = fdSquad.filter((p: any) => (POSITION_TO_CODE[p.position] || 'M') === pos);
+    const players = fdSquad.filter((p) => (POSITION_TO_CODE[p.position || ''] || 'M') === pos);
     if (players.length > 0) acc[pos] = players;
     return acc;
-  }, {} as Record<string, any[]>);
+  }, {} as Record<string, FDSquadPlayer[]>);
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
@@ -635,7 +636,7 @@ export default function TeamStatsScreen() {
                       <Text style={[styles.catLabelLink, { color: c.primary }]}>Kadroyu gör ›</Text>
                     </TouchableOpacity>
                   </View>
-                  {slTeamScorers.slice(0, 5).map((s: any, i: number) => (
+                  {slTeamScorers.slice(0, 5).map((s, i: number) => (
                     <View key={i}>
                       <View style={[styles.topPlayer, { borderBottomColor: c.border }, i === Math.min(slTeamScorers.length, 5) - 1 && { borderBottomWidth: 0 }]}>
                         <View style={[styles.rankBadge, { backgroundColor: RANK_COLORS[i]?.bg || c.primaryLight }]}>
@@ -725,7 +726,7 @@ export default function TeamStatsScreen() {
                       <Text style={[styles.catLabelLink, { color: c.primary }]}>Kadroyu gör ›</Text>
                     </TouchableOpacity>
                   </View>
-                  {topScorers.map((p: any, i: number) => (
+                  {topScorers.map((p, i: number) => (
                     <View key={p.player?.id || i}>
                       <View style={[styles.topPlayer, { borderBottomColor: c.border }, i === topScorers.length - 1 && { borderBottomWidth: 0 }]}>
                         <View style={[styles.rankBadge, { backgroundColor: RANK_COLORS[i]?.bg || c.primaryLight }]}>
@@ -753,7 +754,7 @@ export default function TeamStatsScreen() {
                       <View style={[styles.catLabel, { marginTop: 8, borderTopWidth: 0.5, borderTopColor: c.border, paddingTop: 12 }]}>
                         <Text style={[styles.catLabelText, { color: c.textMuted }]}>EN FAZLA ASİST (Bu Sezon)</Text>
                       </View>
-                      {topAssists.map((p: any, i: number) => (
+                      {topAssists.map((p, i: number) => (
                         <View key={p.player?.id || i}>
                           <View style={[styles.topPlayer, { borderBottomColor: c.border }, i === topAssists.length - 1 && { borderBottomWidth: 0 }]}>
                             <View style={[styles.rankBadge, { backgroundColor: RANK_COLORS[i]?.bg || c.primaryLight }]}>
@@ -769,7 +770,7 @@ export default function TeamStatsScreen() {
                           <View style={styles.barRow}>
                             <View style={[styles.barBg, { backgroundColor: c.borderLight }]}>
                               <View style={[styles.barFill, {
-                                width: `${(p.assists / (topAssists[0]?.assists || 1)) * 100}%`,
+                                width: `${((p.assists ?? 0) / (topAssists[0]?.assists || 1)) * 100}%`,
                                 backgroundColor: '#E65100',
                               }]} />
                             </View>
@@ -809,8 +810,8 @@ export default function TeamStatsScreen() {
                   return (
                     <View key={pos}>
                       <Text style={[styles.sectionLabel, { color: c.textMuted }]}>{AF_POSITION_MAP[pos]}</Text>
-                      {players.map((p: any, i: number) => {
-                        const scorer = fdScorers.find((s: any) =>
+                      {players.map((p, i: number) => {
+                        const scorer = fdScorers.find((s) =>
                           s.player?.id === p.id || teamsMatch(s.player?.name || '', p.name)
                         );
                         return (
@@ -827,7 +828,7 @@ export default function TeamStatsScreen() {
                                     <Text style={[styles.goalBadgeText, { color: c.primaryDark }]}>⚽ {scorer.goals}</Text>
                                   </View>
                                 )}
-                                {scorer.assists > 0 && (
+                                {(scorer.assists ?? 0) > 0 && (
                                   <View style={styles.assistBadge}>
                                     <Text style={styles.assistBadgeText}>🅰️ {scorer.assists}</Text>
                                   </View>

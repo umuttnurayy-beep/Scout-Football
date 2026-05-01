@@ -461,21 +461,42 @@ export async function getOdds(homeTeam: string, awayTeam: string, leagueApiId: n
   }
 }
 
-export async function getTopScorers(leagueId: number): Promise<any[]> {
+export type FDSquadPlayer = {
+  id: number;
+  name: string;
+  position?: string;
+  nationality?: string;
+};
+
+export type FDScorer = {
+  player: { id: number; name: string };
+  team?: { id: number; name?: string };
+  goals: number;
+  assists?: number;
+  playedMatches?: number;
+};
+
+export type FDTeamData = {
+  id?: number;
+  name?: string;
+  squad?: FDSquadPlayer[];
+};
+
+export async function getTopScorers(leagueId: number): Promise<FDScorer[]> {
   try {
     const res = await fetch(`${BASE_URL}/scorers/${leagueId}`);
-    const data = await readApiJson<any[]>(res, []);
-    return arrayOrEmpty(data);
+    const data = await readApiJson<FDScorer[]>(res, []);
+    return arrayOrEmpty<FDScorer>(data);
   } catch (e) {
     logApiError('getTopScorers', e);
     return [];
   }
 }
 
-export async function getFdTeamData(teamId: number): Promise<any> {
+export async function getFdTeamData(teamId: number): Promise<FDTeamData | null> {
   try {
     const res = await fetch(`${BASE_URL}/team/${teamId}`);
-    const data = await readApiJson<any | null>(res, null);
+    const data = await readApiJson<FDTeamData | null>(res, null);
     return data || null;
   } catch (e) {
     logApiError('getFdTeamData', e);
@@ -483,10 +504,12 @@ export async function getFdTeamData(teamId: number): Promise<any> {
   }
 }
 
-export async function getUclKnockouts(season = CURRENT_FOOTBALL_SEASON): Promise<any> {
+export type UCLKnockouts = Record<string, FDMatch[]>;
+
+export async function getUclKnockouts(season = CURRENT_FOOTBALL_SEASON): Promise<UCLKnockouts | null> {
   try {
     const res = await fetch(`${BASE_URL}/ucl/knockouts?season=${season}`);
-    return await readApiJson<any | null>(res, null) || null;
+    return await readApiJson<UCLKnockouts | null>(res, null) || null;
   } catch (e) {
     logApiError('getUclKnockouts', e);
     return null;

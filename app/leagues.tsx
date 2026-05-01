@@ -4,7 +4,9 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { CURRENT_FOOTBALL_SEASON, DISPLAY_FOOTBALL_SEASON } from '../constants/seasons';
-import { getStandings, getSuperLigStandings, getUclKnockouts } from '../services/api';
+import { FDMatch, UCLKnockouts, getStandings, getSuperLigStandings, getUclKnockouts } from '../services/api';
+
+type UCLTie = { leg1: FDMatch; leg2: FDMatch | null };
 import { leagueDataEmptyMessage } from '../utils/emptyStates';
 
 const leagues = [
@@ -48,8 +50,8 @@ type LeagueChar = {
 
 // ── UCL TIE HELPERS ───────────────────────────────────────────
 
-function groupTies(matches: any[]): any[] {
-  const ties: any[] = [];
+function groupTies(matches: FDMatch[]): UCLTie[] {
+  const ties: UCLTie[] = [];
   const used = new Set<number>();
   for (let i = 0; i < matches.length; i++) {
     if (used.has(i)) continue;
@@ -71,25 +73,25 @@ function groupTies(matches: any[]): any[] {
   return ties;
 }
 
-function tieResult(tie: any): { homeAgg: number; awayAgg: number; winner: string | null } {
+function tieResult(tie: UCLTie): { homeAgg: number; awayAgg: number; winner: string | null } {
   const l1 = tie.leg1, l2 = tie.leg2;
   if (!l2) {
     const fh = l1.score?.fullTime?.home, fa = l1.score?.fullTime?.away;
-    if (fh == null) return { homeAgg: 0, awayAgg: 0, winner: null };
-    const winner = fh > fa ? (l1.homeTeam?.shortName || l1.homeTeam?.name)
-                 : fa > fh ? (l1.awayTeam?.shortName || l1.awayTeam?.name) : null;
+    if (fh == null || fa == null) return { homeAgg: 0, awayAgg: 0, winner: null };
+    const winner = fh > fa ? (l1.homeTeam?.shortName || l1.homeTeam?.name || null)
+                 : fa > fh ? (l1.awayTeam?.shortName || l1.awayTeam?.name || null) : null;
     return { homeAgg: fh, awayAgg: fa, winner };
   }
   const l1h = l1.score?.fullTime?.home ?? null, l1a = l1.score?.fullTime?.away ?? null;
   const l2h = l2.score?.fullTime?.home ?? null, l2a = l2.score?.fullTime?.away ?? null;
-  if (l1h == null || l2h == null) return { homeAgg: 0, awayAgg: 0, winner: null };
+  if (l1h == null || l1a == null || l2h == null || l2a == null) return { homeAgg: 0, awayAgg: 0, winner: null };
   const homeAgg = l1h + l2a, awayAgg = l1a + l2h;
-  const winner = homeAgg > awayAgg ? (l1.homeTeam?.shortName || l1.homeTeam?.name)
-               : awayAgg > homeAgg ? (l1.awayTeam?.shortName || l1.awayTeam?.name) : null;
+  const winner = homeAgg > awayAgg ? (l1.homeTeam?.shortName || l1.homeTeam?.name || null)
+               : awayAgg > homeAgg ? (l1.awayTeam?.shortName || l1.awayTeam?.name || null) : null;
   return { homeAgg, awayAgg, winner };
 }
 
-function TieCard({ tie, isFinal }: { tie: any; isFinal?: boolean }) {
+function TieCard({ tie, isFinal }: { tie: UCLTie; isFinal?: boolean }) {
   const { colors: c } = useTheme();
   const { homeAgg, awayAgg, winner } = tieResult(tie);
   const l1 = tie.leg1, l2 = tie.leg2;
@@ -305,7 +307,7 @@ export default function LeaguesScreen() {
   const [uclView, setUclView]           = useState<'standings' | 'bracket'>('standings');
   const [activeStage, setActiveStage]   = useState(UCL_STAGES[1].key);
   const [standings, setStandings]       = useState<Standing[]>([]);
-  const [knockouts, setKnockouts]       = useState<any>(null);
+  const [knockouts, setKnockouts]       = useState<UCLKnockouts | null>(null);
   const [loading, setLoading]           = useState(false);
 
   useEffect(() => {

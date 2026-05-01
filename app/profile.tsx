@@ -6,7 +6,7 @@ import {
   ActivityIndicator, Alert, Image, Linking, Modal, ScrollView, StyleSheet,
   Switch, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
-import { getSuperLigStandings, getSuperLigTeamForm, getStandings, getTeamForm } from '../services/api';
+import { FDMatch, SLFormMatch, Standing, getSuperLigStandings, getSuperLigTeamForm, getStandings, getTeamForm } from '../services/api';
 import {
   DEFAULT_PREFS, NotifPrefs, cancelAllNotifications,
   loadNotifPrefs, registerPushToken, requestPermissions, saveNotifPrefs,
@@ -161,23 +161,22 @@ function getTeamColors(name: string): { p: string; s: string } {
   return { p: '#185FA5', s: '#0C447C' };
 }
 
-function parseForm(matches: any[], teamId: number, isSL: boolean): string[] {
+function parseForm(matches: FDMatch[] | SLFormMatch[], teamId: number, isSL: boolean): string[] {
   if (isSL) {
-    return matches.map(m => {
-      const isHome = m.homeTeamId === teamId;
-      const gf = isHome ? m.homeScore : m.awayScore;
-      const ga = isHome ? m.awayScore : m.homeScore;
-      return gf > ga ? 'G' : gf === ga ? 'B' : 'M';
+    return (matches as SLFormMatch[]).map(m => {
+      const gf = m.homeTeamId === teamId ? m.homeScore : m.awayScore;
+      const ga = m.homeTeamId === teamId ? m.awayScore : m.homeScore;
+      return (gf ?? 0) > (ga ?? 0) ? 'G' : (gf ?? 0) === (ga ?? 0) ? 'B' : 'M';
     });
   }
-  return matches
-    .filter((m: any) => m.score?.fullTime?.home != null)
+  return (matches as FDMatch[])
+    .filter(m => m.score?.fullTime?.home != null)
     .slice(-5)
-    .map((m: any) => {
+    .map(m => {
       const isHome = m.homeTeam?.id === teamId;
       const gf = isHome ? m.score.fullTime.home : m.score.fullTime.away;
       const ga = isHome ? m.score.fullTime.away : m.score.fullTime.home;
-      return gf > ga ? 'G' : gf === ga ? 'B' : 'M';
+      return (gf ?? 0) > (ga ?? 0) ? 'G' : (gf ?? 0) === (ga ?? 0) ? 'B' : 'M';
     });
 }
 
@@ -307,7 +306,7 @@ export default function ProfileScreen() {
 
     // standings: lig başına bir kez çek
     const uniqueApiIds = [...new Set(wl.map(t => t.apiId))];
-    const standingsMap: Record<number, any[]> = {};
+    const standingsMap: Record<number, Standing[]> = {};
     await Promise.all(
       uniqueApiIds.map(async (apiId) => {
         try {
@@ -331,7 +330,7 @@ export default function ProfileScreen() {
         const tr = (s: string) => s.toLowerCase()
           .replace(/[çÇ]/g, 'c').replace(/[şŞ]/g, 's').replace(/[ğĞ]/g, 'g')
           .replace(/[üÜ]/g, 'u').replace(/[öÖ]/g, 'o').replace(/[ıİ]/g, 'i');
-        const found = rows.find((s: any) =>
+        const found = rows.find((s) =>
           tr(s.team || '').includes(tr(team.name)) || tr(team.name).includes(tr(s.team || ''))
         );
         if (found) {
@@ -361,7 +360,7 @@ export default function ProfileScreen() {
       .replace(/[üÜ]/g, 'u').replace(/[öÖ]/g, 'o').replace(/[ıİ]/g, 'i');
 
     const uniqueApiIds = [...new Set(items.map(r => r.apiId))];
-    const standingsMap: Record<number, any[]> = {};
+    const standingsMap: Record<number, Standing[]> = {};
     await Promise.all(
       uniqueApiIds.map(async (apiId) => {
         try {

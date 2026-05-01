@@ -9,7 +9,7 @@ import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-
 import { DetailDataNotice, DetailStatusBanner } from '../components/DetailDataState';
 import { useTheme } from '../context/ThemeContext';
 import {
-  SLFormMatch, SuperLigTeamContext, getAllSportsH2H, getCityForTeam, getSuperLigMatch, getSuperLigMatchContext, getSuperLigTeamContext, getWeather, isStaleApiData, recordContextFallback,
+  SLFormMatch, Standing, SuperLigTeamContext, getAllSportsH2H, getCityForTeam, getSuperLigMatch, getSuperLigMatchContext, getSuperLigTeamContext, getWeather, isStaleApiData, recordContextFallback,
 } from '../services/api';
 import { detailDataMessage, staleAnalysisMessage } from '../utils/emptyStates';
 import { DetailDataIssue, buildDetailDataIssues, buildDetailRadar, detailIssueFlags, fulfilledOr, hasStaleDetailData } from '../utils/matchDetailDataState';
@@ -184,7 +184,7 @@ function calcFormStatsSL(matches: SLFormMatch[], teamId: number) {
   };
 }
 
-function statsFromStanding(row: any): ReturnType<typeof calcFormStatsSL> | null {
+function statsFromStanding(row: Standing | null | undefined): ReturnType<typeof calcFormStatsSL> | null {
   if (!row || !row.played) return null;
   const played = row.played;
   const gf = row.gf || 0;
