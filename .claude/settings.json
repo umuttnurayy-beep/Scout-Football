@@ -92,7 +92,8 @@
       "Bash(python3 -c \"import sys, json; d=json.load\\(sys.stdin\\); t=d['message']['content'][0]['text']; lines=t.split\\('\\\\n'\\); [print\\(f'{i}: {lines[i]}'\\) for i in range\\(1195, len\\(lines\\)\\)]\")",
       "Bash(python3 -c \"import sys, json; d=json.load\\(sys.stdin\\); t=d['message']['content'][0]['text'] if d['message']['content'] and d['message']['content'][0].get\\('type'\\)=='text' else ''; print\\(t[:500] if t else 'No text content'\\)\")",
       "Bash(python3 -c \"import sys, json; d=json.load\\(sys.stdin\\); print\\(type\\(d.get\\('message'\\)\\), d.get\\('message'\\) if d.get\\('message'\\) else 'NA'\\)\")",
-      "Bash(python3 -c 'import sys, json; d=json.load\\(sys.stdin\\); t = '\\\\'''\\\\''; *)"
+      "Bash(python3 -c 'import sys, json; d=json.load\\(sys.stdin\\); t = '\\\\'''\\\\''; *)",
+      "Bash(grep -v \"//.*any\")"
     ],
     "additionalDirectories": [
       "C:\\tmp"
