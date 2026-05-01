@@ -500,8 +500,18 @@ function buildNextPreviewFromHomeData(homeData: Pick<HomeData, 'nextPreview'>, r
   if (!homeData.nextPreview) return null;
   const nextVisible = buildVisibleMatches(homeData.nextPreview.matches || [], homeData.nextPreview.superLigMatches || []);
   const backendFeaturedMatchId = homeData.nextPreview.featuredMatchId ?? null;
-  if (backendFeaturedMatchId) {
-    const backendFeatured = nextVisible.find(match => match.id === backendFeaturedMatchId);
+  return selectPreviewMatch(nextVisible, rowsMap, backendFeaturedMatchId);
+}
+
+function selectPreviewMatch(
+  visible: Match[],
+  rowsMap: Record<number, Standing[]>,
+  featuredMatchId?: number | null,
+) {
+  if (visible.length === 0) return null;
+  const normalizedFeaturedMatchId = Number(featuredMatchId) || null;
+  if (normalizedFeaturedMatchId) {
+    const backendFeatured = visible.find(match => match.id === normalizedFeaturedMatchId);
     if (backendFeatured) {
       const rows = rowsMap[backendFeatured.leagueApiId];
       const home = findStanding(rows, backendFeatured.home, backendFeatured.homeTeamId);
@@ -512,26 +522,11 @@ function buildNextPreviewFromHomeData(homeData: Pick<HomeData, 'nextPreview'>, r
       };
     }
   }
-  return rankMatchesWithMetrics(nextVisible, rowsMap)[0] || null;
+  return rankMatchesWithMetrics(visible, rowsMap)[0] || null;
 }
 
 function uniqueLeagueIds(matches: Match[]) {
   return [...new Set(matches.map(m => m.leagueApiId).filter(Boolean))];
-}
-
-function rankByScoutScore(
-  visible: Match[],
-  rowsMap: Record<number, Standing[]>,
-): Array<{ m: Match; metrics: Metrics }> {
-  return visible
-    .map(m => {
-      const rows = rowsMap[m.leagueApiId];
-      const home = findStanding(rows, m.home, m.homeTeamId);
-      const away = findStanding(rows, m.away, m.awayTeamId);
-      const metrics = computeMetrics(home, away, rows, m.leagueApiId);
-      return { m, metrics };
-    })
-    .sort((a, b) => scoutScore(b.m, b.metrics) - scoutScore(a.m, a.metrics));
 }
 
 function favoriteText(m: Match, metrics: Metrics): string {
@@ -1111,6 +1106,11 @@ export default function HomeScreen() {
     AsyncStorage.setItem(STANDINGS_CACHE_KEY, JSON.stringify({ cacheDate: dateStr, data: map })).catch(() => {});
   }
 
+  function applyFallbackNoticeFromApiState() {
+    setHomeDataNotice(getLastApiError() ? 'error' : null);
+    setHomeDataWarningText(null);
+  }
+
   async function applyVisibleMatchesForFallback(
     visible: Match[],
     date: Date,
@@ -1128,70 +1128,96 @@ export default function HomeScreen() {
     }
   }
 
-  async function loadDevFallbackMatches(date: Date, dateStr: string, requestId: number, silent: boolean) {
-      clearLastApiError();
-      const syncFallbackNotice = () => {
-        setHomeDataNotice(getLastApiError() ? 'error' : null);
-        setHomeDataWarningText(null);
-      };
-      const needsStandings = Object.keys(standingsMap).length === 0;
-      if (!silent && needsStandings) {
-        // Cache'ten standings yükle (aynı gün ise ağa gitme — hero kararlı kalır)
-        let map: Record<number, Standing[]> | null = await readStandingsCache(dateStr);
+  async function loadFallbackWithStandings(date: Date, dateStr: string, requestId: number) {
+    let map: Record<number, Standing[]> | null = await readStandingsCache(dateStr);
 
-        if (map) {
-          // Cache var: eksik ligleri maçlarla aynı anda çek (background race condition'ı önlemek için)
-          const missingLeagues = STANDINGS_LEAGUES.filter(({ leagueApiId }) => !map![leagueApiId]?.length);
-          const [data, slData, ...missingResults] = await Promise.all([
-            getTodayMatches(dateStr),
-            getSuperLigMatches(dateStr),
-            ...missingLeagues.map(({ apiId }) => getStandings(apiId)),
-          ]);
-          if (requestId !== loadSeq.current) return;
-          // Eksik ligleri cache'e ekle
-          const updatedMap = { ...map };
-          missingLeagues.forEach((x, i) => {
-            if (missingResults[i]?.length > 0) updatedMap[x.leagueApiId] = missingResults[i];
-          });
-          setStandingsMap(updatedMap);
-          if (missingLeagues.some((x, i) => missingResults[i]?.length > 0)) {
-            persistStandingsCache(dateStr, updatedMap);
-          }
-          const visible = buildVisibleMatches(data, slData);
-          await applyVisibleMatchesForFallback(visible, date, dateStr, requestId, updatedMap);
-          if (requestId !== loadSeq.current) return;
-          syncFallbackNotice();
-        } else {
-          // İlk yükleme: maç + standings birlikte çek, cache'e kaydet
-          const [data, slData, fdResults, slStandings] = await Promise.all([
-            getTodayMatches(dateStr),
-            getSuperLigMatches(dateStr),
-            Promise.all(STANDINGS_LEAGUES.map(({ apiId }) => getStandings(apiId))),
-            getSuperLigStandings(),
-          ]);
-          if (requestId !== loadSeq.current) return;
-          map = {};
-          // Yalnızca dolu standings'i kaydet — boşları cache'e yazma
-          STANDINGS_LEAGUES.forEach((x, i) => { if (fdResults[i]?.length > 0) map![x.leagueApiId] = fdResults[i]; });
-          if (slStandings?.length > 0) map[203] = slStandings;
-          persistStandingsCache(dateStr, map);
-          setStandingsMap(map);
-          const visible = buildVisibleMatches(data, slData);
-          await applyVisibleMatchesForFallback(visible, date, dateStr, requestId, map);
-          if (requestId !== loadSeq.current) return;
-          syncFallbackNotice();
-        }
-      } else {
-        // Güncelle / sessiz yenileme: sadece maç skorları güncellenir, standings sabit kalır
-        const [data, slData] = await Promise.all([
-          getTodayMatches(dateStr), getSuperLigMatches(dateStr),
-        ]);
-        if (requestId !== loadSeq.current) return;
-        const visible = buildVisibleMatches(data, slData);
-        await applyVisibleMatchesForFallback(visible, date, dateStr, requestId, standingsMap);
-        if (requestId !== loadSeq.current) return;
-        syncFallbackNotice();
+    if (map) {
+      const missingLeagues = STANDINGS_LEAGUES.filter(({ leagueApiId }) => !map![leagueApiId]?.length);
+      const [data, slData, ...missingResults] = await Promise.all([
+        getTodayMatches(dateStr),
+        getSuperLigMatches(dateStr),
+        ...missingLeagues.map(({ apiId }) => getStandings(apiId)),
+      ]);
+      if (requestId !== loadSeq.current) return;
+
+      const updatedMap = { ...map };
+      missingLeagues.forEach((x, i) => {
+        if (missingResults[i]?.length > 0) updatedMap[x.leagueApiId] = missingResults[i];
+      });
+      setStandingsMap(updatedMap);
+      if (missingLeagues.some((x, i) => missingResults[i]?.length > 0)) {
+        persistStandingsCache(dateStr, updatedMap);
       }
+
+      const visible = buildVisibleMatches(data, slData);
+      await applyVisibleMatchesForFallback(visible, date, dateStr, requestId, updatedMap);
+      if (requestId !== loadSeq.current) return;
+      applyFallbackNoticeFromApiState();
+      return;
+    }
+
+    const [data, slData, fdResults, slStandings] = await Promise.all([
+      getTodayMatches(dateStr),
+      getSuperLigMatches(dateStr),
+      Promise.all(STANDINGS_LEAGUES.map(({ apiId }) => getStandings(apiId))),
+      getSuperLigStandings(),
+    ]);
+    if (requestId !== loadSeq.current) return;
+
+    map = {};
+    STANDINGS_LEAGUES.forEach((x, i) => {
+      if (fdResults[i]?.length > 0) map![x.leagueApiId] = fdResults[i];
+    });
+    if (slStandings?.length > 0) map[203] = slStandings;
+    persistStandingsCache(dateStr, map);
+    setStandingsMap(map);
+
+    const visible = buildVisibleMatches(data, slData);
+    await applyVisibleMatchesForFallback(visible, date, dateStr, requestId, map);
+    if (requestId !== loadSeq.current) return;
+    applyFallbackNoticeFromApiState();
+  }
+
+  async function loadFallbackRefreshOnly(date: Date, dateStr: string, requestId: number) {
+    const [data, slData] = await Promise.all([
+      getTodayMatches(dateStr),
+      getSuperLigMatches(dateStr),
+    ]);
+    if (requestId !== loadSeq.current) return;
+
+    const visible = buildVisibleMatches(data, slData);
+    await applyVisibleMatchesForFallback(visible, date, dateStr, requestId, standingsMap);
+    if (requestId !== loadSeq.current) return;
+    applyFallbackNoticeFromApiState();
+  }
+
+  async function loadDevFallbackMatches(date: Date, dateStr: string, requestId: number, silent: boolean) {
+    clearLastApiError();
+    const needsStandings = Object.keys(standingsMap).length === 0;
+    if (!silent && needsStandings) {
+      await loadFallbackWithStandings(date, dateStr, requestId);
+      return;
+    }
+    await loadFallbackRefreshOnly(date, dateStr, requestId);
+  }
+
+  async function loadPreviewCandidateForDate(
+    nextStr: string,
+    requestId: number,
+    rowsMap: Record<number, Standing[]>,
+  ) {
+    const [data, slData] = await Promise.all([
+      getTodayMatches(nextStr),
+      getSuperLigMatches(nextStr),
+    ]);
+    if (requestId !== loadSeq.current) return null;
+
+    const visible = buildVisibleMatches(data, slData);
+    if (visible.length === 0) return null;
+
+    const completeRowsMap = await ensureStandingsForMatches(visible, nextStr, requestId, rowsMap);
+    if (requestId !== loadSeq.current) return null;
+    return selectPreviewMatch(visible, completeRowsMap);
   }
 
   async function loadNextDayPreview(date: Date, requestId: number, rowsMap: Record<number, Standing[]>) {
@@ -1200,18 +1226,10 @@ export default function HomeScreen() {
         const next = new Date(date);
         next.setDate(next.getDate() + offset);
         const nextStr = formatDateParam(next);
-        const [data, slData] = await Promise.all([
-          getTodayMatches(nextStr),
-          getSuperLigMatches(nextStr),
-        ]);
+        const preview = await loadPreviewCandidateForDate(nextStr, requestId, rowsMap);
         if (requestId !== loadSeq.current) return;
-        const visible = buildVisibleMatches(data, slData);
-        if (visible.length === 0) continue;
-
-        const completeRowsMap = await ensureStandingsForMatches(visible, nextStr, requestId, rowsMap);
-        if (requestId !== loadSeq.current) return;
-        const ranked = rankByScoutScore(visible, completeRowsMap);
-        setNextDayPreview(ranked[0]);
+        if (!preview) continue;
+        setNextDayPreview(preview);
         return;
       }
       if (requestId === loadSeq.current) setNextDayPreview(null);

@@ -5,9 +5,9 @@ import { ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet, Text,
 import { useTheme } from '../context/ThemeContext';
 import { CURRENT_FOOTBALL_SEASON, DISPLAY_FOOTBALL_SEASON } from '../constants/seasons';
 import { FDMatch, UCLKnockouts, getStandings, getSuperLigStandings, getUclKnockouts } from '../services/api';
+import { leagueDataEmptyMessage } from '../utils/emptyStates';
 
 type UCLTie = { leg1: FDMatch; leg2: FDMatch | null };
-import { leagueDataEmptyMessage } from '../utils/emptyStates';
 
 const leagues = [
   { id: 1, apiId: 39,  name: 'Premier Lig', country: 'İngiltere', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },

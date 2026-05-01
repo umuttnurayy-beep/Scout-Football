@@ -6,11 +6,14 @@ import {
   Text, TouchableOpacity, View,
 } from 'react-native';
 import {
-  AllSportsTeamStats, FDMatch, FDScorer, FDSquadPlayer, FDTeamData,
+  AllSportsTeamStats, FDMatch, FDScorer, FDSquadPlayer,
   SLFormMatch, SLPlayer, SLScorer,
   getAllSportsTeamStats, getFdTeamData, getTeamForm, getTopScorers,
   getSuperLigTeamForm, getSuperLigPlayers, getSuperLigScorers,
 } from '../services/api';
+import { useTheme } from '../context/ThemeContext';
+import { DISPLAY_FOOTBALL_SEASON } from '../constants/seasons';
+import { formDataEmptyMessage } from '../utils/emptyStates';
 
 type SeasonStats = {
   total: number;
@@ -20,9 +23,6 @@ type SeasonStats = {
   home: { played: number; win: number; draw: number; loss: number };
   away: { played: number; win: number; draw: number; loss: number };
 };
-import { useTheme } from '../context/ThemeContext';
-import { DISPLAY_FOOTBALL_SEASON } from '../constants/seasons';
-import { formDataEmptyMessage } from '../utils/emptyStates';
 
 const AF_POSITION_MAP: Record<string, string> = {
   G: 'Kaleci', D: 'Defans', M: 'Orta saha', F: 'Forvet',
