@@ -519,6 +519,21 @@ function uniqueLeagueIds(matches: Match[]) {
   return [...new Set(matches.map(m => m.leagueApiId).filter(Boolean))];
 }
 
+function rankByScoutScore(
+  visible: Match[],
+  rowsMap: Record<number, Standing[]>,
+): Array<{ m: Match; metrics: Metrics }> {
+  return visible
+    .map(m => {
+      const rows = rowsMap[m.leagueApiId];
+      const home = findStanding(rows, m.home, m.homeTeamId);
+      const away = findStanding(rows, m.away, m.awayTeamId);
+      const metrics = computeMetrics(home, away, rows, m.leagueApiId);
+      return { m, metrics };
+    })
+    .sort((a, b) => scoutScore(b.m, b.metrics) - scoutScore(a.m, a.metrics));
+}
+
 function favoriteText(m: Match, metrics: Metrics): string {
   if (!metrics.hasData) return '';
   if (metrics.favorite === 'balanced') return 'Dengeli eşleşme';
@@ -1080,6 +1095,39 @@ export default function HomeScreen() {
     }
   }
 
+  async function readStandingsCache(dateStr: string): Promise<Record<number, Standing[]> | null> {
+    try {
+      const raw = await AsyncStorage.getItem(STANDINGS_CACHE_KEY);
+      if (!raw) return null;
+      const { cacheDate, data: cached } = JSON.parse(raw);
+      if (cacheDate !== dateStr || !hasUsableStandingsMap(cached)) return null;
+      return cached;
+    } catch {
+      return null;
+    }
+  }
+
+  function persistStandingsCache(dateStr: string, map: Record<number, Standing[]>) {
+    AsyncStorage.setItem(STANDINGS_CACHE_KEY, JSON.stringify({ cacheDate: dateStr, data: map })).catch(() => {});
+  }
+
+  async function applyVisibleMatchesForFallback(
+    visible: Match[],
+    date: Date,
+    dateStr: string,
+    requestId: number,
+    baseMap: Record<number, Standing[]>,
+  ) {
+    const rowsMap = await ensureStandingsForMatches(visible, dateStr, requestId, baseMap);
+    if (requestId !== loadSeq.current) return;
+    setMatches(visible);
+    if (visible.length === 1) {
+      void loadNextDayPreview(date, requestId, rowsMap);
+    } else {
+      setNextDayPreview(null);
+    }
+  }
+
   async function loadDevFallbackMatches(date: Date, dateStr: string, requestId: number, silent: boolean) {
       clearLastApiError();
       const syncFallbackNotice = () => {
@@ -1089,14 +1137,7 @@ export default function HomeScreen() {
       const needsStandings = Object.keys(standingsMap).length === 0;
       if (!silent && needsStandings) {
         // Cache'ten standings yükle (aynı gün ise ağa gitme — hero kararlı kalır)
-        let map: Record<number, Standing[]> | null = null;
-        try {
-          const raw = await AsyncStorage.getItem(STANDINGS_CACHE_KEY);
-          if (raw) {
-            const { cacheDate, data: cached } = JSON.parse(raw);
-            if (cacheDate === dateStr && hasUsableStandingsMap(cached)) map = cached;
-          }
-        } catch {}
+        let map: Record<number, Standing[]> | null = await readStandingsCache(dateStr);
 
         if (map) {
           // Cache var: eksik ligleri maçlarla aynı anda çek (background race condition'ı önlemek için)
@@ -1114,17 +1155,11 @@ export default function HomeScreen() {
           });
           setStandingsMap(updatedMap);
           if (missingLeagues.some((x, i) => missingResults[i]?.length > 0)) {
-            AsyncStorage.setItem(STANDINGS_CACHE_KEY, JSON.stringify({ cacheDate: dateStr, data: updatedMap })).catch(() => {});
+            persistStandingsCache(dateStr, updatedMap);
           }
           const visible = buildVisibleMatches(data, slData);
-          const rowsMap = await ensureStandingsForMatches(visible, dateStr, requestId, updatedMap);
+          await applyVisibleMatchesForFallback(visible, date, dateStr, requestId, updatedMap);
           if (requestId !== loadSeq.current) return;
-          setMatches(visible);
-          if (visible.length === 1) {
-            void loadNextDayPreview(date, requestId, rowsMap);
-          } else {
-            setNextDayPreview(null);
-          }
           syncFallbackNotice();
         } else {
           // İlk yükleme: maç + standings birlikte çek, cache'e kaydet
@@ -1139,17 +1174,11 @@ export default function HomeScreen() {
           // Yalnızca dolu standings'i kaydet — boşları cache'e yazma
           STANDINGS_LEAGUES.forEach((x, i) => { if (fdResults[i]?.length > 0) map![x.leagueApiId] = fdResults[i]; });
           if (slStandings?.length > 0) map[203] = slStandings;
-          AsyncStorage.setItem(STANDINGS_CACHE_KEY, JSON.stringify({ cacheDate: dateStr, data: map })).catch(() => {});
+          persistStandingsCache(dateStr, map);
           setStandingsMap(map);
           const visible = buildVisibleMatches(data, slData);
-          const rowsMap = await ensureStandingsForMatches(visible, dateStr, requestId, map);
+          await applyVisibleMatchesForFallback(visible, date, dateStr, requestId, map);
           if (requestId !== loadSeq.current) return;
-          setMatches(visible);
-          if (visible.length === 1) {
-            void loadNextDayPreview(date, requestId, rowsMap);
-          } else {
-            setNextDayPreview(null);
-          }
           syncFallbackNotice();
         }
       } else {
@@ -1159,14 +1188,8 @@ export default function HomeScreen() {
         ]);
         if (requestId !== loadSeq.current) return;
         const visible = buildVisibleMatches(data, slData);
-        const rowsMap = await ensureStandingsForMatches(visible, dateStr, requestId, standingsMap);
+        await applyVisibleMatchesForFallback(visible, date, dateStr, requestId, standingsMap);
         if (requestId !== loadSeq.current) return;
-        setMatches(visible);
-        if (visible.length === 1) {
-          void loadNextDayPreview(date, requestId, rowsMap);
-        } else {
-          setNextDayPreview(null);
-        }
         syncFallbackNotice();
       }
   }
@@ -1187,15 +1210,7 @@ export default function HomeScreen() {
 
         const completeRowsMap = await ensureStandingsForMatches(visible, nextStr, requestId, rowsMap);
         if (requestId !== loadSeq.current) return;
-        const ranked = visible
-          .map(m => {
-            const rows = completeRowsMap[m.leagueApiId];
-            const home = findStanding(rows, m.home, m.homeTeamId);
-            const away = findStanding(rows, m.away, m.awayTeamId);
-            const metrics = computeMetrics(home, away, rows, m.leagueApiId);
-            return { m, metrics };
-          })
-          .sort((a, b) => scoutScore(b.m, b.metrics) - scoutScore(a.m, a.metrics));
+        const ranked = rankByScoutScore(visible, completeRowsMap);
         setNextDayPreview(ranked[0]);
         return;
       }
@@ -1222,7 +1237,7 @@ export default function HomeScreen() {
       if (rows.length > 0) updated[leagueApiId] = rows;
     });
     setStandingsMap(updated);
-    AsyncStorage.setItem(STANDINGS_CACHE_KEY, JSON.stringify({ cacheDate: dateStr, data: updated })).catch(() => {});
+    persistStandingsCache(dateStr, updated);
     return updated;
   }
 
