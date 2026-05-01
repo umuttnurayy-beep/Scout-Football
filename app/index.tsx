@@ -649,7 +649,7 @@ function SingleInsightCard({ m, metrics }: { m: Match; metrics: Metrics }) {
       </View>
       <Text style={[sc.singleText, { color: c.text }]}>{singleMatchScoutText(m, metrics)}</Text>
       <View style={sc.singleMetrics}>
-        <MiniMetric icon="flash-outline" label="Tempo" value={levelFromExpectedGoals(metrics.expectedGoals)} tone="hot" />
+        <MiniMetric icon="flash-outline" label="Tempo" value={levelFromExpectedGoals(metrics.tempo)} tone="hot" />
         <MiniMetric icon="stats-chart-outline" label="Gol Bek." value={levelFromExpectedGoals(metrics.expectedGoals)} tone="hot" />
         <MiniMetric icon="shield-outline" label="Risk" value={riskFromMetrics(metrics)} tone="warn" />
       </View>
