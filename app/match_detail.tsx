@@ -843,7 +843,7 @@ export default function MatchDetail() {
           </View>
         )}
 
-        <Text style={[scStyles.mediumText,{color:c.textSub}]} numberOfLines={4}>{analysis.medium}</Text>
+        <Text style={[scStyles.mediumText,{color:c.textSub}]}>{analysis.medium}</Text>
         {analysis.scoutPick ? (() => {
           const pickColor =
             analysis.scoutPick.tone === 'home' ? c.primary :
