@@ -242,6 +242,25 @@ export type WeatherData = {
   wind: number;
   condition: string;
   city?: string;
+  humidity?: number;
+};
+
+export type AllSportsTeamStats = {
+  matchesAnalyzed: number;
+  avgCorners: number | null;
+  avgOppCorners: number | null;
+  avgPossession: number | null;
+};
+
+export type SLEventData = {
+  idEvent?: string | number;
+  intHomeScore: number | null;
+  intAwayScore: number | null;
+  strStatus?: string;
+  strVenue?: string;
+  intRound?: number | string | null;
+  strReferee?: string;
+  dateEvent?: string;
 };
 
 export type OddsData = {
@@ -516,10 +535,10 @@ export async function getUclKnockouts(season = CURRENT_FOOTBALL_SEASON): Promise
   }
 }
 
-export async function getAllSportsTeamStats(teamName: string): Promise<any> {
+export async function getAllSportsTeamStats(teamName: string): Promise<AllSportsTeamStats | null> {
   try {
     const res = await fetch(`${BASE_URL}/allsports/team-stats/${encodeURIComponent(teamName)}`);
-    const data = await readApiJson<any | null>(res, null);
+    const data = await readApiJson<AllSportsTeamStats | null>(res, null);
     return data || null;
   } catch (e) {
     logApiError('getAllSportsTeamStats', e);
@@ -617,10 +636,10 @@ export async function getSuperLigScorers(): Promise<SLScorer[]> {
   }
 }
 
-export async function getSuperLigMatch(eventId: string): Promise<any | null> {
+export async function getSuperLigMatch(eventId: string): Promise<SLEventData | null> {
   try {
     const res = await fetch(`${BASE_URL}/superlig/match/${eventId}`);
-    const data = await readApiJson<any | null>(res, null);
+    const data = await readApiJson<SLEventData | null>(res, null);
     return data || null;
   } catch (e) {
     logApiError('getSuperLigMatch', e);
@@ -629,7 +648,7 @@ export async function getSuperLigMatch(eventId: string): Promise<any | null> {
 }
 
 export type SuperLigMatchContextData = {
-  event: any | null;
+  event: SLEventData | null;
   homeContext: SuperLigTeamContext | null;
   awayContext: SuperLigTeamContext | null;
   h2h: SLFormMatch[];

@@ -6,7 +6,7 @@ import {
   Text, TouchableOpacity, View,
 } from 'react-native';
 import {
-  FDMatch, FDScorer, FDSquadPlayer, FDTeamData,
+  AllSportsTeamStats, FDMatch, FDScorer, FDSquadPlayer, FDTeamData,
   SLFormMatch, SLPlayer, SLScorer,
   getAllSportsTeamStats, getFdTeamData, getTeamForm, getTopScorers,
   getSuperLigTeamForm, getSuperLigPlayers, getSuperLigScorers,
@@ -204,7 +204,7 @@ export default function TeamStatsScreen() {
   const [showFullSquad, setShowFullSquad]   = useState(false);
 
   // AllSports (korner + possession)
-  const [allSportsStats, setAllSportsStats] = useState<any>(null);
+  const [allSportsStats, setAllSportsStats] = useState<AllSportsTeamStats | null>(null);
 
   // Süper Lig specific
   const [slForm, setSlForm]           = useState<string[]>([]);
@@ -605,7 +605,7 @@ export default function TeamStatsScreen() {
                   {allSportsStats.avgCorners != null && allSportsStats.avgOppCorners != null && (
                     <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
                       <Text style={[styles.statVal, { color: c.text }]}>
-                        {(parseFloat(allSportsStats.avgCorners) + parseFloat(allSportsStats.avgOppCorners)).toFixed(1)}
+                        {(allSportsStats.avgCorners + allSportsStats.avgOppCorners).toFixed(1)}
                       </Text>
                       <Text style={[styles.statLbl, { color: c.textMuted }]}>Toplam Ort.</Text>
                     </View>

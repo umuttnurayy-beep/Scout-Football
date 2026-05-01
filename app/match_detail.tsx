@@ -8,7 +8,7 @@ import {
 import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-svg';
 import { DetailDataNotice, DetailStatusBanner } from '../components/DetailDataState';
 import { useTheme } from '../context/ThemeContext';
-import { FDMatch, FDMatchDetail, getCityForTeam, getH2H, getMatchContext, getMatchStats, getOdds, getTeamForm, getWeather, isStaleApiData, recordContextFallback } from '../services/api';
+import { FDMatch, FDMatchDetail, WeatherData, getCityForTeam, getH2H, getMatchContext, getMatchStats, getOdds, getTeamForm, getWeather, isStaleApiData, recordContextFallback } from '../services/api';
 import { detailDataMessage, staleAnalysisMessage } from '../utils/emptyStates';
 import { DetailDataIssue, buildDetailDataIssues, buildDetailRadar, detailIssueFlags, fulfilledOr, hasStaleDetailData } from '../utils/matchDetailDataState';
 import {
@@ -483,7 +483,7 @@ export default function MatchDetail() {
   const params = useLocalSearchParams();
   const [matchData,  setMatchData]  = useState<FDMatchDetail | null>(null);
   const [h2hData,    setH2hData]    = useState<FDMatch[]>([]);
-  const [weatherData,setWeatherData]= useState<any>(null);
+  const [weatherData,setWeatherData]= useState<WeatherData | null>(null);
   const [oddsData,   setOddsData]   = useState<any>(null);
   const [homeForm,   setHomeForm]   = useState<FDMatch[]>([]);
   const [awayForm,   setAwayForm]   = useState<FDMatch[]>([]);

@@ -9,7 +9,7 @@ import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-
 import { DetailDataNotice, DetailStatusBanner } from '../components/DetailDataState';
 import { useTheme } from '../context/ThemeContext';
 import {
-  SLFormMatch, Standing, SuperLigTeamContext, getAllSportsH2H, getCityForTeam, getSuperLigMatch, getSuperLigMatchContext, getSuperLigTeamContext, getWeather, isStaleApiData, recordContextFallback,
+  SLEventData, SLFormMatch, Standing, SuperLigTeamContext, WeatherData, getAllSportsH2H, getCityForTeam, getSuperLigMatch, getSuperLigMatchContext, getSuperLigTeamContext, getWeather, isStaleApiData, recordContextFallback,
 } from '../services/api';
 import { detailDataMessage, staleAnalysisMessage } from '../utils/emptyStates';
 import { DetailDataIssue, buildDetailDataIssues, buildDetailRadar, detailIssueFlags, fulfilledOr, hasStaleDetailData } from '../utils/matchDetailDataState';
@@ -480,12 +480,12 @@ export default function SLMatchDetail() {
   const scoreParam = p('score');
   const finishedParam = p('finished') === '1';
 
-  const [event,       setEvent]       = useState<any>(null);
+  const [event,       setEvent]       = useState<SLEventData | null>(null);
   const [homeForm,    setHomeForm]     = useState<SLFormMatch[]>([]);
   const [awayForm,    setAwayForm]     = useState<SLFormMatch[]>([]);
   const [homeContext, setHomeContext]  = useState<SuperLigTeamContext | null>(null);
   const [awayContext, setAwayContext]  = useState<SuperLigTeamContext | null>(null);
-  const [weatherData, setWeatherData]  = useState<any>(null);
+  const [weatherData, setWeatherData]  = useState<WeatherData | null>(null);
   const [h2hMatches,  setH2HMatches]  = useState<SLFormMatch[]>([]);
   const [loading,     setLoading]      = useState(true);
   const [showNeden,   setShowNeden]    = useState(false);
