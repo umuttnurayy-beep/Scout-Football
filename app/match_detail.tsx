@@ -8,7 +8,7 @@ import {
 import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-svg';
 import { DetailDataNotice, DetailStatusBanner } from '../components/DetailDataState';
 import { useTheme } from '../context/ThemeContext';
-import { FDMatch, FDMatchDetail, WeatherData, getCityForTeam, getH2H, getMatchContext, getMatchStats, getOdds, getTeamForm, getWeather, isStaleApiData, recordContextFallback } from '../services/api';
+import { FDFixtureStat, FDMatch, FDMatchDetail, OddsData, WeatherData, getCityForTeam, getH2H, getMatchContext, getMatchStats, getOdds, getTeamForm, getWeather, isStaleApiData, recordContextFallback } from '../services/api';
 import { detailDataMessage, staleAnalysisMessage } from '../utils/emptyStates';
 import { DetailDataIssue, buildDetailDataIssues, buildDetailRadar, detailIssueFlags, fulfilledOr, hasStaleDetailData } from '../utils/matchDetailDataState';
 import {
@@ -211,10 +211,10 @@ function calcFormPoints(matches: FDMatch[], teamId: number): number {
     },0);
 }
 
-function getStat(stats:any[]|undefined,...keys:string[]):number{
+function getStat(stats:FDFixtureStat[]|undefined,...keys:string[]):number{
   if(!stats)return 0;
   for(const key of keys){
-    const s=stats.find((x:any)=>x.type?.toLowerCase().includes(key.toLowerCase()));
+    const s=stats.find((x)=>x.type?.toLowerCase().includes(key.toLowerCase()));
     if(s)return parseInt(s.value)||0;
   }
   return 0;
@@ -261,7 +261,7 @@ function getH2HComment(h2hData: FDMatch[], home: string, away: string): string {
   return `Geçmiş karşılaşmalar dengeli bir tablo çiziyor (${hw}G / ${d}B / ${aw}M, ort. ${avgG} gol).`;
 }
 
-function getOddsComment(oddsData: any, home: string, analysis: MatchAnalysis): string {
+function getOddsComment(oddsData: OddsData | null, home: string, analysis: MatchAnalysis): string {
   if (!oddsData) return 'Bu maç için oran verisi henüz yayınlanmadı.';
   const hO=parseFloat(oddsData.home)||0;
   const aO=parseFloat(oddsData.away)||0;
@@ -484,7 +484,7 @@ export default function MatchDetail() {
   const [matchData,  setMatchData]  = useState<FDMatchDetail | null>(null);
   const [h2hData,    setH2hData]    = useState<FDMatch[]>([]);
   const [weatherData,setWeatherData]= useState<WeatherData | null>(null);
-  const [oddsData,   setOddsData]   = useState<any>(null);
+  const [oddsData,   setOddsData]   = useState<OddsData | null>(null);
   const [homeForm,   setHomeForm]   = useState<FDMatch[]>([]);
   const [awayForm,   setAwayForm]   = useState<FDMatch[]>([]);
   const [loading,    setLoading]    = useState(true);
@@ -1094,7 +1094,7 @@ export default function MatchDetail() {
             </View>
             {/* Piyasa vs Scout */}
             {hasFormData && (() => {
-              const hO=parseFloat(oddsData.home)||0,dO=parseFloat(oddsData.draw)||0,aO=parseFloat(oddsData.away)||0;
+              const hO=parseFloat(oddsData.home)||0,dO=parseFloat(oddsData.draw??'')||0,aO=parseFloat(oddsData.away)||0;
               if(!hO||!dO||!aO) return null;
               const rH=1/hO*100,rD=1/dO*100,rA=1/aO*100,tot=rH+rD+rA;
               const impH=Math.round(rH/tot*100),impD=Math.round(rD/tot*100),impA=100-impH-impD;

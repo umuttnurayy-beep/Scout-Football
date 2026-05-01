@@ -11,6 +11,15 @@ import {
   getAllSportsTeamStats, getFdTeamData, getTeamForm, getTopScorers,
   getSuperLigTeamForm, getSuperLigPlayers, getSuperLigScorers,
 } from '../services/api';
+
+type SeasonStats = {
+  total: number;
+  over15Pct: number; over25Pct: number; over35Pct: number;
+  bttsPct: number; cleanSheetPct: number; failedToScorePct: number;
+  avgGF: string; avgGA: string;
+  home: { played: number; win: number; draw: number; loss: number };
+  away: { played: number; win: number; draw: number; loss: number };
+};
 import { useTheme } from '../context/ThemeContext';
 import { DISPLAY_FOOTBALL_SEASON } from '../constants/seasons';
 import { formDataEmptyMessage } from '../utils/emptyStates';
@@ -194,7 +203,7 @@ export default function TeamStatsScreen() {
 
   // Form + gerçek sezon istatistikleri
   const [recentForm,  setRecentForm]  = useState<string[]>([]);
-  const [seasonStats, setSeasonStats] = useState<any>(null);
+  const [seasonStats, setSeasonStats] = useState<SeasonStats | null>(null);
   const [loadingForm, setLoadingForm] = useState(false);
 
   // Kadro + golcüler (football-data.org, güncel sezon)
@@ -208,7 +217,7 @@ export default function TeamStatsScreen() {
 
   // Süper Lig specific
   const [slForm, setSlForm]           = useState<string[]>([]);
-  const [slSeasonStats, setSlSeasonStats] = useState<any>(null);
+  const [slSeasonStats, setSlSeasonStats] = useState<SeasonStats | null>(null);
   const [slPlayers, setSlPlayers]     = useState<SLPlayer[]>([]);
   const [slTeamScorers, setSlTeamScorers] = useState<SLScorer[]>([]);
 

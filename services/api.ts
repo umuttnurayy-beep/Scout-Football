@@ -265,7 +265,7 @@ export type SLEventData = {
 
 export type OddsData = {
   home: string;
-  draw: string;
+  draw?: string;
   away: string;
 };
 

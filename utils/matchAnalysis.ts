@@ -1,4 +1,4 @@
-import type { FDMatch } from '../services/api';
+import type { FDMatch, OddsData } from '../services/api';
 
 export type Stil = 'Hücumcu' | 'Savunmacı' | 'Dengeli';
 export type Level = 'Düşük' | 'Orta' | 'Yüksek';
@@ -903,12 +903,12 @@ export function getDeepH2HStats(
 
 // Draw odds analysis
 export function getDrawAnalysis(
-  oddsData: any,
+  oddsData: OddsData | null,
   hSt: MatchFormStats,
   aSt: MatchFormStats,
 ): string {
   if (!oddsData) return '';
-  const dO = parseFloat(oddsData.draw) || 0;
+  const dO = parseFloat(oddsData.draw ?? '') || 0;
   if (!dO) return '';
   const hO = parseFloat(oddsData.home) || 0;
   const aO = parseFloat(oddsData.away) || 0;
