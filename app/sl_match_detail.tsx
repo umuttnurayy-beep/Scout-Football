@@ -9,7 +9,7 @@ import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-
 import { DetailDataNotice, DetailStatusBanner } from '../components/DetailDataState';
 import { useTheme } from '../context/ThemeContext';
 import {
-  SuperLigTeamContext, getAllSportsH2H, getCityForTeam, getSuperLigMatch, getSuperLigMatchContext, getSuperLigTeamContext, getWeather, isStaleApiData, recordContextFallback,
+  SLFormMatch, SuperLigTeamContext, getAllSportsH2H, getCityForTeam, getSuperLigMatch, getSuperLigMatchContext, getSuperLigTeamContext, getWeather, isStaleApiData, recordContextFallback,
 } from '../services/api';
 import { detailDataMessage, staleAnalysisMessage } from '../utils/emptyStates';
 import { DetailDataIssue, buildDetailDataIssues, buildDetailRadar, detailIssueFlags, fulfilledOr, hasStaleDetailData } from '../utils/matchDetailDataState';
@@ -144,14 +144,14 @@ function getTagColor(type: string, value: string, isDark: boolean): { bg: string
 
 // ── Stat Helpers (SL format) ───────────────────────────────────────────────
 
-function calcFormStatsSL(matches: any[], teamId: number) {
+function calcFormStatsSL(matches: SLFormMatch[], teamId: number) {
   let homeWin=0,homeDraw=0,homeLoss=0,homeGf=0,homeGa=0,homePlayed=0;
   let awayWin=0,awayDraw=0,awayLoss=0,awayGf=0,awayGa=0,awayPlayed=0;
   let over25=0,kgVar=0,total=0;
 
-  matches.forEach((m: any) => {
-    const fh = parseInt(m.homeScore), fa = parseInt(m.awayScore);
-    if (isNaN(fh) || isNaN(fa)) return;
+  matches.forEach((m) => {
+    const fh = m.homeScore, fa = m.awayScore;
+    if (fh == null || fa == null) return;
     total++;
     const isHome = m.homeTeamId === teamId;
     const gf = isHome ? fh : fa, ga = isHome ? fa : fh;
@@ -210,15 +210,15 @@ function statsFromStanding(row: any): ReturnType<typeof calcFormStatsSL> | null 
   };
 }
 
-function calcFormPointsSL(matches: any[], teamId: number): number {
+function calcFormPointsSL(matches: SLFormMatch[], teamId: number): number {
   return [...matches]
-    .filter((m: any) => !isNaN(parseInt(m.homeScore)))
-    .sort((a: any, b: any) => new Date(a.date || a.dateEvent || 0).getTime() - new Date(b.date || b.dateEvent || 0).getTime())
+    .filter((m) => m.homeScore != null)
+    .sort((a, b) => new Date(a.date || a.dateEvent || 0).getTime() - new Date(b.date || b.dateEvent || 0).getTime())
     .slice(-5)
-    .reduce((pts: number, m: any) => {
+    .reduce((pts, m) => {
       const isHome = m.homeTeamId === teamId;
-      const gf = isHome ? parseInt(m.homeScore) : parseInt(m.awayScore);
-      const ga = isHome ? parseInt(m.awayScore) : parseInt(m.homeScore);
+      const gf = isHome ? m.homeScore! : m.awayScore!;
+      const ga = isHome ? m.awayScore! : m.homeScore!;
       return pts + (gf > ga ? 3 : gf === ga ? 1 : 0);
     }, 0);
 }
@@ -237,12 +237,12 @@ function getTeamStyle(stats: ReturnType<typeof calcFormStatsSL>): { label: strin
 
 // ── Commentary Helpers ─────────────────────────────────────────────────────
 
-function getH2HCommentSL(h2hData: any[], home: string, away: string): string {
+function getH2HCommentSL(h2hData: SLFormMatch[], home: string, away: string): string {
   if (h2hData.length < 2) return 'Geçmiş karşılaşma sayısı sınırlı; bu veriye fazla ağırlık vermemek gerekebilir.';
   let hw=0,d=0,aw=0,totalG=0,cnt=0;
-  h2hData.forEach((m: any) => {
-    const fh=parseInt(m.homeScore), fa=parseInt(m.awayScore);
-    if (isNaN(fh)||isNaN(fa)) return;
+  h2hData.forEach((m) => {
+    const fh=m.homeScore, fa=m.awayScore;
+    if (fh==null||fa==null) return;
     cnt++; totalG+=fh+fa;
     if (fh > fa) {
       if (m.team1Home) hw++; else aw++;
@@ -262,19 +262,19 @@ function getH2HCommentSL(h2hData: any[], home: string, away: string): string {
 }
 
 function getFormTrendSL(
-  matches: any[],
+  matches: SLFormMatch[],
   teamId: number,
 ): { direction: 'up' | 'down' | 'stable'; pts5: number; ptsPrev: number } | null {
-  const finished = [...matches.filter((m: any) => !isNaN(parseInt(m.homeScore)))]
+  const finished = [...matches.filter((m) => m.homeScore != null)]
     .sort((a, b) => new Date(a.date || a.dateEvent || 0).getTime() - new Date(b.date || b.dateEvent || 0).getTime());
   if (finished.length < 6) return null;
 
   const recent5 = finished.slice(-5);
   const prev5 = finished.slice(-10, -5);
-  const calcPts = (list: any[]) => list.reduce((pts: number, m: any) => {
+  const calcPts = (list: SLFormMatch[]) => list.reduce((pts, m) => {
     const isHome = m.homeTeamId === teamId;
-    const gf = isHome ? parseInt(m.homeScore) : parseInt(m.awayScore);
-    const ga = isHome ? parseInt(m.awayScore) : parseInt(m.homeScore);
+    const gf = isHome ? m.homeScore! : m.awayScore!;
+    const ga = isHome ? m.awayScore! : m.homeScore!;
     return pts + (gf > ga ? 3 : gf === ga ? 1 : 0);
   }, 0);
 
@@ -285,16 +285,16 @@ function getFormTrendSL(
 }
 
 function getDeepH2HStatsSL(
-  h2hData: any[],
+  h2hData: SLFormMatch[],
   home: string,
   away: string,
 ): { over25Pct: number; bttsPct: number; trendDir: 'home' | 'away' | 'balanced'; deepComment: string } | null {
-  const valid = h2hData.filter((m: any) => !isNaN(parseInt(m.homeScore)) && !isNaN(parseInt(m.awayScore)));
+  const valid = h2hData.filter((m) => m.homeScore != null && m.awayScore != null);
   if (valid.length < 3) return null;
 
   let over25 = 0, btts = 0;
-  valid.forEach((m: any) => {
-    const fh = parseInt(m.homeScore), fa = parseInt(m.awayScore);
+  valid.forEach((m) => {
+    const fh = m.homeScore!, fa = m.awayScore!;
     if (fh + fa > 2.5) over25++;
     if (fh > 0 && fa > 0) btts++;
   });
@@ -306,8 +306,8 @@ function getDeepH2HStatsSL(
     .slice(-3);
 
   let homeWins = 0, awayWins = 0;
-  recent3.forEach((m: any) => {
-    const fh = parseInt(m.homeScore), fa = parseInt(m.awayScore);
+  recent3.forEach((m) => {
+    const fh = m.homeScore!, fa = m.awayScore!;
     if (fh === fa) return;
     const team1Won = m.team1Home ? fh > fa : fa > fh;
     if (team1Won) homeWins++;
@@ -389,21 +389,21 @@ function RadarChart({ homeVals, awayVals, labels }: { homeVals: number[]; awayVa
   );
 }
 
-function FormHeatRowSL({ matches, teamId, label }: { matches: any[]; teamId: number; label: string }) {
+function FormHeatRowSL({ matches, teamId, label }: { matches: SLFormMatch[]; teamId: number; label: string }) {
   const { colors: fc } = useTheme();
   const last5 = [...matches]
-    .filter((m: any) => !isNaN(parseInt(m.homeScore)))
-    .sort((a: any, b: any) => new Date(a.date || a.dateEvent || 0).getTime() - new Date(b.date || b.dateEvent || 0).getTime())
+    .filter((m) => m.homeScore != null)
+    .sort((a, b) => new Date(a.date || a.dateEvent || 0).getTime() - new Date(b.date || b.dateEvent || 0).getTime())
     .slice(-5);
   if (last5.length === 0) return null;
   return (
     <View style={fStyles.row}>
       <Text style={[fStyles.label, { color: fc.textSub }]} numberOfLines={1}>{label}</Text>
       <View style={fStyles.badges}>
-        {last5.map((m: any, i: number) => {
+        {last5.map((m, i: number) => {
           const isHome = m.homeTeamId === teamId;
-          const gf = isHome ? parseInt(m.homeScore) : parseInt(m.awayScore);
-          const ga = isHome ? parseInt(m.awayScore) : parseInt(m.homeScore);
+          const gf = isHome ? m.homeScore! : m.awayScore!;
+          const ga = isHome ? m.awayScore! : m.homeScore!;
           const result = gf>ga?'G':gf===ga?'B':'M';
           const bg = result==='G'?'#2E7D32':result==='B'?'#888':'#C62828';
           return (
@@ -481,12 +481,12 @@ export default function SLMatchDetail() {
   const finishedParam = p('finished') === '1';
 
   const [event,       setEvent]       = useState<any>(null);
-  const [homeForm,    setHomeForm]     = useState<any[]>([]);
-  const [awayForm,    setAwayForm]     = useState<any[]>([]);
+  const [homeForm,    setHomeForm]     = useState<SLFormMatch[]>([]);
+  const [awayForm,    setAwayForm]     = useState<SLFormMatch[]>([]);
   const [homeContext, setHomeContext]  = useState<SuperLigTeamContext | null>(null);
   const [awayContext, setAwayContext]  = useState<SuperLigTeamContext | null>(null);
   const [weatherData, setWeatherData]  = useState<any>(null);
-  const [h2hMatches,  setH2HMatches]  = useState<any[]>([]);
+  const [h2hMatches,  setH2HMatches]  = useState<SLFormMatch[]>([]);
   const [loading,     setLoading]      = useState(true);
   const [showNeden,   setShowNeden]    = useState(false);
   const [showScoutHelp, setShowScoutHelp] = useState<ScoutHelpKey | null>(null);

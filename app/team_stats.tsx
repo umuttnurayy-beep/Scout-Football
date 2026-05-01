@@ -6,6 +6,7 @@ import {
   Text, TouchableOpacity, View,
 } from 'react-native';
 import {
+  SLFormMatch, SLPlayer, SLScorer,
   getAllSportsTeamStats, getFdTeamData, getTeamForm, getTopScorers,
   getSuperLigTeamForm, getSuperLigPlayers, getSuperLigScorers,
 } from '../services/api';
@@ -106,19 +107,20 @@ function calcSeasonStats(matches: any[], teamId: number) {
   };
 }
 
-function calcSLSeasonStats(matches: any[], teamId: number) {
-  const total = matches.length;
+function calcSLSeasonStats(matches: SLFormMatch[], teamId: number) {
+  const finished = matches.filter((m) => m.homeScore != null && m.awayScore != null);
+  const total = finished.length;
   if (total === 0) return null;
   let over15 = 0, over25 = 0, over35 = 0;
   let btts = 0, cleanSheet = 0, failedToScore = 0;
   let homeW = 0, homeD = 0, homeL = 0, homePlayed = 0;
   let awayW = 0, awayD = 0, awayL = 0, awayPlayed = 0;
   let totalGF = 0, totalGA = 0;
-  for (const m of matches) {
+  for (const m of finished) {
     const isHome = m.homeTeamId === teamId;
-    const gf = isHome ? m.homeScore : m.awayScore;
-    const ga = isHome ? m.awayScore : m.homeScore;
-    const totalGoals = m.homeScore + m.awayScore;
+    const gf = isHome ? m.homeScore! : m.awayScore!;
+    const ga = isHome ? m.awayScore! : m.homeScore!;
+    const totalGoals = m.homeScore! + m.awayScore!;
     totalGF += gf; totalGA += ga;
     if (totalGoals > 1.5) over15++;
     if (totalGoals > 2.5) over25++;
@@ -206,8 +208,8 @@ export default function TeamStatsScreen() {
   // Süper Lig specific
   const [slForm, setSlForm]           = useState<string[]>([]);
   const [slSeasonStats, setSlSeasonStats] = useState<any>(null);
-  const [slPlayers, setSlPlayers]     = useState<any[]>([]);
-  const [slTeamScorers, setSlTeamScorers] = useState<any[]>([]);
+  const [slPlayers, setSlPlayers]     = useState<SLPlayer[]>([]);
+  const [slTeamScorers, setSlTeamScorers] = useState<SLScorer[]>([]);
 
   const averaj = gf - ga;
   const winPct = played > 0 ? Math.round((win / played) * 100) : 0;
@@ -300,12 +302,15 @@ export default function TeamStatsScreen() {
       ]);
 
       // Form hesapla
-      const form = formMatches.slice(-5).map((m: any) => {
-        const isHome = m.homeTeamId === teamId;
-        const gf = isHome ? m.homeScore : m.awayScore;
-        const ga = isHome ? m.awayScore : m.homeScore;
-        return gf > ga ? 'G' : gf === ga ? 'B' : 'M';
-      });
+      const form = formMatches
+        .filter((m) => m.homeScore != null && m.awayScore != null)
+        .slice(-5)
+        .map((m) => {
+          const isHome = m.homeTeamId === teamId;
+          const gf = isHome ? m.homeScore! : m.awayScore!;
+          const ga = isHome ? m.awayScore! : m.homeScore!;
+          return gf > ga ? 'G' : gf === ga ? 'B' : 'M';
+        });
       setSlForm(form);
       setSlSeasonStats(calcSLSeasonStats(formMatches, teamId));
 
@@ -315,7 +320,7 @@ export default function TeamStatsScreen() {
       // Takıma özgü gol krallığı filtresi — diakriti eşleştirme
       if (apiId === 203) {
         const normalTeamName = transliterate(teamName);
-        const teamScorers = allScorers.filter((s: any) =>
+        const teamScorers = allScorers.filter((s) =>
           transliterate(s.team || '').includes(normalTeamName) ||
           normalTeamName.includes(transliterate(s.team || ''))
         );
@@ -675,13 +680,13 @@ export default function TeamStatsScreen() {
                 </View>
               ) : (
                 AF_POSITION_ORDER.map(pos => {
-                  const players = slPlayers.filter((p: any) => (POSITION_TO_CODE[p.position] || 'M') === pos);
+                  const players = slPlayers.filter((p) => (POSITION_TO_CODE[p.position || ''] || 'M') === pos);
                   if (players.length === 0) return null;
                   return (
                     <View key={pos}>
                       <Text style={[styles.sectionLabel, { color: c.textMuted }]}>{AF_POSITION_MAP[pos]}</Text>
-                      {players.map((p: any, i: number) => {
-                        const scorer = slTeamScorers.find((s: any) => s.name === p.name);
+                      {players.map((p, i: number) => {
+                        const scorer = slTeamScorers.find((s) => s.name === p.name);
                         return (
                           <View key={i} style={[styles.playerItem, { borderBottomColor: c.border }]}>
                             <View style={[styles.playerPhotoSmall, { backgroundColor: c.primaryLight }]} />

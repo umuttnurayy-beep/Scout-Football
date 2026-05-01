@@ -211,6 +211,32 @@ export type SLMatch = {
   awayTeamId: number;
 };
 
+export type SLFormMatch = {
+  id?: string | number;
+  home?: string;
+  away?: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  homeTeamId: number;
+  awayTeamId?: number;
+  date?: string;
+  dateEvent?: string;
+  team1Home?: boolean;
+  status?: string;
+};
+
+export type SLPlayer = {
+  name: string;
+  position?: string;
+  nationality?: string;
+};
+
+export type SLScorer = {
+  name: string;
+  goals: number;
+  team: string;
+};
+
 export type WeatherData = {
   temp: number;
   wind: number;
@@ -514,11 +540,11 @@ export async function getSuperLigMatches(date?: string): Promise<SLMatch[]> {
   }
 }
 
-export async function getSuperLigTeamForm(teamId: number): Promise<any[]> {
+export async function getSuperLigTeamForm(teamId: number): Promise<SLFormMatch[]> {
   try {
     const res = await fetch(`${BASE_URL}/superlig/team-form/${teamId}`);
-    const data = await readApiJson<any[]>(res, []);
-    return arrayOrEmpty(data);
+    const data = await readApiJson<SLFormMatch[]>(res, []);
+    return arrayOrEmpty<SLFormMatch>(data);
   } catch (e) {
     logApiError('getSuperLigTeamForm', e);
     return [];
@@ -531,7 +557,7 @@ export interface SuperLigTeamContext {
   isLimited: boolean;
   fallbackReason: string | null;
   formMatchesCount: number;
-  recentMatches: any[];
+  recentMatches: SLFormMatch[];
   standingsStats: Standing | null;
 }
 
@@ -546,22 +572,22 @@ export async function getSuperLigTeamContext(teamId: number): Promise<SuperLigTe
   }
 }
 
-export async function getSuperLigPlayers(teamId: number): Promise<any[]> {
+export async function getSuperLigPlayers(teamId: number): Promise<SLPlayer[]> {
   try {
     const res = await fetch(`${BASE_URL}/superlig/players/${teamId}`);
-    const data = await readApiJson<any[]>(res, []);
-    return arrayOrEmpty(data);
+    const data = await readApiJson<SLPlayer[]>(res, []);
+    return arrayOrEmpty<SLPlayer>(data);
   } catch (e) {
     logApiError('getSuperLigPlayers', e);
     return [];
   }
 }
 
-export async function getSuperLigScorers(): Promise<any[]> {
+export async function getSuperLigScorers(): Promise<SLScorer[]> {
   try {
     const res = await fetch(`${BASE_URL}/superlig/scorers`);
-    const data = await readApiJson<any[]>(res, []);
-    return arrayOrEmpty(data);
+    const data = await readApiJson<SLScorer[]>(res, []);
+    return arrayOrEmpty<SLScorer>(data);
   } catch (e) {
     logApiError('getSuperLigScorers', e);
     return [];
@@ -583,7 +609,7 @@ export type SuperLigMatchContextData = {
   event: any | null;
   homeContext: SuperLigTeamContext | null;
   awayContext: SuperLigTeamContext | null;
-  h2h: any[];
+  h2h: SLFormMatch[];
   issues?: string[];
   generatedAt?: string;
 };
