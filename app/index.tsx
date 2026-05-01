@@ -1260,15 +1260,13 @@ export default function HomeScreen() {
       const anyEnabled = prefs.daily || prefs.favTeam || prefs.featured;
       if (!anyEnabled) return;
 
-      // Scout pick: en yüksek skora sahip bitmemiş maç
-      const ranked = [...matches]
-        .filter(m => !m.finished)
-        .sort((a, b) => {
-          const ma = metricsMap.get(a.id) ?? NO_DATA;
-          const mb = metricsMap.get(b.id) ?? NO_DATA;
-          return scoutScore(b, mb) - scoutScore(a, ma);
-        });
-      const top = ranked[0];
+      // Uygulamadaki Günün Maçı seçimiyle tutarlı: önce backendFeaturedMatchId, yoksa scoutScore en yüksek
+      const unfinished = matches.filter(m => !m.finished);
+      const ranked = [...unfinished].sort((a, b) =>
+        scoutScore(b, metricsMap.get(b.id) ?? NO_DATA) - scoutScore(a, metricsMap.get(a.id) ?? NO_DATA)
+      );
+      const top = (backendFeaturedMatchId && ranked.find(m => m.id === backendFeaturedMatchId))
+        ?? ranked[0];
 
       // Takım adını normalize et (Türkçe karakter desteği)
       const norm = (s: string) => s.toLowerCase()
@@ -1309,7 +1307,7 @@ export default function HomeScreen() {
         watchedMatches,
       }, prefs);
     })();
-  }, [matches, metricsMap, selectedDate]);
+  }, [matches, metricsMap, selectedDate, backendFeaturedMatchId]);
 
   const filteredMatches = useMemo(() => {
     if (activeFilter === 'Scout') return matches;
