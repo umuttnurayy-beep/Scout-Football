@@ -12,6 +12,7 @@ import {
   DEFAULT_PREFS, NotifPrefs, cancelAllNotifications,
   loadNotifPrefs, registerPushToken, requestPermissions, saveNotifPrefs,
 } from '../services/notifications';
+import BottomTabBar from '../components/BottomTabBar';
 import { useTheme } from '../context/ThemeContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -869,25 +870,7 @@ export default function ProfileScreen() {
         <View style={{ height: 30 }} />
       </ScrollView>
 
-      {/* ── Tab Bar ── */}
-      <View style={[styles.tabBar, { backgroundColor: c.surface, borderTopColor: c.border }]}>
-        <TouchableOpacity style={styles.tab} onPress={() => router.push('/')}>
-          <Ionicons name="football-outline" size={22} color={c.textMuted} />
-          <Text style={[styles.tabText, { color: c.textMuted }]}>Maçlar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab} onPress={() => router.push('/leagues')}>
-          <Ionicons name="trophy-outline" size={22} color={c.textMuted} />
-          <Text style={[styles.tabText, { color: c.textMuted }]}>Ligler</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab} onPress={() => router.push('/stats')}>
-          <Ionicons name="stats-chart-outline" size={22} color={c.textMuted} />
-          <Text style={[styles.tabText, { color: c.textMuted }]}>İstatistik</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab}>
-          <Ionicons name="person" size={22} color={c.primary} />
-          <Text style={[styles.tabText, { color: c.primary, fontWeight: '500' }]}>Profil</Text>
-        </TouchableOpacity>
-      </View>
+      <BottomTabBar activeTab="profile" />
     </View>
   );
 }
@@ -990,12 +973,6 @@ const styles = StyleSheet.create({
   notifHourBtnActive: {},
   notifHourBtnText: { fontSize: 13, fontWeight: '500' },
   notifHourBtnTextActive: { fontWeight: '600' },
-
-  // Tab bar
-  tabBar: { flexDirection: 'row', borderTopWidth: 0.5, paddingBottom: 20 },
-  tab: { flex: 1, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', gap: 3 },
-  tabText: { fontSize: 12 },
-  tabActive: { fontWeight: '500' },
 
   // Team picker modal
   modalContainer: { flex: 1 },

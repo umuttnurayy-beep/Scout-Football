@@ -6,6 +6,7 @@ import {
   ActivityIndicator, AppState, FlatList, Image, RefreshControl, ScrollView, StatusBar, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
+import BottomTabBar from '../components/BottomTabBar';
 import { useTheme } from '../context/ThemeContext';
 import {
   FDMatch, H2HRawItem, SLMatch, clearLastApiError, getAllSportsH2H, getCityForTeam, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, HomeData, Standing,
@@ -1614,7 +1615,7 @@ export default function HomeScreen() {
           data={listItems}
           keyExtractor={item => item.key}
           renderItem={renderListItem}
-          contentContainerStyle={{ paddingBottom: 116 }}
+          contentContainerStyle={{ paddingBottom: 16 }}
           removeClippedSubviews
           refreshControl={
             <RefreshControl
@@ -1627,24 +1628,7 @@ export default function HomeScreen() {
         />
       )}
 
-      <View style={[styles.tabBar, { backgroundColor: c.surface, borderTopColor: c.border }]}>
-        <TouchableOpacity style={styles.tab}>
-          <Ionicons name="football" size={22} color={c.primary} />
-          <Text style={[styles.tabText, styles.tabActive, { color: c.primary }]}>Maçlar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab} onPress={() => router.push('/leagues')}>
-          <Ionicons name="trophy-outline" size={22} color={c.textMuted} />
-          <Text style={[styles.tabText, { color: c.textMuted }]}>Ligler</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab} onPress={() => router.push('/stats')}>
-          <Ionicons name="stats-chart-outline" size={22} color={c.textMuted} />
-          <Text style={[styles.tabText, { color: c.textMuted }]}>İstatistik</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab} onPress={() => router.push('/profile')}>
-          <Ionicons name="person-outline" size={22} color={c.textMuted} />
-          <Text style={[styles.tabText, { color: c.textMuted }]}>Profil</Text>
-        </TouchableOpacity>
-      </View>
+      <BottomTabBar activeTab="matches" />
     </View>
   );
 }
@@ -1679,12 +1663,8 @@ const styles = StyleSheet.create({
   scroll:             { flex: 1 },
   updateBar:          { minHeight: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderBottomWidth: 0.5 },
   updateText:         { fontSize: 12, fontWeight: '500' },
-  loadingArea:        { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 116 },
+  loadingArea:        { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyText:          { textAlign: 'center', color: '#888', marginTop: 40, fontSize: 13 },
-  tabBar:             { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: '#eee', paddingBottom: 20, backgroundColor: '#fff' },
-  tab:                { flex: 1, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', gap: 3 },
-  tabText:            { fontSize: 12, color: '#888' },
-  tabActive:          { color: '#185FA5', fontWeight: '500' },
 });
 
 const sc = StyleSheet.create({

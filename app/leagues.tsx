@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import BottomTabBar from '../components/BottomTabBar';
 import { useTheme } from '../context/ThemeContext';
 import { CURRENT_FOOTBALL_SEASON, DISPLAY_FOOTBALL_SEASON } from '../constants/seasons';
 import { FDMatch, UCLKnockouts, getStandings, getSuperLigStandings, getUclKnockouts } from '../services/api';
@@ -944,24 +945,7 @@ export default function LeaguesScreen() {
         <View style={{ height: 30 }} />
       </ScrollView>
 
-      <View style={[styles.tabBar, { backgroundColor: c.surface, borderTopColor: c.border }]}>
-        <TouchableOpacity style={styles.tab} onPress={() => router.push('/')}>
-          <Ionicons name="football-outline" size={22} color={c.textMuted} />
-          <Text style={[styles.tabText, { color: c.textMuted }]}>Maçlar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab}>
-          <Ionicons name="trophy" size={22} color={c.primary} />
-          <Text style={[styles.tabText, styles.tabActive, { color: c.primary }]}>Ligler</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab} onPress={() => router.push('/stats')}>
-          <Ionicons name="stats-chart-outline" size={22} color={c.textMuted} />
-          <Text style={[styles.tabText, { color: c.textMuted }]}>İstatistik</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab} onPress={() => router.push('/profile')}>
-          <Ionicons name="person-outline" size={22} color={c.textMuted} />
-          <Text style={[styles.tabText, { color: c.textMuted }]}>Profil</Text>
-        </TouchableOpacity>
-      </View>
+      <BottomTabBar activeTab="leagues" />
     </View>
   );
 }
@@ -1005,10 +989,6 @@ const styles = StyleSheet.create({
   legendRow:           { flexDirection: 'row', alignItems: 'center', gap: 8 },
   legendDot:           { width: 10, height: 10, borderRadius: 2 },
   legendText:          { fontSize: 12 },
-  tabBar:              { flexDirection: 'row', borderTopWidth: 0.5, paddingBottom: 20 },
-  tab:                 { flex: 1, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', gap: 3 },
-  tabText:             { fontSize: 12 },
-  tabActive:           { fontWeight: '500' },
   uclToggle:           { flexDirection: 'row', marginHorizontal: 14, marginVertical: 10, borderRadius: 10, borderWidth: 1, overflow: 'hidden' },
   uclToggleBtn:        { flex: 1, paddingVertical: 10, alignItems: 'center' },
   uclToggleBtnActive:  { backgroundColor: '#185FA5' },

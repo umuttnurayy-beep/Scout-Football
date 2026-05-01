@@ -1,7 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import BottomTabBar from '../components/BottomTabBar';
 import { useTheme } from '../context/ThemeContext';
 
 type Stil = 'Hücumcu' | 'Savunmacı' | 'Dengeli';
@@ -101,24 +101,7 @@ export default function StatsScreen() {
         <View style={{ height: 30 }} />
       </ScrollView>
 
-      <View style={[styles.tabBar, { backgroundColor: c.surface, borderTopColor: c.border }]}>
-        <TouchableOpacity style={styles.tab} onPress={() => router.push('/')}>
-          <Ionicons name="football-outline" size={22} color={c.textMuted} />
-          <Text style={[styles.tabText, { color: c.textMuted }]}>Maçlar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab} onPress={() => router.push('/leagues')}>
-          <Ionicons name="trophy-outline" size={22} color={c.textMuted} />
-          <Text style={[styles.tabText, { color: c.textMuted }]}>Ligler</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab}>
-          <Ionicons name="stats-chart" size={22} color={c.primary} />
-          <Text style={[styles.tabText, styles.tabActive, { color: c.primary }]}>İstatistik</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab} onPress={() => router.push('/profile')}>
-          <Ionicons name="person-outline" size={22} color={c.textMuted} />
-          <Text style={[styles.tabText, { color: c.textMuted }]}>Profil</Text>
-        </TouchableOpacity>
-      </View>
+      <BottomTabBar activeTab="stats" />
     </View>
   );
 }
@@ -143,8 +126,4 @@ const styles = StyleSheet.create({
   leagueCountry:  { fontSize: 12, marginTop: 2 },
   leagueDesc:     { fontSize: 11, marginTop: 2 },
   arrow:          { fontSize: 18 },
-  tabBar:         { flexDirection: 'row', borderTopWidth: 0.5, paddingBottom: 20 },
-  tab:            { flex: 1, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', gap: 3 },
-  tabText:        { fontSize: 12 },
-  tabActive:      { fontWeight: '500' },
 });
