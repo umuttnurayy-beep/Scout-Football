@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { type Href, useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, AppState, FlatList, Image, ScrollView, StatusBar, StyleSheet,
+  ActivityIndicator, AppState, FlatList, Image, RefreshControl, ScrollView, StatusBar, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
@@ -1616,6 +1616,14 @@ export default function HomeScreen() {
           renderItem={renderListItem}
           contentContainerStyle={{ paddingBottom: 116 }}
           removeClippedSubviews
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => loadMatches(selectedDate)}
+              tintColor={c.primary}
+              colors={[c.primary]}
+            />
+          }
         />
       )}
 
