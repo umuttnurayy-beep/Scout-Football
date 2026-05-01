@@ -96,7 +96,9 @@
       "Bash(grep -v \"//.*any\")",
       "Bash(awk '/^function |^const .*= \\\\\\(/ {start=NR; name=$0} /^}/ {if\\(start\\) {count=NR-start; if\\(count>100\\) print start \"-\" NR \": \" count \" lines\"}}' app/index.tsx)",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\umutn\\\\Desktop\\\\ScoutFootball\" -Recurse -Include \"*.tsx\")",
-      "Bash(Select-Object -First 20)"
+      "Bash(Select-Object -First 20)",
+      "Bash(python3 fix_tr.py)",
+      "Bash(git rm *)"
     ],
     "additionalDirectories": [
       "C:\\tmp"
