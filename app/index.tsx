@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import {
-  FDMatch, SLMatch, clearLastApiError, getAllSportsH2H, getCityForTeam, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, HomeData, Standing,
+  FDMatch, H2HRawItem, SLMatch, clearLastApiError, getAllSportsH2H, getCityForTeam, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, HomeData, Standing,
 } from '../services/api';
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
 import { dataNoticeMessage, matchListEmptyMessage, summarizeSourceWarnings } from '../utils/emptyStates';
@@ -121,7 +121,7 @@ type ListItem = {
   type: 'notice' | 'section-header' | 'hero' | 'highlight' | 'day-summary' | 'match' | 'single-insight' | 'single-trends' | 'single-h2h' | 'tomorrow-featured' | 'empty' | 'empty-scout';
   m?: Match;
   metrics?: Metrics;
-  h2h?: any[];
+  h2h?: H2HRawItem[];
   rank?: number;
   title?: string;
   sub?: string;
@@ -581,7 +581,7 @@ function singleMatchScoutText(m: Match, metrics: Metrics) {
   return `${m.home} - ${m.away} eşleşmesi ${tempo} profili sunuyor. ${expectedLine(metrics)}; taraf okumasında ${fav} sinyali var.`;
 }
 
-function readH2HMatch(match: any) {
+function readH2HMatch(match: H2HRawItem) {
   const home = match.home || match.homeTeam?.shortName || match.homeTeam?.name || '';
   const away = match.away || match.awayTeam?.shortName || match.awayTeam?.name || '';
   const homeScore = match.homeScore ?? match.score?.fullTime?.home;
@@ -696,7 +696,7 @@ function SingleTrendsCard({ m, metrics }: { m: Match; metrics: Metrics }) {
   );
 }
 
-function SingleH2HCard({ h2h }: { h2h: any[] }) {
+function SingleH2HCard({ h2h }: { h2h: H2HRawItem[] }) {
   const { colors: c } = useTheme();
   const rows = h2h.slice(0, 3).map(readH2HMatch);
   return (
@@ -945,7 +945,7 @@ export default function HomeScreen() {
   const [matches, setMatches]           = useState<Match[]>([]);
   const [standingsMap, setStandingsMap] = useState<Record<number, Standing[]>>({});
   const [nextDayPreview, setNextDayPreview] = useState<{ m: Match; metrics: Metrics } | null>(null);
-  const [singleH2H, setSingleH2H] = useState<any[]>([]);
+  const [singleH2H, setSingleH2H] = useState<H2HRawItem[]>([]);
   const [featuredMatchCache, setFeaturedMatchCache] = useState<FeaturedMatchCache>({});
   const [backendFeaturedMatchId, setBackendFeaturedMatchId] = useState<number | null>(null);
   const [homeDataNotice, setHomeDataNotice] = useState<'stale' | 'warning' | 'error' | null>(null);

@@ -577,7 +577,7 @@ export default function SLMatchDetail() {
         ]);
         if (cancelled) return;
       const nextWeather = fulfilledOr(weatherR, null);
-      nextH2H = fulfilledOr(h2hR, []);
+      nextH2H = fulfilledOr(h2hR, []) as SLFormMatch[];
       if (nextWeather) setWeatherData(nextWeather);
       setH2HMatches(nextH2H);
       AsyncStorage.getItem(secondaryCacheKey)

@@ -546,10 +546,22 @@ export async function getAllSportsTeamStats(teamName: string): Promise<AllSports
   }
 }
 
-export async function getAllSportsH2H(homeTeam: string, awayTeam: string): Promise<any[]> {
+export type H2HRawItem = {
+  homeTeam?: { shortName?: string; name?: string };
+  awayTeam?: { shortName?: string; name?: string };
+  score?: { fullTime?: { home?: number | null; away?: number | null } };
+  utcDate?: string;
+  home?: string;
+  away?: string;
+  homeScore?: number | null;
+  awayScore?: number | null;
+  date?: string;
+};
+
+export async function getAllSportsH2H(homeTeam: string, awayTeam: string): Promise<H2HRawItem[]> {
   try {
     const res = await fetch(`${BASE_URL}/allsports/h2h?home=${encodeURIComponent(homeTeam)}&away=${encodeURIComponent(awayTeam)}`);
-    const data = await readApiJson<any[]>(res, []);
+    const data = await readApiJson<H2HRawItem[]>(res, []);
     return arrayOrEmpty(data);
   } catch (e) {
     logApiError('getAllSportsH2H', e);
