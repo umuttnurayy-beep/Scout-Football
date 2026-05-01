@@ -191,6 +191,19 @@ export type FDMatch = {
   referees?: Array<{ id: number; name: string; type?: string }>;
 };
 
+export type SLMatch = {
+  id: string | number;
+  home: string;
+  away: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  date: string;
+  time: string;
+  status: string;
+  homeTeamId: number;
+  awayTeamId: number;
+};
+
 export type WeatherData = {
   temp: number;
   wind: number;
@@ -207,7 +220,7 @@ export type OddsData = {
 export type HomeData = {
   date: string;
   matches: FDMatch[];
-  superLigMatches: any[];
+  superLigMatches: SLMatch[];
   standings: Record<number, Standing[]>;
   featuredMatchId?: number | null;
   stale?: boolean;
@@ -217,7 +230,7 @@ export type HomeData = {
   nextPreview: {
     date: string;
     matches: FDMatch[];
-    superLigMatches: any[];
+    superLigMatches: SLMatch[];
     featuredMatchId?: number | null;
     source?: 'fresh' | 'cache' | 'stale' | null;
   } | null;
@@ -482,12 +495,12 @@ export async function getSuperLigStandings(): Promise<Standing[]> {
   }
 }
 
-export async function getSuperLigMatches(date?: string): Promise<any[]> {
+export async function getSuperLigMatches(date?: string): Promise<SLMatch[]> {
   try {
     const url = date ? `${BASE_URL}/superlig/matches?date=${date}` : `${BASE_URL}/superlig/matches`;
     const res = await fetch(url);
-    const data = await readApiJson<any[]>(res, []);
-    return arrayOrEmpty(data);
+    const data = await readApiJson<SLMatch[]>(res, []);
+    return arrayOrEmpty<SLMatch>(data);
   } catch (e) {
     logApiError('getSuperLigMatches', e);
     return [];

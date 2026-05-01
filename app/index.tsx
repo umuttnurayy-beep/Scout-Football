@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import {
-  FDMatch, clearLastApiError, getAllSportsH2H, getCityForTeam, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, HomeData, Standing,
+  FDMatch, SLMatch, clearLastApiError, getAllSportsH2H, getCityForTeam, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, HomeData, Standing,
 } from '../services/api';
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
 import { dataNoticeMessage, matchListEmptyMessage, summarizeSourceWarnings } from '../utils/emptyStates';
@@ -422,12 +422,12 @@ function marqueeBonus(m: Match): number {
 
 // ─── data mapping ────────────────────────────────────────────────────────────
 
-function mapSLMatch(m: any): Match {
+function mapSLMatch(m: SLMatch): Match {
   const hasScore   = m.homeScore !== null && m.homeScore !== undefined;
   const isFinished = m.status === 'Match Finished' || hasScore;
   const utcDate = sportsDbUtcDate(m.date, m.time);
   return {
-    id:          parseInt(m.id) || strHash(m.home + m.away + m.date),
+    id:          parseInt(String(m.id)) || strHash(m.home + m.away + m.date),
     leagueApiId: 203,
     league:      'Süper Lig',
     home:        m.home,
@@ -467,7 +467,7 @@ function isRenderableMatch(m: Match) {
   return Boolean(m.home?.trim() && m.away?.trim() && m.time && m.league);
 }
 
-function buildVisibleMatches(data: FDMatch[], slData: any[]) {
+function buildVisibleMatches(data: FDMatch[], slData: SLMatch[]) {
   const mainMatches = data
     .filter(m => SUPPORTED_LEAGUES.includes(m.competition?.id ?? 0))
     .map(mapMatch)
