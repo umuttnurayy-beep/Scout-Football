@@ -5,9 +5,10 @@ import {
   Image, ScrollView, StyleSheet, Text,
   TouchableOpacity, View,
 } from 'react-native';
-import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-svg';
 import { DetailDataNotice, DetailStatusBanner } from '../components/DetailDataState';
+import CompareRow from '../components/CompareRow';
 import EmptyStateCard from '../components/EmptyStateCard';
+import RadarChart from '../components/RadarChart';
 import { SkeletonMatchDetail } from '../components/SkeletonLoader';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -30,7 +31,10 @@ import {
   getGuven,
   getMotivationComment,
   getPersonaEnriched,
+  getRefereeProfile,
   getRiskWarnings,
+  getTagColor,
+  getTeamStyle,
   getWeatherComment,
   isWeatherRisk,
   pickFrom,
@@ -132,18 +136,6 @@ function buildMatchAnalysis(
   return { stil, gol, tempo, risk, guven, short, medium, reasons, scoutPick, badgeLabel, badgeColor, badgeBg };
 }
 
-// ── Tag Color ──────────────────────────────────────────────────────────────
-
-function getTagColor(type: string, value: string, isDark: boolean): { bg: string; text: string } {
-  const high = { bg: isDark ? '#2C0A0A' : '#FDE8E8', text: isDark ? '#F85149' : '#A32D2D' };
-  const mid = { bg: isDark ? '#2A1F00' : '#FFF8E1', text: isDark ? '#E3B341' : '#7A5700' };
-  const low = { bg: isDark ? '#0D2010' : '#E8F8F0', text: isDark ? '#3FB950' : '#1B6B3A' };
-
-  if (value === 'Yüksek' || value === 'Hücumcu') return high;
-  if (value === 'Düşük' || value === 'Savunmacı') return low;
-  return mid;
-}
-
 // ── Stat Helpers (SL format) ───────────────────────────────────────────────
 
 function calcFormStatsSL(matches: SLFormMatch[], teamId: number) {
@@ -223,18 +215,6 @@ function calcFormPointsSL(matches: SLFormMatch[], teamId: number): number {
       const ga = isHome ? m.awayScore! : m.homeScore!;
       return pts + (gf > ga ? 3 : gf === ga ? 1 : 0);
     }, 0);
-}
-
-function getTeamStyle(stats: ReturnType<typeof calcFormStatsSL>): { label: string; color: string; emoji: string } {
-  const atk = parseFloat(stats.totalAvgGf as string);
-  const def = parseFloat(stats.totalAvgGa as string);
-  if (atk>=2.0&&def<=1.0) return {label:'Dominant',      color:'#1565C0',emoji:'👑'};
-  if (atk>=1.8&&def>=1.5) return {label:'Açık Futbol',   color:'#E65100',emoji:'⚡'};
-  if (atk>=1.7&&def<=1.1) return {label:'Güçlü Hücum',   color:'#185FA5',emoji:'⚽'};
-  if (atk<=1.0&&def<=0.9) return {label:'Katı Savunmacı',color:'#1B5E20',emoji:'🛡️'};
-  if (atk<=1.2&&def<=1.1) return {label:'Savunmacı',     color:'#388E3C',emoji:'🛡️'};
-  if (def>=1.6)            return {label:'Savunması Açık',color:'#A32D2D',emoji:'🚨'};
-  return                          {label:'Dengeli',        color:'#555',   emoji:'⚖️'};
 }
 
 // ── Commentary Helpers ─────────────────────────────────────────────────────
@@ -335,61 +315,11 @@ function getDeepH2HStatsSL(
   return { over25Pct, bttsPct, trendDir, deepComment: parts.join(' ') };
 }
 
-function getRefereeProfile(refName: string) {
-  const hash = Math.abs(refName.split('').reduce((h,c)=>(Math.imul(31,h)+c.charCodeAt(0))|0,0));
-  let kartBase = hash % 3;
-  if (kartBase === 2) kartBase = Math.max(0, kartBase - 1); // SL genelde orta-yüksek
-  const kartLabels = ['düşük','orta','yüksek'];
-  const kartColors = ['#27AE60','#E6A817','#A32D2D'];
-  const kartEmoji  = ['🟢','🟡','🔴'];
-  const faulLabel  = ['toleranslı','dengeli','titiz'][(hash>>2)%3];
-  const akis       = (hash>>4)%2===0?'akıcı':'duraksatıcı';
-  let narrative = '';
-  if (kartBase===0) narrative='Lig karakteri ve hakem ismine göre oluşturulan model profili daha toleranslı bir yönetime işaret ediyor; gerçek maç içi kararlar değişebilir.';
-  else if (kartBase===2) narrative='Model profili daha sıkı bir yönetim ihtimalini öne çıkarıyor; bu gerçek kart ortalaması değil, temkinli okunmalı.';
-  else narrative='Model profili dengeli yönetime işaret ediyor. Kart ve faul yorumu gerçek hakem istatistiği değil, yardımcı sinyal olarak okunmalı.';
-  return { kart:kartLabels[kartBase], kartColor:kartColors[kartBase], kartEmoji:kartEmoji[kartBase], faul:faulLabel, akis, narrative };
-}
-
 // ── Event Parsing (TheSportsDB) ────────────────────────────────────────────
 
 // ── Visual Components ──────────────────────────────────────────────────────
 
 const NEON = '#00E676';
-
-function RadarChart({ homeVals, awayVals, labels }: { homeVals: number[]; awayVals: number[]; labels: string[] }) {
-  const { colors: rc, isDark: rDark } = useTheme();
-  const SIZE=240,cx=SIZE/2,cy=SIZE/2+4,maxR=80,n=labels.length;
-  const toRad=(deg:number)=>deg*(Math.PI/180);
-  const angles=Array.from({length:n},(_,i)=>toRad(-90+(360/n)*i));
-  const pt=(a:number,r:number)=>({x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)});
-  const toPath=(vals:number[])=>vals.map((v,i)=>{const{x,y}=pt(angles[i],Math.min(Math.max(v,0),1)*maxR);return`${i===0?'M':'L'}${x},${y}`;}).join(' ')+'Z';
-  const rings=[0.25,0.5,0.75,1.0];
-  const hSum=homeVals.reduce((s,v)=>s+v,0);
-  const aSum=awayVals.reduce((s,v)=>s+v,0);
-  const hLeads=hSum>=aSum;
-  const hS=hLeads?NEON:rc.primary, aS=!hLeads?NEON:rc.loss;
-  const hF=hLeads?'rgba(0,230,118,0.18)':'rgba(24,95,165,0.12)';
-  const aF=!hLeads?'rgba(0,230,118,0.18)':'rgba(163,45,45,0.12)';
-  const gridStroke = rDark ? '#30363D' : '#eee';
-  const lblFill = rDark ? '#8B949E' : '#444';
-  return (
-    <Svg width={SIZE} height={SIZE}>
-      {rings.map(r=>(
-        <Polygon key={r} points={angles.map(a=>{const p=pt(a,r*maxR);return`${p.x},${p.y}`;}).join(' ')} fill="none" stroke={gridStroke} strokeWidth={1}/>
-      ))}
-      {angles.map((a,i)=>{const tip=pt(a,maxR);return<Line key={i} x1={cx} y1={cy} x2={tip.x} y2={tip.y} stroke={gridStroke} strokeWidth={1}/>;  })}
-      <Path d={toPath(awayVals)} fill={aF} stroke={aS} strokeWidth={hLeads?1.5:2.5}/>
-      <Path d={toPath(homeVals)} fill={hF} stroke={hS} strokeWidth={hLeads?2.5:1.5}/>
-      {angles.map((a,i)=>{
-        const tip=pt(a,maxR+24);
-        return<SvgText key={i} x={tip.x} y={tip.y} textAnchor="middle" fontSize={11} fontWeight="600" fill={lblFill}>{labels[i]}</SvgText>;
-      })}
-      {homeVals.map((v,i)=>{const{x,y}=pt(angles[i],Math.min(Math.max(v,0),1)*maxR);return<Circle key={i} cx={x} cy={y} r={3.5} fill={hS}/>;  })}
-      {awayVals.map((v,i)=>{const{x,y}=pt(angles[i],Math.min(Math.max(v,0),1)*maxR);return<Circle key={i} cx={x} cy={y} r={3.5} fill={aS}/>;  })}
-    </Svg>
-  );
-}
 
 function FormHeatRowSL({ matches, teamId, label }: { matches: SLFormMatch[]; teamId: number; label: string }) {
   const { colors: fc } = useTheme();
@@ -427,27 +357,6 @@ const fStyles = StyleSheet.create({
   badge:     { width:32, height:36, borderRadius:6, alignItems:'center', justifyContent:'center' },
   badgeText: { fontSize:11, fontWeight:'700', color:'#fff' },
   badgeSub:  { fontSize:8, color:'rgba(255,255,255,0.75)' },
-});
-
-function CompareRow({ label, homeVal, awayVal, higherIsBetter=true }: { label:string; homeVal:number|string; awayVal:number|string; higherIsBetter?:boolean }) {
-  const { colors: cc } = useTheme();
-  const h=parseFloat(String(homeVal)),a=parseFloat(String(awayVal));
-  const hW=higherIsBetter?h>a:h<a, aW=higherIsBetter?a>h:a<h;
-  return (
-    <View style={[cStyles.row, { borderBottomColor: cc.borderLight }]}>
-      <Text style={[cStyles.val, { color: cc.textMuted }, hW && { color: cc.primary, fontWeight: '700', fontSize: 16 }]}>{homeVal}</Text>
-      <Text style={[cStyles.lbl, { color: cc.textMuted }]}>{label}</Text>
-      <Text style={[cStyles.val, { color: cc.textMuted }, aW && { color: cc.loss, fontWeight: '700', fontSize: 16 }]}>{awayVal}</Text>
-    </View>
-  );
-}
-
-const cStyles = StyleSheet.create({
-  row:        { flexDirection:'row', alignItems:'center', paddingHorizontal:14, paddingVertical:9, borderBottomWidth:0.5, borderBottomColor:'#f0f0f0' },
-  val:        { width:56, fontSize:14, color:'#888', textAlign:'center' },
-  lbl:        { flex:1, fontSize:11, color:'#888', textAlign:'center' },
-  winner:     { color:'#185FA5', fontWeight:'700', fontSize:16 },
-  winnerAway: { color:'#A32D2D', fontWeight:'700', fontSize:16 },
 });
 
 // ── Main Screen ────────────────────────────────────────────────────────────
@@ -661,7 +570,7 @@ export default function SLMatchDetail() {
   const characterDetail = hasFormData
     ? buildMatchCharacterDetail(home, away, homeStats, awayStats, homeFormPts, awayFormPts, strHash(home + away + 'character'), hStyle?.label, aStyle?.label, homeTrend, awayTrend)
     : '';
-  const refProfile    = refName ? getRefereeProfile(refName) : null;
+  const refProfile    = refName ? getRefereeProfile(refName, leagueApiId) : null;
   const weatherCom    = getWeatherComment(weatherData);
   const riskWarns     = getRiskWarnings(homeStats, awayStats, h2hData.length, analysis, 2);
   const compareComment    = hasFormData ? getCompareComment(homeStats, awayStats, home, away) : '';
