@@ -110,6 +110,35 @@ export function SkeletonPlayerList() {
   );
 }
 
+// ─── league table skeleton ────────────────────────────────────────────────────
+
+export function SkeletonLeagueTable() {
+  const { colors: c } = useTheme();
+  return (
+    <View style={{ marginTop: 8 }}>
+      {/* header row */}
+      <View style={[s.tableRow, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
+        <SkeletonBox width={14} height={10} />
+        <SkeletonBox width="45%" height={10} style={{ marginLeft: 10 }} />
+        <SkeletonBox width={20} height={10} />
+        <SkeletonBox width={20} height={10} />
+        <SkeletonBox width={20} height={10} />
+        <SkeletonBox width={24} height={10} />
+      </View>
+      {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
+        <View key={i} style={[s.tableRow, { backgroundColor: c.bg, borderBottomColor: c.border }]}>
+          <SkeletonBox width={14} height={12} />
+          <SkeletonBox width="42%" height={12} style={{ marginLeft: 10 }} />
+          <SkeletonBox width={18} height={12} />
+          <SkeletonBox width={18} height={12} />
+          <SkeletonBox width={18} height={12} />
+          <SkeletonBox width={22} height={14} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
 // ─── styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
@@ -142,5 +171,13 @@ const s = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
   },
-  statRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  statRow:  { flexDirection: 'row', justifyContent: 'space-between' },
+  tableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 0.5,
+  },
 });

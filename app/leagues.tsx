@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import BottomTabBar from '../components/BottomTabBar';
+import EmptyStateCard from '../components/EmptyStateCard';
+import { SkeletonLeagueTable } from '../components/SkeletonLoader';
 import TieCard from '../components/TieCard';
 import { useTheme } from '../context/ThemeContext';
 import { CURRENT_FOOTBALL_SEASON, DISPLAY_FOOTBALL_SEASON } from '../constants/seasons';
@@ -173,13 +175,18 @@ export default function LeaguesScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} colors={[c.primary]} />}
       >
         {loading ? (
-          <ActivityIndicator style={{ marginTop: 40 }} color={c.primary} />
+          <SkeletonLeagueTable />
         ) : (
           <>
             {/* ===== GENEL ===== */}
             {subTab === 'genel' && (
               standings.length === 0 ? (
-                  <Text style={[styles.emptyText, { color: c.textMuted }]}>{leagueDataEmptyMessage(activeLeague.name)}</Text>
+                <EmptyStateCard
+                  icon="📡"
+                  title="Lig verisi yüklenemedi"
+                  subtitle={leagueDataEmptyMessage(activeLeague.name)}
+                  onRetry={onRefresh}
+                />
               ) : (
                 <>
                   {ligChar && (
@@ -412,9 +419,9 @@ export default function LeaguesScreen() {
                       ))}
                     </ScrollView>
                     {knockouts == null ? (
-                      <ActivityIndicator style={{ marginTop: 30 }} color={c.primary} />
+                      <SkeletonLeagueTable />
                     ) : (knockouts[activeStage] || []).length === 0 ? (
-                      <Text style={[styles.emptyText, { color: c.textMuted }]}>Bu tura ait veri bulunamadı</Text>
+                      <EmptyStateCard icon="🏆" title="Bu tura ait veri bulunamadı" onRetry={loadKnockouts} />
                     ) : (
                       groupTies(knockouts[activeStage] || []).map((tie, i) => (
                         <TieCard key={i} tie={tie} isFinal={activeStage === 'FINAL'} />
@@ -425,7 +432,12 @@ export default function LeaguesScreen() {
 
                 {(activeLeague.apiId !== 2 || uclView === 'standings') && (
                   standings.length === 0 ? (
-                      <Text style={[styles.emptyText, { color: c.textMuted }]}>{leagueDataEmptyMessage(activeLeague.name)}</Text>
+                    <EmptyStateCard
+                      icon="📡"
+                      title="Puan tablosu yüklenemedi"
+                      subtitle={leagueDataEmptyMessage(activeLeague.name)}
+                      onRetry={onRefresh}
+                    />
                   ) : (
                     <>
                       <Text style={[styles.sectionLabel, { color: c.textMuted }]}>PUAN TABLOSU</Text>
@@ -470,7 +482,12 @@ export default function LeaguesScreen() {
             {/* ===== TAKIMLAR ===== */}
             {subTab === 'takimlar' && (
               standings.length === 0 ? (
-                  <Text style={[styles.emptyText, { color: c.textMuted }]}>{leagueDataEmptyMessage(activeLeague.name)}</Text>
+                <EmptyStateCard
+                  icon="🏟️"
+                  title="Takım verisi yüklenemedi"
+                  subtitle={leagueDataEmptyMessage(activeLeague.name)}
+                  onRetry={onRefresh}
+                />
               ) : (
                 <>
                   <Text style={[styles.sectionLabel, { color: c.textMuted }]}>TAKIM KİMLİKLERİ</Text>
@@ -517,7 +534,12 @@ export default function LeaguesScreen() {
             {/* ===== TRENDLER ===== */}
             {subTab === 'trendler' && (
               standings.length === 0 ? (
-                  <Text style={[styles.emptyText, { color: c.textMuted }]}>{leagueDataEmptyMessage(activeLeague.name)}</Text>
+                <EmptyStateCard
+                  icon="📊"
+                  title="Trend verisi yüklenemedi"
+                  subtitle={leagueDataEmptyMessage(activeLeague.name)}
+                  onRetry={onRefresh}
+                />
               ) : (() => {
                 const withRates = standings.map(r => ({
                   ...r,

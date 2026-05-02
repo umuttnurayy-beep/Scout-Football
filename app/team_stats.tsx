@@ -5,6 +5,7 @@ import {
   Image, RefreshControl, ScrollView, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
+import EmptyStateCard from '../components/EmptyStateCard';
 import { SkeletonPlayerList, SkeletonStatBlock } from '../components/SkeletonLoader';
 import {
   AllSportsTeamStats, FDMatch, FDScorer, FDSquadPlayer,
@@ -553,9 +554,7 @@ export default function TeamStatsScreen() {
                 </>
               ) : (
                 <>
-                  <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
-                    <Text style={[styles.noDataText, { color: c.textSub }]}>Bu sezon gol istatistiği bulunamadı.</Text>
-                  </View>
+                  <EmptyStateCard compact icon="⚽" title="Bu sezon gol istatistiği bulunamadı." />
                   <TouchableOpacity style={[styles.seeAllBtn, { borderTopColor: c.border }]} onPress={() => setShowFullSquad(true)}>
                     <Text style={[styles.seeAllText, { color: c.primary }]}>Kadroyu gör ›</Text>
                   </TouchableOpacity>
@@ -568,9 +567,7 @@ export default function TeamStatsScreen() {
                 <Text style={[styles.backToStatsText, { color: c.primary }]}>‹ İstatistiklere dön</Text>
               </TouchableOpacity>
               {slPlayers.length === 0 ? (
-                <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
-                  <Text style={[styles.noDataText, { color: c.textSub }]}>Kadro verisi bulunamadı.</Text>
-                </View>
+                <EmptyStateCard compact icon="👥" title="Kadro verisi bulunamadı." />
               ) : (
                 AF_POSITION_ORDER.map(pos => {
                   const players = slPlayers.filter((p) => (POSITION_TO_CODE[p.position || ''] || 'M') === pos);
@@ -677,9 +674,7 @@ export default function TeamStatsScreen() {
                 </>
               ) : (
                 <>
-                  <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
-                    <Text style={[styles.noDataText, { color: c.textSub }]}>Bu sezon gol istatistiği bulunamadı.</Text>
-                  </View>
+                  <EmptyStateCard compact icon="⚽" title="Bu sezon gol istatistiği bulunamadı." />
                   <TouchableOpacity style={[styles.seeAllBtn, { borderTopColor: c.border }]} onPress={() => setShowFullSquad(true)}>
                     <Text style={[styles.seeAllText, { color: c.primary }]}>Kadroyu gör ›</Text>
                   </TouchableOpacity>
@@ -692,9 +687,7 @@ export default function TeamStatsScreen() {
                 <Text style={[styles.backToStatsText, { color: c.primary }]}>‹ İstatistiklere dön</Text>
               </TouchableOpacity>
               {fdSquad.length === 0 ? (
-                <View style={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}>
-                  <Text style={[styles.noDataText, { color: c.textSub }]}>Kadro verisi bulunamadı.</Text>
-                </View>
+                <EmptyStateCard compact icon="👥" title="Kadro verisi bulunamadı." />
               ) : (
                 AF_POSITION_ORDER.map(pos => {
                   const players = groupedSquad[pos];

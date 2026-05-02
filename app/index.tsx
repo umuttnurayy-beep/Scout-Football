@@ -7,6 +7,7 @@ import {
   Text, TouchableOpacity, View,
 } from 'react-native';
 import BottomTabBar from '../components/BottomTabBar';
+import EmptyStateCard from '../components/EmptyStateCard';
 import { SkeletonMatchCard, SkeletonSectionHeader } from '../components/SkeletonLoader';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -1014,7 +1015,13 @@ export default function HomeScreen() {
           />
         );
       case 'empty':
-        return <Text style={[styles.emptyText, { color: c.textMuted }]}>{matchListEmptyMessage(item.filter!)}</Text>;
+        return (
+          <EmptyStateCard
+            icon="📅"
+            title={matchListEmptyMessage(item.filter!)}
+            subtitle="Farklı bir tarih veya lig filtresi seçebilirsin."
+          />
+        );
       default:
         return null;
     }
