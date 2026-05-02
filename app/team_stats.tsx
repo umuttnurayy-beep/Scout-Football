@@ -8,15 +8,15 @@ import {
 import EmptyStateCard from '../components/EmptyStateCard';
 import { SkeletonPlayerList, SkeletonStatBlock } from '../components/SkeletonLoader';
 import {
-  AllSportsTeamStats, FDMatch, FDScorer, FDSquadPlayer,
-  SLFormMatch, SLPlayer, SLScorer,
+  AllSportsTeamStats, FDScorer, FDSquadPlayer,
+  SLPlayer, SLScorer,
   getAllSportsTeamStats, getFdTeamData, getTeamForm, getTopScorers,
   getSuperLigTeamForm, getSuperLigPlayers, getSuperLigScorers,
 } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
 import { DISPLAY_FOOTBALL_SEASON } from '../constants/seasons';
 import { formDataEmptyMessage } from '../utils/emptyStates';
-import { SeasonStats, calcSLSeasonStats, calcSeasonStats, getTeamProfile, normalizeTeamName, teamsMatch, transliterate } from '../utils/teamStats';
+import { SeasonStats, calcSLSeasonStats, calcSeasonStats, getTeamProfile, teamsMatch, transliterate } from '../utils/teamStats';
 
 const AF_POSITION_MAP: Record<string, string> = {
   G: 'Kaleci', D: 'Defans', M: 'Orta saha', F: 'Forvet',
@@ -29,10 +29,16 @@ const POSITION_TO_CODE: Record<string, string> = {
   'Attacker': 'F', 'Offence': 'F', 'Forward': 'F',
 };
 
-const RANK_COLORS = [
+const LIGHT_RANK_COLORS = [
   { bg: '#FAEEDA', color: '#633806' },
   { bg: '#D3D1C7', color: '#2C2C2A' },
   { bg: '#F5C4B3', color: '#712B13' },
+];
+
+const DARK_RANK_COLORS = [
+  { bg: '#3A2C12', color: '#F2D28A' },
+  { bg: '#2B3036', color: '#C9D1D9' },
+  { bg: '#3A2018', color: '#F0A98A' },
 ];
 
 export default function TeamStatsScreen() {
@@ -82,6 +88,9 @@ export default function TeamStatsScreen() {
   const averaj = gf - ga;
   const winPct = played > 0 ? Math.round((win / played) * 100) : 0;
   const initials = teamName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+  const rankColors = isDark ? DARK_RANK_COLORS : LIGHT_RANK_COLORS;
+  const assistColor = isDark ? '#E3B341' : '#E65100';
+  const assistBg = isDark ? '#2A1F00' : '#FFF3E0';
 
   const isSportsDbLeague = apiId === 203;
   const displayForm = isSportsDbLeague ? slForm : recentForm;
@@ -551,8 +560,8 @@ export default function TeamStatsScreen() {
                   {slTeamScorers.slice(0, 5).map((s, i: number) => (
                     <View key={i}>
                       <View style={[styles.topPlayer, { borderBottomColor: c.border }, i === Math.min(slTeamScorers.length, 5) - 1 && { borderBottomWidth: 0 }]}>
-                        <View style={[styles.rankBadge, { backgroundColor: RANK_COLORS[i]?.bg || c.primaryLight }]}>
-                          <Text style={[styles.rankText, { color: RANK_COLORS[i]?.color || c.primaryDark }]}>{i + 1}</Text>
+                        <View style={[styles.rankBadge, { backgroundColor: rankColors[i]?.bg || c.primaryLight }]}>
+                          <Text style={[styles.rankText, { color: rankColors[i]?.color || c.primaryDark }]}>{i + 1}</Text>
                         </View>
                         <View style={[styles.playerPhotoPlaceholder, { backgroundColor: c.primaryLight }]} />
                         <View style={styles.topPlayerInfo}>
@@ -644,8 +653,8 @@ export default function TeamStatsScreen() {
                   {topScorers.map((p, i: number) => (
                     <View key={p.player?.id || i}>
                       <View style={[styles.topPlayer, { borderBottomColor: c.border }, i === topScorers.length - 1 && { borderBottomWidth: 0 }]}>
-                        <View style={[styles.rankBadge, { backgroundColor: RANK_COLORS[i]?.bg || c.primaryLight }]}>
-                          <Text style={[styles.rankText, { color: RANK_COLORS[i]?.color || c.primaryDark }]}>{i + 1}</Text>
+                        <View style={[styles.rankBadge, { backgroundColor: rankColors[i]?.bg || c.primaryLight }]}>
+                          <Text style={[styles.rankText, { color: rankColors[i]?.color || c.primaryDark }]}>{i + 1}</Text>
                         </View>
                         <View style={[styles.playerPhotoPlaceholder, { backgroundColor: c.primaryLight }]} />
                         <View style={styles.topPlayerInfo}>
@@ -672,21 +681,21 @@ export default function TeamStatsScreen() {
                       {topAssists.map((p, i: number) => (
                         <View key={p.player?.id || i}>
                           <View style={[styles.topPlayer, { borderBottomColor: c.border }, i === topAssists.length - 1 && { borderBottomWidth: 0 }]}>
-                            <View style={[styles.rankBadge, { backgroundColor: RANK_COLORS[i]?.bg || c.primaryLight }]}>
-                              <Text style={[styles.rankText, { color: RANK_COLORS[i]?.color || c.primaryDark }]}>{i + 1}</Text>
+                            <View style={[styles.rankBadge, { backgroundColor: rankColors[i]?.bg || c.primaryLight }]}>
+                              <Text style={[styles.rankText, { color: rankColors[i]?.color || c.primaryDark }]}>{i + 1}</Text>
                             </View>
                             <View style={[styles.playerPhotoPlaceholder, { backgroundColor: c.primaryLight }]} />
                             <View style={styles.topPlayerInfo}>
                               <Text style={[styles.topPlayerName, { color: c.text }]}>{p.player?.name}</Text>
                               <Text style={[styles.topPlayerPos, { color: c.textMuted }]}>{p.playedMatches} maç</Text>
                             </View>
-                            <Text style={[styles.topPlayerVal, { color: '#E65100' }]}>{p.assists}</Text>
+                            <Text style={[styles.topPlayerVal, { color: assistColor }]}>{p.assists}</Text>
                           </View>
                           <View style={styles.barRow}>
                             <View style={[styles.barBg, { backgroundColor: c.borderLight }]}>
                               <View style={[styles.barFill, {
                                 width: `${((p.assists ?? 0) / (topAssists[0]?.assists || 1)) * 100}%`,
-                                backgroundColor: '#E65100',
+                                backgroundColor: assistColor,
                               }]} />
                             </View>
                           </View>
@@ -740,8 +749,8 @@ export default function TeamStatsScreen() {
                                   </View>
                                 )}
                                 {(scorer.assists ?? 0) > 0 && (
-                                  <View style={styles.assistBadge}>
-                                    <Text style={styles.assistBadgeText}>🅰️ {scorer.assists}</Text>
+                                  <View style={[styles.assistBadge, { backgroundColor: assistBg }]}>
+                                    <Text style={[styles.assistBadgeText, { color: assistColor }]}>🅰️ {scorer.assists}</Text>
                                   </View>
                                 )}
                               </View>
@@ -865,8 +874,8 @@ const styles = StyleSheet.create({
   playerStatBadges:    { flexDirection: 'row', gap: 4 },
   goalBadge:           { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   goalBadgeText:       { fontSize: 11 },
-  assistBadge:         { backgroundColor: '#FFF3E0', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  assistBadgeText:     { fontSize: 11, color: '#E65100' },
+  assistBadge:         { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  assistBadgeText:     { fontSize: 11 },
   profileCard:         { marginHorizontal: 14, marginBottom: 6, padding: 14, borderRadius: 12, borderLeftWidth: 3, borderWidth: 0.5 },
   profileTop:          { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
   profileEmoji:        { fontSize: 26, marginTop: 2 },

@@ -301,6 +301,10 @@ function arrayOrEmpty<T = any>(value: unknown): T[] {
   return Array.isArray(value) ? value : [];
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
 function isStanding(value: unknown): value is Standing {
   if (!value || typeof value !== 'object') return false;
   const row = value as Partial<Standing>;
@@ -312,6 +316,37 @@ function isStanding(value: unknown): value is Standing {
 
 function standingsOrEmpty(value: unknown): Standing[] {
   return arrayOrEmpty<unknown>(value).filter(isStanding);
+}
+
+function standingsMapOrEmpty(value: unknown): Record<number, Standing[]> {
+  if (!isRecord(value)) return {};
+  return Object.entries(value).reduce<Record<number, Standing[]>>((acc, [key, rows]) => {
+    const leagueApiId = Number(key);
+    if (!Number.isFinite(leagueApiId)) return acc;
+    acc[leagueApiId] = standingsOrEmpty(rows);
+    return acc;
+  }, {});
+}
+
+function normalizeNextPreview(value: unknown): HomeData['nextPreview'] {
+  if (!isRecord(value)) return null;
+  if (
+    typeof value.date !== 'string' ||
+    !Array.isArray(value.matches) ||
+    !Array.isArray(value.superLigMatches)
+  ) {
+    return null;
+  }
+  const source = value.source === 'fresh' || value.source === 'cache' || value.source === 'stale'
+    ? value.source
+    : null;
+  return {
+    date: value.date,
+    matches: arrayOrEmpty<FDMatch>(value.matches),
+    superLigMatches: arrayOrEmpty<SLMatch>(value.superLigMatches),
+    featuredMatchId: typeof value.featuredMatchId === 'number' ? value.featuredMatchId : null,
+    source,
+  };
 }
 
 export async function checkBackendHealth(): Promise<boolean> {
@@ -354,18 +389,22 @@ export async function getTodayMatches(date?: string): Promise<FDMatch[]> {
 export async function getHomeData(date: string): Promise<HomeData | null> {
   try {
     const res = await fetchWithTimeout(`${BASE_URL}/home?date=${encodeURIComponent(date)}`);
-    const data = await readApiJson<HomeData | null>(res, null);
-    if (!data || !Array.isArray(data.matches) || !Array.isArray(data.superLigMatches)) return null;
+    const data = await readApiJson<unknown>(res, null);
+    if (!isRecord(data) || !Array.isArray(data.matches) || !Array.isArray(data.superLigMatches)) return null;
     return {
-      ...data,
+      date: typeof data.date === 'string' ? data.date : date,
+      matches: arrayOrEmpty<FDMatch>(data.matches),
+      superLigMatches: arrayOrEmpty<SLMatch>(data.superLigMatches),
+      featuredMatchId: typeof data.featuredMatchId === 'number' ? data.featuredMatchId : null,
+      generatedAt: typeof data.generatedAt === 'string' ? data.generatedAt : '',
       stale: Boolean(data.stale || isStaleApiData(data)),
-      standings: data.standings || {},
+      standings: standingsMapOrEmpty(data.standings),
       issues: arrayOrEmpty<string>(data.issues),
       sourceWarnings: arrayOrEmpty<string>(data.sourceWarnings),
       sourceSeverity: data.sourceSeverity === 'warning' || data.sourceSeverity === 'error'
         ? data.sourceSeverity
         : null,
-      nextPreview: data.nextPreview || null,
+      nextPreview: normalizeNextPreview(data.nextPreview),
     };
   } catch (e) {
     logApiError('getHomeData', e);

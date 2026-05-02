@@ -1,3 +1,10 @@
+jest.mock('../services/config', () => ({
+  API_BASE_URL: 'https://example.test',
+  CURRENT_FOOTBALL_SEASON: 2025,
+  DISPLAY_FOOTBALL_SEASON: '2025/26',
+  CURRENT_SPORTSDB_SEASON: '2025-2026',
+}));
+
 import {
   getMotivationComment,
   getDeepH2HStats,

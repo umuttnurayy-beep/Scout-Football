@@ -96,7 +96,7 @@ export type ListItem = {
   sub?: string;
   summary?: string;
   filter?: string;
-  notice?: 'stale' | 'warning' | 'error';
+  notice?: 'stale' | 'cache' | 'warning' | 'error';
   warningText?: string | null;
 };
 

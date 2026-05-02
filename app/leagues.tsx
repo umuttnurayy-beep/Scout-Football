@@ -1,18 +1,17 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import BottomTabBar from '../components/BottomTabBar';
 import EmptyStateCard from '../components/EmptyStateCard';
+import RefreshStatusBar from '../components/RefreshStatusBar';
 import { SkeletonLeagueTable } from '../components/SkeletonLoader';
 import TieCard from '../components/TieCard';
 import { useTheme } from '../context/ThemeContext';
 import { CURRENT_FOOTBALL_SEASON, DISPLAY_FOOTBALL_SEASON } from '../constants/seasons';
-import { FDMatch, UCLKnockouts, getStandings, getSuperLigStandings, getUclKnockouts } from '../services/api';
+import { UCLKnockouts, getStandings, getSuperLigStandings, getUclKnockouts } from '../services/api';
 import { leagueDataEmptyMessage } from '../utils/emptyStates';
 import {
-  CP, LeagueChar, LeagueStanding, Level, UCLTie,
-  computeLeagueStats, cp, getTagColor, getTeamLabel, getTeamPersonality, groupTies,
+  LeagueStanding,
+  computeLeagueStats, getTagColor, getTeamLabel, getTeamPersonality, groupTies,
 } from '../utils/leagueAnalysis';
 
 const leagues = [
@@ -67,7 +66,6 @@ function getBadgeStyle(pos: number, total: number, apiId: number) {
 // ── SCREEN ────────────────────────────────────────────────────
 
 export default function LeaguesScreen() {
-  const router = useRouter();
   const { colors: c, isDark } = useTheme();
   const [activeLeague, setActiveLeague] = useState<League>(configuredLeagues[0]);
   const [subTab, setSubTab]             = useState<SubTab>('genel');
@@ -137,7 +135,7 @@ export default function LeaguesScreen() {
   const {
     totalGames, totalGoals, avgGoals, leader, leaderGap, drawRate,
     ligChar, leaderNarr, avgLeagueGfPer, avgLeagueGaPer,
-    sortedByGfR, sortedByGaR, attackScore, defenseScore,
+    attackScore, defenseScore,
     attackPower, defPower,
     goalScore, tempoScore, compScore, surpriseScore,
     mostGoals, bestDef, mostTempo, bestWinRate, surpriseTeam, liderTags,
@@ -188,6 +186,10 @@ export default function LeaguesScreen() {
           </TouchableOpacity>
         ))}
       </View>
+
+      {refreshing && !loading && (
+        <RefreshStatusBar message="Lig verileri yenileniyor..." />
+      )}
 
       <ScrollView
         style={styles.scroll}

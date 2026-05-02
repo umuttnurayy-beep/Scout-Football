@@ -8,22 +8,23 @@ import {
 } from 'react-native';
 import BottomTabBar from '../components/BottomTabBar';
 import EmptyStateCard from '../components/EmptyStateCard';
+import RefreshStatusBar from '../components/RefreshStatusBar';
 import { SkeletonMatchCard, SkeletonSectionHeader } from '../components/SkeletonLoader';
 import { useTheme } from '../context/ThemeContext';
 import {
-  FDMatch, H2HRawItem, HomeData, SLMatch, checkBackendHealth, clearLastApiError, getAllSportsH2H, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, Standing,
+  H2HRawItem, HomeData, checkBackendHealth, clearLastApiError, getAllSportsH2H, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, Standing,
 } from '../services/api';
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
 import { dataNoticeMessage, matchListEmptyMessage, summarizeSourceWarnings } from '../utils/emptyStates';
 import {
   FeaturedMatchCache, ListItem, Match, Metrics,
-  STANDINGS_LEAGUES, SUPPORTED_LEAGUES,
+  STANDINGS_LEAGUES,
   buildDaySummary, buildNextPreviewFromHomeData, buildVisibleMatches,
   computeMetrics, confidenceText, expectedLine, favoriteText,
   findStanding, hasUsableStandingsMap, levelFromExpectedGoals,
-  mapMatch, mapSLMatch, marqueeBonus, NO_DATA,
-  rankMatchesWithMetrics, readH2HMatch, riskFromMetrics,
-  scoutScore, selectPreviewMatch, singleMatchScoutText, timeToMins, trendBarPercent,
+  NO_DATA,
+  readH2HMatch, riskFromMetrics,
+  scoutScore, selectPreviewMatch, singleMatchScoutText, trendBarPercent,
   uniqueLeagueIds,
 } from '../utils/matchMetrics';
 
@@ -32,6 +33,7 @@ import {
 const STANDINGS_CACHE_KEY = 'scout_standings_cache_v5';
 const FEATURED_MATCH_CACHE_KEY = 'scout_featured_match_cache_v1';
 const HOME_DATA_CACHE_KEY = 'scout_home_data_cache_v1';
+type HomeDataNotice = 'stale' | 'cache' | 'warning' | 'error';
 
 const LIG_FILTERS = [
   { label: 'Premier Lig', id: 2021 },
@@ -247,23 +249,26 @@ function EmptyActionCard({
   );
 }
 
-function DataNoticeCard({ type, message, onRetry }: { type: 'stale' | 'warning' | 'error'; message?: string | null; onRetry?: () => void }) {
+function DataNoticeCard({ type, message, onRetry }: { type: HomeDataNotice; message?: string | null; onRetry?: () => void }) {
   const { colors: c, isDark } = useTheme();
   const isStale = type === 'stale';
+  const isCache = type === 'cache';
   const isWarning = type === 'warning';
-  const accentColor = isStale ? c.primary : isWarning ? '#E3B341' : '#E16F3D';
+  const accentColor = isStale ? c.primary : isCache ? '#8B949E' : isWarning ? '#E3B341' : '#E16F3D';
   const backgroundColor = isDark
-    ? isWarning ? '#2A2416' : type === 'error' ? '#2B1F1A' : '#18202A'
-    : isWarning ? '#FFF7E5' : type === 'error' ? '#FFF1EC' : '#F3F7FC';
+    ? isWarning ? '#2A2416' : type === 'error' ? '#2B1F1A' : isCache ? '#1C2128' : '#18202A'
+    : isWarning ? '#FFF7E5' : type === 'error' ? '#FFF1EC' : isCache ? '#F1F3F5' : '#F3F7FC';
   const borderColor = isWarning
     ? (isDark ? '#6E5A1F' : '#F3D07B')
     : type === 'error'
       ? (isDark ? '#7B4A37' : '#F2B39A')
+      : isCache
+        ? c.border
       : c.cardBorder;
   return (
     <View style={[sc.noticeCard, { backgroundColor, borderColor }]}>
       <Ionicons
-        name={isStale ? 'time-outline' : isWarning ? 'alert-circle-outline' : 'cloud-offline-outline'}
+        name={isStale ? 'time-outline' : isCache ? 'archive-outline' : isWarning ? 'alert-circle-outline' : 'cloud-offline-outline'}
         size={18}
         color={accentColor}
       />
@@ -431,7 +436,7 @@ export default function HomeScreen() {
   const [singleH2H, setSingleH2H] = useState<H2HRawItem[]>([]);
   const [featuredMatchCache, setFeaturedMatchCache] = useState<FeaturedMatchCache>({});
   const [backendFeaturedMatchId, setBackendFeaturedMatchId] = useState<number | null>(null);
-  const [homeDataNotice, setHomeDataNotice] = useState<'stale' | 'warning' | 'error' | null>(null);
+  const [homeDataNotice, setHomeDataNotice] = useState<HomeDataNotice | null>(null);
   const [homeDataWarningText, setHomeDataWarningText] = useState<string | null>(null);
   const [loading, setLoading]           = useState(true);
   const [refreshing, setRefreshing]     = useState(false);
@@ -518,9 +523,11 @@ export default function HomeScreen() {
     }
     try {
       const dateStr = formatDateParam(date);
+      clearLastApiError();
       const homeData = await getHomeData(dateStr);
       if (homeData) {
         if (requestId !== loadSeq.current) return;
+        setBackendOffline(false);
         applyHomeData(dateStr, homeData, {
           notice: homeData.stale ? 'stale' : homeData.sourceSeverity ?? null,
           persist: true,
@@ -528,6 +535,8 @@ export default function HomeScreen() {
         return;
       }
 
+      const homeRequestError = getLastApiError();
+      if (homeRequestError) setBackendOffline(true);
       setBackendFeaturedMatchId(null);
       setHomeDataNotice('error');
       setHomeDataWarningText(null);
@@ -536,7 +545,7 @@ export default function HomeScreen() {
         if (rawHome) {
           const cachedHome = JSON.parse(rawHome);
           if (requestId !== loadSeq.current) return;
-          applyHomeData(dateStr, cachedHome, { notice: 'stale' });
+          applyHomeData(dateStr, cachedHome, { notice: 'cache' });
           return;
         }
       } catch {}
@@ -562,7 +571,7 @@ export default function HomeScreen() {
   function applyHomeData(
     dateStr: string,
     homeData: HomeData,
-    options: { notice: 'stale' | 'warning' | 'error' | null; persist?: boolean },
+    options: { notice: HomeDataNotice | null; persist?: boolean },
   ) {
     const homeStandings = homeData.standings || {};
     const visible = buildVisibleMatches(homeData.matches || [], homeData.superLigMatches || []);
@@ -571,7 +580,7 @@ export default function HomeScreen() {
     setBackendFeaturedMatchId(homeData.featuredMatchId ?? null);
     setHomeDataNotice(options.notice);
     setHomeDataWarningText(
-      options.notice && options.notice !== 'stale'
+      options.notice && options.notice !== 'stale' && options.notice !== 'cache'
         ? summarizeSourceWarnings(homeData.sourceWarnings, homeData.sourceSeverity)
         : null,
     );
@@ -984,7 +993,13 @@ export default function HomeScreen() {
   function renderListItem({ item }: { item: ListItem }) {
     switch (item.type) {
       case 'notice':
-        return <DataNoticeCard type={item.notice || 'error'} message={item.warningText} onRetry={item.notice === 'error' ? () => loadMatches(selectedDate) : undefined} />;
+        return (
+          <DataNoticeCard
+            type={item.notice || 'error'}
+            message={item.warningText}
+            onRetry={item.notice === 'error' || item.notice === 'cache' ? () => loadMatches(selectedDate) : undefined}
+          />
+        );
       case 'section-header':
         return (
           <View style={sc.sectionHeader}>
@@ -1061,7 +1076,7 @@ export default function HomeScreen() {
         <View style={[styles.offlineBanner, { backgroundColor: isDark ? '#2B1F1A' : '#FFF1EC', borderColor: isDark ? '#7B4A37' : '#F2B39A' }]}>
           <Ionicons name="cloud-offline-outline" size={14} color="#E16F3D" />
           <Text style={[styles.offlineBannerText, { color: isDark ? '#F5A07A' : '#A84324' }]}>
-            Sunucuya ulaşılamıyor — veriler son cache'ten yükleniyor
+            Sunucuya ulaşılamıyor — veriler son cache&apos;ten yükleniyor
           </Text>
           <TouchableOpacity onPress={() => checkBackendHealth().then(ok => setBackendOffline(!ok))}>
             <Text style={[styles.offlineRetry, { color: '#E16F3D' }]}>Yenile</Text>
@@ -1110,10 +1125,7 @@ export default function HomeScreen() {
       </ScrollView>
 
       {refreshing && !loading && (
-        <View style={[styles.updateBar, { backgroundColor: c.surface, borderBottomColor: c.borderLight }]}>
-          <ActivityIndicator size="small" color={c.primary} />
-          <Text style={[styles.updateText, { color: c.textSub }]}>Veriler yenileniyor...</Text>
-        </View>
+        <RefreshStatusBar />
       )}
 
       {loading ? (
@@ -1150,44 +1162,41 @@ export default function HomeScreen() {
 // ─── styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container:          { flex: 1, backgroundColor: '#F8F9FB' },
+  container:          { flex: 1 },
   offlineBanner:      { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 7, borderBottomWidth: 1 },
   offlineBannerText:  { flex: 1, fontSize: 12 },
   offlineRetry:       { fontSize: 12, fontWeight: '700' },
-  topbar:             { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingTop: 52, paddingBottom: 8, backgroundColor: '#fff' },
+  topbar:             { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingTop: 52, paddingBottom: 8 },
   headerBrand:        { flexDirection: 'row', alignItems: 'center', gap: 6 },
   headerLogo:         { width: 42, height: 42, resizeMode: 'contain' },
   appName:            { fontSize: 16, fontWeight: '600', color: '#00BAFF' },
   appNameBlue:        { color: '#2563EB' },
   refreshContent:     { minHeight: 28, flexDirection: 'row', alignItems: 'center', gap: 6 },
   refreshBtn:         { fontSize: 13, color: '#185FA5' },
-  dateRow:            { borderBottomWidth: 0.5, borderBottomColor: '#eee', flexGrow: 0, backgroundColor: '#fff' },
+  dateRow:            { borderBottomWidth: 0.5, flexGrow: 0 },
   datePill:           { alignItems: 'center', paddingHorizontal: 10, paddingVertical: 8, marginRight: 6, borderRadius: 10, borderWidth: 0.5, borderColor: '#eee', minWidth: 52 },
   datePillActive:     { backgroundColor: '#185FA5', borderColor: '#185FA5' },
-  dateDayName:        { fontSize: 11, color: '#888', marginBottom: 4 },
+  dateDayName:        { fontSize: 11, marginBottom: 4 },
   dateDayNameActive:  { color: '#fff' },
-  dateNum:            { fontSize: 18, fontWeight: '500', color: '#111' },
+  dateNum:            { fontSize: 18, fontWeight: '500' },
   dateNumActive:      { color: '#fff' },
-  filterRow:          { maxHeight: 46, flexGrow: 0, backgroundColor: '#fff', borderBottomWidth: 0.5, borderBottomColor: '#f0f0f0' },
+  filterRow:          { maxHeight: 46, flexGrow: 0, borderBottomWidth: 0.5 },
   filterPill:         { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 0.5, borderColor: '#ccc' },
   filterPillActive:   { backgroundColor: '#185FA5', borderColor: '#185FA5' },
-  filterText:         { fontSize: 13, color: '#666' },
+  filterText:         { fontSize: 13 },
   filterTextActive:   { color: '#fff', fontWeight: '500' },
   scoutPill:          { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, borderColor: '#185FA5' },
   scoutPillActive:    { backgroundColor: '#0C447C', borderColor: '#0C447C' },
   scoutPillText:      { fontSize: 13, color: '#185FA5', fontWeight: '700' },
   scoutPillTextActive:{ color: '#fff' },
   scroll:             { flex: 1 },
-  updateBar:          { minHeight: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderBottomWidth: 0.5 },
-  updateText:         { fontSize: 12, fontWeight: '500' },
   loadingArea:        { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  emptyText:          { textAlign: 'center', color: '#888', marginTop: 40, fontSize: 13 },
 });
 
 const sc = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingTop: 16, paddingBottom: 8 },
-  sectionTitle:  { fontSize: 11, color: '#888', fontWeight: '700', letterSpacing: 0.6 },
-  sectionSub:    { fontSize: 10, color: '#bbb' },
+  sectionTitle:  { fontSize: 11, fontWeight: '700', letterSpacing: 0.6 },
+  sectionSub:    { fontSize: 10 },
 
   heroCard:      { backgroundColor: '#0C447C', borderRadius: 16, padding: 16 },
   heroTop:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
@@ -1253,30 +1262,30 @@ const sc = StyleSheet.create({
   emptyNote:      { marginHorizontal: 14, marginBottom: 10, borderRadius: 12, borderWidth: 1, padding: 14 },
   emptyNoteText:  { fontSize: 13, lineHeight: 19, marginTop: 9 },
 
-  hlCard:        { marginHorizontal: 14, marginBottom: 8, backgroundColor: '#fff', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#E4EEF8', borderLeftWidth: 3 },
+  hlCard:        { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, padding: 14, borderWidth: 1, borderLeftWidth: 3 },
   hlTop:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   hlRank:        { fontSize: 11, fontWeight: '700' },
-  hlLeague:      { fontSize: 11, color: '#aaa' },
+  hlLeague:      { fontSize: 11 },
   hlTeams:       { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  hlTeam:        { flex: 1, fontSize: 14, fontWeight: '600', color: '#111' },
-  hlTime:        { fontSize: 14, fontWeight: '700', color: '#333', paddingHorizontal: 8 },
-  hlMetric:      { fontSize: 13, fontWeight: '600', color: '#0C447C', marginBottom: 4 },
-  hlSummary:     { fontSize: 12, color: '#555', lineHeight: 17, marginTop: 2 },
+  hlTeam:        { flex: 1, fontSize: 14, fontWeight: '600' },
+  hlTime:        { fontSize: 14, fontWeight: '700', paddingHorizontal: 8 },
+  hlMetric:      { fontSize: 13, fontWeight: '600', marginBottom: 4 },
+  hlSummary:     { fontSize: 12, lineHeight: 17, marginTop: 2 },
 
-  daySummary:      { marginHorizontal: 14, marginTop: 4, marginBottom: 4, padding: 14, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#E4EEF8' },
-  daySummaryTitle: { fontSize: 11, color: '#185FA5', fontWeight: '700', letterSpacing: 0.4, marginBottom: 6 },
-  daySummaryText:  { fontSize: 13, color: '#333', lineHeight: 19 },
+  daySummary:      { marginHorizontal: 14, marginTop: 4, marginBottom: 4, padding: 14, borderRadius: 12, borderWidth: 1 },
+  daySummaryTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, marginBottom: 6 },
+  daySummaryText:  { fontSize: 13, lineHeight: 19 },
 
-  matchCard:     { marginHorizontal: 14, marginBottom: 8, backgroundColor: '#fff', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#EBEBEB', elevation: 1, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
+  matchCard:     { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, padding: 14, borderWidth: 1, elevation: 1, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
   matchTop:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  matchLeague:   { fontSize: 11, color: '#185FA5', fontWeight: '600' },
-  matchTime:     { fontSize: 12, color: '#444', fontWeight: '600' },
+  matchLeague:   { fontSize: 11, fontWeight: '600' },
+  matchTime:     { fontSize: 12, fontWeight: '600' },
   scoreRow:      { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  scoreText:     { fontSize: 13, fontWeight: '700', color: '#111' },
-  scoreMs:       { fontSize: 10, color: '#aaa' },
+  scoreText:     { fontSize: 13, fontWeight: '700' },
+  scoreMs:       { fontSize: 10 },
   matchTeams:    { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  matchTeam:     { flex: 1, fontSize: 14, fontWeight: '600', color: '#111' },
-  matchSep:      { paddingHorizontal: 8, color: '#ccc', fontSize: 14 },
-  matchMetricLine:      { fontSize: 12, color: '#0C447C', marginTop: 4 },
-  matchMetricLineMuted: { fontSize: 11, color: '#aaa', marginTop: 4, fontStyle: 'italic' },
+  matchTeam:     { flex: 1, fontSize: 14, fontWeight: '600' },
+  matchSep:      { paddingHorizontal: 8, fontSize: 14 },
+  matchMetricLine:      { fontSize: 12, marginTop: 4 },
+  matchMetricLineMuted: { fontSize: 11, marginTop: 4, fontStyle: 'italic' },
 });

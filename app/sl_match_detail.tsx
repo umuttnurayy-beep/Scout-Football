@@ -779,8 +779,8 @@ export default function SLMatchDetail() {
         ) : (
           <DetailDataNotice
             message={detailDataMessage('performance', hasFormIssue ? 'sourceError' : 'empty')}
-            boxStyle={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}
-            textStyle={[styles.noDataText, { color: c.textSub }]}
+            boxStyle={styles.noDataBox}
+            textStyle={styles.noDataText}
           />
         )}
 
@@ -808,9 +808,9 @@ export default function SLMatchDetail() {
             {/* Son Form — sadece gerçek form verisi varsa göster */}
             {hasRealFormData && (
               <>
-            <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SON FORM  (İ = İç Saha · D = Deplasman)</Text>
-            <FormHeatRowSL matches={homeForm} teamId={homeTeamId} label={home}/>
-            <FormHeatRowSL matches={awayForm} teamId={awayTeamId}  label={away}/>
+                <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SON FORM  (İ = İç Saha · D = Deplasman)</Text>
+                <FormHeatRowSL matches={homeForm} teamId={homeTeamId} label={home}/>
+                <FormHeatRowSL matches={awayForm} teamId={awayTeamId}  label={away}/>
               </>
             )}
             {(homeTrend || awayTrend) && (() => {
@@ -836,8 +836,8 @@ export default function SLMatchDetail() {
         ) : (
           <DetailDataNotice
             message={detailDataMessage('comparison', hasFormIssue ? 'sourceError' : 'empty')}
-            boxStyle={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}
-            textStyle={[styles.noDataText, { color: c.textSub }]}
+            boxStyle={styles.noDataBox}
+            textStyle={styles.noDataText}
           />
         )}
 
@@ -852,8 +852,8 @@ export default function SLMatchDetail() {
             ) : (
               <DetailDataNotice
                 message={detailDataMessage('homeAway', hasFormIssue ? 'sourceError' : 'empty')}
-                boxStyle={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}
-                textStyle={[styles.noDataText, { color: c.textSub }]}
+                boxStyle={styles.noDataBox}
+                textStyle={styles.noDataText}
               />
             )}
           </>
@@ -900,8 +900,8 @@ export default function SLMatchDetail() {
             <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SCOUT TAHMİNİ</Text>
             <DetailDataNotice
               message={detailDataMessage('prediction', hasFormIssue ? 'sourceError' : 'empty')}
-              boxStyle={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}
-              textStyle={[styles.noDataText, { color: c.textSub }]}
+              boxStyle={styles.noDataBox}
+              textStyle={styles.noDataText}
             />
           </>
         )}
@@ -941,8 +941,8 @@ export default function SLMatchDetail() {
         ) : (
           <DetailDataNotice
             message={secondaryLoading ? 'Hava durumu yükleniyor...' : detailDataMessage('weather', hasWeatherIssue ? 'sourceError' : 'empty')}
-            boxStyle={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}
-            textStyle={[styles.noDataText, { color: c.textSub }]}
+            boxStyle={styles.noDataBox}
+            textStyle={styles.noDataText}
           />
         )}
 
@@ -973,8 +973,8 @@ export default function SLMatchDetail() {
         ) : (
           <DetailDataNotice
             message="Hakem bilgisi maç başlamadan önce yayınlanmayabilir."
-            boxStyle={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}
-            textStyle={[styles.noDataText, { color: c.textSub }]}
+            boxStyle={styles.noDataBox}
+            textStyle={styles.noDataText}
           />
         )}
 
@@ -1005,8 +1005,8 @@ export default function SLMatchDetail() {
         {h2hData.length === 0 ? (
           <DetailDataNotice
             message={secondaryLoading ? 'H2H verisi yükleniyor...' : detailDataMessage('h2h', hasH2HIssue ? 'sourceError' : 'empty')}
-            boxStyle={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}
-            textStyle={[styles.noDataText, { color: c.textSub }]}
+            boxStyle={styles.noDataBox}
+            textStyle={styles.noDataText}
           />
         ) : (
           <>
@@ -1057,8 +1057,8 @@ export default function SLMatchDetail() {
         ) : (
           <DetailDataNotice
             message="Bu maçta belirgin bir motivasyon faktörü tespit edilmedi."
-            boxStyle={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}
-            textStyle={[styles.noDataText, { color: c.textSub }]}
+            boxStyle={styles.noDataBox}
+            textStyle={styles.noDataText}
           />
         )}
 
@@ -1082,8 +1082,8 @@ export default function SLMatchDetail() {
         ) : (
           <DetailDataNotice
             message={detailDataMessage('character', hasFormIssue ? 'sourceError' : 'empty')}
-            boxStyle={[styles.noDataBox, { backgroundColor: c.surfaceAlt }]}
-            textStyle={[styles.noDataText, { color: c.textSub }]}
+            boxStyle={styles.noDataBox}
+            textStyle={styles.noDataText}
           />
         )}
 
@@ -1109,98 +1109,98 @@ export default function SLMatchDetail() {
 // ── Styles ─────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container:          { flex:1, backgroundColor:'#fff' },
+  container:          { flex:1 },
   loaderContainer:    { flex:1, justifyContent:'center', alignItems:'center' },
-  topbar:             { flexDirection:'row', alignItems:'center', justifyContent:'space-between', paddingHorizontal:14, paddingTop:52, paddingBottom:10, borderBottomWidth:0.5, borderBottomColor:'#eee' },
-  backBtn:            { fontSize:16, color:'#185FA5', fontWeight:'500' },
+  topbar:             { flexDirection:'row', alignItems:'center', justifyContent:'space-between', paddingHorizontal:14, paddingTop:52, paddingBottom:10, borderBottomWidth:0.5 },
+  backBtn:            { fontSize:16, fontWeight:'500' },
   topbarCenter:       { flex:1, flexDirection:'row', alignItems:'center', justifyContent:'center', gap:6 },
   headerLogo:         { width:28, height:28, resizeMode:'contain' },
-  topbarTitle:        { fontSize:13, fontWeight:'500', color:'#111', textAlign:'center', maxWidth:200 },
-  topbarSub:          { fontSize:11, color:'#888', textAlign:'center' },
-  hero:               { padding:16, borderBottomWidth:0.5, borderBottomColor:'#eee' },
+  topbarTitle:        { fontSize:13, fontWeight:'500', textAlign:'center', maxWidth:200 },
+  topbarSub:          { fontSize:11, textAlign:'center' },
+  hero:               { padding:16, borderBottomWidth:0.5 },
   teamsRow:           { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:10 },
-  teamNameLeft:       { fontSize:13, fontWeight:'500', color:'#111', flex:1 },
-  teamNameRight:      { fontSize:13, fontWeight:'500', color:'#111', flex:1, textAlign:'right' },
+  teamNameLeft:       { fontSize:13, fontWeight:'500', flex:1 },
+  teamNameRight:      { fontSize:13, fontWeight:'500', flex:1, textAlign:'right' },
   vsBlock:            { alignItems:'center', paddingHorizontal:10 },
-  vsScore:            { fontSize:24, fontWeight:'600', color:'#111' },
-  vsStatusLabel:      { fontSize:10, color:'#888', marginTop:2, fontWeight:'500' },
-  vsTime:             { fontSize:20, fontWeight:'500', color:'#111' },
-  vsLabel:            { fontSize:11, color:'#888', marginTop:2 },
+  vsScore:            { fontSize:24, fontWeight:'600' },
+  vsStatusLabel:      { fontSize:10, marginTop:2, fontWeight:'500' },
+  vsTime:             { fontSize:20, fontWeight:'500' },
+  vsLabel:            { fontSize:11, marginTop:2 },
   heroBadgeRow:       { flexDirection:'row', justifyContent:'center', gap:8, marginBottom:6 },
-  badgeLiga:          { backgroundColor:'#E6F1FB', borderRadius:20, paddingHorizontal:10, paddingVertical:3 },
-  badgeLigaText:      { fontSize:11, color:'#0C447C' },
+  badgeLiga:          { borderRadius:20, paddingHorizontal:10, paddingVertical:3 },
+  badgeLigaText:      { fontSize:11 },
   confidenceBadge:    { borderRadius:20, paddingHorizontal:10, paddingVertical:3 },
   confidenceBadgeText:{ fontSize:11, fontWeight:'600' },
-  venueText:          { fontSize:11, color:'#888', textAlign:'center', marginTop:4 },
+  venueText:          { fontSize:11, textAlign:'center', marginTop:4 },
   limitedDataBanner:  { marginHorizontal:14, marginTop:10, marginBottom:2, padding:10, borderRadius:8, borderWidth:1 },
   limitedDataText:    { fontSize:12, lineHeight:17 },
   staleRetryBtn:      { marginLeft:10, paddingHorizontal:10, paddingVertical:4, borderRadius:12, borderWidth:1 },
   staleRetryText:     { fontSize:12, fontWeight:'600' },
   scroll:             { flex:1 },
-  sectionLabel:       { fontSize:11, color:'#888', fontWeight:'500', paddingHorizontal:14, paddingTop:14, paddingBottom:6, letterSpacing:0.5 },
-  insightBox:         { marginHorizontal:14, marginBottom:10, padding:11, backgroundColor:'#f4f8ff', borderRadius:8, borderLeftWidth:3, borderLeftColor:'#185FA5', alignSelf:'stretch' },
-  insightText:        { width:'100%', flexShrink:1, flexWrap:'wrap', fontSize:12, color:'#1a3a5c', lineHeight:17 },
+  sectionLabel:       { fontSize:11, fontWeight:'500', paddingHorizontal:14, paddingTop:14, paddingBottom:6, letterSpacing:0.5 },
+  insightBox:         { marginHorizontal:14, marginBottom:10, padding:11, borderRadius:8, borderLeftWidth:3, alignSelf:'stretch' },
+  insightText:        { width:'100%', flexShrink:1, flexWrap:'wrap', fontSize:12, lineHeight:17 },
   radarLegendRow:     { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8, paddingBottom:4 },
   radarDot:           { width:10, height:10, borderRadius:5 },
-  radarLegendText:    { fontSize:11, color:'#555' },
+  radarLegendText:    { fontSize:11 },
   compareHeader:      { flexDirection:'row', paddingHorizontal:14, paddingBottom:6 },
   compareTeam:        { flex:1, fontSize:12, fontWeight:'500' },
-  noDataBox:          { margin:14, padding:16, backgroundColor:'#f8f8f8', borderRadius:10, alignItems:'center' },
-  noDataText:         { fontSize:13, color:'#555', textAlign:'center' },
+  noDataBox:          { margin:14, padding:16, borderRadius:10, alignItems:'center' },
+  noDataText:         { fontSize:13, textAlign:'center' },
   summaryGrid:        { flexDirection:'row', gap:8, paddingHorizontal:14, marginBottom:8 },
-  sumBox:             { flex:1, backgroundColor:'#f8f8f8', borderRadius:8, padding:10, alignItems:'center' },
-  sumVal:             { fontSize:22, fontWeight:'500', color:'#111' },
-  sumLbl:             { fontSize:10, color:'#888', marginTop:2, textAlign:'center' },
-  h2hRow:             { flexDirection:'row', alignItems:'center', justifyContent:'space-between', paddingHorizontal:14, paddingVertical:10, borderBottomWidth:0.5, borderBottomColor:'#eee' },
+  sumBox:             { flex:1, borderRadius:8, padding:10, alignItems:'center' },
+  sumVal:             { fontSize:22, fontWeight:'500' },
+  sumLbl:             { fontSize:10, marginTop:2, textAlign:'center' },
+  h2hRow:             { flexDirection:'row', alignItems:'center', justifyContent:'space-between', paddingHorizontal:14, paddingVertical:10, borderBottomWidth:0.5 },
   h2hLeft:            { flex:1 },
-  h2hDate:            { fontSize:11, color:'#888', marginBottom:2 },
-  h2hTeams:           { fontSize:12, color:'#111' },
-  h2hScore:           { fontSize:16, fontWeight:'500', color:'#111', minWidth:60, textAlign:'right' },
+  h2hDate:            { fontSize:11, marginBottom:2 },
+  h2hTeams:           { fontSize:12 },
+  h2hScore:           { fontSize:16, fontWeight:'500', minWidth:60, textAlign:'right' },
   statLegend:         { flexDirection:'row', justifyContent:'space-between', paddingHorizontal:14, marginBottom:4 },
   legendHome:         { fontSize:11, color:'#185FA5', fontWeight:'500' },
   legendAway:         { fontSize:11, color:'#A32D2D', fontWeight:'500' },
   // Scout odds
-  scoutOddsCard:      { marginHorizontal:14, marginBottom:4, borderRadius:12, borderWidth:1, borderColor:'#C8DAFF', backgroundColor:'#EBF3FF', overflow:'hidden' },
+  scoutOddsCard:      { marginHorizontal:14, marginBottom:4, borderRadius:12, borderWidth:1, overflow:'hidden' },
   scoutOddsHeader:    { flexDirection:'row', justifyContent:'space-between', alignItems:'center', paddingHorizontal:14, paddingTop:12, paddingBottom:8 },
-  scoutOddsTitle:     { fontSize:12, fontWeight:'700', color:'#0C447C' },
-  scoutOddsSub:       { fontSize:10, color:'#6B8CBF' },
+  scoutOddsTitle:     { fontSize:12, fontWeight:'700' },
+  scoutOddsSub:       { fontSize:10 },
   scoutOddsCol:       { flex:1, alignItems:'center', paddingVertical:14, paddingHorizontal:4 },
-  scoutOddsLabel:     { fontSize:10, color:'#888', marginBottom:6, textAlign:'center' },
-  scoutOddsVal:       { fontSize:20, fontWeight:'700', color:'#111', marginBottom:8 },
-  scoutOddsBarWrap:   { width:'80%', height:4, backgroundColor:'#eee', borderRadius:2, overflow:'hidden' },
+  scoutOddsLabel:     { fontSize:10, marginBottom:6, textAlign:'center' },
+  scoutOddsVal:       { fontSize:20, fontWeight:'700', marginBottom:8 },
+  scoutOddsBarWrap:   { width:'80%', height:4, borderRadius:2, overflow:'hidden' },
   scoutOddsBarFill:   { height:'100%', borderRadius:2 },
   // Weather
-  weatherCard:        { margin:14, marginBottom:10, backgroundColor:'#f0f6ff', borderRadius:12, padding:20, alignItems:'center' },
-  weatherCity:        { fontSize:13, color:'#888', marginBottom:4 },
+  weatherCard:        { margin:14, marginBottom:10, borderRadius:12, padding:20, alignItems:'center' },
+  weatherCity:        { fontSize:13, marginBottom:4 },
   weatherIcon:        { fontSize:40, marginBottom:4 },
-  weatherTemp:        { fontSize:32, fontWeight:'500', color:'#111' },
-  weatherDesc:        { fontSize:13, color:'#666', marginBottom:12 },
+  weatherTemp:        { fontSize:32, fontWeight:'500' },
+  weatherDesc:        { fontSize:13, marginBottom:12 },
   weatherBadgeRow:    { flexDirection:'row', gap:8 },
-  weatherBadge:       { backgroundColor:'#fff', borderRadius:20, paddingHorizontal:10, paddingVertical:4 },
-  weatherBadgeText:   { fontSize:11, color:'#555' },
-  impactBadge:        { flex:1, borderWidth:1, borderRadius:8, padding:8, alignItems:'center', backgroundColor:'#fafafa' },
+  weatherBadge:       { borderRadius:20, paddingHorizontal:10, paddingVertical:4 },
+  weatherBadgeText:   { fontSize:11 },
+  impactBadge:        { flex:1, borderWidth:1, borderRadius:8, padding:8, alignItems:'center' },
   impactIcon:         { fontSize:16, marginBottom:2 },
-  impactLabel:        { fontSize:9, color:'#888', marginBottom:2 },
+  impactLabel:        { fontSize:9, marginBottom:2 },
   impactLevel:        { fontSize:11, fontWeight:'700' },
   // Referee
-  refCard:            { marginHorizontal:14, marginBottom:8, backgroundColor:'#f8f8f8', borderRadius:12, padding:14, alignItems:'center' },
+  refCard:            { marginHorizontal:14, marginBottom:8, borderRadius:12, padding:14, alignItems:'center' },
   refIcon:            { fontSize:32, marginBottom:4 },
-  refName:            { fontSize:14, fontWeight:'500', color:'#111', marginBottom:2, textAlign:'center' },
-  refSub:             { fontSize:11, color:'#888' },
+  refName:            { fontSize:14, fontWeight:'500', marginBottom:2, textAlign:'center' },
+  refSub:             { fontSize:11 },
   refTagPill:         { flex:1, borderWidth:1, borderRadius:20, paddingVertical:5, alignItems:'center', justifyContent:'center' },
   refTagText:         { fontSize:11, fontWeight:'600' },
   // Style badges
-  styleBadge:         { flex:1, borderWidth:1.5, borderRadius:10, padding:12, alignItems:'center', backgroundColor:'#fafafa' },
+  styleBadge:         { flex:1, borderWidth:1.5, borderRadius:10, padding:12, alignItems:'center' },
   styleEmoji:         { fontSize:22, marginBottom:4 },
   styleLabel:         { fontSize:13, fontWeight:'700', marginBottom:2, textAlign:'center' },
-  styleTeam:          { fontSize:10, color:'#888', textAlign:'center' },
+  styleTeam:          { fontSize:10, textAlign:'center' },
   // Risk
-  riskBox:            { marginHorizontal:14, marginBottom:10, borderRadius:10, borderWidth:0.5, borderColor:'#eee', overflow:'hidden' },
+  riskBox:            { marginHorizontal:14, marginBottom:10, borderRadius:10, borderWidth:0.5, overflow:'hidden' },
   riskRow:            { flexDirection:'row', alignItems:'flex-start', padding:12, gap:8 },
   riskIcon:           { fontSize:14, marginTop:1 },
-  riskText:           { flex:1, fontSize:12, color:'#333', lineHeight:17 },
-  disclaimerBox:      { marginHorizontal:14, marginBottom:4, padding:12, backgroundColor:'#fff8e1', borderRadius:8, borderWidth:0.5, borderColor:'#ffe082' },
-  disclaimerText:     { fontSize:11, color:'#856404', textAlign:'center', lineHeight:16 },
+  riskText:           { flex:1, fontSize:12, lineHeight:17 },
+  disclaimerBox:      { marginHorizontal:14, marginBottom:4, padding:12, borderRadius:8, borderWidth:0.5 },
+  disclaimerText:     { fontSize:11, textAlign:'center', lineHeight:16 },
 });
 
 const scStyles = scoutStyles;

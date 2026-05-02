@@ -86,9 +86,12 @@ export function staleAnalysisMessage(): string {
   return 'Bazı veri kaynakları şu anda yenilenemedi. Ekrandaki analiz son başarılı verilerle hazırlanıyor; bu yüzden yorumları güncel canlı veri gibi değil, sınırlı kaynak notuyla okumak daha doğru.';
 }
 
-export function dataNoticeMessage(type: 'stale' | 'warning' | 'error'): string {
+export function dataNoticeMessage(type: 'stale' | 'cache' | 'warning' | 'error'): string {
   if (type === 'stale') {
-    return 'Veri kaynağı yenilenemedi; ekranda son başarılı maç verisi gösteriliyor.';
+    return 'Sunucu güncel veriyi hazırlayamadı; ekranda son başarılı sunucu yanıtı gösteriliyor.';
+  }
+  if (type === 'cache') {
+    return 'Sunucuya ulaşılamadı; ekranda bu cihazdaki son kayıtlı maç verisi gösteriliyor.';
   }
   if (type === 'warning') {
     return 'Bazı yardımcı veri kaynakları sınırlı çalışıyor; ana maç listesi mevcut ama bazı karşılaştırmalar eksik olabilir.';
