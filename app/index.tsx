@@ -11,7 +11,7 @@ import EmptyStateCard from '../components/EmptyStateCard';
 import { SkeletonMatchCard, SkeletonSectionHeader } from '../components/SkeletonLoader';
 import { useTheme } from '../context/ThemeContext';
 import {
-  FDMatch, H2HRawItem, HomeData, SLMatch, clearLastApiError, getAllSportsH2H, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, Standing,
+  FDMatch, H2HRawItem, HomeData, SLMatch, checkBackendHealth, clearLastApiError, getAllSportsH2H, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, Standing,
 } from '../services/api';
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
 import { dataNoticeMessage, matchListEmptyMessage, summarizeSourceWarnings } from '../utils/emptyStates';
@@ -435,6 +435,7 @@ export default function HomeScreen() {
   const [homeDataWarningText, setHomeDataWarningText] = useState<string | null>(null);
   const [loading, setLoading]           = useState(true);
   const [refreshing, setRefreshing]     = useState(false);
+  const [backendOffline, setBackendOffline] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const dateList          = getDateList();
   const initialFocusDone  = useRef(false);
@@ -446,6 +447,10 @@ export default function HomeScreen() {
         if (raw) setFeaturedMatchCache(JSON.parse(raw));
       })
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    checkBackendHealth().then(ok => setBackendOffline(!ok));
   }, []);
 
   useEffect(() => {
@@ -1051,6 +1056,19 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Backend offline banner */}
+      {backendOffline && (
+        <View style={[styles.offlineBanner, { backgroundColor: isDark ? '#2B1F1A' : '#FFF1EC', borderColor: isDark ? '#7B4A37' : '#F2B39A' }]}>
+          <Ionicons name="cloud-offline-outline" size={14} color="#E16F3D" />
+          <Text style={[styles.offlineBannerText, { color: isDark ? '#F5A07A' : '#A84324' }]}>
+            Sunucuya ulaşılamıyor — veriler son cache'ten yükleniyor
+          </Text>
+          <TouchableOpacity onPress={() => checkBackendHealth().then(ok => setBackendOffline(!ok))}>
+            <Text style={[styles.offlineRetry, { color: '#E16F3D' }]}>Yenile</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Tarih şeridi */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false}
         style={[styles.dateRow, { backgroundColor: c.surface, borderBottomColor: c.border }]}
@@ -1133,6 +1151,9 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container:          { flex: 1, backgroundColor: '#F8F9FB' },
+  offlineBanner:      { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 7, borderBottomWidth: 1 },
+  offlineBannerText:  { flex: 1, fontSize: 12 },
+  offlineRetry:       { fontSize: 12, fontWeight: '700' },
   topbar:             { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingTop: 52, paddingBottom: 8, backgroundColor: '#fff' },
   headerBrand:        { flexDirection: 'row', alignItems: 'center', gap: 6 },
   headerLogo:         { width: 42, height: 42, resizeMode: 'contain' },

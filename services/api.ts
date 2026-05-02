@@ -314,6 +314,18 @@ function standingsOrEmpty(value: unknown): Standing[] {
   return arrayOrEmpty<unknown>(value).filter(isStanding);
 }
 
+export async function checkBackendHealth(): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5_000);
+    const res = await fetch(`${BASE_URL}/health`, { signal: controller.signal });
+    clearTimeout(timer);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function getStandings(leagueId: number): Promise<Standing[]> {
   try {
     const fdId = LEAGUE_MAP[leagueId];
