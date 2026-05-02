@@ -1,4 +1,5 @@
 import { FDMatch, H2HRawItem, HomeData, SLMatch, Standing, getCityForTeam } from '../services/api';
+import { strHash } from './matchAnalysis';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -102,12 +103,6 @@ export type ListItem = {
 export type FeaturedMatchCache = Record<string, number>;
 
 // ─── low-level helpers ────────────────────────────────────────────────────────
-
-export function strHash(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
 
 export function timeToMins(t: string): number {
   const p = t.split(':');
