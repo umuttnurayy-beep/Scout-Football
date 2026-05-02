@@ -470,7 +470,7 @@ export default function TeamStatsScreen() {
               ) : displayForm.length === 0 ? (
                 <Text style={[styles.formNote, { color: c.textMuted }]}>
                   {lacksProviderTeamId
-                    ? 'Bu lig kaynağında takım ID eşleşmesi olmadığı için son form verisi gösterilemiyor.'
+                    ? 'Form verisi bu lig için mevcut değil.'
                     : formDataEmptyMessage()}
                 </Text>
               ) : (
@@ -544,6 +544,10 @@ export default function TeamStatsScreen() {
             {/* SEZON ANALİZİ — Gol beklentileri görsel bar + özel durumlar */}
             {loadingForm && !activeSeasonStats ? (
               <ActivityIndicator color={c.primary} style={{ margin: 14 }} />
+            ) : !activeSeasonStats && lacksProviderTeamId ? (
+              <Text style={[styles.formNote, { color: c.textFaint, paddingHorizontal: 14, paddingBottom: 8 }]}>
+                Sezon analizi bu lig için mevcut değil.
+              </Text>
             ) : activeSeasonStats ? (
               <>
                 <Text style={[styles.sectionLabel, { color: c.textMuted }]}>
