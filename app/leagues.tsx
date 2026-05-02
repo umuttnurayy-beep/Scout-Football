@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import BottomTabBar from '../components/BottomTabBar';
 import EmptyStateCard from '../components/EmptyStateCard';
@@ -129,8 +129,13 @@ export default function LeaguesScreen() {
     }
   }
 
-  const retryStandings = () => loadStandings(activeLeague.apiId);
-  const retryKnockouts = () => loadKnockouts();
+  const retryStandings = useCallback(() => loadStandings(activeLeague.apiId), [activeLeague.apiId]);
+  const retryKnockouts = useCallback(() => loadKnockouts(), []);
+
+  const groupedTies = useMemo(
+    () => knockouts ? groupTies(knockouts[activeStage] || []) : [],
+    [knockouts, activeStage],
+  );
 
   const {
     totalGames, totalGoals, avgGoals, leader, leaderGap, drawRate,
@@ -139,7 +144,7 @@ export default function LeaguesScreen() {
     attackPower, defPower,
     goalScore, tempoScore, compScore, surpriseScore,
     mostGoals, bestDef, mostTempo, bestWinRate, surpriseTeam, liderTags,
-  } = computeLeagueStats(standings, isDark);
+  } = useMemo(() => computeLeagueStats(standings, isDark), [standings, isDark]);
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
@@ -460,7 +465,7 @@ export default function LeaguesScreen() {
                         <EmptyStateCard icon="🏆" title="Bu tura ait veri bulunamadı" onRetry={retryKnockouts} />
                       </View>
                     ) : (
-                      groupTies(knockouts[activeStage] || []).map((tie, i) => (
+                      groupedTies.map((tie, i) => (
                         <TieCard key={i} tie={tie} isFinal={activeStage === 'FINAL'} />
                       ))
                     )}
