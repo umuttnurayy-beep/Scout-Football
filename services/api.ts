@@ -15,6 +15,14 @@ import { isStaleApiData, logApiError, readApiJson, recordContextFallback } from 
 
 const BASE_URL = API_BASE_URL;
 
+const FETCH_TIMEOUT_MS = 12_000;
+
+function fetchWithTimeout(url: string, opts?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
 const LEAGUE_MAP: Record<number, number> = {
   39: 2021,
   140: 2014,
@@ -310,7 +318,7 @@ export async function getStandings(leagueId: number): Promise<Standing[]> {
   try {
     const fdId = LEAGUE_MAP[leagueId];
     if (!fdId) return [];
-    const res = await fetch(`${BASE_URL}/standings/${fdId}`);
+    const res = await fetchWithTimeout(`${BASE_URL}/standings/${fdId}`);
     const data = await readApiJson<Standing[]>(res, []);
     return standingsOrEmpty(data);
   } catch (e) {
@@ -322,7 +330,7 @@ export async function getStandings(leagueId: number): Promise<Standing[]> {
 export async function getTodayMatches(date?: string): Promise<FDMatch[]> {
   try {
     const url = date ? `${BASE_URL}/matches?date=${date}` : `${BASE_URL}/matches`;
-    const res = await fetch(url);
+    const res = await fetchWithTimeout(url);
     const data = await readApiJson<FDMatch[]>(res, []);
     return arrayOrEmpty<FDMatch>(data);
   } catch (e) {
@@ -333,7 +341,7 @@ export async function getTodayMatches(date?: string): Promise<FDMatch[]> {
 
 export async function getHomeData(date: string): Promise<HomeData | null> {
   try {
-    const res = await fetch(`${BASE_URL}/home?date=${encodeURIComponent(date)}`);
+    const res = await fetchWithTimeout(`${BASE_URL}/home?date=${encodeURIComponent(date)}`);
     const data = await readApiJson<HomeData | null>(res, null);
     if (!data || !Array.isArray(data.matches) || !Array.isArray(data.superLigMatches)) return null;
     return {
@@ -355,7 +363,7 @@ export async function getHomeData(date: string): Promise<HomeData | null> {
 
 export async function getMatchStats(matchId: string): Promise<FDMatchDetail | null> {
   try {
-    const res = await fetch(`${BASE_URL}/match/${matchId}`);
+    const res = await fetchWithTimeout(`${BASE_URL}/match/${matchId}`);
     const data = await readApiJson<FDMatchDetail | null>(res, null);
     return data || null;
   } catch (e) {
@@ -376,7 +384,7 @@ export type MatchContextData = {
 export async function getMatchContext(matchId: string, isFinished?: boolean): Promise<MatchContextData | null> {
   try {
     const url = isFinished ? `${BASE_URL}/match/${matchId}/context?finished=1` : `${BASE_URL}/match/${matchId}/context`;
-    const res = await fetch(url);
+    const res = await fetchWithTimeout(url);
     const data = await readApiJson<MatchContextData | null>(res, null);
     if (!data || !data.match) return null;
     return {
@@ -395,7 +403,7 @@ export async function getMatchContext(matchId: string, isFinished?: boolean): Pr
 export async function getH2H(matchId: string, isFinished?: boolean): Promise<FDMatch[]> {
   try {
     const url = isFinished ? `${BASE_URL}/h2h/${matchId}?finished=1` : `${BASE_URL}/h2h/${matchId}`;
-    const res = await fetch(url);
+    const res = await fetchWithTimeout(url);
     const data = await readApiJson<FDMatch[]>(res, []);
     return arrayOrEmpty<FDMatch>(data);
   } catch (e) {
@@ -406,7 +414,7 @@ export async function getH2H(matchId: string, isFinished?: boolean): Promise<FDM
 
 export async function getTeamForm(teamId: number): Promise<FDMatch[]> {
   try {
-    const res = await fetch(`${BASE_URL}/team/${teamId}/matches`);
+    const res = await fetchWithTimeout(`${BASE_URL}/team/${teamId}/matches`);
     const data = await readApiJson<FDMatch[]>(res, []);
     return arrayOrEmpty<FDMatch>(data);
   } catch (e) {
@@ -417,7 +425,7 @@ export async function getTeamForm(teamId: number): Promise<FDMatch[]> {
 
 export async function getWeather(city: string): Promise<WeatherData | null> {
   try {
-    const res = await fetch(`${BASE_URL}/weather?city=${encodeURIComponent(city)}`);
+    const res = await fetchWithTimeout(`${BASE_URL}/weather?city=${encodeURIComponent(city)}`);
     const data = await readApiJson<WeatherData | null>(res, null);
     return data || null;
   } catch (e) {
@@ -443,7 +451,7 @@ export async function getOdds(homeTeam: string, awayTeam: string, leagueApiId: n
       }
     } catch (_) {}
 
-    const res = await fetch(`${BASE_URL}/odds?sport=${sport}`);
+    const res = await fetchWithTimeout(`${BASE_URL}/odds?sport=${sport}`);
     type OddsOutcome = { name: string; price: number };
     type OddsMarket = { key: string; outcomes: OddsOutcome[] };
     type OddsBookmaker = { markets?: OddsMarket[] };
@@ -508,7 +516,7 @@ export type FDTeamData = {
 
 export async function getTopScorers(leagueId: number): Promise<FDScorer[]> {
   try {
-    const res = await fetch(`${BASE_URL}/scorers/${leagueId}`);
+    const res = await fetchWithTimeout(`${BASE_URL}/scorers/${leagueId}`);
     const data = await readApiJson<FDScorer[]>(res, []);
     return arrayOrEmpty<FDScorer>(data);
   } catch (e) {
@@ -519,7 +527,7 @@ export async function getTopScorers(leagueId: number): Promise<FDScorer[]> {
 
 export async function getFdTeamData(teamId: number): Promise<FDTeamData | null> {
   try {
-    const res = await fetch(`${BASE_URL}/team/${teamId}`);
+    const res = await fetchWithTimeout(`${BASE_URL}/team/${teamId}`);
     const data = await readApiJson<FDTeamData | null>(res, null);
     return data || null;
   } catch (e) {
@@ -532,7 +540,7 @@ export type UCLKnockouts = Record<string, FDMatch[]>;
 
 export async function getUclKnockouts(season = CURRENT_FOOTBALL_SEASON): Promise<UCLKnockouts | null> {
   try {
-    const res = await fetch(`${BASE_URL}/ucl/knockouts?season=${season}`);
+    const res = await fetchWithTimeout(`${BASE_URL}/ucl/knockouts?season=${season}`);
     return await readApiJson<UCLKnockouts | null>(res, null) || null;
   } catch (e) {
     logApiError('getUclKnockouts', e);
@@ -542,7 +550,7 @@ export async function getUclKnockouts(season = CURRENT_FOOTBALL_SEASON): Promise
 
 export async function getAllSportsTeamStats(teamName: string): Promise<AllSportsTeamStats | null> {
   try {
-    const res = await fetch(`${BASE_URL}/allsports/team-stats/${encodeURIComponent(teamName)}`);
+    const res = await fetchWithTimeout(`${BASE_URL}/allsports/team-stats/${encodeURIComponent(teamName)}`);
     const data = await readApiJson<AllSportsTeamStats | null>(res, null);
     return data || null;
   } catch (e) {
@@ -565,7 +573,7 @@ export type H2HRawItem = {
 
 export async function getAllSportsH2H(homeTeam: string, awayTeam: string): Promise<H2HRawItem[]> {
   try {
-    const res = await fetch(`${BASE_URL}/allsports/h2h?home=${encodeURIComponent(homeTeam)}&away=${encodeURIComponent(awayTeam)}`);
+    const res = await fetchWithTimeout(`${BASE_URL}/allsports/h2h?home=${encodeURIComponent(homeTeam)}&away=${encodeURIComponent(awayTeam)}`);
     const data = await readApiJson<H2HRawItem[]>(res, []);
     return arrayOrEmpty(data);
   } catch (e) {
@@ -578,7 +586,7 @@ export async function getAllSportsH2H(homeTeam: string, awayTeam: string): Promi
 
 export async function getSuperLigStandings(): Promise<Standing[]> {
   try {
-    const res = await fetch(`${BASE_URL}/superlig/standings`);
+    const res = await fetchWithTimeout(`${BASE_URL}/superlig/standings`);
     const data = await readApiJson<Standing[]>(res, []);
     return standingsOrEmpty(data);
   } catch (e) {
@@ -590,7 +598,7 @@ export async function getSuperLigStandings(): Promise<Standing[]> {
 export async function getSuperLigMatches(date?: string): Promise<SLMatch[]> {
   try {
     const url = date ? `${BASE_URL}/superlig/matches?date=${date}` : `${BASE_URL}/superlig/matches`;
-    const res = await fetch(url);
+    const res = await fetchWithTimeout(url);
     const data = await readApiJson<SLMatch[]>(res, []);
     return arrayOrEmpty<SLMatch>(data);
   } catch (e) {
@@ -601,7 +609,7 @@ export async function getSuperLigMatches(date?: string): Promise<SLMatch[]> {
 
 export async function getSuperLigTeamForm(teamId: number): Promise<SLFormMatch[]> {
   try {
-    const res = await fetch(`${BASE_URL}/superlig/team-form/${teamId}`);
+    const res = await fetchWithTimeout(`${BASE_URL}/superlig/team-form/${teamId}`);
     const data = await readApiJson<SLFormMatch[]>(res, []);
     return arrayOrEmpty<SLFormMatch>(data);
   } catch (e) {
@@ -622,7 +630,7 @@ export interface SuperLigTeamContext {
 
 export async function getSuperLigTeamContext(teamId: number): Promise<SuperLigTeamContext | null> {
   try {
-    const res = await fetch(`${BASE_URL}/superlig/team-context/${teamId}`);
+    const res = await fetchWithTimeout(`${BASE_URL}/superlig/team-context/${teamId}`);
     const data = await readApiJson<SuperLigTeamContext | null>(res, null);
     return data || null;
   } catch (e) {
@@ -633,7 +641,7 @@ export async function getSuperLigTeamContext(teamId: number): Promise<SuperLigTe
 
 export async function getSuperLigPlayers(teamId: number): Promise<SLPlayer[]> {
   try {
-    const res = await fetch(`${BASE_URL}/superlig/players/${teamId}`);
+    const res = await fetchWithTimeout(`${BASE_URL}/superlig/players/${teamId}`);
     const data = await readApiJson<SLPlayer[]>(res, []);
     return arrayOrEmpty<SLPlayer>(data);
   } catch (e) {
@@ -644,7 +652,7 @@ export async function getSuperLigPlayers(teamId: number): Promise<SLPlayer[]> {
 
 export async function getSuperLigScorers(): Promise<SLScorer[]> {
   try {
-    const res = await fetch(`${BASE_URL}/superlig/scorers`);
+    const res = await fetchWithTimeout(`${BASE_URL}/superlig/scorers`);
     const data = await readApiJson<SLScorer[]>(res, []);
     return arrayOrEmpty<SLScorer>(data);
   } catch (e) {
@@ -655,7 +663,7 @@ export async function getSuperLigScorers(): Promise<SLScorer[]> {
 
 export async function getSuperLigMatch(eventId: string): Promise<SLEventData | null> {
   try {
-    const res = await fetch(`${BASE_URL}/superlig/match/${eventId}`);
+    const res = await fetchWithTimeout(`${BASE_URL}/superlig/match/${eventId}`);
     const data = await readApiJson<SLEventData | null>(res, null);
     return data || null;
   } catch (e) {
@@ -693,7 +701,7 @@ export async function getSuperLigMatchContext({
     if (home) params.set('home', home);
     if (away) params.set('away', away);
     const qs = params.toString();
-    const res = await fetch(`${BASE_URL}/superlig/match/${eventId}/context${qs ? `?${qs}` : ''}`);
+    const res = await fetchWithTimeout(`${BASE_URL}/superlig/match/${eventId}/context${qs ? `?${qs}` : ''}`);
     const data = await readApiJson<SuperLigMatchContextData | null>(res, null);
     if (!data || !data.event) return null;
     return {
