@@ -2,13 +2,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Image, ScrollView, StyleSheet, Text,
+  Image, ScrollView, StyleSheet, Text,
   TouchableOpacity, View,
 } from 'react-native';
 import CompareRow from '../components/CompareRow';
 import { DetailDataNotice, DetailStatusBanner } from '../components/DetailDataState';
+import EmptyStateCard from '../components/EmptyStateCard';
 import FormHeatRow from '../components/FormHeatRow';
 import RadarChart from '../components/RadarChart';
+import { SkeletonMatchDetail } from '../components/SkeletonLoader';
 import ShotGauge from '../components/ShotGauge';
 import { useTheme } from '../context/ThemeContext';
 import { FDMatch, FDMatchDetail, OddsData, WeatherData, getH2H, getMatchContext, getMatchStats, getOdds, getTeamForm, getWeather, isStaleApiData, recordContextFallback } from '../services/api';
@@ -70,6 +72,8 @@ export default function MatchDetail() {
   const [staleNotice, setStaleNotice] = useState(false);
   const [secondaryLoading, setSecondaryLoading] = useState(false);
   const [dataIssues, setDataIssues] = useState<Set<DetailDataIssue>>(new Set());
+  const [refreshCount, setRefreshCount] = useState(0);
+  const retry = () => setRefreshCount(n => n + 1);
 
   const p = (k: string) => Array.isArray(params[k]) ? (params[k] as string[])[0] : ((params[k] as string) || '');
   const home        = p('home');
@@ -104,7 +108,7 @@ export default function MatchDetail() {
   const matchTime = utcDate ? new Date(utcDate).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}) : '';
   const secondaryCacheKey = `${DETAIL_SECONDARY_CACHE_PREFIX}_${matchId || 'unknown'}`;
 
-  useEffect(()=>{ setMatchData(null);setH2hData([]);setWeatherData(null);setOddsData(null);setHomeForm([]);setAwayForm([]);setStaleNotice(false);setSecondaryLoading(false);setDataIssues(new Set()); },[matchId]);
+  useEffect(()=>{ setMatchData(null);setH2hData([]);setWeatherData(null);setOddsData(null);setHomeForm([]);setAwayForm([]);setStaleNotice(false);setSecondaryLoading(false);setDataIssues(new Set()); },[matchId, refreshCount]);
 
   useEffect(() => {
     let cancelled = false;
@@ -202,9 +206,8 @@ export default function MatchDetail() {
     }
     if(matchId) load(); else setLoading(false);
     return () => { cancelled = true; setSecondaryLoading(false); };
-    // Route params are captured for this match load; matchId is the intended reload key.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[matchId]);
+  },[matchId, refreshCount]);
 
   const matchContext = resolveMatchContext(matchData, { home, away, city, homeTeamId, awayTeamId });
   const displayHomeName = matchContext.homeName;
@@ -314,7 +317,30 @@ export default function MatchDetail() {
     disclaimerText:  { color: isDark ? '#E6C350' : '#856404' },
   };
 
-  if (loading) return <View style={[styles.loaderContainer,{backgroundColor:c.bg}]}><ActivityIndicator size="large" color={c.primary}/></View>;
+  if (loading) return (
+    <View style={[styles.loaderContainer, { backgroundColor: c.bg }]}>
+      <SkeletonMatchDetail />
+    </View>
+  );
+
+  if (!matchData) return (
+    <View style={[styles.container, { backgroundColor: c.bg }]}>
+      <View style={[styles.topbar, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
+        <TouchableOpacity onPress={() => router.back()}><Text style={[styles.backBtn, { color: c.primary }]}>‹ Geri</Text></TouchableOpacity>
+        <View style={styles.topbarCenter}>
+          <Image source={require('../assets/images/sf-logo.png')} style={styles.headerLogo} />
+          <Text style={[styles.topbarTitle, { color: c.text }]} numberOfLines={1}>{home} - {away}</Text>
+        </View>
+        <View style={{ width: 60 }} />
+      </View>
+      <EmptyStateCard
+        icon="📡"
+        title="Maç verisi yüklenemedi"
+        subtitle="Sunucu yanıt vermedi veya bağlantı kesildi. Tekrar denemek için aşağıdaki butona dokun."
+        onRetry={retry}
+      />
+    </View>
+  );
 
   return (
     <View style={[styles.container,{backgroundColor:c.bg}]}>
@@ -367,11 +393,12 @@ export default function MatchDetail() {
       </View>
 
       {staleNotice && (
-        <DetailStatusBanner
-          message={staleAnalysisMessage()}
-          boxStyle={[styles.limitedDataBanner, { backgroundColor: isDark ? '#18202A' : '#F3F7FC', borderColor: c.cardBorder }]}
-          textStyle={[styles.limitedDataText, { color: c.textSub }]}
-        />
+        <View style={[styles.limitedDataBanner, { backgroundColor: isDark ? '#18202A' : '#F3F7FC', borderColor: c.cardBorder, flexDirection: 'row', alignItems: 'center' }]}>
+          <Text style={[styles.limitedDataText, { color: c.textSub, flex: 1 }]}>{staleAnalysisMessage()}</Text>
+          <TouchableOpacity onPress={retry} style={[styles.staleRetryBtn, { borderColor: c.primary }]}>
+            <Text style={[styles.staleRetryText, { color: c.primary }]}>Yenile</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       {/* ── Scout Özeti ── */}
@@ -974,6 +1001,8 @@ const styles = StyleSheet.create({
   noDataText:        { fontSize:13, color:'#555', textAlign:'center' },
   limitedDataBanner: { marginHorizontal:14, marginTop:10, marginBottom:2, padding:10, borderRadius:8, borderWidth:1 },
   limitedDataText:   { fontSize:12, lineHeight:17 },
+  staleRetryBtn:     { marginLeft:10, paddingHorizontal:10, paddingVertical:4, borderRadius:12, borderWidth:1 },
+  staleRetryText:    { fontSize:12, fontWeight:'600' },
   summaryGrid:       { flexDirection:'row', gap:8, paddingHorizontal:14, marginBottom:8 },
   sumBox:            { flex:1, backgroundColor:'#f8f8f8', borderRadius:8, padding:10, alignItems:'center' },
   sumVal:            { fontSize:22, fontWeight:'500', color:'#111' },

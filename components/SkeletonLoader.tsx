@@ -110,6 +110,46 @@ export function SkeletonPlayerList() {
   );
 }
 
+// ─── match detail skeleton ───────────────────────────────────────────────────
+
+export function SkeletonMatchDetail() {
+  const { colors: c } = useTheme();
+  return (
+    <View style={{ flex: 1, backgroundColor: c.bg }}>
+      {/* hero card */}
+      <View style={[s.detailHero, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
+        <View style={s.detailTeamsRow}>
+          <SkeletonBox width="34%" height={16} />
+          <SkeletonBox width={44} height={28} style={{ marginHorizontal: 8, borderRadius: 6 }} />
+          <SkeletonBox width="34%" height={16} />
+        </View>
+        <View style={s.detailBadgeRow}>
+          <SkeletonBox width={80} height={22} style={{ borderRadius: 11 }} />
+          <SkeletonBox width={100} height={22} style={{ borderRadius: 11 }} />
+        </View>
+      </View>
+      {/* scout summary card */}
+      <View style={[s.detailCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <SkeletonBox width={120} height={13} style={{ marginBottom: 12 }} />
+        <SkeletonBox width="90%" height={12} style={{ marginBottom: 8 }} />
+        <SkeletonBox width="75%" height={12} style={{ marginBottom: 8 }} />
+        <SkeletonBox width="55%" height={12} />
+      </View>
+      {/* stats card */}
+      <View style={[s.detailCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <SkeletonBox width={100} height={13} style={{ marginBottom: 12 }} />
+        {[0, 1, 2, 3].map(i => (
+          <View key={i} style={[s.detailStatRow, { borderBottomColor: c.border }]}>
+            <SkeletonBox width={32} height={13} />
+            <SkeletonBox width="45%" height={8} style={{ borderRadius: 4 }} />
+            <SkeletonBox width={32} height={13} />
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 // ─── league table skeleton ────────────────────────────────────────────────────
 
 export function SkeletonLeagueTable() {
@@ -172,6 +212,36 @@ const s = StyleSheet.create({
     borderWidth: 1,
   },
   statRow:  { flexDirection: 'row', justifyContent: 'space-between' },
+  detailHero: {
+    padding: 20,
+    borderBottomWidth: 1,
+    marginBottom: 8,
+  },
+  detailTeamsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  detailBadgeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  detailCard: {
+    marginHorizontal: 14,
+    marginBottom: 10,
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+  },
+  detailStatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 0.5,
+  },
   tableRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -247,7 +247,7 @@ function EmptyActionCard({
   );
 }
 
-function DataNoticeCard({ type, message }: { type: 'stale' | 'warning' | 'error'; message?: string | null }) {
+function DataNoticeCard({ type, message, onRetry }: { type: 'stale' | 'warning' | 'error'; message?: string | null; onRetry?: () => void }) {
   const { colors: c, isDark } = useTheme();
   const isStale = type === 'stale';
   const isWarning = type === 'warning';
@@ -267,9 +267,14 @@ function DataNoticeCard({ type, message }: { type: 'stale' | 'warning' | 'error'
         size={18}
         color={accentColor}
       />
-      <Text style={[sc.noticeText, { color: c.textSub }]}>
+      <Text style={[sc.noticeText, { color: c.textSub, flex: 1 }]}>
         {message || dataNoticeMessage(type)}
       </Text>
+      {onRetry && (
+        <TouchableOpacity onPress={onRetry} style={[sc.noticeRetryBtn, { borderColor: accentColor }]}>
+          <Text style={[sc.noticeRetryText, { color: accentColor }]}>Tekrar Dene</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -974,7 +979,7 @@ export default function HomeScreen() {
   function renderListItem({ item }: { item: ListItem }) {
     switch (item.type) {
       case 'notice':
-        return <DataNoticeCard type={item.notice || 'error'} message={item.warningText} />;
+        return <DataNoticeCard type={item.notice || 'error'} message={item.warningText} onRetry={item.notice === 'error' ? () => loadMatches(selectedDate) : undefined} />;
       case 'section-header':
         return (
           <View style={sc.sectionHeader}>
@@ -1215,8 +1220,10 @@ const sc = StyleSheet.create({
   emptyPrimaryBtn:{ minHeight: 44, borderWidth: 1, borderRadius: 10, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   emptyPrimaryText:{ fontSize: 13, fontWeight: '800' },
   emptyIconBtn:   { width: 44, height: 44, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  noticeCard:     { marginHorizontal: 14, marginTop: 12, marginBottom: 2, borderRadius: 10, borderWidth: 1, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 9 },
-  noticeText:     { flex: 1, fontSize: 12, lineHeight: 17 },
+  noticeCard:        { marginHorizontal: 14, marginTop: 12, marginBottom: 2, borderRadius: 10, borderWidth: 1, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  noticeText:        { flex: 1, fontSize: 12, lineHeight: 17 },
+  noticeRetryBtn:    { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1 },
+  noticeRetryText:   { fontSize: 12, fontWeight: '600' },
   emptyAction:    { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, borderWidth: 1, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
   emptyActionIcon:{ width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   emptyActionText:{ flex: 1, minWidth: 0 },
