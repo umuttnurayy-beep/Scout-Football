@@ -73,22 +73,29 @@ export default function LeaguesScreen() {
   const [subTab, setSubTab]             = useState<SubTab>('genel');
   const [uclView, setUclView]           = useState<'standings' | 'bracket'>('standings');
   const [activeStage, setActiveStage]   = useState(UCL_STAGES[1].key);
-  const [standings, setStandings]       = useState<Standing[]>([]);
-  const [knockouts, setKnockouts]       = useState<UCLKnockouts | null>(null);
-  const [loading, setLoading]           = useState(false);
-  const [refreshing, setRefreshing]     = useState(false);
+  const [standings, setStandings]               = useState<Standing[]>([]);
+  const [knockouts, setKnockouts]               = useState<UCLKnockouts | null>(null);
+  const [loading, setLoading]                   = useState(false);
+  const [refreshing, setRefreshing]             = useState(false);
+  const [loadError, setLoadError]               = useState(false);
+  const [knockoutsLoading, setKnockoutsLoading] = useState(false);
+  const [knockoutsLoadError, setKnockoutsLoadError] = useState(false);
 
   useEffect(() => {
     setUclView('standings');
+    setLoadError(false);
+    setKnockoutsLoadError(false);
     loadStandings(activeLeague.apiId);
     if (activeLeague.apiId === 2) loadKnockouts();
   }, [activeLeague]);
 
   async function onRefresh() {
     setRefreshing(true);
+    setLoadError(false);
+    setKnockoutsLoadError(false);
     try {
       await loadStandings(activeLeague.apiId, false);
-      if (activeLeague.apiId === 2) await loadKnockouts();
+      if (activeLeague.apiId === 2) await loadKnockouts(false);
     } finally {
       setRefreshing(false);
     }
@@ -96,6 +103,7 @@ export default function LeaguesScreen() {
 
   async function loadStandings(apiId: number, showLoader = true) {
     if (showLoader) setLoading(true);
+    setLoadError(false);
     try {
       const data = apiId === 203
         ? await getSuperLigStandings()
@@ -103,17 +111,28 @@ export default function LeaguesScreen() {
       setStandings(data && data.length > 0 ? data : []);
     } catch {
       setStandings([]);
+      setLoadError(true);
     } finally {
       if (showLoader) setLoading(false);
     }
   }
 
-  async function loadKnockouts() {
+  async function loadKnockouts(showLoader = true) {
+    if (showLoader) setKnockoutsLoading(true);
+    setKnockoutsLoadError(false);
     try {
       const data = await getUclKnockouts(CURRENT_FOOTBALL_SEASON);
       setKnockouts(data);
-    } catch { setKnockouts(null); }
+    } catch {
+      setKnockouts(null);
+      setKnockoutsLoadError(true);
+    } finally {
+      if (showLoader) setKnockoutsLoading(false);
+    }
   }
+
+  const retryStandings = () => loadStandings(activeLeague.apiId);
+  const retryKnockouts = () => loadKnockouts();
 
   const {
     totalGames, totalGoals, avgGoals, leader, leaderGap, drawRate,
@@ -183,9 +202,9 @@ export default function LeaguesScreen() {
               standings.length === 0 ? (
                 <EmptyStateCard
                   icon="📡"
-                  title="Lig verisi yüklenemedi"
+                  title={loadError ? 'Lig verisi yüklenemedi' : 'Veri bulunamadı'}
                   subtitle={leagueDataEmptyMessage(activeLeague.name)}
-                  onRetry={onRefresh}
+                  onRetry={retryStandings}
                 />
               ) : (
                 <>
@@ -418,10 +437,14 @@ export default function LeaguesScreen() {
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
-                    {knockouts == null ? (
+                    {knockoutsLoading ? (
                       <SkeletonLeagueTable />
+                    ) : knockoutsLoadError ? (
+                      <EmptyStateCard icon="📡" title="Eşleşme verisi yüklenemedi" onRetry={retryKnockouts} />
+                    ) : knockouts == null ? (
+                      <EmptyStateCard icon="🏆" title="UCL eşleşme verisi bulunamadı" onRetry={retryKnockouts} />
                     ) : (knockouts[activeStage] || []).length === 0 ? (
-                      <EmptyStateCard icon="🏆" title="Bu tura ait veri bulunamadı" onRetry={loadKnockouts} />
+                      <EmptyStateCard icon="🏆" title="Bu tura ait veri bulunamadı" onRetry={retryKnockouts} />
                     ) : (
                       groupTies(knockouts[activeStage] || []).map((tie, i) => (
                         <TieCard key={i} tie={tie} isFinal={activeStage === 'FINAL'} />
@@ -434,9 +457,9 @@ export default function LeaguesScreen() {
                   standings.length === 0 ? (
                     <EmptyStateCard
                       icon="📡"
-                      title="Puan tablosu yüklenemedi"
+                      title={loadError ? 'Puan tablosu yüklenemedi' : 'Veri bulunamadı'}
                       subtitle={leagueDataEmptyMessage(activeLeague.name)}
-                      onRetry={onRefresh}
+                      onRetry={retryStandings}
                     />
                   ) : (
                     <>
@@ -484,9 +507,9 @@ export default function LeaguesScreen() {
               standings.length === 0 ? (
                 <EmptyStateCard
                   icon="🏟️"
-                  title="Takım verisi yüklenemedi"
+                  title={loadError ? 'Takım verisi yüklenemedi' : 'Veri bulunamadı'}
                   subtitle={leagueDataEmptyMessage(activeLeague.name)}
-                  onRetry={onRefresh}
+                  onRetry={retryStandings}
                 />
               ) : (
                 <>
@@ -536,9 +559,9 @@ export default function LeaguesScreen() {
               standings.length === 0 ? (
                 <EmptyStateCard
                   icon="📊"
-                  title="Trend verisi yüklenemedi"
+                  title={loadError ? 'Trend verisi yüklenemedi' : 'Veri bulunamadı'}
                   subtitle={leagueDataEmptyMessage(activeLeague.name)}
-                  onRetry={onRefresh}
+                  onRetry={retryStandings}
                 />
               ) : (() => {
                 const withRates = standings.map(r => ({
