@@ -13,7 +13,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   setItem: jest.fn(),
 }));
 
-import { getHomeData } from '../services/api';
+import { getHomeData, getStandings, getUclKnockouts } from '../services/api';
 
 const fetchMock = jest.fn();
 global.fetch = fetchMock as unknown as typeof fetch;
@@ -81,5 +81,60 @@ describe('getHomeData', () => {
 
     fetchMock.mockResolvedValue(jsonResponse({ matches: null, superLigMatches: [] }));
     await expect(getHomeData('2026-05-02')).resolves.toBeNull();
+  });
+});
+
+describe('standings and knockouts API helpers', () => {
+  let consoleErrorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('normalizes standings rows and treats malformed rows as empty data', async () => {
+    fetchMock.mockResolvedValue(jsonResponse([
+      { team: 'Liverpool', pos: 1, played: 35, pts: 82 },
+      { team: 'Broken', pos: '2', played: 35, pts: 80 },
+      null,
+    ]));
+
+    const data = await getStandings(39);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://example.test/standings/2021',
+      expect.objectContaining({ signal: expect.any(Object) })
+    );
+    expect(data).toEqual([{ team: 'Liverpool', pos: 1, played: 35, pts: 82 }]);
+  });
+
+  it('returns safe fallbacks when standings or knockouts requests fail', async () => {
+    fetchMock.mockRejectedValueOnce(new Error('network down'));
+    await expect(getStandings(2021)).resolves.toEqual([]);
+
+    fetchMock.mockRejectedValueOnce(new Error('network down'));
+    await expect(getUclKnockouts(2025)).resolves.toBeNull();
+  });
+
+  it('keeps empty knockout payloads distinct from load failures', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({
+      roundOf16: [],
+      quarterFinals: [{ id: 7, homeTeam: 'A', awayTeam: 'B' }],
+    }));
+
+    const data = await getUclKnockouts(2025);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://example.test/ucl/knockouts?season=2025',
+      expect.objectContaining({ signal: expect.any(Object) })
+    );
+    expect(data).toEqual({
+      roundOf16: [],
+      quarterFinals: [{ id: 7, homeTeam: 'A', awayTeam: 'B' }],
+    });
   });
 });
