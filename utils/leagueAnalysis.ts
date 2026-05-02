@@ -179,3 +179,53 @@ export function getTeamLabel(gfPer: number, gaPer: number, winRate: number, pos:
   if (winRate < 0.25 && pos > total * 0.60)                  return { label: 'Dengesiz',           ...cp('red',    isDark) };
   return                                                             { label: 'Dengeli',            ...cp('gray',   isDark) };
 }
+
+// ─── league screen derived state ─────────────────────────────────────────────
+
+export function computeLeagueStats(standings: LeagueStanding[], isDark: boolean) {
+  const totalGames     = standings.reduce((s, r) => s + r.played, 0) / 2;
+  const totalGoals     = standings.reduce((s, r) => s + r.gf, 0);
+  const avgGoals       = totalGames > 0 ? totalGoals / totalGames : 0;
+  const leader         = standings[0] ?? null;
+  const leaderGap      = leader && standings[1] ? leader.pts - standings[1].pts : 0;
+  const totalDraws     = standings.reduce((s, r) => s + r.draw, 0) / 2;
+  const drawRate       = totalGames > 0 ? totalDraws / totalGames : 0;
+
+  const ligChar        = standings.length > 0 ? getLeagueCharacter(avgGoals, drawRate, isDark) : null;
+  const leaderNarr     = leader ? getLeaderNarrative(leader, standings[1]) : '';
+  const avgLeagueGfPer = standings.length > 0 ? standings.reduce((s, r) => s + r.gf / Math.max(r.played, 1), 0) / standings.length : 0;
+  const avgLeagueGaPer = standings.length > 0 ? standings.reduce((s, r) => s + r.ga / Math.max(r.played, 1), 0) / standings.length : 0;
+  const sortedByGfR    = [...standings].sort((a, b) => b.gf / Math.max(b.played, 1) - a.gf / Math.max(a.played, 1));
+  const sortedByGaR    = [...standings].sort((a, b) => a.ga / Math.max(a.played, 1) - b.ga / Math.max(b.played, 1));
+
+  const gfPer = (r: LeagueStanding) => r.played > 0 ? r.gf / r.played : 0;
+  const gaPer = (r: LeagueStanding) => r.played > 0 ? r.ga / r.played : 0;
+  const maxGfPer = sortedByGfR.length > 0 ? gfPer(sortedByGfR[0]) : 0;
+  const minGfPer = sortedByGfR.length > 0 ? gfPer(sortedByGfR[sortedByGfR.length - 1]) : 0;
+  const minGaPer = sortedByGaR.length > 0 ? gaPer(sortedByGaR[0]) : 0;
+  const maxGaPer = sortedByGaR.length > 0 ? gaPer(sortedByGaR[sortedByGaR.length - 1]) : 0;
+  const attackScore  = (team: LeagueStanding) => maxGfPer === minGfPer ? 10 : 1 + ((gfPer(team) - minGfPer) / (maxGfPer - minGfPer)) * 9;
+  const defenseScore = (team: LeagueStanding) => maxGaPer === minGaPer ? 10 : 1 + (1 - (gaPer(team) - minGaPer) / (maxGaPer - minGaPer)) * 9;
+
+  const goalScore     = Math.min(100, Math.round((avgGoals / 3.5) * 100));
+  const tempoScore    = Math.min(100, Math.round(avgGoals * 28));
+  const compScore     = Math.max(0, Math.min(100, 100 - leaderGap * 5));
+  const surpriseScore = Math.min(100, Math.round(drawRate * 280));
+  const mostGoals     = sortedByGfR[0] ?? null;
+  const bestDef       = sortedByGaR[0] ?? null;
+  const mostTempo     = [...standings].sort((a, b) => (b.gf + b.ga) / Math.max(b.played, 1) - (a.gf + a.ga) / Math.max(a.played, 1))[0] ?? null;
+  const bestWinRate   = [...standings].sort((a, b) => b.win / Math.max(b.played, 1) - a.win / Math.max(a.played, 1))[0] ?? null;
+  const halfPoint     = Math.floor(standings.length / 2);
+  const surpriseTeam  = standings.filter(r => r.pos > halfPoint).sort((a, b) => b.gf / Math.max(b.played, 1) - a.gf / Math.max(a.played, 1))[0] ?? null;
+  const liderTags     = leader ? getLiderTags(leader, sortedByGfR, sortedByGaR, leaderGap, isDark) : [];
+
+  return {
+    totalGames, totalGoals, avgGoals, leader, leaderGap, drawRate,
+    ligChar, leaderNarr, avgLeagueGfPer, avgLeagueGaPer,
+    sortedByGfR, sortedByGaR, attackScore, defenseScore,
+    attackPower: leader ? attackScore(leader) : 1,
+    defPower:    leader ? defenseScore(leader) : 1,
+    goalScore, tempoScore, compScore, surpriseScore,
+    mostGoals, bestDef, mostTempo, bestWinRate, surpriseTeam, liderTags,
+  };
+}
