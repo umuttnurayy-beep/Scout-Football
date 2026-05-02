@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { Href, useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 
 export type ActiveTab = 'matches' | 'leagues' | 'stats' | 'profile';
 
-const TABS: { key: ActiveTab; label: string; icon: string; activeIcon: string; route: string }[] = [
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+const TABS: { key: ActiveTab; label: string; icon: IoniconName; activeIcon: IoniconName; route: Href }[] = [
   { key: 'matches',  label: 'Maçlar',     icon: 'football-outline',    activeIcon: 'football',    route: '/' },
   { key: 'leagues',  label: 'Ligler',     icon: 'trophy-outline',      activeIcon: 'trophy',      route: '/leagues' },
   { key: 'stats',    label: 'İstatistik', icon: 'stats-chart-outline', activeIcon: 'stats-chart', route: '/stats' },
@@ -25,10 +27,10 @@ export default function BottomTabBar({ activeTab }: { activeTab: ActiveTab }) {
           <TouchableOpacity
             key={tab.key}
             style={styles.tab}
-            onPress={() => { if (!isActive) router.push(tab.route as any); }}
+            onPress={() => { if (!isActive) router.push(tab.route); }}
           >
             <Ionicons
-              name={(isActive ? tab.activeIcon : tab.icon) as any}
+              name={isActive ? tab.activeIcon : tab.icon}
               size={22}
               color={isActive ? c.primary : c.textMuted}
             />

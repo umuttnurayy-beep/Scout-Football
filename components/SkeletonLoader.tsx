@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
+import { Animated, StyleSheet, View, ViewStyle } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 
 // ─── base animated box ────────────────────────────────────────────────────────
@@ -11,7 +11,7 @@ function SkeletonBox({
 }: {
   width?: number | `${number}%`;
   height: number;
-  style?: object;
+  style?: ViewStyle;
 }) {
   const { isDark } = useTheme();
   const anim = useRef(new Animated.Value(0.35)).current;

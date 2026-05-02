@@ -1002,9 +1002,9 @@ export default function SLMatchDetail() {
           <>
             {(() => {
               let hw=0,d=0,aw=0;
-              h2hData.forEach((m:any)=>{
-                const fh=parseInt(m.homeScore),fa=parseInt(m.awayScore);
-                if(isNaN(fh)||isNaN(fa))return;
+              h2hData.forEach((m)=>{
+                const fh=m.homeScore,fa=m.awayScore;
+                if(fh==null||fa==null)return;
                 if (fh > fa) {
                   if (m.team1Home) hw++; else aw++;
                 } else if (fh < fa) {
@@ -1020,7 +1020,7 @@ export default function SLMatchDetail() {
                 </View>
               );
             })()}
-            {h2hData.map((m:any,i:number)=>{
+            {h2hData.map((m,i)=>{
               const fh=m.homeScore, fa=m.awayScore;
               const dateStr = m.date
                 ? new Date(m.date).toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'})

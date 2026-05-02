@@ -231,6 +231,7 @@ export type SLFormMatch = {
   dateEvent?: string;
   team1Home?: boolean;
   status?: string;
+  league?: string;
 };
 
 export type SLPlayer = {
@@ -297,7 +298,7 @@ export type HomeData = {
   generatedAt: string;
 };
 
-function arrayOrEmpty<T = any>(value: unknown): T[] {
+function arrayOrEmpty<T = unknown>(value: unknown): T[] {
   return Array.isArray(value) ? value : [];
 }
 
