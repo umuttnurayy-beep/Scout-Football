@@ -5,7 +5,7 @@ import {
   Image, ScrollView, StyleSheet, Text,
   TouchableOpacity, View,
 } from 'react-native';
-import { DetailDataNotice, DetailStatusBanner } from '../components/DetailDataState';
+import { DetailDataNotice, DetailInsightBox, DetailSectionTitle, DetailStatusBanner } from '../components/DetailDataState';
 import CompareRow from '../components/CompareRow';
 import EmptyStateCard from '../components/EmptyStateCard';
 import RadarChart from '../components/RadarChart';
@@ -756,7 +756,7 @@ export default function SLMatchDetail() {
       </View>
 
         {/* Performans Profili (Radar) */}
-        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>PERFORMANS PROFİLİ</Text>
+        <DetailSectionTitle style={styles.sectionLabel}>PERFORMANS PROFİLİ</DetailSectionTitle>
         {hasFormData ? (
           <>
             <View style={styles.radarLegendRow}>
@@ -785,7 +785,7 @@ export default function SLMatchDetail() {
         )}
 
         {/* Takım Karşılaştırması */}
-        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>TAKIM KARŞILAŞTIRMASI</Text>
+        <DetailSectionTitle style={styles.sectionLabel}>TAKIM KARŞILAŞTIRMASI</DetailSectionTitle>
         {hasFormData ? (
           <>
             <View style={styles.compareHeader}>
@@ -801,14 +801,12 @@ export default function SLMatchDetail() {
             {hasRealFormData && <CompareRow label="KG Var %" homeVal={`${homeFormCalc.kgVarPct}%`} awayVal={`${awayFormCalc.kgVarPct}%`}/>}
             {hasRealFormData && <CompareRow label="İç Saha Galibiyet %"  homeVal={`${homeFormCalc.homeWinPct}% (${homeFormCalc.homePlayed})`}  awayVal={`${awayFormCalc.homeWinPct}% (${awayFormCalc.homePlayed})`}/>}
             {hasRealFormData && <CompareRow label="Deplasman Galibiyet %" homeVal={`${homeFormCalc.awayWinPct}% (${homeFormCalc.awayPlayed})`} awayVal={`${awayFormCalc.awayWinPct}% (${awayFormCalc.awayPlayed})`}/>}
-            <View style={[styles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
-              <Text style={[styles.insightText, { color: c.text }]}>{compareComment}</Text>
-            </View>
+            <DetailInsightBox message={compareComment} boxStyle={styles.insightBox} textStyle={styles.insightText} />
 
             {/* Son Form — sadece gerçek form verisi varsa göster */}
             {hasRealFormData && (
               <>
-                <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SON FORM  (İ = İç Saha · D = Deplasman)</Text>
+                <DetailSectionTitle style={styles.sectionLabel}>SON FORM  (İ = İç Saha · D = Deplasman)</DetailSectionTitle>
                 <FormHeatRowSL matches={homeForm} teamId={homeTeamId} label={home}/>
                 <FormHeatRowSL matches={awayForm} teamId={awayTeamId}  label={away}/>
               </>
@@ -844,11 +842,9 @@ export default function SLMatchDetail() {
         {/* İç Saha / Deplasman Analizi — standings fallback'te iç/dış saha ayrımı yoktur */}
         {hasRealFormData && (
           <>
-            <Text style={[styles.sectionLabel, { color: c.textMuted }]}>İÇ SAHA / DEPLASMAN ANALİZİ</Text>
+            <DetailSectionTitle style={styles.sectionLabel}>İÇ SAHA / DEPLASMAN ANALİZİ</DetailSectionTitle>
             {hasFormData ? (
-              <View style={[styles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
-                <Text style={[styles.insightText, { color: c.text }]}>{homeAwayComment}</Text>
-              </View>
+              <DetailInsightBox message={homeAwayComment} boxStyle={styles.insightBox} textStyle={styles.insightText} />
             ) : (
               <DetailDataNotice
                 message={detailDataMessage('homeAway', hasFormIssue ? 'sourceError' : 'empty')}
@@ -875,7 +871,7 @@ export default function SLMatchDetail() {
           ];
           return (
             <>
-              <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SCOUT TAHMİNİ</Text>
+              <DetailSectionTitle style={styles.sectionLabel}>SCOUT TAHMİNİ</DetailSectionTitle>
               <View style={[styles.scoutOddsCard, { backgroundColor: c.primaryLight, borderColor: c.cardBorder }]}>
                 <View style={styles.scoutOddsHeader}>
                   <Text style={[styles.scoutOddsTitle, { color: c.primaryDark }]}>🎯 SCOUT TAHMİNİ</Text>
@@ -897,7 +893,7 @@ export default function SLMatchDetail() {
           );
         })() : (
           <>
-            <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SCOUT TAHMİNİ</Text>
+            <DetailSectionTitle style={styles.sectionLabel}>SCOUT TAHMİNİ</DetailSectionTitle>
             <DetailDataNotice
               message={detailDataMessage('prediction', hasFormIssue ? 'sourceError' : 'empty')}
               boxStyle={styles.noDataBox}
@@ -907,7 +903,7 @@ export default function SLMatchDetail() {
         )}
 
         {/* Hava Etkisi */}
-        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>HAVA ETKİSİ</Text>
+        <DetailSectionTitle style={styles.sectionLabel}>HAVA ETKİSİ</DetailSectionTitle>
         {weatherData ? (
           <>
             <View style={[styles.weatherCard, { backgroundColor: isDark ? '#0A1929' : '#f0f6ff' }]}>
@@ -933,10 +929,10 @@ export default function SLMatchDetail() {
                 </View>
               ))}
             </View>
-            <View style={[styles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
+            <DetailInsightBox boxStyle={styles.insightBox}>
               <Text style={[styles.insightText,{ color: c.text, fontWeight:'500'}]}>Etki: {weatherCom.impact}</Text>
               <Text style={[styles.insightText,{ color: c.text, marginTop:3}]}>{weatherCom.sentence}</Text>
-            </View>
+            </DetailInsightBox>
           </>
         ) : (
           <DetailDataNotice
@@ -947,7 +943,7 @@ export default function SLMatchDetail() {
         )}
 
         {/* Hakem */}
-        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>HAKEM</Text>
+        <DetailSectionTitle style={styles.sectionLabel}>HAKEM</DetailSectionTitle>
         {refProfile ? (
           <>
             <View style={[styles.refCard, { backgroundColor: c.surfaceAlt }]}>
@@ -966,9 +962,7 @@ export default function SLMatchDetail() {
                 <Text style={[styles.refTagText,{ color: c.textSub }]}>🎮 Akış: {refProfile.akis}</Text>
               </View>
             </View>
-            <View style={[styles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
-              <Text style={[styles.insightText, { color: c.text }]}>{refProfile.narrative}</Text>
-            </View>
+            <DetailInsightBox message={refProfile.narrative} boxStyle={styles.insightBox} textStyle={styles.insightText} />
           </>
         ) : (
           <DetailDataNotice
@@ -979,10 +973,8 @@ export default function SLMatchDetail() {
         )}
 
         {/* H2H */}
-        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>H2H — GEÇMİŞ KARŞILAŞMALAR</Text>
-        <View style={[styles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
-          <Text style={[styles.insightText, { color: c.text }]}>{h2hComment}</Text>
-        </View>
+        <DetailSectionTitle style={styles.sectionLabel}>H2H — GEÇMİŞ KARŞILAŞMALAR</DetailSectionTitle>
+        <DetailInsightBox message={h2hComment} boxStyle={styles.insightBox} textStyle={styles.insightText} />
         {deepH2H && (
           <>
             <View style={{flexDirection:'row',gap:8,paddingHorizontal:14,marginBottom:6}}>
@@ -997,9 +989,7 @@ export default function SLMatchDetail() {
                 </View>
               ))}
             </View>
-            <View style={[styles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
-              <Text style={[styles.insightText, { color: c.text }]}>{deepH2H.deepComment}</Text>
-            </View>
+            <DetailInsightBox message={deepH2H.deepComment} boxStyle={styles.insightBox} textStyle={styles.insightText} />
           </>
         )}
         {h2hData.length === 0 ? (
@@ -1049,11 +1039,15 @@ export default function SLMatchDetail() {
         )}
 
         {/* Motivasyon Faktörü */}
-        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>MOTİVASYON FAKTÖRÜ</Text>
+        <DetailSectionTitle style={styles.sectionLabel}>MOTİVASYON FAKTÖRÜ</DetailSectionTitle>
         {motivationComment ? (
-          <View style={[styles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: isDark ? '#E3B341' : '#E6A817' }]}>
-            <Text style={[styles.insightText, { color: isDark ? '#E3B341' : '#7A5700', fontWeight:'600' }]}>🏆 {motivationComment}</Text>
-          </View>
+          <DetailInsightBox
+            message={`🏆 ${motivationComment}`}
+            accentColor={isDark ? '#E3B341' : '#E6A817'}
+            textColor={isDark ? '#E3B341' : '#7A5700'}
+            boxStyle={styles.insightBox}
+            textStyle={[styles.insightText, { fontWeight:'600' }]}
+          />
         ) : (
           <DetailDataNotice
             message="Bu maçta belirgin bir motivasyon faktörü tespit edilmedi."
@@ -1063,7 +1057,7 @@ export default function SLMatchDetail() {
         )}
 
         {/* Maç Karakteri Detayı */}
-        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>MAÇ KARAKTERİ DETAYI</Text>
+        <DetailSectionTitle style={styles.sectionLabel}>MAÇ KARAKTERİ DETAYI</DetailSectionTitle>
         {hasFormData && hStyle && aStyle ? (
           <>
             <View style={{flexDirection:'row',gap:10,paddingHorizontal:14,marginBottom:10}}>
@@ -1075,9 +1069,7 @@ export default function SLMatchDetail() {
                 </View>
               ))}
             </View>
-            <View style={[styles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
-              <Text style={[styles.insightText, { color: c.text }]}>{characterDetail}</Text>
-            </View>
+            <DetailInsightBox message={characterDetail} boxStyle={styles.insightBox} textStyle={styles.insightText} />
           </>
         ) : (
           <DetailDataNotice
@@ -1088,7 +1080,7 @@ export default function SLMatchDetail() {
         )}
 
         {/* Risk & Uyarı */}
-        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>RİSK & UYARI</Text>
+        <DetailSectionTitle style={styles.sectionLabel}>RİSK & UYARI</DetailSectionTitle>
         <View style={[styles.riskBox, { borderColor: c.border }]}>
           {riskWarns.map((w,i)=>(
             <View key={i} style={[styles.riskRow, i>0&&{ borderTopWidth:0.5, borderTopColor: c.border }]}>

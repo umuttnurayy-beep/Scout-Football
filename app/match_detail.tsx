@@ -6,7 +6,7 @@ import {
   TouchableOpacity, View,
 } from 'react-native';
 import CompareRow from '../components/CompareRow';
-import { DetailDataNotice } from '../components/DetailDataState';
+import { DetailDataNotice, DetailInsightBox, DetailSectionTitle } from '../components/DetailDataState';
 import EmptyStateCard from '../components/EmptyStateCard';
 import FormHeatRow from '../components/FormHeatRow';
 import RadarChart from '../components/RadarChart';
@@ -482,7 +482,7 @@ export default function MatchDetail() {
           const slbl=sr>0.83?'Çok Sert Maç':sr>0.66?'Gergin Atmosfer':sr>0.5?'Hareketli Maç':sr>0.33?'Normal Atmosfer':'Sakin Maç';
           return (
             <>
-              <Text style={[styles.sectionLabel,{color:c.textMuted}]}>MAÇ İSTATİSTİKLERİ</Text>
+              <DetailSectionTitle style={styles.sectionLabel}>MAÇ İSTATİSTİKLERİ</DetailSectionTitle>
               <View style={styles.statLegend}>
                 <Text style={[styles.legendHome,{color:c.primary}]}>{displayHomeName}</Text>
                 <Text style={[styles.legendAway,{color:c.loss}]}>{displayAwayName}</Text>
@@ -503,7 +503,7 @@ export default function MatchDetail() {
               })}
               {(hTot>0||aTot>0)&&(
                 <>
-                  <Text style={[styles.sectionLabel,{color:c.textMuted}]}>BİTİRİCİLİK (İSABETLİ ŞUT ORANI)</Text>
+                  <DetailSectionTitle style={styles.sectionLabel}>BİTİRİCİLİK (İSABETLİ ŞUT ORANI)</DetailSectionTitle>
                   <View style={{flexDirection:'row',paddingHorizontal:8,marginBottom:4}}>
                     <View style={{flex:1,alignItems:'center'}}>
                       <ShotGauge shotsOn={hOn} shotsTotal={hTot}/>
@@ -518,7 +518,7 @@ export default function MatchDetail() {
               )}
               {fouls>0&&(
                 <>
-                  <Text style={[styles.sectionLabel,{color:c.textMuted}]}>MAÇIN SERTLİK SEVİYESİ</Text>
+                  <DetailSectionTitle style={styles.sectionLabel}>MAÇIN SERTLİK SEVİYESİ</DetailSectionTitle>
                   <View style={{marginHorizontal:14,marginBottom:12}}>
                     <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
                       <Text style={{fontSize:13,fontWeight:'600',color:sc}}>🌡️ {slbl}</Text>
@@ -535,7 +535,7 @@ export default function MatchDetail() {
         })()}
 
         {/* Performans Profili */}
-        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>PERFORMANS PROFİLİ</Text>
+        <DetailSectionTitle style={styles.sectionLabel}>PERFORMANS PROFİLİ</DetailSectionTitle>
         {hasFormData ? (
           <>
             <View style={styles.radarLegendRow}>
@@ -564,7 +564,7 @@ export default function MatchDetail() {
         )}
 
         {/* Takım Karşılaştırması */}
-        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>TAKIM KARŞILAŞTIRMASI</Text>
+        <DetailSectionTitle style={styles.sectionLabel}>TAKIM KARŞILAŞTIRMASI</DetailSectionTitle>
         {hasFormData ? (
           <>
             <View style={styles.compareHeader}>
@@ -580,9 +580,7 @@ export default function MatchDetail() {
             <CompareRow label="KG Var %"             homeVal={`${homeStats.kgVarPct}%`}    awayVal={`${awayStats.kgVarPct}%`}/>
             <CompareRow label="İç Saha Galibiyet %"  homeVal={`${homeStats.homeWinPct}% (${homeStats.homePlayed})`}  awayVal={`${awayStats.homeWinPct}% (${awayStats.homePlayed})`}/>
             <CompareRow label="Deplasman Galibiyet %" homeVal={`${homeStats.awayWinPct}% (${homeStats.awayPlayed})`} awayVal={`${awayStats.awayWinPct}% (${awayStats.awayPlayed})`}/>
-            <View style={[styles.insightBox,ts.insightBox]}>
-              <Text style={[styles.insightText,ts.insightText]}>{compareComment}</Text>
-            </View>
+            <DetailInsightBox message={compareComment} boxStyle={[styles.insightBox,ts.insightBox]} textStyle={[styles.insightText,ts.insightText]} />
           </>
         ) : (
           <DetailDataNotice
@@ -593,7 +591,7 @@ export default function MatchDetail() {
         )}
 
         {/* Son Form */}
-        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>SON FORM  (İ = İç Saha · D = Deplasman)</Text>
+        <DetailSectionTitle style={styles.sectionLabel}>SON FORM  (İ = İç Saha · D = Deplasman)</DetailSectionTitle>
         {hasFormData ? (
           <>
             <FormHeatRow matches={homeForm} teamId={formTeamIds.home} label={displayHomeName}/>
@@ -628,11 +626,9 @@ export default function MatchDetail() {
         )}
 
         {/* İç Saha / Deplasman Analizi */}
-        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>İÇ SAHA / DEPLASMAN ANALİZİ</Text>
+        <DetailSectionTitle style={styles.sectionLabel}>İÇ SAHA / DEPLASMAN ANALİZİ</DetailSectionTitle>
         {hasFormData ? (
-          <View style={[styles.insightBox,ts.insightBox]}>
-            <Text style={[styles.insightText,ts.insightText]}>{homeAwayComment}</Text>
-          </View>
+          <DetailInsightBox message={homeAwayComment} boxStyle={[styles.insightBox,ts.insightBox]} textStyle={[styles.insightText,ts.insightText]} />
         ) : (
           <DetailDataNotice
             message={detailDataMessage('homeAway', hasFormIssue ? 'sourceError' : 'empty')}
@@ -642,7 +638,7 @@ export default function MatchDetail() {
         )}
 
         {/* Oran + Yorum */}
-        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>ORAN + YORUM</Text>
+        <DetailSectionTitle style={styles.sectionLabel}>ORAN + YORUM</DetailSectionTitle>
         {hasFormData && (() => {
           const rawH=(homeStats.homeWinPct*0.55+homeStats.totalWinPct*0.45)*0.85;
           const rawA=(awayStats.awayWinPct*0.55+awayStats.totalWinPct*0.45)*0.85;
@@ -738,18 +734,14 @@ export default function MatchDetail() {
           />
         )}
         {oddsData && (
-          <View style={[styles.insightBox,ts.insightBox]}>
-            <Text style={[styles.insightText,ts.insightText]}>{oddsComment}</Text>
-          </View>
+          <DetailInsightBox message={oddsComment} boxStyle={[styles.insightBox,ts.insightBox]} textStyle={[styles.insightText,ts.insightText]} />
         )}
         {oddsData && drawAnalysis ? (
-          <View style={[styles.insightBox,ts.insightBox,{marginTop:0}]}>
-            <Text style={[styles.insightText,ts.insightText]}>🤝 {drawAnalysis}</Text>
-          </View>
+          <DetailInsightBox message={`🤝 ${drawAnalysis}`} boxStyle={[styles.insightBox,ts.insightBox,{marginTop:0}]} textStyle={[styles.insightText,ts.insightText]} />
         ) : null}
 
         {/* Hava Etkisi */}
-        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>HAVA ETKİSİ</Text>
+        <DetailSectionTitle style={styles.sectionLabel}>HAVA ETKİSİ</DetailSectionTitle>
         {weatherData ? (
           <>
             <View style={[styles.weatherCard,ts.weatherCard]}>
@@ -775,10 +767,10 @@ export default function MatchDetail() {
                 </View>
               ))}
             </View>
-            <View style={[styles.insightBox,ts.insightBox]}>
+            <DetailInsightBox boxStyle={[styles.insightBox,ts.insightBox]}>
               <Text style={[styles.insightText,ts.insightText,{fontWeight:'500'}]}>Etki: {weatherCom.impact}</Text>
               <Text style={[styles.insightText,ts.insightText,{marginTop:3}]}>{weatherCom.sentence}</Text>
-            </View>
+            </DetailInsightBox>
           </>
         ) : (
           <DetailDataNotice
@@ -789,7 +781,7 @@ export default function MatchDetail() {
         )}
 
         {/* Hakem */}
-        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>HAKEM</Text>
+        <DetailSectionTitle style={styles.sectionLabel}>HAKEM</DetailSectionTitle>
         {refProfile ? (
           <>
             <View style={[styles.refCard,ts.refCard]}>
@@ -808,9 +800,7 @@ export default function MatchDetail() {
                 <Text style={[styles.refTagText,ts.refAkisText]}>🎮 Akış: {refProfile.akis}</Text>
               </View>
             </View>
-            <View style={[styles.insightBox,ts.insightBox]}>
-              <Text style={[styles.insightText,ts.insightText]}>{refProfile.narrative}</Text>
-            </View>
+            <DetailInsightBox message={refProfile.narrative} boxStyle={[styles.insightBox,ts.insightBox]} textStyle={[styles.insightText,ts.insightText]} />
           </>
         ) : (
           <DetailDataNotice
@@ -821,10 +811,8 @@ export default function MatchDetail() {
         )}
 
         {/* H2H */}
-        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>H2H — GEÇMİŞ KARŞILAŞMALAR</Text>
-        <View style={[styles.insightBox,ts.insightBox]}>
-          <Text style={[styles.insightText,ts.insightText]}>{h2hComment}</Text>
-        </View>
+        <DetailSectionTitle style={styles.sectionLabel}>H2H — GEÇMİŞ KARŞILAŞMALAR</DetailSectionTitle>
+        <DetailInsightBox message={h2hComment} boxStyle={[styles.insightBox,ts.insightBox]} textStyle={[styles.insightText,ts.insightText]} />
         {deepH2H && (
           <>
             <View style={{flexDirection:'row',gap:8,paddingHorizontal:14,marginBottom:6}}>
@@ -839,9 +827,7 @@ export default function MatchDetail() {
                 </View>
               ))}
             </View>
-            <View style={[styles.insightBox,ts.insightBox]}>
-              <Text style={[styles.insightText,ts.insightText]}>{deepH2H.deepComment}</Text>
-            </View>
+            <DetailInsightBox message={deepH2H.deepComment} boxStyle={[styles.insightBox,ts.insightBox]} textStyle={[styles.insightText,ts.insightText]} />
           </>
         )}
         {h2hData.length===0 ? (
@@ -891,7 +877,7 @@ export default function MatchDetail() {
         )}
 
         {/* Maç Karakteri Detayı */}
-        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>MAÇ KARAKTERİ DETAYI</Text>
+        <DetailSectionTitle style={styles.sectionLabel}>MAÇ KARAKTERİ DETAYI</DetailSectionTitle>
         {hasFormData && hStyle && aStyle ? (
           <>
             <View style={{flexDirection:'row',gap:10,paddingHorizontal:14,marginBottom:10}}>
@@ -905,11 +891,7 @@ export default function MatchDetail() {
                 </View>
               ))}
             </View>
-            <View style={[styles.insightBox,ts.insightBox]}>
-              <Text style={[styles.insightText,ts.insightText]}>
-                {characterDetail}
-              </Text>
-            </View>
+            <DetailInsightBox message={characterDetail} boxStyle={[styles.insightBox,ts.insightBox]} textStyle={[styles.insightText,ts.insightText]} />
           </>
         ) : (
           <DetailDataNotice
@@ -920,11 +902,15 @@ export default function MatchDetail() {
         )}
 
         {/* Motivasyon Faktörü */}
-        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>MOTİVASYON FAKTÖRÜ</Text>
+        <DetailSectionTitle style={styles.sectionLabel}>MOTİVASYON FAKTÖRÜ</DetailSectionTitle>
         {motivationComment ? (
-          <View style={[styles.insightBox,ts.insightBox,{borderLeftColor:isDark?'#E3B341':'#E6A817',borderLeftWidth:3}]}>
-            <Text style={[styles.insightText,{color:isDark?'#E3B341':'#7A5700',fontWeight:'600'}]}>🏆 {motivationComment}</Text>
-          </View>
+          <DetailInsightBox
+            message={`🏆 ${motivationComment}`}
+            accentColor={isDark ? '#E3B341' : '#E6A817'}
+            textColor={isDark ? '#E3B341' : '#7A5700'}
+            boxStyle={[styles.insightBox,ts.insightBox]}
+            textStyle={[styles.insightText,{fontWeight:'600'}]}
+          />
         ) : (
           <DetailDataNotice
             message="Bu maçta belirgin bir motivasyon faktörü tespit edilmedi."
@@ -934,7 +920,7 @@ export default function MatchDetail() {
         )}
 
         {/* Risk & Uyarı */}
-        <Text style={[styles.sectionLabel,{color:c.textMuted}]}>RİSK & UYARI</Text>
+        <DetailSectionTitle style={styles.sectionLabel}>RİSK & UYARI</DetailSectionTitle>
         <View style={[styles.riskBox,ts.riskBox]}>
           {riskWarns.map((w,i)=>(
             <View key={i} style={[styles.riskRow,{backgroundColor:c.surface},i>0&&{borderTopWidth:0.5,...ts.riskRow}]}>
