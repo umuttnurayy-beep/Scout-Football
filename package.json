@@ -23,7 +23,8 @@
       "^.+\\.tsx?$": ["ts-jest", {
         "tsconfig": {
           "strict": false,
-          "esModuleInterop": true
+          "esModuleInterop": true,
+          "jsx": "react"
         }
       }]
     }
