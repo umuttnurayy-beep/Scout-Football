@@ -1,4 +1,6 @@
-import type { FDMatch, OddsData, WeatherData } from '../services/api';
+import { getCityForTeam } from '../services/api';
+import type { FDFixtureStat, FDMatch, FDMatchDetail, OddsData, WeatherData } from '../services/api';
+import { MEDIUM_BANK, SHORT_BANK } from './matchTextBanks';
 
 export type Stil = 'Hücumcu' | 'Savunmacı' | 'Dengeli';
 export type Level = 'Düşük' | 'Orta' | 'Yüksek';
@@ -930,4 +932,288 @@ export function getDrawAnalysis(
     return 'Piyasa beraberliği uzak ihtimal sayıyor (' + dO + '). KG Var eğilimi de skor hareketi beklentisini güçlendiriyor.';
   }
   return 'Beraberlik oranı ' + dO + ' - ' + probabilityLabel + ' %' + impliedDraw + '. Dengeli bir karşılaşma sinyali.';
+}
+
+// ── Match Detail Analysis ──────────────────────────────────────────────────
+
+export interface MatchAnalysis {
+  stil: Stil; gol: Level; tempo: Level; risk: Level; guven: Level;
+  short: string; medium: string; reasons: string[];
+  scoutPick: ScoutPick | null;
+  badgeLabel: string; badgeColor: string; badgeBg: string;
+}
+
+export const LEAGUE_BASE: Record<number, { stil: Stil; gol: Level; tempo: Level; risk: Level }> = {
+  2021: { stil: 'Dengeli',    gol: 'Orta',   tempo: 'Yüksek', risk: 'Düşük'  },
+  2014: { stil: 'Savunmacı', gol: 'Orta',   tempo: 'Orta',   risk: 'Düşük'  },
+  2002: { stil: 'Hücumcu',   gol: 'Yüksek', tempo: 'Yüksek', risk: 'Orta'   },
+  2019: { stil: 'Savunmacı', gol: 'Düşük',  tempo: 'Düşük',  risk: 'Orta'   },
+  2015: { stil: 'Dengeli',   gol: 'Orta',   tempo: 'Orta',   risk: 'Yüksek' },
+  2001: { stil: 'Dengeli',   gol: 'Orta',   tempo: 'Orta',   risk: 'Düşük'  },
+  203:  { stil: 'Dengeli',   gol: 'Orta',   tempo: 'Yüksek', risk: 'Yüksek' },
+};
+
+export function buildMatchAnalysis(
+  home: string, away: string, leagueApiId: number,
+  hSt: MatchFormStats,
+  aSt: MatchFormStats,
+  hFP: number, aFP: number,
+  h2hCount: number, weatherRisk: boolean, hasFormData: boolean,
+  hTrend?: { direction: 'up' | 'down' | 'stable'; pts5: number; ptsPrev: number } | null,
+  aTrend?: { direction: 'up' | 'down' | 'stable'; pts5: number; ptsPrev: number } | null,
+  leagueAvg: number = 1.5,
+): MatchAnalysis {
+  const base = LEAGUE_BASE[leagueApiId] ?? { stil: 'Dengeli' as Stil, gol: 'Orta' as Level, tempo: 'Orta' as Level, risk: 'Orta' as Level };
+  const hash = strHash(home + away);
+
+  let stil:  Stil  = base.stil;
+  let gol:   Level = shiftLevel(base.gol,   ANALYSIS_DELTA[hash % 11]);
+  let tempo: Level = shiftLevel(base.tempo, ANALYSIS_DELTA[(hash + 3) % 11]);
+  let risk:  Level = shiftLevel(base.risk,  ANALYSIS_DELTA[(hash + 7) % 11]);
+
+  if (hasFormData) {
+    const hAtk = parseFloat(hSt.totalAvgGf as string);
+    const aAtk = parseFloat(aSt.totalAvgGf as string);
+    const hDef = parseFloat(hSt.totalAvgGa as string);
+    const aDef = parseFloat(aSt.totalAvgGa as string);
+    const la   = leagueAvg > 0 ? leagueAvg : 1.5;
+    const tot  = (hAtk * aDef + aAtk * hDef) / la;
+    const avgO = (hSt.over25Pct + aSt.over25Pct) / 2;
+
+    gol   = tot >= 3.0 || avgO >= 62 ? 'Yüksek' : tot < 1.8 || avgO <= 35 ? 'Düşük' : 'Orta';
+    tempo = tot >= 2.8 || avgO >= 58 ? 'Yüksek' : tot < 2.0 && avgO <= 40 ? 'Düşük' : 'Orta';
+
+    const atkDiff = Math.abs(hAtk - aAtk);
+    const bothAttackStrong = hAtk >= 1.4 && aAtk >= 1.4;
+    const bothDefStrong = hDef < 0.95 && aDef < 0.95;
+    if (gol === 'Yüksek' && tempo === 'Yüksek') {
+      stil = bothAttackStrong || avgO >= 62 ? 'Hücumcu' : 'Dengeli';
+    } else if (gol === 'Yüksek') {
+      stil = 'Dengeli';
+    } else if (bothDefStrong && avgO <= 45) {
+      stil = 'Savunmacı';
+    } else if (atkDiff > 0.5 && (hAtk >= 1.4 || aAtk >= 1.4)) {
+      stil = 'Hücumcu';
+    } else {
+      stil = 'Dengeli';
+    }
+
+    const formDiff = Math.abs(hFP - aFP);
+    risk = weatherRisk ? 'Yüksek'
+         : formDiff >= 6  ? 'Düşük'
+         : (formDiff <= 2 && atkDiff < 0.3 && hSt.total >= 5) ? 'Orta'
+         : risk;
+  }
+
+  const guven   = hasFormData ? getGuven(hSt, aSt, h2hCount, weatherRisk) : 'Düşük';
+  const persona = getPersonaEnriched(stil, gol, tempo, risk, hasFormData ? hSt : undefined, hasFormData ? aSt : undefined, hTrend, aTrend);
+  const short   = pickFrom(SHORT_BANK[persona]  || SHORT_BANK.dengeli,  hash + 5);
+  const bankMedium = pickFrom(MEDIUM_BANK[persona] || MEDIUM_BANK.dengeli, hash + 13);
+  const medium  = hasFormData
+    ? buildScoutSummary(home, away, hSt, aSt, hFP, aFP, h2hCount, weatherRisk, hash + 13, hTrend, aTrend)
+    : bankMedium;
+  const reasons = hasFormData
+    ? buildReasons(home, away, hSt, aSt, hFP, aFP, h2hCount, hash + 17, hTrend, aTrend, weatherRisk)
+    : ['Veri henüz yüklenmedi; form ve H2H verileri değerlendirmeye alınamadı.',
+       'Lig profili baz alınarak tahmin üretildi.',
+       'Sonuçlar genel eğilimi yansıtmakla birlikte maç bazlı doğrulanmadı.'];
+  const scoutPick = hasFormData ? buildScoutPick(home, away, hSt, aSt, hFP, aFP, h2hCount, weatherRisk) : null;
+
+  let badgeLabel: string, badgeColor: string, badgeBg: string;
+  if (risk === 'Düşük' && guven !== 'Düşük') {
+    badgeLabel = '🟢 Güçlü sinyal'; badgeColor = '#1B6B3A'; badgeBg = '#E8F8F0';
+  } else if (risk === 'Yüksek') {
+    badgeLabel = '🔴 Risk yüksek'; badgeColor = '#A32D2D'; badgeBg = '#FDE8E8';
+  } else {
+    badgeLabel = '⚖️ Dengeli profil'; badgeColor = '#7A5700'; badgeBg = '#FFF8E1';
+  }
+
+  return { stil, gol, tempo, risk, guven, short, medium, reasons, scoutPick, badgeLabel, badgeColor, badgeBg };
+}
+
+export function calcFormStats(matches: FDMatch[], teamId: number) {
+  let homeWin=0,homeDraw=0,homeLoss=0,homeGf=0,homeGa=0,homePlayed=0;
+  let awayWin=0,awayDraw=0,awayLoss=0,awayGf=0,awayGa=0,awayPlayed=0;
+  let over25=0,kgVar=0,total=0;
+
+  matches.forEach(m => {
+    const fh=m.score?.fullTime?.home, fa=m.score?.fullTime?.away;
+    if (fh==null||fa==null) return;
+    total++;
+    const isHome=m.homeTeam?.id===teamId;
+    const gf=isHome?fh:fa, ga=isHome?fa:fh;
+    if (fh+fa>2.5) over25++;
+    if (fh>0&&fa>0) kgVar++;
+    if (isHome) {
+      homePlayed++; homeGf+=gf; homeGa+=ga;
+      if (gf>ga) homeWin++; else if (gf===ga) homeDraw++; else homeLoss++;
+    } else {
+      awayPlayed++; awayGf+=gf; awayGa+=ga;
+      if (gf>ga) awayWin++; else if (gf===ga) awayDraw++; else awayLoss++;
+    }
+  });
+
+  return {
+    total, homePlayed, awayPlayed,
+    homeWin, homeDraw, homeLoss, homeGf, homeGa,
+    awayWin, awayDraw, awayLoss, awayGf, awayGa,
+    homeWinPct: homePlayed>0?Math.round((homeWin/homePlayed)*100):0,
+    homeAvgGf:  homePlayed>0?(homeGf/homePlayed).toFixed(1):'0',
+    homeAvgGa:  homePlayed>0?(homeGa/homePlayed).toFixed(1):'0',
+    awayWinPct: awayPlayed>0?Math.round((awayWin/awayPlayed)*100):0,
+    awayAvgGf:  awayPlayed>0?(awayGf/awayPlayed).toFixed(1):'0',
+    awayAvgGa:  awayPlayed>0?(awayGa/awayPlayed).toFixed(1):'0',
+    totalAvgGf: total>0?((homeGf+awayGf)/total).toFixed(1):'0',
+    totalAvgGa: total>0?((homeGa+awayGa)/total).toFixed(1):'0',
+    totalWinPct: total>0?Math.round(((homeWin+awayWin)/total)*100):0,
+    over25Pct:  total>0?Math.round((over25/total)*100):0,
+    kgVarPct:   total>0?Math.round((kgVar/total)*100):0,
+  };
+}
+
+export function calcFormPoints(matches: FDMatch[], teamId: number): number {
+  return [...matches]
+    .filter(m=>m.score?.fullTime?.home!=null)
+    .sort((a,b)=>new Date(a.utcDate??0).getTime()-new Date(b.utcDate??0).getTime())
+    .slice(-5)
+    .reduce((pts,m)=>{
+      const isHome=m.homeTeam?.id===teamId;
+      const gf=isHome?m.score.fullTime.home:m.score.fullTime.away;
+      const ga=isHome?m.score.fullTime.away:m.score.fullTime.home;
+      return pts+(gf!=null&&ga!=null?(gf>ga?3:gf===ga?1:0):0);
+    },0);
+}
+
+export function getStat(stats: FDFixtureStat[] | undefined, ...keys: string[]): number {
+  if (!stats) return 0;
+  for (const key of keys) {
+    const s = stats.find(x => x.type?.toLowerCase().includes(key.toLowerCase()));
+    if (s) return parseInt(s.value) || 0;
+  }
+  return 0;
+}
+
+export function getTeamStyle(stats: ReturnType<typeof calcFormStats>): { label: string; color: string; emoji: string } {
+  const atk = parseFloat(stats.totalAvgGf as string);
+  const def = parseFloat(stats.totalAvgGa as string);
+  if (atk>=2.0&&def<=1.0) return { label: 'Dominant',      color: '#1565C0', emoji: '👑' };
+  if (atk>=1.8&&def>=1.5) return { label: 'Açık Futbol',   color: '#E65100', emoji: '⚡' };
+  if (atk>=1.7&&def<=1.1) return { label: 'Güçlü Hücum',   color: '#185FA5', emoji: '⚽' };
+  if (atk<=1.0&&def<=0.9) return { label: 'Katı Savunmacı',color: '#1B5E20', emoji: '🛡️' };
+  if (atk<=1.2&&def<=1.1) return { label: 'Savunmacı',     color: '#388E3C', emoji: '🛡️' };
+  if (def>=1.6)            return { label: 'Savunması Açık',color: '#A32D2D', emoji: '🚨' };
+  return                          { label: 'Dengeli',        color: '#555',    emoji: '⚖️' };
+}
+
+export function getH2HComment(h2hData: FDMatch[], home: string, away: string): string {
+  if (h2hData.length < 3) return 'Geçmiş karşılaşma sayısı sınırlı; bu veriye fazla ağırlık vermemek gerekebilir.';
+  let hw=0,d=0,aw=0,totalG=0,cnt=0;
+  h2hData.forEach(m=>{
+    const fh=m.score?.fullTime?.home, fa=m.score?.fullTime?.away;
+    if (fh==null||fa==null) return;
+    cnt++; totalG+=fh+fa;
+    const ih=m.homeTeam?.shortName===home||m.homeTeam?.name?.includes(home);
+    if (fh > fa) {
+      if (ih) hw++;
+      else aw++;
+    } else if (fh < fa) {
+      if (ih) aw++;
+      else hw++;
+    }
+    else d++;
+  });
+  if (cnt===0) return 'Geçmiş karşılaşma skoru bulunamadı.';
+  const avgG=(totalG/cnt).toFixed(1);
+  if (d/cnt>=0.45) return `Bu eşleşmede tarihsel olarak beraberlik eğilimi var (${cnt} maçta ${d} beraberlik). Bu desen bu maçta da geçerli olabilir.`;
+  if (hw/cnt>=0.6) return `Ev sahibi bu iki takım arasındaki maçlarda tarihsel üstünlük sağlamış (${hw}/${cnt}). İç saha faktörü belirleyici olabilir.`;
+  if (aw/cnt>=0.6) return `${away} bu iki takım arasındaki maçlarda tarihsel üstünlük kurmuş (${aw}/${cnt}). Deplasman etkisi göz ardı edilmemeli.`;
+  if (parseFloat(avgG)>=3.0) return `Geçmiş karşılaşmalar genellikle gollü geçmiş (ort. ${avgG} gol). Bu desen bu maç için de geçerli olabilir.`;
+  if (parseFloat(avgG)<1.8)  return `Geçmiş karşılaşmalar genellikle az gollü geçmiş (ort. ${avgG} gol). Savunma öne çıkabilir.`;
+  return `Geçmiş karşılaşmalar dengeli bir tablo çiziyor (${hw}G / ${d}B / ${aw}M, ort. ${avgG} gol).`;
+}
+
+export function getOddsComment(oddsData: OddsData | null, home: string, analysis: MatchAnalysis): string {
+  if (!oddsData) return 'Bu maç için oran verisi henüz yayınlanmadı.';
+  const hO=parseFloat(oddsData.home)||0;
+  const aO=parseFloat(oddsData.away)||0;
+  if (!hO||!aO) return 'Oran verisi eksik.';
+  const mktFav=hO<aO?home:(aO<hO?'deplasman':null);
+  const favOdd=Math.min(hO,aO);
+  if (!mktFav) return 'Piyasa bu maçı dengeli görüyor; her iki taraf için benzer oranlar mevcut.';
+  if (favOdd<=1.5) return `Piyasa ${mktFav} için çok güçlü favori konumu biçiyor (${favOdd}). Oran düşük, getiri sınırlı.`;
+  if (favOdd<=2.0) return `Piyasa ${mktFav} takımını favori görüyor (${favOdd}). Form verisi bu tercihi ${analysis.risk==='Düşük'?'destekliyor':'kısmen destekliyor'}.`;
+  return `Piyasa ${mktFav} takımını hafif öne çıkarıyor (${favOdd}). Form verisi bu avantajı aynı netlikte desteklemiyor; bu yüzden maç dengeli okunmalı.`;
+}
+
+export function getRefereeProfile(refName: string, leagueApiId: number) {
+  const hash = Math.abs(refName.split('').reduce((h,c)=>(Math.imul(31,h)+c.charCodeAt(0))|0,0));
+  const physLgs = [2021,2002,203];
+  const techLgs = [2014,2019];
+  let kartBase = hash % 3;
+  if (physLgs.includes(leagueApiId)) kartBase = Math.max(0, kartBase-1);
+
+  const kartLabels = ['düşük','orta','yüksek'];
+  const kartColors = ['#27AE60','#E6A817','#A32D2D'];
+  const kartEmoji  = ['🟢','🟡','🔴'];
+  const faulLabel  = ['toleranslı','dengeli','titiz'][(hash>>2)%3];
+  const akis       = (hash>>4)%2===0?'akıcı':'duraksatıcı';
+
+  let narrative='';
+  if (physLgs.includes(leagueApiId)) {
+    if (kartBase===0) narrative='Lig karakteri ve hakem ismine göre oluşturulan model profili daha toleranslı bir yönetime işaret ediyor; gerçek maç içi kararlar değişebilir.';
+    else if (kartBase===2) narrative='Model profili daha sıkı bir yönetim ihtimalini öne çıkarıyor; bu gerçek kart ortalaması değil, temkinli okunmalı.';
+    else narrative='Model profili dengeli yönetime işaret ediyor. Kart ve faul yorumu gerçek hakem istatistiği değil, yardımcı sinyal olarak okunmalı.';
+  } else if (techLgs.includes(leagueApiId)) {
+    if (kartBase===2) narrative='Model profili teknik maçlarda daha düşük kart eşiği ihtimalini öne çıkarıyor.';
+    else if (kartBase===0) narrative='Model profili oyunun akışına daha fazla izin veren bir yönetim ihtimalini gösteriyor.';
+    else narrative='Model profili standart ve esnek bir yönetim ihtimaline işaret ediyor.';
+  } else {
+    if (kartBase===0) narrative='Model profili oyun akışına daha fazla izin verilebileceğini gösteriyor; küçük temaslarda tolerans ihtimali var.';
+    else if (kartBase===2) narrative='Model profili daha düşük kart eşiği ihtimalini öne çıkarıyor; takımların sert temaslarda dikkatli olması gerekir.';
+    else narrative='Model profili dengeli bir yönetim ihtimaline işaret ediyor; büyük maç temposunda kontrol arayışı öne çıkabilir.';
+  }
+
+  return { kart:kartLabels[kartBase], kartColor:kartColors[kartBase], kartEmoji:kartEmoji[kartBase], faul:faulLabel, akis, narrative };
+}
+
+export function getUclKnockoutMotivation(stage: string): string {
+  if (stage === 'FINAL') return 'Şampiyonlar Ligi FİNALİ — galip gelen Avrupa\'nın şampiyonu. İki takım da tüm sezonun birikimini bu geceye yatırıyor; maksimum motivasyon garanti.';
+  if (stage === 'SEMI_FINALS') return 'UCL Yarı Finali — bir final bileti için tek eleme maçı. Lig fazı sıralaması bu aşamada anlamsız; sahada hayatta kalmak tek hedef.';
+  if (stage === 'QUARTER_FINALS') return 'UCL Çeyrek Finali — eleme aşaması. Bu noktaya gelen her takım sezonun en yüksek motivasyonuyla sahaya çıkıyor.';
+  if (stage === 'ROUND_OF_16') return 'UCL Son 16 — lig fazı bitti, eleme başladı. Her iki taraf da çeyrek finale geçmek için tam güçle oynayacak.';
+  if (stage === 'KNOCKOUT_ROUND_PLAY_OFF') return 'UCL Play-off — Son 16 bileti için tek eleme. Bu aşamada lig tablosu değil, bu geceki performans belirleyici.';
+  return 'UCL eleme aşaması — kazanan tur atlıyor. İki takım da maksimum motivasyonla sahaya çıkıyor.';
+}
+
+export function resolveFormTeamIds(stats: FDMatchDetail | null, routeHomeTeamId: number, routeAwayTeamId: number) {
+  return {
+    home: stats?.homeTeam?.id || routeHomeTeamId,
+    away: stats?.awayTeam?.id || routeAwayTeamId,
+  };
+}
+
+export function resolveWeatherCity(routeCity: string | null, stats: FDMatchDetail | null, routeHomeName: string) {
+  return routeCity ||
+    getCityForTeam(stats?.homeTeam?.name || '') ||
+    getCityForTeam(stats?.homeTeam?.shortName || '') ||
+    getCityForTeam(routeHomeName);
+}
+
+export function resolveMatchContext(stats: FDMatchDetail | null, route: {
+  home: string;
+  away: string;
+  city: string | null;
+  homeTeamId: number;
+  awayTeamId: number;
+}) {
+  const teamIds = resolveFormTeamIds(stats, route.homeTeamId, route.awayTeamId);
+  return {
+    homeName: stats?.homeTeam?.shortName || stats?.homeTeam?.name || route.home,
+    awayName: stats?.awayTeam?.shortName || stats?.awayTeam?.name || route.away,
+    city: resolveWeatherCity(route.city, stats, route.home),
+    homeTeamId: teamIds.home,
+    awayTeamId: teamIds.away,
+    status: stats?.status,
+    stage: stats?.stage,
+  };
 }
