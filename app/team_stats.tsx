@@ -60,11 +60,13 @@ export default function TeamStatsScreen() {
   const [recentForm,  setRecentForm]  = useState<string[]>([]);
   const [seasonStats, setSeasonStats] = useState<SeasonStats | null>(null);
   const [loadingForm, setLoadingForm] = useState(false);
+  const [formLoadError, setFormLoadError] = useState(false);
 
   // Kadro + golcüler (football-data.org, güncel sezon)
   const [fdSquad,      setFdSquad]      = useState<FDSquadPlayer[]>([]);
   const [fdScorers,    setFdScorers]    = useState<FDScorer[]>([]);
   const [loadingPlayers, setLoadingPlayers] = useState(false);
+  const [playersLoadError, setPlayersLoadError] = useState(false);
   const [showFullSquad, setShowFullSquad]   = useState(false);
 
   // AllSports (korner + possession)
@@ -130,6 +132,7 @@ export default function TeamStatsScreen() {
   async function loadForm() {
     if (!teamId || isSportsDbLeague) return;
     setLoadingForm(true);
+    setFormLoadError(false);
     try {
       const matches = await getTeamForm(teamId);
       const form = matches
@@ -143,8 +146,8 @@ export default function TeamStatsScreen() {
         });
       setRecentForm(form);
       setSeasonStats(calcSeasonStats(matches, teamId));
-    } catch (e) {
-      console.error('loadForm hata:', e);
+    } catch {
+      setFormLoadError(true);
     }
     setLoadingForm(false);
   }
@@ -152,6 +155,7 @@ export default function TeamStatsScreen() {
   async function loadPlayers() {
     if (!teamId || !fdId || isSportsDbLeague) return;
     setLoadingPlayers(true);
+    setPlayersLoadError(false);
     try {
       const [teamData, scorers] = await Promise.all([
         getFdTeamData(teamId),
@@ -162,8 +166,8 @@ export default function TeamStatsScreen() {
         s.team?.id === teamId || teamsMatch(s.team?.name || '', teamName)
       );
       setFdScorers(teamScorers);
-    } catch (e) {
-      console.error('loadPlayers hata:', e);
+    } catch {
+      setPlayersLoadError(true);
     }
     setLoadingPlayers(false);
   }
@@ -215,8 +219,9 @@ export default function TeamStatsScreen() {
       } else {
         setSlTeamScorers([]);
       }
-    } catch (e) {
-      console.error('loadSLData hata:', e);
+    } catch {
+      setFormLoadError(true);
+      setPlayersLoadError(true);
     }
     setLoadingForm(false);
     setLoadingPlayers(false);
@@ -399,6 +404,13 @@ export default function TeamStatsScreen() {
             {/* SEZON ANALİZİ — Gol beklentileri görsel bar + özel durumlar */}
             {loadingForm && !activeSeasonStats ? (
               <SkeletonStatBlock />
+            ) : formLoadError ? (
+              <EmptyStateCard
+                compact
+                icon="📡"
+                title="İstatistik verisi alınamadı"
+                onRetry={() => apiId === 203 ? loadSLData() : loadForm()}
+              />
             ) : !activeSeasonStats && lacksProviderTeamId ? (
               <Text style={[styles.formNote, { color: c.textFaint, paddingHorizontal: 14, paddingBottom: 8 }]}>
                 Sezon analizi bu lig için mevcut değil.
@@ -519,6 +531,13 @@ export default function TeamStatsScreen() {
         {activeTab === 'oyuncular' && apiId === 203 && (
           loadingPlayers ? (
             <SkeletonPlayerList />
+          ) : playersLoadError ? (
+            <EmptyStateCard
+              compact
+              icon="👥"
+              title="Oyuncu verisi alınamadı"
+              onRetry={loadSLData}
+            />
           ) : !showFullSquad ? (
             <>
               {slTeamScorers.length > 0 ? (
@@ -605,6 +624,13 @@ export default function TeamStatsScreen() {
         {activeTab === 'oyuncular' && apiId !== 203 && (
           loadingPlayers ? (
             <SkeletonPlayerList />
+          ) : playersLoadError ? (
+            <EmptyStateCard
+              compact
+              icon="👥"
+              title="Oyuncu verisi alınamadı"
+              onRetry={loadPlayers}
+            />
           ) : !showFullSquad ? (
             <>
               {topScorers.length > 0 ? (
