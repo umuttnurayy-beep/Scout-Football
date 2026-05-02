@@ -104,7 +104,8 @@
       "Bash(python3 -c \"import os; print\\(os.path.getsize\\('app/sl_match_detail.tsx'\\)\\)\")",
       "Bash(python3 fix_banks.py)",
       "Bash(python3 fix_banks2.py)",
-      "Bash(grep -v \"//.*#\")"
+      "Bash(grep -v \"//.*#\")",
+      "Read(//mnt/c/Users/umutn/Desktop/ScoutFootball/**)"
     ],
     "additionalDirectories": [
       "C:\\tmp",
