@@ -103,7 +103,8 @@
       "Bash(python3 -c \"import sys; data=sys.stdin.buffer.read\\(\\); print\\(len\\(data\\)\\)\")",
       "Bash(python3 -c \"import os; print\\(os.path.getsize\\('app/sl_match_detail.tsx'\\)\\)\")",
       "Bash(python3 fix_banks.py)",
-      "Bash(python3 fix_banks2.py)"
+      "Bash(python3 fix_banks2.py)",
+      "Bash(grep -v \"//.*#\")"
     ],
     "additionalDirectories": [
       "C:\\tmp",

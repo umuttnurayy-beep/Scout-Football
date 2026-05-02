@@ -196,18 +196,22 @@ export default function LeaguesScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} colors={[c.primary]} />}
       >
         {loading ? (
-          <SkeletonLeagueTable />
+          <View style={styles.stateFrame}>
+            <SkeletonLeagueTable />
+          </View>
         ) : (
           <>
             {/* ===== GENEL ===== */}
             {subTab === 'genel' && (
               standings.length === 0 ? (
-                <EmptyStateCard
-                  icon="📡"
-                  title={loadError ? 'Lig verisi yüklenemedi' : 'Veri bulunamadı'}
-                  subtitle={leagueDataEmptyMessage(activeLeague.name)}
-                  onRetry={retryStandings}
-                />
+                <View style={styles.stateFrame}>
+                  <EmptyStateCard
+                    icon="📡"
+                    title={loadError ? 'Lig verisi yüklenemedi' : 'Veri bulunamadı'}
+                    subtitle={leagueDataEmptyMessage(activeLeague.name)}
+                    onRetry={retryStandings}
+                  />
+                </View>
               ) : (
                 <>
                   {ligChar && (
@@ -440,13 +444,21 @@ export default function LeaguesScreen() {
                       ))}
                     </ScrollView>
                     {knockoutsLoading ? (
-                      <SkeletonLeagueTable />
+                      <View style={styles.stateFrame}>
+                        <SkeletonLeagueTable />
+                      </View>
                     ) : knockoutsLoadError ? (
-                      <EmptyStateCard icon="📡" title="Eşleşme verisi yüklenemedi" onRetry={retryKnockouts} />
+                      <View style={styles.stateFrame}>
+                        <EmptyStateCard icon="📡" title="Eşleşme verisi yüklenemedi" onRetry={retryKnockouts} />
+                      </View>
                     ) : knockouts == null ? (
-                      <EmptyStateCard icon="🏆" title="UCL eşleşme verisi bulunamadı" onRetry={retryKnockouts} />
+                      <View style={styles.stateFrame}>
+                        <EmptyStateCard icon="🏆" title="UCL eşleşme verisi bulunamadı" onRetry={retryKnockouts} />
+                      </View>
                     ) : (knockouts[activeStage] || []).length === 0 ? (
-                      <EmptyStateCard icon="🏆" title="Bu tura ait veri bulunamadı" onRetry={retryKnockouts} />
+                      <View style={styles.stateFrame}>
+                        <EmptyStateCard icon="🏆" title="Bu tura ait veri bulunamadı" onRetry={retryKnockouts} />
+                      </View>
                     ) : (
                       groupTies(knockouts[activeStage] || []).map((tie, i) => (
                         <TieCard key={i} tie={tie} isFinal={activeStage === 'FINAL'} />
@@ -457,12 +469,14 @@ export default function LeaguesScreen() {
 
                 {(activeLeague.apiId !== 2 || uclView === 'standings') && (
                   standings.length === 0 ? (
-                    <EmptyStateCard
-                      icon="📡"
-                      title={loadError ? 'Puan tablosu yüklenemedi' : 'Veri bulunamadı'}
-                      subtitle={leagueDataEmptyMessage(activeLeague.name)}
-                      onRetry={retryStandings}
-                    />
+                    <View style={styles.stateFrame}>
+                      <EmptyStateCard
+                        icon="📡"
+                        title={loadError ? 'Puan tablosu yüklenemedi' : 'Veri bulunamadı'}
+                        subtitle={leagueDataEmptyMessage(activeLeague.name)}
+                        onRetry={retryStandings}
+                      />
+                    </View>
                   ) : (
                     <>
                       <Text style={[styles.sectionLabel, { color: c.textMuted }]}>PUAN TABLOSU</Text>
@@ -507,12 +521,14 @@ export default function LeaguesScreen() {
             {/* ===== TAKIMLAR ===== */}
             {subTab === 'takimlar' && (
               standings.length === 0 ? (
-                <EmptyStateCard
-                  icon="🏟️"
-                  title={loadError ? 'Takım verisi yüklenemedi' : 'Veri bulunamadı'}
-                  subtitle={leagueDataEmptyMessage(activeLeague.name)}
-                  onRetry={retryStandings}
-                />
+                <View style={styles.stateFrame}>
+                  <EmptyStateCard
+                    icon="🏟️"
+                    title={loadError ? 'Takım verisi yüklenemedi' : 'Veri bulunamadı'}
+                    subtitle={leagueDataEmptyMessage(activeLeague.name)}
+                    onRetry={retryStandings}
+                  />
+                </View>
               ) : (
                 <>
                   <Text style={[styles.sectionLabel, { color: c.textMuted }]}>TAKIM KİMLİKLERİ</Text>
@@ -559,12 +575,14 @@ export default function LeaguesScreen() {
             {/* ===== TRENDLER ===== */}
             {subTab === 'trendler' && (
               standings.length === 0 ? (
-                <EmptyStateCard
-                  icon="📊"
-                  title={loadError ? 'Trend verisi yüklenemedi' : 'Veri bulunamadı'}
-                  subtitle={leagueDataEmptyMessage(activeLeague.name)}
-                  onRetry={retryStandings}
-                />
+                <View style={styles.stateFrame}>
+                  <EmptyStateCard
+                    icon="📊"
+                    title={loadError ? 'Trend verisi yüklenemedi' : 'Veri bulunamadı'}
+                    subtitle={leagueDataEmptyMessage(activeLeague.name)}
+                    onRetry={retryStandings}
+                  />
+                </View>
               ) : (() => {
                 const withRates = standings.map(r => ({
                   ...r,
@@ -744,6 +762,7 @@ const styles = StyleSheet.create({
   leaguePillText:      { fontSize: 12 },
   leaguePillTextActive:{ color: '#fff' },
   scroll:              { flex: 1 },
+  stateFrame:          { minHeight: 360, justifyContent: 'flex-start' },
   leagueHeader:        { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 0.5 },
   leagueHeaderFlag:    { fontSize: 32 },
   leagueHeaderName:    { fontSize: 16, fontWeight: '500' },
