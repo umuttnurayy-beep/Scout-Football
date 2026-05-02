@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert, Image, Linking, Modal, ScrollView, StyleSheet,
   Switch, Text, TextInput, TouchableOpacity, View,
@@ -14,6 +14,7 @@ import {
 } from '../services/notifications';
 import BottomTabBar from '../components/BottomTabBar';
 import { useTheme } from '../context/ThemeContext';
+import { transliterate } from '../utils/teamStats';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -280,10 +281,8 @@ export default function ProfileScreen() {
       if (standings.length > 0) {
         const lPts = standings[0].pts;
         const found = standings.find(s =>
-          s.team.toLowerCase().replace(/[çÇ]/g, 'c').replace(/[şŞ]/g, 's').replace(/[ğĞ]/g, 'g').replace(/[üÜ]/g, 'u').replace(/[öÖ]/g, 'o').replace(/[ıİ]/g, 'i')
-            .includes(team.name.toLowerCase().replace(/[çÇ]/g, 'c').replace(/[şŞ]/g, 's').replace(/[ğĞ]/g, 'g').replace(/[üÜ]/g, 'u').replace(/[öÖ]/g, 'o').replace(/[ıİ]/g, 'i'))
-          || team.name.toLowerCase().replace(/[çÇ]/g, 'c').replace(/[şŞ]/g, 's').replace(/[ğĞ]/g, 'g').replace(/[üÜ]/g, 'u').replace(/[öÖ]/g, 'o').replace(/[ıİ]/g, 'i')
-            .includes(s.team.toLowerCase().replace(/[çÇ]/g, 'c').replace(/[şŞ]/g, 's').replace(/[ğĞ]/g, 'g').replace(/[üÜ]/g, 'u').replace(/[öÖ]/g, 'o').replace(/[ıİ]/g, 'i'))
+          transliterate(s.team).includes(transliterate(team.name))
+          || transliterate(team.name).includes(transliterate(s.team))
         );
         if (found) {
           setFavPos(found.pos);
@@ -333,11 +332,9 @@ export default function ProfileScreen() {
         } catch {}
 
         const rows = standingsMap[team.apiId] || [];
-        const tr = (s: string) => s.toLowerCase()
-          .replace(/[çÇ]/g, 'c').replace(/[şŞ]/g, 's').replace(/[ğĞ]/g, 'g')
-          .replace(/[üÜ]/g, 'u').replace(/[öÖ]/g, 'o').replace(/[ıİ]/g, 'i');
         const found = rows.find((s) =>
-          tr(s.team || '').includes(tr(team.name)) || tr(team.name).includes(tr(s.team || ''))
+          transliterate(s.team || '').includes(transliterate(team.name))
+          || transliterate(team.name).includes(transliterate(s.team || ''))
         );
         if (found) {
           stats[team.name] = {
@@ -361,9 +358,6 @@ export default function ProfileScreen() {
   }
 
   async function loadRecentStats(items: RecentItem[]) {
-    const tr = (s: string) => s.toLowerCase()
-      .replace(/[çÇ]/g, 'c').replace(/[şŞ]/g, 's').replace(/[ğĞ]/g, 'g')
-      .replace(/[üÜ]/g, 'u').replace(/[öÖ]/g, 'o').replace(/[ıİ]/g, 'i');
 
     const uniqueApiIds = [...new Set(items.map(r => r.apiId))];
     const standingsMap: Record<number, Standing[]> = {};
@@ -381,7 +375,8 @@ export default function ProfileScreen() {
     for (const item of items) {
       const rows = standingsMap[item.apiId] || [];
       const found = rows.find((s) =>
-        tr(s.team || '').includes(tr(item.name)) || tr(item.name).includes(tr(s.team || ''))
+        transliterate(s.team || '').includes(transliterate(item.name))
+        || transliterate(item.name).includes(transliterate(s.team || ''))
       );
       if (found) {
         stats[item.name] = {
@@ -476,12 +471,14 @@ export default function ProfileScreen() {
 
   // ─── Team Picker Modal ──────────────────────────────────────────────────────
 
-  const filteredLeagues = LEAGUES_TEAMS.map(lg => ({
-    ...lg,
-    teams: lg.teams.filter(t =>
-      !teamSearch || t.name.toLowerCase().includes(teamSearch.toLowerCase())
-    ),
-  })).filter(lg => lg.teams.length > 0);
+  const filteredLeagues = useMemo(() =>
+    LEAGUES_TEAMS.map(lg => ({
+      ...lg,
+      teams: lg.teams.filter(t =>
+        !teamSearch || t.name.toLowerCase().includes(teamSearch.toLowerCase())
+      ),
+    })).filter(lg => lg.teams.length > 0),
+  [teamSearch]);
 
   function renderTeamPicker() {
     return (
