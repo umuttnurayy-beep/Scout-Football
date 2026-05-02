@@ -1,6 +1,19 @@
 import { StyleSheet } from 'react-native';
+import { SP } from './spacing';
 
 const scoutStyles = StyleSheet.create({
+  // ── shared section / insight styles ─────────────────────────────────────────
+  sectionLabel: {
+    fontSize: 11, fontWeight: '500', letterSpacing: 0.5,
+    paddingHorizontal: SP.sectionPx, paddingTop: SP.sectionPt, paddingBottom: SP.sectionPb,
+  },
+  insightBox: {
+    marginHorizontal: SP.insightMx, marginBottom: SP.insightMb,
+    padding: SP.insightP, borderRadius: SP.insightR, borderLeftWidth: SP.insightBw,
+    alignSelf: 'stretch',
+  },
+  insightText: { width: '100%', flexShrink: 1, flexWrap: 'wrap', fontSize: 12, lineHeight: 17 },
+  // ── match-card analysis styles ───────────────────────────────────────────────
   card:           { backgroundColor:'#f4f0ff', borderBottomWidth:0.5, borderBottomColor:'#ddd6ff', paddingHorizontal:14, paddingTop:12, paddingBottom:12 },
   headerRow:      { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:9 },
   headerLabel:    { fontSize:11, fontWeight:'700', color:'#5b2d8e', letterSpacing:0.6 },

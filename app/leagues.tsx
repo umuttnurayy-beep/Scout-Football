@@ -9,6 +9,7 @@ import { useTheme } from '../context/ThemeContext';
 import { CURRENT_FOOTBALL_SEASON, DISPLAY_FOOTBALL_SEASON } from '../constants/seasons';
 import { UCLKnockouts, getStandings, getSuperLigStandings, getUclKnockouts } from '../services/api';
 import { leagueDataEmptyMessage } from '../utils/emptyStates';
+import scoutStyles from '../utils/scoutStyles';
 import {
   LeagueStanding,
   computeLeagueStats, getTagColor, getTeamLabel, getTeamPersonality, groupTies,
@@ -333,7 +334,7 @@ export default function LeaguesScreen() {
                     </View>
                   )}
 
-                  <Text style={[styles.sectionLabel, { color: c.textMuted }]}>ÖNE ÇIKAN PROFİLLER</Text>
+                  <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>ÖNE ÇIKAN PROFİLLER</Text>
                   {([
                     mostGoals    ? { icon: '⚽', label: 'En Golcü',        team: mostGoals,    stat: (mostGoals.gf / Math.max(mostGoals.played, 1)).toFixed(1) + ' gol/maç',           insight: 'Over 2.5 eğilimi güçlü; rakip kale her an tehlikede.' }           : null,
                     bestDef      ? { icon: '🛡️', label: 'En İyi Savunma', team: bestDef,      stat: (bestDef.ga  / Math.max(bestDef.played,   1)).toFixed(1) + ' yenilen/maç',        insight: 'Kale sıfır potansiyeli yüksek; düşük skorlu senaryolar için referans.' }        : null,
@@ -357,7 +358,7 @@ export default function LeaguesScreen() {
                     const maxGf = sorted[0]?.gf || 1;
                     return (
                       <>
-                        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>GOL VERİMLİLİĞİ</Text>
+                        <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>GOL VERİMLİLİĞİ</Text>
                         <Text style={[styles.effSubtitle, { color: c.textFaint }]}>En fazla gol atan takım 100 birim alır, diğerleri ona oranlanır.</Text>
                         {sorted.map((row, i) => {
                           const ratio = row.gf / maxGf;
@@ -484,7 +485,7 @@ export default function LeaguesScreen() {
                     </View>
                   ) : (
                     <>
-                      <Text style={[styles.sectionLabel, { color: c.textMuted }]}>PUAN TABLOSU</Text>
+                      <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>PUAN TABLOSU</Text>
                       <View style={[styles.tableHeader, { backgroundColor: c.surfaceAlt, borderBottomColor: c.border }]}>
                         <Text style={[styles.rankCell, { color: c.textMuted }]}>#</Text>
                         <Text style={[styles.teamCell, { color: c.textMuted }]}>Takım</Text>
@@ -536,7 +537,7 @@ export default function LeaguesScreen() {
                 </View>
               ) : (
                 <>
-                  <Text style={[styles.sectionLabel, { color: c.textMuted }]}>TAKIM KİMLİKLERİ</Text>
+                  <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>TAKIM KİMLİKLERİ</Text>
                   <Text style={[styles.effSubtitle, { color: c.textFaint }]}>Alfabetik sırada · sezon ortalamaları + karakter profili</Text>
                   {[...standings].sort((a, b) => a.team.localeCompare(b.team, 'tr')).map((row, i) => {
                     const avgGf      = row.played > 0 ? row.gf / row.played : 0;
@@ -620,7 +621,7 @@ export default function LeaguesScreen() {
                       </Text>
                     </View>
 
-                    <Text style={[styles.sectionLabel, { color: c.textMuted }]}>HÜCUM GÜCÜ (Gol/Maç)</Text>
+                    <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>HÜCUM GÜCÜ (Gol/Maç)</Text>
                     <Text style={[styles.effSubtitle, { color: c.textFaint }]}>Maç başı en fazla gol atan takımlar</Text>
                     {attackTop[0] && (
                       <View style={[stStyles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
@@ -649,7 +650,7 @@ export default function LeaguesScreen() {
                       );
                     })}
 
-                    <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SAVUNMA DİRENCİ (Yenilen/Maç)</Text>
+                    <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>SAVUNMA DİRENCİ (Yenilen/Maç)</Text>
                     <Text style={[styles.effSubtitle, { color: c.textFaint }]}>En az gol yiyen takımlar — düşük değer daha iyi</Text>
                     {defTop[0] && (
                       <View style={[stStyles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
@@ -678,7 +679,7 @@ export default function LeaguesScreen() {
                       );
                     })}
 
-                    <Text style={[styles.sectionLabel, { color: c.textMuted }]}>TEMPO ENDEKSİ (Toplam Gol/Maç)</Text>
+                    <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>TEMPO ENDEKSİ (Toplam Gol/Maç)</Text>
                     <Text style={[styles.effSubtitle, { color: c.textFaint }]}>Maçlarında en fazla toplam gol oynanan takımlar — over eğilimi göstergesi</Text>
                     {tempoTop[0] && (
                       <View style={[stStyles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
@@ -709,7 +710,7 @@ export default function LeaguesScreen() {
                       );
                     })}
 
-                    <Text style={[styles.sectionLabel, { color: c.textMuted }]}>BERABERLİK EĞİLİMİ</Text>
+                    <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>BERABERLİK EĞİLİMİ</Text>
                     <Text style={[styles.effSubtitle, { color: c.textFaint }]}>En fazla beraberlikle biten maç oynayan takımlar</Text>
                     {drawTop[0] && (
                       <View style={[stStyles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
@@ -772,7 +773,6 @@ const styles = StyleSheet.create({
   leagueHeaderFlag:    { fontSize: 32 },
   leagueHeaderName:    { fontSize: 16, fontWeight: '500' },
   leagueHeaderSub:     { fontSize: 12, marginTop: 2 },
-  sectionLabel:        { fontSize: 11, fontWeight: '500', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6, letterSpacing: 0.5 },
   emptyText:           { textAlign: 'center', marginTop: 40, fontSize: 13 },
   tableHeader:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 8, borderBottomWidth: 0.5 },
   tableRow:            { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 0.5 },
@@ -881,8 +881,8 @@ const stStyles = StyleSheet.create({
   profileTeam:      { fontSize: 13, fontWeight: '600' },
   profileInsight:   { fontSize: 10, marginTop: 3, lineHeight: 14, fontStyle: 'italic' },
   profileStat:      { fontSize: 11, fontWeight: '600', textAlign: 'right', maxWidth: 110, paddingTop: 2 },
-  insightBox:       { marginHorizontal: 14, marginBottom: 6, padding: 10, borderRadius: 8, borderLeftWidth: 2 },
-  insightText:      { fontSize: 12, lineHeight: 17, fontStyle: 'italic' },
+  insightBox:       { marginHorizontal: 14, marginBottom: 10, padding: 11, borderRadius: 8, borderLeftWidth: 3, alignSelf: 'stretch' },
+  insightText:      { width: '100%', flexShrink: 1, flexWrap: 'wrap', fontSize: 12, lineHeight: 17, fontStyle: 'italic' },
   insightWhy:       { fontSize: 11, marginTop: 5, lineHeight: 16 },
 });
 

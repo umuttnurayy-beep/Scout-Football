@@ -16,6 +16,7 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { DISPLAY_FOOTBALL_SEASON } from '../constants/seasons';
 import { formDataEmptyMessage } from '../utils/emptyStates';
+import scoutStyles from '../utils/scoutStyles';
 import { SeasonStats, calcSLSeasonStats, calcSeasonStats, getTeamProfile, teamsMatch, transliterate } from '../utils/teamStats';
 
 const AF_POSITION_MAP: Record<string, string> = {
@@ -332,7 +333,7 @@ export default function TeamStatsScreen() {
             })()}
 
             {/* SON FORM — üste taşındı */}
-            <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SON FORM</Text>
+            <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>SON FORM</Text>
             <View style={styles.formRow}>
               {loadingForm && displayForm.length === 0 ? (
                 <View style={{ width: 120, height: 28, borderRadius: 8, backgroundColor: c.borderLight, opacity: 0.6 }} />
@@ -356,7 +357,7 @@ export default function TeamStatsScreen() {
             </View>
 
             {/* MAÇ ÖZETİ — eski GENEL'in kompakt hali */}
-            <Text style={[styles.sectionLabel, { color: c.textMuted }]}>MAÇ ÖZETİ</Text>
+            <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>MAÇ ÖZETİ</Text>
             <View style={[styles.summaryCard, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
               <View style={styles.summaryRow}>
                 <View style={styles.summaryStat}>
@@ -390,7 +391,7 @@ export default function TeamStatsScreen() {
             </View>
 
             {/* GOL — sadece 3 makro rakam (gol/maç profil kartında zaten var) */}
-            <Text style={[styles.sectionLabel, { color: c.textMuted }]}>GOL</Text>
+            <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>GOL</Text>
             <View style={[styles.goalCard, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
               <View style={styles.goalStat}>
                 <Text style={[styles.goalV, { color: c.win }]}>{gf}</Text>
@@ -426,7 +427,7 @@ export default function TeamStatsScreen() {
               </Text>
             ) : activeSeasonStats ? (
               <>
-                <Text style={[styles.sectionLabel, { color: c.textMuted }]}>
+                <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>
                   GOL BEKLENTİLERİ ({activeSeasonStats.total} maç)
                 </Text>
                 <View style={[styles.expectCard, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
@@ -445,7 +446,7 @@ export default function TeamStatsScreen() {
                   ))}
                 </View>
 
-                <Text style={[styles.sectionLabel, { color: c.textMuted }]}>ÖZEL DURUMLAR</Text>
+                <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>ÖZEL DURUMLAR</Text>
                 <View style={styles.specialRow}>
                   <View style={[styles.specialBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
                     <Text style={[styles.specialV, { color: c.primary }]}>{activeSeasonStats.bttsPct}%</Text>
@@ -462,7 +463,7 @@ export default function TeamStatsScreen() {
                 </View>
 
                 {/* İÇ SAHA vs DEPLASMAN — görsel karşılaştırma */}
-                <Text style={[styles.sectionLabel, { color: c.textMuted }]}>İÇ SAHA vs DEPLASMAN</Text>
+                <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>İÇ SAHA vs DEPLASMAN</Text>
                 <View style={[styles.splitCompareCard, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
                   {[
                     { label: 'İç Saha',   data: activeSeasonStats.home },
@@ -500,7 +501,7 @@ export default function TeamStatsScreen() {
             {/* KORNER & POSSESSION — AllSports */}
             {allSportsStats && (
               <>
-                <Text style={[styles.sectionLabel, { color: c.textMuted }]}>
+                <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>
                   KORNER & POZİSYON ({allSportsStats.matchesAnalyzed} maç)
                 </Text>
                 <View style={styles.statGrid}>
@@ -602,7 +603,7 @@ export default function TeamStatsScreen() {
                   if (players.length === 0) return null;
                   return (
                     <View key={pos}>
-                      <Text style={[styles.sectionLabel, { color: c.textMuted }]}>{AF_POSITION_MAP[pos]}</Text>
+                      <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>{AF_POSITION_MAP[pos]}</Text>
                       {players.map((p, i: number) => {
                         const scorer = slTeamScorers.find((s) => s.name === p.name);
                         return (
@@ -729,7 +730,7 @@ export default function TeamStatsScreen() {
                   if (!players) return null;
                   return (
                     <View key={pos}>
-                      <Text style={[styles.sectionLabel, { color: c.textMuted }]}>{AF_POSITION_MAP[pos]}</Text>
+                      <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>{AF_POSITION_MAP[pos]}</Text>
                       {players.map((p, i: number) => {
                         const scorer = fdScorers.find((s) =>
                           s.player?.id === p.id || teamsMatch(s.player?.name || '', p.name)
@@ -789,7 +790,6 @@ const styles = StyleSheet.create({
   toggleBtn:           { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },
   toggleBtnActive:     { borderWidth: 0.5 },
   toggleBtnText:       { fontSize: 13 },
-  sectionLabel:        { fontSize: 11, fontWeight: '500', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6, letterSpacing: 0.5 },
   statGrid:            { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 10, gap: 8, marginBottom: 4 },
   statBox:             { width: '30%', flexGrow: 1, borderRadius: 10, padding: 12, borderWidth: 0.5 },
   statVal:             { fontSize: 22, fontWeight: '500' },
