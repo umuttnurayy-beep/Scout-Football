@@ -4,10 +4,11 @@ import Constants from 'expo-constants';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Image, Linking, Modal, ScrollView, StyleSheet,
+  Alert, Image, Linking, Modal, ScrollView, StyleSheet,
   Switch, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { FDMatch, SLFormMatch, Standing, getSuperLigStandings, getSuperLigTeamForm, getStandings, getTeamForm } from '../services/api';
+import EmptyStateCard from '../components/EmptyStateCard';
 import {
   DEFAULT_PREFS, NotifPrefs, cancelAllNotifications,
   loadNotifPrefs, registerPushToken, requestPermissions, saveNotifPrefs,
@@ -218,6 +219,7 @@ export default function ProfileScreen() {
   const [favGf, setFavGf] = useState(0);
   const [favGa, setFavGa] = useState(0);
   const [loadingFav, setLoadingFav] = useState(false);
+  const [favLoadError, setFavLoadError] = useState(false);
 
   const [watchlistForms, setWatchlistForms] = useState<Record<number, string[]>>({});
   const [watchlistStats, setWatchlistStats] = useState<Record<string, { played: number; win: number; draw: number; loss: number; gf: number; ga: number; pts: number; pos: number }>>({});
@@ -265,6 +267,7 @@ export default function ProfileScreen() {
 
   async function loadFavTeamData(team: FavTeam) {
     setLoadingFav(true);
+    setFavLoadError(false);
     try {
       const [matches, standings] = await Promise.all([
         team.apiId === 203
@@ -298,7 +301,9 @@ export default function ProfileScreen() {
 
       const form = parseForm(matches, team.teamId, team.apiId === 203).slice(-5);
       setFavForm(form);
-    } catch {}
+    } catch {
+      setFavLoadError(true);
+    }
     setLoadingFav(false);
   }
 
@@ -635,7 +640,24 @@ export default function ProfileScreen() {
                 </View>
 
                 {loadingFav ? (
-                  <ActivityIndicator color="#fff" style={{ marginTop: 12 }} />
+                  <View style={styles.favSkeletonRow}>
+                    {[0, 1, 2].map(i => (
+                      <View key={i} style={styles.favSkeletonItem}>
+                        <View style={styles.favSkeletonVal} />
+                        <View style={styles.favSkeletonLbl} />
+                      </View>
+                    ))}
+                  </View>
+                ) : favLoadError ? (
+                  <View style={{ marginTop: 8 }}>
+                    <EmptyStateCard
+                      compact
+                      icon="📡"
+                      title="Takım verisi alınamadı"
+                      onRetry={() => favTeam && loadFavTeamData(favTeam)}
+                      retryLabel="Tekrar Dene"
+                    />
+                  </View>
                 ) : (
                   <View style={styles.favStatsRow}>
                     <View style={styles.favStatItem}>
@@ -918,8 +940,12 @@ const styles = StyleSheet.create({
   favTeamInfo: { flex: 1 },
   favTeamName: { fontSize: 18, fontWeight: '700', color: '#fff', marginBottom: 2 },
   favLeagueName: { fontSize: 12, color: 'rgba(255,255,255,0.7)' },
-  favStatsRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.15)', borderRadius: 10, padding: 12, gap: 0 },
-  favStatItem: { flex: 1, alignItems: 'center' },
+  favStatsRow:     { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.15)', borderRadius: 10, padding: 12, gap: 0 },
+  favStatItem:     { flex: 1, alignItems: 'center' },
+  favSkeletonRow:  { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.15)', borderRadius: 10, padding: 14, marginTop: 8, gap: 0 },
+  favSkeletonItem: { flex: 1, alignItems: 'center', gap: 6 },
+  favSkeletonVal:  { width: '60%', height: 16, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.25)' },
+  favSkeletonLbl:  { width: '45%', height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.15)' },
   favStatValue: { fontSize: 15, fontWeight: '700', color: '#fff', marginBottom: 3 },
   favStatLabel: { fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: '500', textAlign: 'center' },
   favStatDivider: { width: 0.5, height: 36, backgroundColor: 'rgba(255,255,255,0.2)' },

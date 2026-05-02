@@ -2,11 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Image, ScrollView, StyleSheet, Text,
+  Image, ScrollView, StyleSheet, Text,
   TouchableOpacity, View,
 } from 'react-native';
 import Svg, { Circle, Line, Path, Polygon, Text as SvgText } from 'react-native-svg';
 import { DetailDataNotice, DetailStatusBanner } from '../components/DetailDataState';
+import EmptyStateCard from '../components/EmptyStateCard';
+import { SkeletonMatchDetail } from '../components/SkeletonLoader';
 import { useTheme } from '../context/ThemeContext';
 import {
   SLEventData, SLFormMatch, Standing, SuperLigTeamContext, WeatherData, getAllSportsH2H, getCityForTeam, getSuperLigMatch, getSuperLigMatchContext, getSuperLigTeamContext, getWeather, isStaleApiData, recordContextFallback,
@@ -493,6 +495,8 @@ export default function SLMatchDetail() {
   const [staleNotice, setStaleNotice] = useState(false);
   const [secondaryLoading, setSecondaryLoading] = useState(false);
   const [dataIssues, setDataIssues] = useState<Set<DetailDataIssue>>(new Set());
+  const [refreshCount, setRefreshCount] = useState(0);
+  const retry = () => setRefreshCount(n => n + 1);
 
   const city = getCityForTeam(home);
   const isSuperLig = true;
@@ -509,7 +513,7 @@ export default function SLMatchDetail() {
     setStaleNotice(false);
     setSecondaryLoading(false);
     setDataIssues(new Set());
-  }, [eventId]);
+  }, [eventId, refreshCount]);
 
   useEffect(() => {
     let cancelled = false;
@@ -604,9 +608,8 @@ export default function SLMatchDetail() {
     }
     if (eventId) load(); else setLoading(false);
     return () => { cancelled = true; setSecondaryLoading(false); };
-    // Route params are captured for this event load; eventId is the intended reload key.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventId, isSuperLig, leagueApiId]);
+  }, [eventId, isSuperLig, leagueApiId, refreshCount]);
 
   // Derived values
   const homeScore  = event?.intHomeScore ?? null;
@@ -670,7 +673,30 @@ export default function SLMatchDetail() {
     homeAbovePts, homeBelowPts, awayAbovePts, awayBelowPts, safetyPts,
   });
 
-  if (loading) return <View style={[styles.loaderContainer, { backgroundColor: c.bg }]}><ActivityIndicator size="large" color={c.primary}/></View>;
+  if (loading) return (
+    <View style={[styles.loaderContainer, { backgroundColor: c.bg }]}>
+      <SkeletonMatchDetail />
+    </View>
+  );
+
+  if (!event) return (
+    <View style={[styles.container, { backgroundColor: c.bg }]}>
+      <View style={[styles.topbar, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
+        <TouchableOpacity onPress={() => router.back()}><Text style={[styles.backBtn, { color: c.primary }]}>‹ Geri</Text></TouchableOpacity>
+        <View style={styles.topbarCenter}>
+          <Image source={require('../assets/images/sf-logo.png')} style={styles.headerLogo} />
+          <Text style={[styles.topbarTitle, { color: c.text }]} numberOfLines={1}>{home} - {away}</Text>
+        </View>
+        <View style={{ width: 60 }} />
+      </View>
+      <EmptyStateCard
+        icon="📡"
+        title="Maç verisi yüklenemedi"
+        subtitle="Süper Lig maç detayı şu an alınamadı. Tekrar denemek için aşağıdaki butona dokun."
+        onRetry={retry}
+      />
+    </View>
+  );
 
   const scoutCardBg    = isDark ? '#1A1228' : '#f4f0ff';
   const scoutBorderCol = isDark ? '#2D2040' : '#ddd6ff';
@@ -727,13 +753,13 @@ export default function SLMatchDetail() {
       </View>
 
       {staleNotice && (
-        <DetailStatusBanner
-          message={staleAnalysisMessage()}
-          boxStyle={[styles.limitedDataBanner, { backgroundColor: isDark ? '#18202A' : '#F3F7FC', borderColor: c.cardBorder }]}
-          textStyle={[styles.limitedDataText, { color: c.textSub }]}
-        />
+        <View style={[styles.limitedDataBanner, { backgroundColor: isDark ? '#18202A' : '#F3F7FC', borderColor: c.cardBorder, flexDirection: 'row', alignItems: 'center' }]}>
+          <Text style={[styles.limitedDataText, { color: c.textSub, flex: 1 }]}>{staleAnalysisMessage()}</Text>
+          <TouchableOpacity onPress={retry} style={[styles.staleRetryBtn, { borderColor: c.primary }]}>
+            <Text style={[styles.staleRetryText, { color: c.primary }]}>Yenile</Text>
+          </TouchableOpacity>
+        </View>
       )}
-
       {usingStandingsFallback && (
         <DetailStatusBanner
           message="📊 Maç bazlı Süper Lig form verisi sınırlı. Analiz sezon tablosuyla güçlendiriliyor; iç/dış saha ayrımı yalnızca yeterli maç verisi varsa gösterilir."
@@ -1198,6 +1224,8 @@ const styles = StyleSheet.create({
   venueText:          { fontSize:11, color:'#888', textAlign:'center', marginTop:4 },
   limitedDataBanner:  { marginHorizontal:14, marginTop:10, marginBottom:2, padding:10, borderRadius:8, borderWidth:1 },
   limitedDataText:    { fontSize:12, lineHeight:17 },
+  staleRetryBtn:      { marginLeft:10, paddingHorizontal:10, paddingVertical:4, borderRadius:12, borderWidth:1 },
+  staleRetryText:     { fontSize:12, fontWeight:'600' },
   scroll:             { flex:1 },
   sectionLabel:       { fontSize:11, color:'#888', fontWeight:'500', paddingHorizontal:14, paddingTop:14, paddingBottom:6, letterSpacing:0.5 },
   insightBox:         { marginHorizontal:14, marginBottom:10, padding:11, backgroundColor:'#f4f8ff', borderRadius:8, borderLeftWidth:3, borderLeftColor:'#185FA5', alignSelf:'stretch' },
