@@ -7,6 +7,7 @@ import {
   Text, TouchableOpacity, View,
 } from 'react-native';
 import BottomTabBar from '../components/BottomTabBar';
+import { SkeletonMatchCard, SkeletonSectionHeader } from '../components/SkeletonLoader';
 import { useTheme } from '../context/ThemeContext';
 import {
   FDMatch, H2HRawItem, HomeData, SLMatch, clearLastApiError, getAllSportsH2H, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, Standing,
@@ -1086,9 +1087,12 @@ export default function HomeScreen() {
       )}
 
       {loading ? (
-        <View style={styles.loadingArea}>
-          <ActivityIndicator color={c.primary} />
-        </View>
+        <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 16 }}>
+          <SkeletonSectionHeader />
+          {[0, 1, 2].map(i => <SkeletonMatchCard key={i} />)}
+          <SkeletonSectionHeader />
+          {[3, 4, 5].map(i => <SkeletonMatchCard key={i} />)}
+        </ScrollView>
       ) : (
         <FlatList
           style={styles.scroll}

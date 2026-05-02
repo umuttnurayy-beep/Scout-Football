@@ -2,9 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet,
+  Image, RefreshControl, ScrollView, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
+import { SkeletonPlayerList, SkeletonStatBlock } from '../components/SkeletonLoader';
 import {
   AllSportsTeamStats, FDMatch, FDScorer, FDSquadPlayer,
   SLFormMatch, SLPlayer, SLScorer,
@@ -319,7 +320,7 @@ export default function TeamStatsScreen() {
             <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SON FORM</Text>
             <View style={styles.formRow}>
               {loadingForm && displayForm.length === 0 ? (
-                <ActivityIndicator color={c.primary} />
+                <View style={{ width: 120, height: 28, borderRadius: 8, backgroundColor: c.borderLight, opacity: 0.6 }} />
               ) : displayForm.length === 0 ? (
                 <Text style={[styles.formNote, { color: c.textMuted }]}>
                   {lacksProviderTeamId
@@ -396,7 +397,7 @@ export default function TeamStatsScreen() {
 
             {/* SEZON ANALİZİ — Gol beklentileri görsel bar + özel durumlar */}
             {loadingForm && !activeSeasonStats ? (
-              <ActivityIndicator color={c.primary} style={{ margin: 14 }} />
+              <SkeletonStatBlock />
             ) : !activeSeasonStats && lacksProviderTeamId ? (
               <Text style={[styles.formNote, { color: c.textFaint, paddingHorizontal: 14, paddingBottom: 8 }]}>
                 Sezon analizi bu lig için mevcut değil.
@@ -516,7 +517,7 @@ export default function TeamStatsScreen() {
 
         {activeTab === 'oyuncular' && apiId === 203 && (
           loadingPlayers ? (
-            <ActivityIndicator style={{ marginTop: 40 }} color={c.primary} />
+            <SkeletonPlayerList />
           ) : !showFullSquad ? (
             <>
               {slTeamScorers.length > 0 ? (
@@ -606,7 +607,7 @@ export default function TeamStatsScreen() {
 
         {activeTab === 'oyuncular' && apiId !== 203 && (
           loadingPlayers ? (
-            <ActivityIndicator style={{ marginTop: 40 }} color={c.primary} />
+            <SkeletonPlayerList />
           ) : !showFullSquad ? (
             <>
               {topScorers.length > 0 ? (
