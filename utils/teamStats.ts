@@ -35,6 +35,29 @@ export function teamsMatch(a: string, b: string): boolean {
   return na === nb || na.includes(nb) || nb.includes(na);
 }
 
+export function parseForm(
+  matches: FDMatch[] | SLFormMatch[],
+  teamId: number,
+  isSL: boolean,
+): string[] {
+  if (isSL) {
+    return (matches as SLFormMatch[]).map(m => {
+      const gf = m.homeTeamId === teamId ? m.homeScore : m.awayScore;
+      const ga = m.homeTeamId === teamId ? m.awayScore : m.homeScore;
+      return (gf ?? 0) > (ga ?? 0) ? 'G' : (gf ?? 0) === (ga ?? 0) ? 'B' : 'M';
+    });
+  }
+  return (matches as FDMatch[])
+    .filter(m => m.score?.fullTime?.home != null)
+    .slice(-5)
+    .map(m => {
+      const isHome = m.homeTeam?.id === teamId;
+      const gf = isHome ? m.score.fullTime.home : m.score.fullTime.away;
+      const ga = isHome ? m.score.fullTime.away : m.score.fullTime.home;
+      return (gf ?? 0) > (ga ?? 0) ? 'G' : (gf ?? 0) === (ga ?? 0) ? 'B' : 'M';
+    });
+}
+
 // ─── season stats calculators ───────────────────────────────────────────────
 
 export function calcSeasonStats(matches: FDMatch[], teamId: number): SeasonStats | null {

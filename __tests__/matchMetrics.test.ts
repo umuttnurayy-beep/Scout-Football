@@ -17,10 +17,14 @@ import {
   favoriteText,
   hasUsableStandingsMap,
   timeToMins,
+  buildVisibleMatches,
+  rankMatchesWithMetrics,
   NO_DATA,
+  LEAGUE_WEIGHT,
   type Match,
   type Metrics,
 } from '../utils/matchMetrics';
+import type { FDMatch, SLMatch } from '../services/api';
 
 // ─── test helpers ─────────────────────────────────────────────────────────────
 
@@ -541,5 +545,143 @@ describe('hasUsableStandingsMap', () => {
 
   test('returns false when only unknown league has entries', () => {
     expect(hasUsableStandingsMap({ 9999: [makeStanding() as any] })).toBe(false);
+  });
+});
+
+// ─── buildVisibleMatches helpers ─────────────────────────────────────────────
+
+function makeFDMatch(overrides: Partial<FDMatch> = {}): FDMatch {
+  return {
+    id: 1,
+    utcDate: '2026-05-10T14:00:00Z',
+    status: 'SCHEDULED',
+    homeTeam: { id: 57, name: 'Arsenal', shortName: 'Arsenal' },
+    awayTeam: { id: 64, name: 'Liverpool', shortName: 'Liverpool' },
+    score: { fullTime: { home: null, away: null } },
+    competition: { id: 2021, name: 'Premier League' },
+    ...overrides,
+  };
+}
+
+function makeSLMatchData(overrides: Partial<SLMatch> = {}): SLMatch {
+  return {
+    id: '101',
+    home: 'Galatasaray',
+    away: 'Fenerbahçe',
+    homeScore: null,
+    awayScore: null,
+    date: '2026-05-10',
+    time: '18:00:00',
+    status: 'Not Started',
+    homeTeamId: 133804,
+    awayTeamId: 133807,
+    ...overrides,
+  };
+}
+
+// ─── buildVisibleMatches ──────────────────────────────────────────────────────
+
+describe('buildVisibleMatches', () => {
+  test('returns empty array for empty inputs', () => {
+    expect(buildVisibleMatches([], [])).toEqual([]);
+  });
+
+  test('includes FDMatch with supported league', () => {
+    const result = buildVisibleMatches([makeFDMatch({ competition: { id: 2021 } })], []);
+    expect(result).toHaveLength(1);
+    expect(result[0].leagueApiId).toBe(2021);
+    expect(result[0].league).toBe('Premier Lig');
+  });
+
+  test('excludes FDMatch with unsupported league id', () => {
+    const result = buildVisibleMatches([makeFDMatch({ competition: { id: 9999, name: 'Unknown' } })], []);
+    expect(result).toHaveLength(0);
+  });
+
+  test('excludes FDMatch with no competition', () => {
+    const m = makeFDMatch();
+    delete (m as any).competition;
+    expect(buildVisibleMatches([m], [])).toHaveLength(0);
+  });
+
+  test('excludes FDMatch without home team name (isRenderableMatch filter)', () => {
+    const m = makeFDMatch({ homeTeam: { id: 57 } });
+    expect(buildVisibleMatches([m], [])).toHaveLength(0);
+  });
+
+  test('includes SLMatch and tags it as Süper Lig', () => {
+    const result = buildVisibleMatches([], [makeSLMatchData()]);
+    expect(result).toHaveLength(1);
+    expect(result[0].leagueApiId).toBe(203);
+    expect(result[0].league).toBe('Süper Lig');
+  });
+
+  test('excludes SLMatch with empty home name', () => {
+    const result = buildVisibleMatches([], [makeSLMatchData({ home: '' })]);
+    expect(result).toHaveLength(0);
+  });
+
+  test('merges FD and SL matches into single array', () => {
+    const result = buildVisibleMatches(
+      [makeFDMatch({ id: 1 }), makeFDMatch({ id: 2, competition: { id: 2014 } })],
+      [makeSLMatchData({ id: '3' })],
+    );
+    expect(result).toHaveLength(3);
+  });
+
+  test('FD matches with multiple supported leagues are all included', () => {
+    const ids = [2021, 2014, 2002, 2019, 2015, 2001] as const;
+    const matches = ids.map((id, i) => makeFDMatch({ id: i + 1, competition: { id } }));
+    expect(buildVisibleMatches(matches, [])).toHaveLength(6);
+  });
+});
+
+// ─── rankMatchesWithMetrics ───────────────────────────────────────────────────
+
+describe('rankMatchesWithMetrics', () => {
+  test('returns empty array for empty input', () => {
+    expect(rankMatchesWithMetrics([], {})).toEqual([]);
+  });
+
+  test('higher league weight sorts first (UCL before Süper Lig, no standings data)', () => {
+    const ucl = makeMatch({ id: 1, leagueApiId: 2001, time: '15:00', finished: true });
+    const sl  = makeMatch({ id: 2, leagueApiId: 203,  time: '15:00', finished: true });
+    const result = rankMatchesWithMetrics([sl, ucl], {});
+    expect(result[0].m.leagueApiId).toBe(2001);
+    expect(result[1].m.leagueApiId).toBe(203);
+    expect(LEAGUE_WEIGHT[2001]).toBeGreaterThan(LEAGUE_WEIGHT[203]);
+  });
+
+  test('equal score: earlier time (< 18:00) comes first over later time (< 18:00)', () => {
+    const early = makeMatch({ id: 1, leagueApiId: 2021, time: '12:00', finished: true });
+    const later = makeMatch({ id: 2, leagueApiId: 2021, time: '16:00', finished: true });
+    const result = rankMatchesWithMetrics([later, early], {});
+    expect(result[0].m.id).toBe(1);
+    expect(result[1].m.id).toBe(2);
+  });
+
+  test('equal score + equal time: smaller id comes first', () => {
+    const a = makeMatch({ id: 1, leagueApiId: 2021, time: '15:00', finished: true });
+    const b = makeMatch({ id: 2, leagueApiId: 2021, time: '15:00', finished: true });
+    const result = rankMatchesWithMetrics([b, a], {});
+    expect(result[0].m.id).toBe(1);
+    expect(result[1].m.id).toBe(2);
+  });
+
+  test('returns { m, metrics } pairs for each match', () => {
+    const m = makeMatch({ id: 10, leagueApiId: 2021, time: '15:00', finished: true });
+    const result = rankMatchesWithMetrics([m], {});
+    expect(result[0].m).toBe(m);
+    expect(result[0].metrics).toBeDefined();
+    expect(typeof result[0].metrics.hasData).toBe('boolean');
+  });
+
+  test('does not mutate the input array', () => {
+    const a = makeMatch({ id: 2, leagueApiId: 2001, time: '15:00', finished: true });
+    const b = makeMatch({ id: 1, leagueApiId: 2021, time: '15:00', finished: true });
+    const input = [b, a];
+    rankMatchesWithMetrics(input, {});
+    expect(input[0].id).toBe(b.id);
+    expect(input[1].id).toBe(a.id);
   });
 });
