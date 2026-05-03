@@ -17,8 +17,17 @@ import {
   favoriteText,
   hasUsableStandingsMap,
   timeToMins,
+  formatTime,
+  formatSportsDbTime,
+  sportsDbUtcDate,
+  isRenderableMatch,
+  mapMatch,
+  mapSLMatch,
   buildVisibleMatches,
   rankMatchesWithMetrics,
+  selectPreviewMatch,
+  expectedLine,
+  uniqueLeagueIds,
   NO_DATA,
   LEAGUE_WEIGHT,
   type Match,
@@ -683,5 +692,275 @@ describe('rankMatchesWithMetrics', () => {
     rankMatchesWithMetrics(input, {});
     expect(input[0].id).toBe(b.id);
     expect(input[1].id).toBe(a.id);
+  });
+});
+
+// ─── formatTime ───────────────────────────────────────────────────────────────
+
+describe('formatTime', () => {
+  test('returns a string in HH:MM format', () => {
+    expect(formatTime('2026-05-01T14:00:00Z')).toMatch(/^\d{2}:\d{2}$/);
+  });
+
+  test('pads single-digit minutes with leading zero', () => {
+    // 14:05 UTC — regardless of local timezone, minutes are always 05
+    const result = formatTime('2026-05-01T14:05:00Z');
+    expect(result).toMatch(/:\d{2}$/);
+    expect(result.split(':')[1]).toBe('05');
+  });
+
+  test('consecutive calls with same input return same output', () => {
+    const r1 = formatTime('2026-05-10T20:30:00Z');
+    const r2 = formatTime('2026-05-10T20:30:00Z');
+    expect(r1).toBe(r2);
+  });
+});
+
+// ─── formatSportsDbTime ───────────────────────────────────────────────────────
+
+describe('formatSportsDbTime', () => {
+  test('returns "?" when time is null', () => {
+    expect(formatSportsDbTime('2026-05-01', null)).toBe('?');
+  });
+
+  test('returns "?" when time is undefined', () => {
+    expect(formatSportsDbTime('2026-05-01', undefined)).toBe('?');
+  });
+
+  test('returns first 5 chars of time when date is invalid', () => {
+    expect(formatSportsDbTime('not-a-date', '20:30:00')).toBe('20:30');
+  });
+
+  test('returns HH:MM format for a valid date + time', () => {
+    expect(formatSportsDbTime('2026-05-01', '14:00:00')).toMatch(/^\d{2}:\d{2}$/);
+  });
+});
+
+// ─── sportsDbUtcDate ──────────────────────────────────────────────────────────
+
+describe('sportsDbUtcDate', () => {
+  test('combines date and time into ISO string', () => {
+    expect(sportsDbUtcDate('2026-05-01', '14:00:00')).toBe('2026-05-01T14:00:00Z');
+  });
+
+  test('uses 00:00:00 when time is null', () => {
+    expect(sportsDbUtcDate('2026-05-01', null)).toBe('2026-05-01T00:00:00Z');
+  });
+
+  test('uses 00:00:00 when time is undefined', () => {
+    expect(sportsDbUtcDate('2026-05-01')).toBe('2026-05-01T00:00:00Z');
+  });
+});
+
+// ─── isRenderableMatch ────────────────────────────────────────────────────────
+
+describe('isRenderableMatch', () => {
+  test('returns true when all required fields are present', () => {
+    expect(isRenderableMatch(makeMatch())).toBe(true);
+  });
+
+  test('returns false when home is empty', () => {
+    expect(isRenderableMatch(makeMatch({ home: '' }))).toBe(false);
+  });
+
+  test('returns false when away is empty', () => {
+    expect(isRenderableMatch(makeMatch({ away: '' }))).toBe(false);
+  });
+
+  test('returns false when time is empty', () => {
+    expect(isRenderableMatch(makeMatch({ time: '' }))).toBe(false);
+  });
+
+  test('returns false when league is empty', () => {
+    expect(isRenderableMatch(makeMatch({ league: '' }))).toBe(false);
+  });
+
+  test('returns false when home is whitespace-only', () => {
+    expect(isRenderableMatch(makeMatch({ home: '   ' }))).toBe(false);
+  });
+});
+
+// ─── mapMatch ─────────────────────────────────────────────────────────────────
+
+describe('mapMatch', () => {
+  const base = makeFDMatch();
+
+  test('maps leagueApiId from competition.id', () => {
+    expect(mapMatch(base).leagueApiId).toBe(2021);
+  });
+
+  test('maps league name from LEAGUE_NAMES', () => {
+    expect(mapMatch(base).league).toBe('Premier Lig');
+  });
+
+  test('falls back to competition.name for unknown league id', () => {
+    const m = makeFDMatch({ competition: { id: 9999, name: 'Conference League' } });
+    expect(mapMatch(m).league).toBe('Conference League');
+  });
+
+  test('prefers shortName over name for teams', () => {
+    const m = makeFDMatch({
+      homeTeam: { id: 57, name: 'Arsenal Football Club', shortName: 'Arsenal' },
+    });
+    expect(mapMatch(m).home).toBe('Arsenal');
+  });
+
+  test('falls back to name when shortName is absent', () => {
+    const m = makeFDMatch({ homeTeam: { id: 57, name: 'Arsenal' } });
+    expect(mapMatch(m).home).toBe('Arsenal');
+  });
+
+  test('score is null when match is not finished', () => {
+    const m = makeFDMatch({ status: 'SCHEDULED', score: { fullTime: { home: null, away: null } } });
+    expect(mapMatch(m).score).toBeNull();
+  });
+
+  test('score is formatted string when match is finished', () => {
+    const m = makeFDMatch({ status: 'FINISHED', score: { fullTime: { home: 2, away: 1 } } });
+    expect(mapMatch(m).score).toBe('2 - 1');
+  });
+
+  test('finished flag matches status', () => {
+    expect(mapMatch(makeFDMatch({ status: 'FINISHED' })).finished).toBe(true);
+    expect(mapMatch(makeFDMatch({ status: 'SCHEDULED' })).finished).toBe(false);
+  });
+
+  test('homeTeamId and awayTeamId are copied', () => {
+    const result = mapMatch(base);
+    expect(result.homeTeamId).toBe(57);
+    expect(result.awayTeamId).toBe(64);
+  });
+
+  test('time is in HH:MM format', () => {
+    expect(mapMatch(base).time).toMatch(/^\d{2}:\d{2}$/);
+  });
+});
+
+// ─── mapSLMatch ───────────────────────────────────────────────────────────────
+
+describe('mapSLMatch', () => {
+  const base = makeSLMatchData();
+
+  test('leagueApiId is always 203', () => {
+    expect(mapSLMatch(base).leagueApiId).toBe(203);
+  });
+
+  test('league is always "Süper Lig"', () => {
+    expect(mapSLMatch(base).league).toBe('Süper Lig');
+  });
+
+  test('score is null when scores are null', () => {
+    expect(mapSLMatch(base).score).toBeNull();
+  });
+
+  test('score is formatted string when scores are present', () => {
+    const m = makeSLMatchData({ homeScore: 2, awayScore: 1 });
+    expect(mapSLMatch(m).score).toBe('2 - 1');
+  });
+
+  test('finished when status is "Match Finished"', () => {
+    const m = makeSLMatchData({ status: 'Match Finished', homeScore: 1, awayScore: 0 });
+    expect(mapSLMatch(m).finished).toBe(true);
+  });
+
+  test('finished when homeScore is set even without status', () => {
+    const m = makeSLMatchData({ homeScore: 1, awayScore: 0, status: 'Not Started' });
+    expect(mapSLMatch(m).finished).toBe(true);
+  });
+
+  test('not finished when no score and status is "Not Started"', () => {
+    expect(mapSLMatch(base).finished).toBe(false);
+  });
+
+  test('homeTeamId and awayTeamId are copied', () => {
+    const result = mapSLMatch(base);
+    expect(result.homeTeamId).toBe(133804);
+    expect(result.awayTeamId).toBe(133807);
+  });
+
+  test('uses strHash as id when id is non-numeric', () => {
+    const m = makeSLMatchData({ id: 'abc-xyz' });
+    expect(mapSLMatch(m).id).toBe(42); // strHash mock returns 42
+  });
+
+  test('parses numeric string id correctly', () => {
+    const m = makeSLMatchData({ id: '999' });
+    expect(mapSLMatch(m).id).toBe(999);
+  });
+});
+
+// ─── selectPreviewMatch ───────────────────────────────────────────────────────
+
+describe('selectPreviewMatch', () => {
+  const ucl = makeMatch({ id: 10, leagueApiId: 2001, time: '20:00', finished: false });
+  const pl  = makeMatch({ id: 20, leagueApiId: 2021, time: '15:00', finished: false });
+  const sl  = makeMatch({ id: 30, leagueApiId: 203,  time: '18:00', finished: false });
+
+  test('returns null for empty visible list', () => {
+    expect(selectPreviewMatch([], {})).toBeNull();
+  });
+
+  test('returns top-ranked match when no featuredMatchId', () => {
+    const result = selectPreviewMatch([pl, sl, ucl], {});
+    // UCL has highest weight (30 > 26 > 14)
+    expect(result?.m.leagueApiId).toBe(2001);
+  });
+
+  test('returns backend featured match when featuredMatchId exists and matches', () => {
+    const result = selectPreviewMatch([pl, sl, ucl], {}, 30);
+    expect(result?.m.id).toBe(30);
+  });
+
+  test('falls back to top-ranked when featuredMatchId does not match any visible match', () => {
+    const result = selectPreviewMatch([pl, sl, ucl], {}, 9999);
+    expect(result?.m.leagueApiId).toBe(2001);
+  });
+
+  test('returns metrics alongside the match', () => {
+    const result = selectPreviewMatch([pl], {});
+    expect(result?.metrics).toBeDefined();
+    expect(typeof result?.metrics.hasData).toBe('boolean');
+  });
+});
+
+// ─── expectedLine ─────────────────────────────────────────────────────────────
+
+describe('expectedLine', () => {
+  test('formats expected goals as "Beklenen ~X.Y gol"', () => {
+    const m = makeMetrics({ expectedGoals: 2.5 });
+    expect(expectedLine(m)).toBe('Beklenen ~2.5 gol');
+  });
+
+  test('always shows one decimal place', () => {
+    expect(expectedLine(makeMetrics({ expectedGoals: 3.0 }))).toBe('Beklenen ~3.0 gol');
+    expect(expectedLine(makeMetrics({ expectedGoals: 1.8 }))).toBe('Beklenen ~1.8 gol');
+  });
+});
+
+// ─── uniqueLeagueIds ──────────────────────────────────────────────────────────
+
+describe('uniqueLeagueIds', () => {
+  test('returns empty array for empty input', () => {
+    expect(uniqueLeagueIds([])).toEqual([]);
+  });
+
+  test('deduplicates league ids', () => {
+    const matches = [
+      makeMatch({ leagueApiId: 2021 }),
+      makeMatch({ leagueApiId: 2021 }),
+      makeMatch({ leagueApiId: 2014 }),
+    ];
+    const result = uniqueLeagueIds(matches);
+    expect(result).toHaveLength(2);
+    expect(result).toContain(2021);
+    expect(result).toContain(2014);
+  });
+
+  test('filters out falsy leagueApiId values', () => {
+    const matches = [
+      makeMatch({ leagueApiId: 2021 }),
+      makeMatch({ leagueApiId: 0 }),
+    ];
+    expect(uniqueLeagueIds(matches)).toEqual([2021]);
   });
 });
