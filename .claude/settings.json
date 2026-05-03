@@ -105,7 +105,10 @@
       "Bash(python3 fix_banks.py)",
       "Bash(python3 fix_banks2.py)",
       "Bash(grep -v \"//.*#\")",
-      "Read(//mnt/c/Users/umutn/Desktop/ScoutFootball/**)"
+      "Read(//mnt/c/Users/umutn/Desktop/ScoutFootball/**)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\umutn\\\\Desktop\\\\ScoutFootball\" -Recurse -Force)",
+      "Bash(Select-Object FullName)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\umutn\\\\Desktop\\\\ScoutFootball\" -Recurse -Filter \"*.ts\" -Filter \"*.test.ts\")"
     ],
     "additionalDirectories": [
       "C:\\tmp",
