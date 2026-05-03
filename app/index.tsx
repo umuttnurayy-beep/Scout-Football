@@ -993,6 +993,9 @@ export default function HomeScreen() {
     setSelectedDate(new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate()));
   }, [nextDayPreview, selectedDate]);
 
+  const keyExtractor = useCallback((item: ListItem) => item.key, []);
+  const listContentStyle = useMemo(() => ({ paddingBottom: 16 }), []);
+
   function renderListItem({ item }: { item: ListItem }) {
     switch (item.type) {
       case 'notice':
@@ -1150,7 +1153,7 @@ export default function HomeScreen() {
       )}
 
       {loading ? (
-        <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 16 }}>
+        <ScrollView style={styles.scroll} contentContainerStyle={listContentStyle}>
           <SkeletonSectionHeader />
           {[0, 1, 2].map(i => <SkeletonMatchCard key={i} />)}
           <SkeletonSectionHeader />
@@ -1160,9 +1163,13 @@ export default function HomeScreen() {
         <FlatList
           style={styles.scroll}
           data={listItems}
-          keyExtractor={item => item.key}
+          keyExtractor={keyExtractor}
           renderItem={renderListItem}
-          contentContainerStyle={{ paddingBottom: 16 }}
+          contentContainerStyle={listContentStyle}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          updateCellsBatchingPeriod={40}
           removeClippedSubviews
           refreshControl={
             <RefreshControl
