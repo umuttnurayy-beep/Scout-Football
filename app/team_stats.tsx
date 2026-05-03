@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Image, RefreshControl, ScrollView, StyleSheet,
   Text, TouchableOpacity, View,
@@ -237,20 +237,24 @@ export default function TeamStatsScreen() {
     setLoadingPlayers(false);
   }
 
-  const topScorers = [...fdScorers]
-    .sort((a, b) => (b.goals || 0) - (a.goals || 0))
-    .slice(0, 5);
+  const topScorers = useMemo(() =>
+    [...fdScorers].sort((a, b) => (b.goals || 0) - (a.goals || 0)).slice(0, 5),
+    [fdScorers],
+  );
 
-  const topAssists = [...fdScorers]
-    .filter((s) => (s.assists || 0) > 0)
-    .sort((a, b) => (b.assists || 0) - (a.assists || 0))
-    .slice(0, 5);
+  const topAssists = useMemo(() =>
+    [...fdScorers].filter(s => (s.assists || 0) > 0).sort((a, b) => (b.assists || 0) - (a.assists || 0)).slice(0, 5),
+    [fdScorers],
+  );
 
-  const groupedSquad = AF_POSITION_ORDER.reduce((acc, pos) => {
-    const players = fdSquad.filter((p) => (POSITION_TO_CODE[p.position || ''] || 'M') === pos);
-    if (players.length > 0) acc[pos] = players;
-    return acc;
-  }, {} as Record<string, FDSquadPlayer[]>);
+  const groupedSquad = useMemo(() =>
+    AF_POSITION_ORDER.reduce((acc, pos) => {
+      const players = fdSquad.filter(p => (POSITION_TO_CODE[p.position || ''] || 'M') === pos);
+      if (players.length > 0) acc[pos] = players;
+      return acc;
+    }, {} as Record<string, FDSquadPlayer[]>),
+    [fdSquad],
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>

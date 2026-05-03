@@ -138,6 +138,9 @@ export default function LeaguesScreen() {
     [knockouts, activeStage],
   );
 
+  const standingsByGf    = useMemo(() => [...standings].sort((a, b) => b.gf - a.gf), [standings]);
+  const standingsAlpha   = useMemo(() => [...standings].sort((a, b) => a.team.localeCompare(b.team, 'tr')), [standings]);
+
   const {
     totalGames, totalGoals, avgGoals, leader, leaderGap, drawRate,
     ligChar, leaderNarr, avgLeagueGfPer, avgLeagueGaPer,
@@ -354,7 +357,7 @@ export default function LeaguesScreen() {
                   ))}
 
                   {(() => {
-                    const sorted = [...standings].sort((a, b) => b.gf - a.gf);
+                    const sorted = standingsByGf;
                     const maxGf = sorted[0]?.gf || 1;
                     return (
                       <>
@@ -539,7 +542,7 @@ export default function LeaguesScreen() {
                 <>
                   <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>TAKIM KİMLİKLERİ</Text>
                   <Text style={[styles.effSubtitle, { color: c.textFaint }]}>Alfabetik sırada · sezon ortalamaları + karakter profili</Text>
-                  {[...standings].sort((a, b) => a.team.localeCompare(b.team, 'tr')).map((row, i) => {
+                  {standingsAlpha.map((row, i) => {
                     const avgGf      = row.played > 0 ? row.gf / row.played : 0;
                     const avgGa      = row.played > 0 ? row.ga / row.played : 0;
                     const winRate    = row.played > 0 ? row.win / row.played : 0;

@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Image, ScrollView, StyleSheet, Text,
   TouchableOpacity, View,
@@ -263,7 +263,7 @@ export default function MatchDetail() {
       });
   const drawAnalysis      = hasFormData ? getDrawAnalysis(oddsData, homeStats, awayStats) : '';
 
-  const ts = {
+  const ts = useMemo(() => ({
     insightBox:      { backgroundColor: isDark ? '#0D2038' : '#f4f8ff', borderLeftColor: c.primary },
     insightText:     { color: isDark ? c.textSub : '#1a3a5c' },
     sumBox:          { backgroundColor: c.surfaceAlt },
@@ -305,7 +305,7 @@ export default function MatchDetail() {
     riskText:        { color: c.textSub },
     disclaimer:      { backgroundColor: isDark ? '#2A2000' : '#fff8e1', borderColor: isDark ? '#5A4000' : '#ffe082' },
     disclaimerText:  { color: isDark ? '#E6C350' : '#856404' },
-  };
+  }), [isDark, c]);
 
   if (loading) return (
     <View style={[styles.loaderContainer, { backgroundColor: c.bg }]}>
