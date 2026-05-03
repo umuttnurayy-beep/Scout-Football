@@ -42,6 +42,7 @@ describe('API endpoint helper fallbacks and normalization', () => {
     fetchMock.mockReset();
     (AsyncStorage.getItem as jest.Mock).mockReset();
     (AsyncStorage.setItem as jest.Mock).mockReset();
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -100,6 +101,30 @@ describe('API endpoint helper fallbacks and normalization', () => {
 
     await expect(getOdds('Arsenal', 'Chelsea', 2021)).resolves.toEqual(odds);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('ignores malformed and expired odds cache entries before fetching fresh odds', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce(JSON.stringify({
+      odds: { home: 1.9, away: '4.10' },
+      ts: Date.now(),
+    }));
+    fetchMock.mockResolvedValueOnce(jsonResponse([]));
+
+    await expect(getOdds('Arsenal', 'Chelsea', 2021)).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://example.test/odds?sport=soccer_epl',
+      expect.objectContaining({ signal: expect.any(Object) })
+    );
+
+    fetchMock.mockReset();
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce(JSON.stringify({
+      odds: { home: '1.90', draw: '3.20', away: '4.10' },
+      ts: Date.now() - (31 * 60 * 1000),
+    }));
+    fetchMock.mockResolvedValueOnce(jsonResponse([]));
+
+    await expect(getOdds('Arsenal', 'Chelsea', 2021)).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('selects best h2h odds, caches them, and returns null when sport is unsupported', async () => {

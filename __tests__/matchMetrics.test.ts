@@ -34,12 +34,13 @@ import {
   selectPreviewMatch,
   expectedLine,
   uniqueLeagueIds,
+  buildNextPreviewFromHomeData,
   NO_DATA,
   LEAGUE_WEIGHT,
   type Match,
   type Metrics,
 } from '../utils/matchMetrics';
-import type { FDMatch, SLMatch } from '../services/api';
+import type { FDMatch, SLMatch, HomeData } from '../services/api';
 
 // ─── test helpers ─────────────────────────────────────────────────────────────
 
@@ -1091,5 +1092,23 @@ describe('uniqueLeagueIds', () => {
       makeMatch({ leagueApiId: 0 }),
     ];
     expect(uniqueLeagueIds(matches)).toEqual([2021]);
+  });
+});
+
+// ─── buildNextPreviewFromHomeData ─────────────────────────────────────────────
+
+describe('buildNextPreviewFromHomeData', () => {
+  const emptyRowsMap: Record<number, ReturnType<typeof makeStanding>[]> = {};
+
+  test('returns null when nextPreview is null', () => {
+    const homeData: Pick<HomeData, 'nextPreview'> = { nextPreview: null };
+    expect(buildNextPreviewFromHomeData(homeData, emptyRowsMap)).toBeNull();
+  });
+
+  test('returns null when nextPreview has no matches', () => {
+    const homeData: Pick<HomeData, 'nextPreview'> = {
+      nextPreview: { date: '2026-05-04', matches: [], superLigMatches: [], featuredMatchId: null },
+    };
+    expect(buildNextPreviewFromHomeData(homeData, emptyRowsMap)).toBeNull();
   });
 });

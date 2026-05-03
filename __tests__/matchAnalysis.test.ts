@@ -31,7 +31,15 @@ import {
   strHash,
   shiftLevel,
   MIN_H2H,
+  getPersona,
+  getPersonaEnriched,
+  getTagColor as getTagColorMA,
+  buildMatchAnalysis,
+  getRiskWarnings,
+  getHomeAwayComment,
+  getFormTrend,
   type MatchFormStats,
+  type FormTrend,
 } from '../utils/matchAnalysis';
 
 // ──────────────────────────────────────────────
@@ -571,5 +579,420 @@ describe('form and detail helper utilities', () => {
       awayTeamId: 22,
       status: 'TIMED',
     });
+  });
+});
+
+// ──────────────────────────────────────────────
+// getPersona
+// ──────────────────────────────────────────────
+
+describe('getPersona', () => {
+  it('returns acik for high gol and high tempo', () => {
+    expect(getPersona('Dengeli', 'Yüksek', 'Yüksek', 'Orta')).toBe('acik');
+  });
+  it('returns kilitli for low gol', () => {
+    expect(getPersona('Dengeli', 'Düşük', 'Orta', 'Orta')).toBe('kilitli');
+  });
+  it('returns surpriz for high risk (not high gol+tempo, not low gol)', () => {
+    expect(getPersona('Dengeli', 'Orta', 'Orta', 'Yüksek')).toBe('surpriz');
+  });
+  it('returns favori for Hücumcu + low risk', () => {
+    expect(getPersona('Hücumcu', 'Orta', 'Orta', 'Düşük')).toBe('favori');
+  });
+  it('returns savunma for Savunmacı style', () => {
+    expect(getPersona('Savunmacı', 'Orta', 'Orta', 'Orta')).toBe('savunma');
+  });
+  it('returns dengeli as default', () => {
+    expect(getPersona('Dengeli', 'Orta', 'Orta', 'Orta')).toBe('dengeli');
+  });
+});
+
+// ──────────────────────────────────────────────
+// getPersonaEnriched
+// ──────────────────────────────────────────────
+
+describe('getPersonaEnriched', () => {
+  it('returns gol_savasi when both teams attack and concede heavily', () => {
+    const hSt = makeStats({ totalAvgGf: '1.9', totalAvgGa: '1.6' });
+    const aSt = makeStats({ totalAvgGf: '1.8', totalAvgGa: '1.5' });
+    expect(getPersonaEnriched('Dengeli', 'Yüksek', 'Yüksek', 'Orta', hSt, aSt)).toBe('gol_savasi');
+  });
+  it('returns form_donusu for strongly diverging trends', () => {
+    const st = makeStats();
+    const hTrend: FormTrend = { direction: 'up',   pts5: 12, ptsPrev: 4 };
+    const aTrend: FormTrend = { direction: 'down', pts5: 2,  ptsPrev: 8 };
+    expect(getPersonaEnriched('Dengeli', 'Orta', 'Orta', 'Orta', st, st, hTrend, aTrend)).toBe('form_donusu');
+  });
+  it('returns ev_kalesi for strong home / weak away combo', () => {
+    const hSt = makeStats({ homeWinPct: 70 });
+    const aSt = makeStats({ awayWinPct: 20 });
+    expect(getPersonaEnriched('Dengeli', 'Orta', 'Orta', 'Orta', hSt, aSt)).toBe('ev_kalesi');
+  });
+  it('falls through to getPersona when no enriched condition matches', () => {
+    const st = makeStats({ totalAvgGf: '1.2', totalAvgGa: '1.0', homeWinPct: 40, awayWinPct: 40 });
+    expect(getPersonaEnriched('Hücumcu', 'Orta', 'Orta', 'Düşük', st, st)).toBe('favori');
+  });
+  it('returns getPersona result when stats are not provided', () => {
+    expect(getPersonaEnriched('Dengeli', 'Düşük', 'Orta', 'Orta')).toBe('kilitli');
+  });
+});
+
+// ──────────────────────────────────────────────
+// getTagColor (matchAnalysis variant)
+// ──────────────────────────────────────────────
+
+describe('getTagColor (matchAnalysis)', () => {
+  it('stil Hücumcu light', () => {
+    const r = getTagColorMA('stil', 'Hücumcu', false);
+    expect(r.bg).toBe('#FDE8E8');
+    expect(r.text).toBe('#A32D2D');
+  });
+  it('stil Hücumcu dark', () => {
+    expect(getTagColorMA('stil', 'Hücumcu', true).bg).toBe('#2C0A0A');
+  });
+  it('stil Savunmacı', () => {
+    expect(getTagColorMA('stil', 'Savunmacı', false).text).toBe('#27500A');
+  });
+  it('stil other (Dengeli)', () => {
+    expect(getTagColorMA('stil', 'Dengeli', false).bg).toBe('#E6F1FB');
+  });
+  it('value Yüksek', () => {
+    expect(getTagColorMA('risk', 'Yüksek', false).bg).toBe('#FDE8E8');
+  });
+  it('value Orta', () => {
+    expect(getTagColorMA('risk', 'Orta', false).bg).toBe('#FFF8E1');
+  });
+  it('value Düşük (else)', () => {
+    expect(getTagColorMA('risk', 'Düşük', false).bg).toBe('#f0f0f0');
+  });
+});
+
+// ──────────────────────────────────────────────
+// buildMatchAnalysis
+// ──────────────────────────────────────────────
+
+describe('buildMatchAnalysis', () => {
+  it('returns null scoutPick and bank reasons when hasFormData=false', () => {
+    const st = makeStats();
+    const r = buildMatchAnalysis('Home', 'Away', 2021, st, st, 5, 5, 0, false, false);
+    expect(r.scoutPick).toBeNull();
+    expect(r.reasons).toHaveLength(3);
+    expect(['🟢 Güçlü sinyal', '🔴 Risk yüksek', '⚖️ Dengeli profil']).toContain(r.badgeLabel);
+  });
+  it('produces green badge for large form gap (low risk)', () => {
+    const hSt = makeStats({ total: 10, over25Pct: 50, kgVarPct: 50, totalAvgGf: '1.5', totalAvgGa: '0.8' });
+    const aSt = makeStats({ total: 10, over25Pct: 48, kgVarPct: 48, totalAvgGf: '1.4', totalAvgGa: '0.9' });
+    const r = buildMatchAnalysis('Home', 'Away', 2021, hSt, aSt, 12, 3, 5, false, true);
+    expect(r.badgeLabel).toBe('🟢 Güçlü sinyal');
+  });
+  it('produces red badge when weatherRisk=true', () => {
+    const st = makeStats({ total: 8, over25Pct: 50, kgVarPct: 50 });
+    const r = buildMatchAnalysis('Home', 'Away', 2021, st, st, 5, 5, 3, true, true);
+    expect(r.badgeLabel).toBe('🔴 Risk yüksek');
+  });
+  it('returns scoutPick and string fields when hasFormData=true', () => {
+    const st = makeStats({ total: 10, over25Pct: 65, kgVarPct: 60 });
+    const r = buildMatchAnalysis('Home', 'Away', 2021, st, st, 5, 5, 4, false, true);
+    expect(r.scoutPick).not.toBeNull();
+    expect(typeof r.short).toBe('string');
+    expect(typeof r.medium).toBe('string');
+  });
+});
+
+// ──────────────────────────────────────────────
+// getRiskWarnings
+// ──────────────────────────────────────────────
+
+describe('getRiskWarnings', () => {
+  it('warns for small home sample', () => {
+    const w = getRiskWarnings({ total: 3 }, { total: 8 }, 4, { guven: 'Orta', risk: 'Orta' });
+    expect(w.some(s => s.includes('Ev sahibi'))).toBe(true);
+  });
+  it('warns for small away sample', () => {
+    const w = getRiskWarnings({ total: 8 }, { total: 3 }, 4, { guven: 'Orta', risk: 'Orta' });
+    expect(w.some(s => s.includes('Deplasman'))).toBe(true);
+  });
+  it('warns for low H2H count', () => {
+    const w = getRiskWarnings({ total: 8 }, { total: 8 }, 1, { guven: 'Yüksek', risk: 'Orta' });
+    expect(w.some(s => s.includes('H2H'))).toBe(true);
+  });
+  it('warns for low confidence', () => {
+    const w = getRiskWarnings({ total: 8 }, { total: 8 }, 4, { guven: 'Düşük', risk: 'Orta' });
+    expect(w.some(s => s.includes('güven'))).toBe(true);
+  });
+  it('warns for high risk', () => {
+    const w = getRiskWarnings({ total: 8 }, { total: 8 }, 4, { guven: 'Yüksek', risk: 'Yüksek' });
+    expect(w.some(s => s.includes('değişken'))).toBe(true);
+  });
+  it('returns no-risk message when everything is clean', () => {
+    const w = getRiskWarnings({ total: 8 }, { total: 8 }, 4, { guven: 'Yüksek', risk: 'Düşük' });
+    expect(w[0]).toContain('tespit edilmedi');
+  });
+});
+
+// ──────────────────────────────────────────────
+// getHomeAwayComment
+// ──────────────────────────────────────────────
+
+describe('getHomeAwayComment', () => {
+  it('strong home + weak away → mentions iç saha', () => {
+    const hSt = makeStats({ homeWinPct: 70 });
+    const aSt = makeStats({ awayWinPct: 20 });
+    expect(getHomeAwayComment(hSt, aSt, 'Home', 'Away')).toContain('iç saha');
+  });
+  it('strong home (alone) → mentions Home', () => {
+    const hSt = makeStats({ homeWinPct: 70 });
+    const aSt = makeStats({ awayWinPct: 38 });
+    expect(getHomeAwayComment(hSt, aSt, 'Home', 'Away')).toContain('Home');
+  });
+  it('large home advantage vs total win rate → mentions Home', () => {
+    const hSt = makeStats({ homeWinPct: 55, totalWinPct: 30 });
+    const aSt = makeStats({ awayWinPct: 30 });
+    expect(getHomeAwayComment(hSt, aSt, 'Home', 'Away')).toContain('Home');
+  });
+  it('strong away → mentions Away', () => {
+    const hSt = makeStats({ homeWinPct: 40, totalWinPct: 30 });
+    const aSt = makeStats({ awayWinPct: 55 });
+    expect(getHomeAwayComment(hSt, aSt, 'Home', 'Away')).toContain('Away');
+  });
+  it('both teams low win rate → non-empty string', () => {
+    const hSt = makeStats({ homeWinPct: 25 });
+    const aSt = makeStats({ awayWinPct: 25 });
+    expect(getHomeAwayComment(hSt, aSt, 'Home', 'Away').length).toBeGreaterThan(0);
+  });
+  it('balanced scenario → non-empty string', () => {
+    const hSt = makeStats({ homeWinPct: 45 });
+    const aSt = makeStats({ awayWinPct: 35 });
+    expect(getHomeAwayComment(hSt, aSt, 'Home', 'Away').length).toBeGreaterThan(0);
+  });
+});
+
+// ──────────────────────────────────────────────
+// getFormTrend
+// ──────────────────────────────────────────────
+
+describe('getFormTrend', () => {
+  function fmatch(date: string, homeId: number, h: number, a: number) {
+    return {
+      utcDate: date,
+      homeTeam: { id: homeId, name: 'Team' },
+      awayTeam: { id: 99, name: 'Other' },
+      score: { fullTime: { home: h, away: a } },
+    };
+  }
+
+  it('returns null with fewer than 6 finished matches', () => {
+    const ms = [1, 2, 3, 4, 5].map(i => fmatch(`2025-01-0${i}T12:00:00Z`, 1, 2, 0));
+    expect(getFormTrend(ms as any, 1)).toBeNull();
+  });
+  it('returns up when recent 5 better than prev 5', () => {
+    const prev5 = [1, 2, 3, 4, 5].map(i => fmatch(`2025-01-${String(i).padStart(2,'0')}T12:00:00Z`, 1, 1, 1));
+    const rec5  = [1, 2, 3, 4, 5].map(i => fmatch(`2025-02-${String(i).padStart(2,'0')}T12:00:00Z`, 1, 3, 0));
+    const r = getFormTrend([...prev5, ...rec5] as any, 1);
+    expect(r?.direction).toBe('up');
+    expect(r?.pts5).toBe(15);
+  });
+  it('returns down when recent 5 worse than prev 5', () => {
+    const prev5 = [1, 2, 3, 4, 5].map(i => fmatch(`2025-01-${String(i).padStart(2,'0')}T12:00:00Z`, 1, 3, 0));
+    const rec5  = [1, 2, 3, 4, 5].map(i => fmatch(`2025-02-${String(i).padStart(2,'0')}T12:00:00Z`, 1, 0, 2));
+    const r = getFormTrend([...prev5, ...rec5] as any, 1);
+    expect(r?.direction).toBe('down');
+  });
+  it('returns stable when points are equal', () => {
+    const all10 = [1,2,3,4,5,6,7,8,9,10].map(i => fmatch(`2025-01-${String(i).padStart(2,'0')}T12:00:00Z`, 1, 2, 1));
+    const r = getFormTrend(all10 as any, 1);
+    expect(r?.direction).toBe('stable');
+  });
+});
+
+// ──────────────────────────────────────────────
+// buildScoutPick — extended branch coverage
+// ──────────────────────────────────────────────
+
+describe('buildScoutPick — extended coverage', () => {
+  it('low-confidence + high goals → goals tone', () => {
+    const st = makeStats({ total: 3, over25Pct: 62, kgVarPct: 50, totalAvgGf: '1.4', totalAvgGa: '1.4' });
+    expect(buildScoutPick('H', 'A', st, st, 5, 5, 1, false).tone).toBe('goals');
+  });
+  it('low-confidence + low goals → draw tone', () => {
+    const st = makeStats({ total: 3, over25Pct: 35, kgVarPct: 40, totalAvgGf: '0.9', totalAvgGa: '0.8' });
+    expect(buildScoutPick('H', 'A', st, st, 5, 5, 1, false).tone).toBe('draw');
+  });
+  it('low-confidence + home edge → home tone', () => {
+    const hSt = makeStats({ total: 3, over25Pct: 50, kgVarPct: 40, totalAvgGf: '1.3', totalAvgGa: '1.2', homeWinPct: 60 });
+    const aSt = makeStats({ total: 3, over25Pct: 50, kgVarPct: 40, totalAvgGf: '1.0', totalAvgGa: '1.6', awayWinPct: 20 });
+    expect(buildScoutPick('H', 'A', hSt, aSt, 8, 3, 1, false).tone).toBe('home');
+  });
+  it('low-confidence + away edge → away tone', () => {
+    const hSt = makeStats({ total: 3, over25Pct: 50, kgVarPct: 40, totalAvgGf: '1.0', totalAvgGa: '1.6', homeWinPct: 20 });
+    const aSt = makeStats({ total: 3, over25Pct: 50, kgVarPct: 40, totalAvgGf: '1.3', totalAvgGa: '1.2', awayWinPct: 50 });
+    expect(buildScoutPick('H', 'A', hSt, aSt, 3, 8, 1, false).tone).toBe('away');
+  });
+  it('low-confidence + high KG + balanced edges → goals tone', () => {
+    const st = makeStats({ total: 3, over25Pct: 50, kgVarPct: 55, totalAvgGf: '1.2', totalAvgGa: '1.2', homeWinPct: 40, awayWinPct: 35 });
+    expect(buildScoutPick('H', 'A', st, st, 5, 5, 1, false).tone).toBe('goals');
+  });
+  it('high over + combined attack → goals (second non-lc path)', () => {
+    const st = makeStats({ total: 10, over25Pct: 63, kgVarPct: 45, totalAvgGf: '1.5', totalAvgGa: '1.5' });
+    expect(buildScoutPick('H', 'A', st, st, 5, 5, 3, false).tone).toBe('goals');
+  });
+  it('low over + balanced form → draw (balance path)', () => {
+    const st = makeStats({ total: 10, over25Pct: 40, kgVarPct: 55, totalAvgGf: '1.2', totalAvgGa: '1.2' });
+    expect(buildScoutPick('H', 'A', st, st, 5, 5, 3, false).tone).toBe('draw');
+  });
+  it('moderate home edge (4 ≤ diff < 7) → home tone', () => {
+    const hSt = makeStats({ total: 10, over25Pct: 48, kgVarPct: 50, totalAvgGf: '1.4', totalAvgGa: '1.3', homeWinPct: 55 });
+    const aSt = makeStats({ total: 10, over25Pct: 48, kgVarPct: 50, totalAvgGf: '1.2', totalAvgGa: '1.2', awayWinPct: 30 });
+    expect(buildScoutPick('H', 'A', hSt, aSt, 6, 4, 3, false).tone).toBe('home');
+  });
+  it('moderate away edge (4 ≤ diff < 7) → away tone', () => {
+    const hSt = makeStats({ total: 10, over25Pct: 48, kgVarPct: 50, totalAvgGf: '1.2', totalAvgGa: '1.3', homeWinPct: 30 });
+    const aSt = makeStats({ total: 10, over25Pct: 48, kgVarPct: 50, totalAvgGf: '1.4', totalAvgGa: '1.2', awayWinPct: 55 });
+    expect(buildScoutPick('H', 'A', hSt, aSt, 4, 6, 3, false).tone).toBe('away');
+  });
+});
+
+// ──────────────────────────────────────────────
+// buildScoutSummary — missing branches
+// ──────────────────────────────────────────────
+
+describe('buildScoutSummary — missing branches', () => {
+  it('away attack edge branch returns non-empty string', () => {
+    const hSt = makeStats({ total: 8, totalAvgGf: '1.2', totalAvgGa: '1.4', over25Pct: 50, kgVarPct: 50, homeWinPct: 45, homePlayed: 5 });
+    const aSt = makeStats({ total: 8, totalAvgGf: '2.0', totalAvgGa: '1.1', over25Pct: 50, kgVarPct: 50, awayWinPct: 45, awayPlayed: 5 });
+    expect(buildScoutSummary('Home', 'Away', hSt, aSt, 5, 7, 3, false, 0).length).toBeGreaterThan(20);
+  });
+  it('both strong defenses branch returns non-empty string', () => {
+    const st = makeStats({ total: 8, totalAvgGf: '1.2', totalAvgGa: '0.9', over25Pct: 40, kgVarPct: 45, homeWinPct: 45, homePlayed: 5, awayWinPct: 45, awayPlayed: 5 });
+    expect(buildScoutSummary('Home', 'Away', st, st, 5, 5, 3, false, 0).length).toBeGreaterThan(20);
+  });
+  it('high over + low kg → gollü ama tek taraflı message', () => {
+    const st = makeStats({ total: 10, over25Pct: 65, kgVarPct: 38, totalAvgGf: '1.5', totalAvgGa: '1.5' });
+    expect(buildScoutSummary('Home', 'Away', st, st, 5, 5, 3, false, 0).length).toBeGreaterThan(20);
+  });
+  it('low over + high kg → dar skorlu beraberlik message', () => {
+    const st = makeStats({ total: 10, over25Pct: 35, kgVarPct: 60, totalAvgGf: '1.2', totalAvgGa: '1.2' });
+    expect(buildScoutSummary('Home', 'Away', st, st, 5, 5, 3, false, 0).length).toBeGreaterThan(20);
+  });
+  it('small sample → sınırlı outlook', () => {
+    const st = makeStats({ total: 4, over25Pct: 50, kgVarPct: 50 });
+    expect(buildScoutSummary('Home', 'Away', st, st, 5, 5, 3, false, 0)).toContain('sınırlı');
+  });
+  it('strong away deplasman → deplasman message', () => {
+    const hSt = makeStats({ total: 8, totalAvgGf: '1.5', totalAvgGa: '1.2', over25Pct: 55, kgVarPct: 50, homeWinPct: 45, homePlayed: 5 });
+    const aSt = makeStats({ total: 8, totalAvgGf: '1.5', totalAvgGa: '1.2', over25Pct: 55, kgVarPct: 50, awayWinPct: 55, awayPlayed: 5 });
+    expect(buildScoutSummary('Home', 'Away', hSt, aSt, 5, 5, 3, false, 0).length).toBeGreaterThan(20);
+  });
+  it('form-biased outlook (large form diff + medium over)', () => {
+    const st = makeStats({ total: 10, over25Pct: 52, kgVarPct: 52, totalAvgGf: '1.4', totalAvgGa: '1.3' });
+    expect(buildScoutSummary('Home', 'Away', st, st, 9, 3, 3, false, 0).length).toBeGreaterThan(20);
+  });
+});
+
+// ──────────────────────────────────────────────
+// getMotivationComment — UCL paths
+// ──────────────────────────────────────────────
+
+describe('getMotivationComment — UCL paths', () => {
+  it('both teams in top 8 → mentions ilk 8', () => {
+    expect(getMotivationComment(3, 7, 2001, {})).toContain('ilk 8');
+  });
+  it('one team in top 8, one in play-off → mentions 8', () => {
+    expect(getMotivationComment(5, 18, 2001, {})).toContain('8');
+  });
+  it('both teams in play-off zone (9–24) → mentions play-off', () => {
+    expect(getMotivationComment(12, 20, 2001, {})).toContain('play-off');
+  });
+  it('one team eliminated (> 24) → mentions eleme hattının dışında', () => {
+    expect(getMotivationComment(25, 10, 2001, {})).toContain('eleme hattının dışında');
+  });
+});
+
+// ──────────────────────────────────────────────
+// getMotivationComment — settled + position paths
+// ──────────────────────────────────────────────
+
+describe('getMotivationComment — position coverage', () => {
+  it('homePos=1 alone → lider grupta message', () => {
+    const r = getMotivationComment(1, 8, 2021, { homePts: 80, homePlayed: 30, leaderPts: 80, totalTeams: 20 });
+    expect(r).toContain('lider grupta');
+  });
+  it('awayPos=1 alone → lider grupta message', () => {
+    const r = getMotivationComment(8, 1, 2021, { awayPts: 80, awayPlayed: 30, leaderPts: 80, totalTeams: 20 });
+    expect(r).toContain('lider grupta');
+  });
+  it('homePos in relegation zone only → ev sahibi alt sıra', () => {
+    expect(getMotivationComment(17, 8, 2021, { totalTeams: 20 })).toContain('alt sıra');
+  });
+  it('awayPos in relegation zone only → deplasman alt sıra', () => {
+    expect(getMotivationComment(8, 19, 2021, { totalTeams: 20 })).toContain('alt sıra');
+  });
+  it('home in Europe zone alone → Avrupa kupası', () => {
+    expect(getMotivationComment(5, 12, 2021, { totalTeams: 20 })).toContain('Avrupa');
+  });
+  it('away in Europe zone alone → Avrupa kupası', () => {
+    expect(getMotivationComment(12, 6, 2021, { totalTeams: 20 })).toContain('Avrupa');
+  });
+  it('both teams in Europe zone → both Avrupa', () => {
+    expect(getMotivationComment(4, 6, 2021, { totalTeams: 20 })).toContain('Avrupa');
+  });
+  it('both top-3, cannot reach leader → sınırlı message', () => {
+    const ctx = { homePts: 70, awayPts: 68, homePlayed: 36, awayPlayed: 36, leaderPts: 85, totalTeams: 20, safetyPts: 25 };
+    const r = getMotivationComment(2, 3, 2021, ctx);
+    expect(r).toBeTruthy();
+  });
+});
+
+// ──────────────────────────────────────────────
+// getH2HComment — additional branches
+// ──────────────────────────────────────────────
+
+describe('getH2HComment — additional branches', () => {
+  it('away team historically dominant → mentions Away FC', () => {
+    expect(getH2HComment(makeH2H(6, 0, 5) as any, 'Home FC', 'Away FC')).toContain('Away FC');
+  });
+  it('high-scoring H2H → gollü geçmiş', () => {
+    expect(getH2HComment(makeH2H(3, 1, 1) as any, 'Home FC', 'Away FC')).toContain('gollü geçmiş');
+  });
+  it('low-scoring balanced H2H → az gollü or balanced text', () => {
+    const lowH2H = [
+      { score: { fullTime: { home: 1, away: 0 } }, homeTeam: { id: 1, name: 'Home FC', shortName: 'Home FC' }, awayTeam: { id: 2, name: 'Away FC' }, utcDate: '2025-01-01' },
+      { score: { fullTime: { home: 0, away: 1 } }, homeTeam: { id: 1, name: 'Home FC', shortName: 'Home FC' }, awayTeam: { id: 2, name: 'Away FC' }, utcDate: '2025-01-02' },
+      { score: { fullTime: { home: 0, away: 0 } }, homeTeam: { id: 1, name: 'Home FC', shortName: 'Home FC' }, awayTeam: { id: 2, name: 'Away FC' }, utcDate: '2025-01-03' },
+    ];
+    expect(getH2HComment(lowH2H as any, 'Home FC', 'Away FC').length).toBeGreaterThan(10);
+  });
+  it('balanced H2H with mid-range goals → balanced result text', () => {
+    const balH2H = [
+      { score: { fullTime: { home: 2, away: 1 } }, homeTeam: { id: 1, name: 'Home FC', shortName: 'Home FC' }, awayTeam: { id: 2, name: 'Away FC' }, utcDate: '2025-01-01' },
+      { score: { fullTime: { home: 1, away: 2 } }, homeTeam: { id: 1, name: 'Home FC', shortName: 'Home FC' }, awayTeam: { id: 2, name: 'Away FC' }, utcDate: '2025-01-02' },
+      { score: { fullTime: { home: 1, away: 1 } }, homeTeam: { id: 1, name: 'Home FC', shortName: 'Home FC' }, awayTeam: { id: 2, name: 'Away FC' }, utcDate: '2025-01-03' },
+    ];
+    expect(getH2HComment(balH2H as any, 'Home FC', 'Away FC').length).toBeGreaterThan(10);
+  });
+});
+
+// ──────────────────────────────────────────────
+// getOddsComment / getRefereeProfile — missing branches
+// ──────────────────────────────────────────────
+
+describe('getOddsComment — favOdd ≤ 2.0 ternary branches', () => {
+  it('risk Düşük → destekliyor (not kısmen)', () => {
+    const r = getOddsComment({ home: '1.80', away: '4.50' } as any, 'Home', { risk: 'Düşük' } as any);
+    expect(r).toContain('destekliyor');
+    expect(r).not.toContain('kısmen');
+  });
+  it('risk Orta → kısmen destekliyor', () => {
+    const r = getOddsComment({ home: '1.80', away: '4.50' } as any, 'Home', { risk: 'Orta' } as any);
+    expect(r).toContain('kısmen destekliyor');
+  });
+});
+
+describe('getRefereeProfile — league variants', () => {
+  it('techLgs (2014) returns a non-empty narrative', () => {
+    expect(getRefereeProfile('Test Ref', 2014).narrative.length).toBeGreaterThan(10);
+  });
+  it('other league (2015) returns a non-empty narrative', () => {
+    expect(getRefereeProfile('Test Ref', 2015).narrative.length).toBeGreaterThan(10);
   });
 });

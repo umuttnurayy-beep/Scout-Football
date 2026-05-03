@@ -7,6 +7,8 @@ import {
   getLeagueCharacter,
   computeLeagueStats,
   getTeamLabel,
+  getTeamPersonality,
+  getLeaderNarrative,
   type UCLTie,
   type Level,
   type LeagueStanding,
@@ -414,5 +416,90 @@ describe('getTeamLabel', () => {
     const r = getTeamLabel(1.5, 1.2, 0.45, 8, 20, avg.gfPer, avg.gaPer);
     expect(typeof r.label).toBe('string');
     expect(typeof r.color).toBe('string');
+  });
+});
+
+// ─── getTeamPersonality ───────────────────────────────────────────────────────
+
+describe('getTeamPersonality', () => {
+  test('Formda branch returns win percentage sentence', () => {
+    expect(getTeamPersonality('Formda', 2.0, 1.2, 0.65, 1.4))
+      .toBe('65% galibiyet oranı — bu sezonun en tutarlı takımlarından.');
+  });
+
+  test('Hücumcu & Kırılgan branch includes avgGf and avgGa', () => {
+    expect(getTeamPersonality('Hücumcu & Kırılgan', 2.3, 1.8, 0.40, 1.4))
+      .toBe('2.3 gol atıp 1.8 gol yiyor — tahmin etmesi güç profil.');
+  });
+
+  test('Hücumcu branch includes avgGf and league avg', () => {
+    expect(getTeamPersonality('Hücumcu', 2.0, 1.0, 0.45, 1.4))
+      .toBe('2.0 gol/maç — takım başına lig ort. (1.4) üzerinde hücum üretimi.');
+  });
+
+  test('Savunmacı branch includes avgGa', () => {
+    expect(getTeamPersonality('Savunmacı', 1.2, 0.7, 0.40, 1.4))
+      .toBe('Maç başı yalnızca 0.7 gol yiyen sıkı savunma profili.');
+  });
+
+  test('Dengesiz branch returns win percentage', () => {
+    expect(getTeamPersonality('Dengesiz', 1.0, 1.5, 0.20, 1.4))
+      .toBe('20% galibiyet — istikrarsız yapı, sürprizlere açık.');
+  });
+
+  test('default branch returns Dengeli message', () => {
+    expect(getTeamPersonality('Dengeli', 1.5, 1.2, 0.45, 1.4))
+      .toBe('Dengeli skor profili; büyük sürpriz ya da hayal kırıklığı beklentisi düşük.');
+  });
+});
+
+// ─── getLeaderNarrative ──────────────────────────────────────────────────────
+
+describe('getLeaderNarrative', () => {
+  function makeSt(overrides: Partial<LeagueStanding>): LeagueStanding {
+    return { pos: 1, team: 'Team A', teamId: 1, played: 20, win: 10, draw: 5, loss: 5, gf: 25, ga: 20, pts: 35, ...overrides };
+  }
+
+  test('loss === 0 returns unbeaten narrative', () => {
+    const leader = makeSt({ loss: 0, win: 17, draw: 3, played: 20 });
+    expect(getLeaderNarrative(leader, undefined))
+      .toBe('20 maçta yenilmedi — sezonun en istikrarlı takımı.');
+  });
+
+  test('winRate >= 0.70 returns dominant leader narrative', () => {
+    const leader = makeSt({ loss: 2, win: 15, draw: 3, played: 20 });
+    // winRate=0.75 → Math.round(7.5)=8
+    expect(getLeaderNarrative(leader, undefined))
+      .toBe("Her 10 maçtan 8'ini kazanıyor — ligin tartışmasız lideri.");
+  });
+
+  test('gfPer >= 2.5 returns high-scoring narrative', () => {
+    const leader = makeSt({ loss: 3, win: 10, draw: 7, played: 20, gf: 54, ga: 20 });
+    // winRate=0.5 <0.70, gfPer=2.7 >=2.5
+    expect(getLeaderNarrative(leader, undefined))
+      .toBe('Maç başı 2.7 golle ligin golcü motoru.');
+  });
+
+  test('gaPer < 0.9 returns defensive narrative', () => {
+    const leader = makeSt({ loss: 3, win: 10, draw: 7, played: 20, gf: 20, ga: 14 });
+    // winRate=0.5, gfPer=1.0 <2.5, gaPer=0.7 <0.9
+    expect(getLeaderNarrative(leader, undefined))
+      .toBe('Savunma gücüyle öne çıkıyor — maç başı yalnızca 0.7 gol yiyor.');
+  });
+
+  test('gap >= 8 returns dominant points lead narrative', () => {
+    const leader = makeSt({ loss: 3, win: 11, draw: 6, played: 20, gf: 25, ga: 20, pts: 39 });
+    const second = makeSt({ pts: 29 });
+    // gap=10 >=8, winRate=0.55, gfPer=1.25, gaPer=1.0
+    expect(getLeaderNarrative(leader, second))
+      .toBe('İkinciden 10 puan önde — şampiyonluğa en yakın aday.');
+  });
+
+  test('default returns narrow points gap narrative', () => {
+    const leader = makeSt({ loss: 3, win: 11, draw: 6, played: 20, gf: 25, ga: 20, pts: 39 });
+    const second = makeSt({ pts: 36 });
+    // gap=3 <8
+    expect(getLeaderNarrative(leader, second))
+      .toBe('3 puanlık avantajla önde, tablo henüz netleşmedi.');
   });
 });

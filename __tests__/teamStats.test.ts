@@ -265,6 +265,20 @@ describe('calcSeasonStats', () => {
     expect(r.over35Pct).toBe(Math.round(1 / 3 * 100));
   });
 
+  test('away draw: awayD increments when scores are equal', () => {
+    // AWAY=99 as away team: makeFDMatch(HOME=57, 1, 1) → gf=1, ga=1 → draw
+    const m = makeFDMatch(HOME, 1, 1);
+    const r = calcSeasonStats([m], AWAY)!;
+    expect(r.away).toEqual({ played: 1, win: 0, draw: 1, loss: 0 });
+  });
+
+  test('away loss: awayL increments when away team concedes more', () => {
+    // AWAY=99 as away team: makeFDMatch(HOME=57, 3, 1) → gf=1, ga=3 → loss
+    const m = makeFDMatch(HOME, 3, 1);
+    const r = calcSeasonStats([m], AWAY)!;
+    expect(r.away).toEqual({ played: 1, win: 0, draw: 0, loss: 1 });
+  });
+
   test('mixed home and away record', () => {
     const r = calcSeasonStats([
       fdHome(2, 0),          // home win, clean sheet

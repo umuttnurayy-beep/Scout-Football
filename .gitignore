@@ -33,6 +33,7 @@ yarn-debug.*
 yarn-error.*
 *.log
 logs/
+coverage/
 
 # macOS
 .DS_Store

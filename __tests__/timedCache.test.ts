@@ -54,6 +54,12 @@ describe('timed cache helpers', () => {
     await expect(readTimedCache('key', 60_000, isArrayOf(isRow))).resolves.toBeNull();
   });
 
+  it('returns null when JSON.parse produces a non-object primitive', async () => {
+    // JSON.parse('null') returns null (not an object) — covers the typeof check on line 12
+    getItemMock.mockResolvedValueOnce('null');
+    await expect(readTimedCache('key', 60_000, isArrayOf(isRow))).resolves.toBeNull();
+  });
+
   it('writes timestamped cache payloads and swallows storage failures', () => {
     writeTimedCache('key', [{ id: 1, name: 'A' }]);
 
@@ -64,5 +70,22 @@ describe('timed cache helpers', () => {
 
     setItemMock.mockReturnValueOnce(Promise.reject(new Error('disk full')));
     expect(() => writeTimedCache('key', [])).not.toThrow();
+  });
+
+  it('supports custom payload keys for legacy cache shapes', async () => {
+    getItemMock.mockResolvedValueOnce(JSON.stringify({
+      ts: Date.now() - 1_000,
+      rows: [{ id: 1, name: 'A' }],
+    }));
+
+    await expect(readTimedCache('key', 60_000, isArrayOf(isRow), 'rows'))
+      .resolves.toEqual([{ id: 1, name: 'A' }]);
+
+    writeTimedCache('key', [{ id: 2, name: 'B' }], 'rows');
+
+    expect(setItemMock).toHaveBeenLastCalledWith(
+      'key',
+      JSON.stringify({ ts: Date.now(), rows: [{ id: 2, name: 'B' }] }),
+    );
   });
 });

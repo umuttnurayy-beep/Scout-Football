@@ -108,7 +108,10 @@
       "Read(//mnt/c/Users/umutn/Desktop/ScoutFootball/**)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\umutn\\\\Desktop\\\\ScoutFootball\" -Recurse -Force)",
       "Bash(Select-Object FullName)",
-      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\umutn\\\\Desktop\\\\ScoutFootball\" -Recurse -Filter \"*.ts\" -Filter \"*.test.ts\")"
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\umutn\\\\Desktop\\\\ScoutFootball\" -Recurse -Filter \"*.ts\" -Filter \"*.test.ts\")",
+      "Bash(Get-Content \"c:\\\\Users\\\\umutn\\\\Desktop\\\\ScoutFootball\\\\__tests__\\\\matchMetrics.test.ts\")",
+      "Bash(Measure-Object -Line)",
+      "Bash(Select-Object -ExpandProperty Lines)"
     ],
     "additionalDirectories": [
       "C:\\tmp",

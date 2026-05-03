@@ -1,5 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CURRENT_FOOTBALL_SEASON } from '../constants/seasons';
+import { readTimedCache, writeTimedCache } from '../utils/timedCache';
 import { API_BASE_URL } from './config';
 import { isOddsGameMatch } from './oddsMatching';
 import { arrayOrEmpty, isRecord, normalizeNextPreview, standingsMapOrEmpty, standingsOrEmpty } from './apiNormalizers';
@@ -290,6 +290,14 @@ export type OddsData = {
   away: string;
 };
 
+function isOddsData(value: unknown): value is OddsData {
+  if (!value || typeof value !== 'object') return false;
+  const odds = value as Partial<Record<keyof OddsData, unknown>>;
+  return typeof odds.home === 'string' &&
+    typeof odds.away === 'string' &&
+    (odds.draw === undefined || typeof odds.draw === 'string');
+}
+
 export type HomeData = {
   date: string;
   matches: FDMatch[];
@@ -434,13 +442,8 @@ export async function getOdds(homeTeam: string, awayTeam: string, leagueApiId: n
     const storeKey = `odds_match_${leagueApiId}_${sanitize(homeTeam)}_${sanitize(awayTeam)}`;
     const ODDS_TTL = 30 * 60 * 1000; // 30 dakika — oran güncellemelerine duyarlı
 
-    try {
-      const raw = await AsyncStorage.getItem(storeKey);
-      if (raw) {
-        const { odds, ts } = JSON.parse(raw);
-        if (Date.now() - ts < ODDS_TTL) return odds;
-      }
-    } catch (_) {}
+    const cachedOdds = await readTimedCache(storeKey, ODDS_TTL, isOddsData, 'odds');
+    if (cachedOdds) return cachedOdds;
 
     const res = await fetchWithTimeout(`${BASE_URL}/odds?sport=${sport}`);
     type OddsOutcome = { name: string; price: number };
@@ -475,7 +478,7 @@ export async function getOdds(homeTeam: string, awayTeam: string, leagueApiId: n
       away: bestAway.toFixed(2),
     };
 
-    try { await AsyncStorage.setItem(storeKey, JSON.stringify({ odds, ts: Date.now() })); } catch (_) {}
+    writeTimedCache(storeKey, odds, 'odds');
 
     return odds;
   } catch (e) {
