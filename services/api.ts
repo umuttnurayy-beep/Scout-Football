@@ -491,7 +491,8 @@ export async function getOdds(homeTeam: string, awayTeam: string, leagueApiId: n
     const sport = ODDS_LEAGUE_MAP[leagueApiId];
     if (!sport) return null;
 
-    const storeKey = `odds_match_${leagueApiId}_${homeTeam}_${awayTeam}`;
+    const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9]/g, '_');
+    const storeKey = `odds_match_${leagueApiId}_${sanitize(homeTeam)}_${sanitize(awayTeam)}`;
     const ODDS_TTL = 30 * 60 * 1000; // 30 dakika — oran güncellemelerine duyarlı
 
     try {

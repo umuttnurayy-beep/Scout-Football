@@ -34,6 +34,12 @@ type RecentItem = {
   timestamp: number;
 };
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function safeJsonParse<T>(raw: string, fallback: T): T {
+  try { return JSON.parse(raw) as T; } catch { return fallback; }
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STORAGE = {
@@ -231,9 +237,9 @@ export default function ProfileScreen() {
     ]);
     const name_ = name || '';
     const avt_ = avt ? parseInt(avt) : 0;
-    const fav_: FavTeam | null = favRaw ? JSON.parse(favRaw) : null;
-    const wl_: FavTeam[] = wlRaw ? JSON.parse(wlRaw) : [];
-    const recent_: RecentItem[] = recentRaw ? JSON.parse(recentRaw) : [];
+    const fav_: FavTeam | null = favRaw ? safeJsonParse<FavTeam | null>(favRaw, null) : null;
+    const wl_: FavTeam[] = wlRaw ? safeJsonParse<FavTeam[]>(wlRaw, []) : [];
+    const recent_: RecentItem[] = recentRaw ? safeJsonParse<RecentItem[]>(recentRaw, []) : [];
 
     setScoutName(name_);
     setAvatarIdx(avt_);
@@ -384,7 +390,7 @@ export default function ProfileScreen() {
       loadFavTeamData(team);
     } else {
       const existing = await AsyncStorage.getItem(STORAGE.WATCHLIST);
-      const wl: FavTeam[] = existing ? JSON.parse(existing) : [];
+      const wl: FavTeam[] = existing ? safeJsonParse<FavTeam[]>(existing, []) : [];
       if (!wl.find(t => t.name === teamName && t.apiId === apiId)) {
         const updated = [...wl, team];
         setWatchlist(updated);
