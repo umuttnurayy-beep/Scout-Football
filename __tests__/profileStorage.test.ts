@@ -25,6 +25,10 @@ const recentItem = {
 describe('profile storage guards', () => {
   it('accepts valid favorite teams and rejects malformed rows', () => {
     expect(isFavTeam(favTeam)).toBe(true);
+    expect(isFavTeam({ ...favTeam, teamId: Number.NaN })).toBe(false);
+    expect(isFavTeam({ ...favTeam, apiId: Number.POSITIVE_INFINITY })).toBe(false);
+    expect(isFavTeam({ ...favTeam, leagueName: 203 })).toBe(false);
+    expect(isFavTeam({ ...favTeam, leagueFlag: null })).toBe(false);
     expect(isFavTeam({ ...favTeam, teamId: '133804' })).toBe(false);
     expect(isFavTeam({ ...favTeam, name: '' })).toBe(false);
     expect(isFavTeam(null)).toBe(false);
@@ -33,6 +37,9 @@ describe('profile storage guards', () => {
 
   it('accepts valid recent items and rejects malformed rows', () => {
     expect(isRecentItem(recentItem)).toBe(true);
+    expect(isRecentItem({ ...recentItem, id: '57' })).toBe(false);
+    expect(isRecentItem({ ...recentItem, leagueName: null })).toBe(false);
+    expect(isRecentItem({ ...recentItem, apiId: Number.NEGATIVE_INFINITY })).toBe(false);
     expect(isRecentItem({ ...recentItem, timestamp: 'soon' })).toBe(false);
     expect(isRecentItem({ ...recentItem, id: Number.NaN })).toBe(false);
     expect(isRecentItem({ ...recentItem, name: '   ' })).toBe(false);
@@ -60,8 +67,11 @@ describe('profile storage guards', () => {
   });
 
   it('returns empty arrays for non-array or invalid JSON payloads', () => {
+    expect(parseFavTeamList(null)).toEqual([]);
+    expect(parseFavTeamList('{not json')).toEqual([]);
     expect(parseFavTeamList(JSON.stringify(favTeam))).toEqual([]);
     expect(parseRecentItems('{not json')).toEqual([]);
     expect(parseRecentItems(null)).toEqual([]);
+    expect(parseRecentItems(JSON.stringify(recentItem))).toEqual([]);
   });
 });

@@ -52,6 +52,26 @@ describe('timed cache helpers', () => {
 
     getItemMock.mockResolvedValueOnce(JSON.stringify({ ts: Date.now(), data: [{ id: 'bad', name: 'A' }] }));
     await expect(readTimedCache('key', 60_000, isArrayOf(isRow))).resolves.toBeNull();
+
+    getItemMock.mockResolvedValueOnce('false');
+    await expect(readTimedCache('key', 60_000, isArrayOf(isRow))).resolves.toBeNull();
+
+    getItemMock.mockResolvedValueOnce('[]');
+    await expect(readTimedCache('key', 60_000, isArrayOf(isRow))).resolves.toBeNull();
+  });
+
+  it('rejects non-finite timestamps and missing custom payload keys', async () => {
+    getItemMock.mockResolvedValueOnce(JSON.stringify({
+      ts: Number.POSITIVE_INFINITY,
+      data: [{ id: 1, name: 'A' }],
+    }));
+    await expect(readTimedCache('key', 60_000, isArrayOf(isRow))).resolves.toBeNull();
+
+    getItemMock.mockResolvedValueOnce(JSON.stringify({
+      ts: Date.now(),
+      data: [{ id: 1, name: 'A' }],
+    }));
+    await expect(readTimedCache('key', 60_000, isArrayOf(isRow), 'rows')).resolves.toBeNull();
   });
 
   it('returns null when JSON.parse produces a non-object primitive', async () => {
