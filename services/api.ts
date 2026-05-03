@@ -492,14 +492,13 @@ export async function getOdds(homeTeam: string, awayTeam: string, leagueApiId: n
     if (!sport) return null;
 
     const storeKey = `odds_match_${leagueApiId}_${homeTeam}_${awayTeam}`;
-    const TWENTY_FOUR_H = 24 * 60 * 60 * 1000;
+    const ODDS_TTL = 30 * 60 * 1000; // 30 dakika — oran güncellemelerine duyarlı
 
-    // Cache'te varsa dön — maç öncesi oran sabit kalır
     try {
       const raw = await AsyncStorage.getItem(storeKey);
       if (raw) {
         const { odds, ts } = JSON.parse(raw);
-        if (Date.now() - ts < TWENTY_FOUR_H) return odds;
+        if (Date.now() - ts < ODDS_TTL) return odds;
       }
     } catch (_) {}
 

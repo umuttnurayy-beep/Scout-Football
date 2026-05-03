@@ -33,6 +33,7 @@ import {
 const STANDINGS_CACHE_KEY = 'scout_standings_cache_v5';
 const FEATURED_MATCH_CACHE_KEY = 'scout_featured_match_cache_v1';
 const HOME_DATA_CACHE_KEY = 'scout_home_data_cache_v1';
+const STANDINGS_TTL = 60 * 60 * 1000; // 1 saat — aynı gün içinde de bayat puan tablosunu yenile
 type HomeDataNotice = 'stale' | 'cache' | 'warning' | 'error';
 
 const LIG_FILTERS = [
@@ -587,7 +588,7 @@ export default function HomeScreen() {
     setNextDayPreview(visible.length <= 1 ? buildNextPreviewFromHomeData(homeData, homeStandings) : null);
 
     if (options.persist) {
-      AsyncStorage.setItem(STANDINGS_CACHE_KEY, JSON.stringify({ cacheDate: dateStr, data: homeStandings })).catch(() => {});
+      persistStandingsCache(dateStr, homeStandings);
       AsyncStorage.setItem(`${HOME_DATA_CACHE_KEY}:${dateStr}`, JSON.stringify(homeData)).catch(() => {});
     }
   }
@@ -596,8 +597,10 @@ export default function HomeScreen() {
     try {
       const raw = await AsyncStorage.getItem(STANDINGS_CACHE_KEY);
       if (!raw) return null;
-      const { cacheDate, data: cached } = JSON.parse(raw);
-      if (cacheDate !== dateStr || !hasUsableStandingsMap(cached)) return null;
+      const { cacheDate, cacheTs, data: cached } = JSON.parse(raw);
+      if (cacheDate !== dateStr) return null;
+      if (cacheTs && Date.now() - cacheTs > STANDINGS_TTL) return null;
+      if (!hasUsableStandingsMap(cached)) return null;
       return cached;
     } catch {
       return null;
@@ -605,7 +608,7 @@ export default function HomeScreen() {
   }
 
   function persistStandingsCache(dateStr: string, map: Record<number, Standing[]>) {
-    AsyncStorage.setItem(STANDINGS_CACHE_KEY, JSON.stringify({ cacheDate: dateStr, data: map })).catch(() => {});
+    AsyncStorage.setItem(STANDINGS_CACHE_KEY, JSON.stringify({ cacheDate: dateStr, cacheTs: Date.now(), data: map })).catch(() => {});
   }
 
   function applyFallbackNoticeFromApiState() {
