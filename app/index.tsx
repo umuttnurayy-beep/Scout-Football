@@ -443,7 +443,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing]     = useState(false);
   const [backendOffline, setBackendOffline] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const dateList          = getDateList();
+  const dateList          = useMemo(getDateList, []);
   const initialFocusDone  = useRef(false);
   const loadSeq           = useRef(0);
 
@@ -936,7 +936,7 @@ export default function HomeScreen() {
     return items;
   }, [featuredMatches, sortedMatches, metricsMap, activeFilter, selectedDate, nextDayPreview, singleH2H, homeDataNotice, homeDataWarningText]);
 
-  function goToMatch(m: Match, metrics?: Metrics) {
+  const goToMatch = useCallback((m: Match, metrics?: Metrics) => {
     const metricParams = {
       homePos: metrics?.homePos != null ? String(metrics.homePos) : '',
       awayPos: metrics?.awayPos != null ? String(metrics.awayPos) : '',
@@ -980,9 +980,9 @@ export default function HomeScreen() {
         ...metricParams,
       },
     });
-  }
+  }, [router]);
 
-  function goToNextPreviewDate() {
+  const goToNextPreviewDate = useCallback(() => {
     if (!nextDayPreview) {
       const next = new Date(selectedDate);
       next.setDate(next.getDate() + 1);
@@ -991,7 +991,7 @@ export default function HomeScreen() {
     }
     const nextDate = new Date(nextDayPreview.m.utcDate);
     setSelectedDate(new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate()));
-  }
+  }, [nextDayPreview, selectedDate]);
 
   function renderListItem({ item }: { item: ListItem }) {
     switch (item.type) {
