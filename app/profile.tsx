@@ -34,6 +34,17 @@ type RecentItem = {
   timestamp: number;
 };
 
+type TeamSummaryStats = {
+  played: number;
+  win: number;
+  draw: number;
+  loss: number;
+  gf: number;
+  ga: number;
+  pts: number;
+  pos: number;
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function safeJsonParse<T>(raw: string, fallback: T): T {
@@ -210,8 +221,8 @@ export default function ProfileScreen() {
   const [favLoadError, setFavLoadError] = useState(false);
 
   const [watchlistForms, setWatchlistForms] = useState<Record<number, string[]>>({});
-  const [watchlistStats, setWatchlistStats] = useState<Record<string, { played: number; win: number; draw: number; loss: number; gf: number; ga: number; pts: number; pos: number }>>({});
-  const [recentStats, setRecentStats] = useState<Record<string, { played: number; win: number; draw: number; loss: number; gf: number; ga: number; pts: number; pos: number }>>({});
+  const [watchlistStats, setWatchlistStats] = useState<Record<string, TeamSummaryStats>>({});
+  const [recentStats, setRecentStats] = useState<Record<string, TeamSummaryStats>>({});
   const [loadingWatchlist, setLoadingWatchlist] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -298,7 +309,7 @@ export default function ProfileScreen() {
   async function loadWatchlistForms(wl: FavTeam[]) {
     setLoadingWatchlist(true);
     const forms: Record<number, string[]> = {};
-    const stats: Record<string, { played: number; win: number; draw: number; loss: number; gf: number; ga: number; pts: number; pos: number }> = {};
+    const stats: Record<string, TeamSummaryStats> = {};
 
     // standings: lig başına bir kez çek
     const uniqueApiIds = [...new Set(wl.map(t => t.apiId))];
@@ -363,7 +374,7 @@ export default function ProfileScreen() {
       })
     );
 
-    const stats: Record<string, { played: number; win: number; draw: number; loss: number; gf: number; ga: number; pts: number; pos: number }> = {};
+    const stats: Record<string, TeamSummaryStats> = {};
     for (const item of items) {
       const rows = standingsMap[item.apiId] || [];
       const found = rows.find((s) =>
@@ -438,11 +449,7 @@ export default function ProfileScreen() {
     await saveNotifPrefs(updated);
 
     if (anyWillBeEnabled) {
-      const watchedTeams = [
-        favTeam?.name,
-        ...watchlist.map(team => team.name),
-      ].filter(Boolean) as string[];
-      await registerPushToken(updated, watchedTeams);
+      await registerPushToken(updated, watchedTeamNames);
     }
   }
 
@@ -484,6 +491,25 @@ export default function ProfileScreen() {
       ),
     })).filter(lg => lg.teams.length > 0),
   [teamSearch]);
+
+  const avatarColor = useMemo(() => AVATAR_COLORS[avatarIdx] || '#185FA5', [avatarIdx]);
+  const avatarLabel = useMemo(() => scoutName ? scoutName.trim().slice(0, 2).toUpperCase() : '?', [scoutName]);
+  const favColors = useMemo(() => favTeam ? getTeamColors(favTeam.name) : { p: '#185FA5', s: '#0C447C' }, [favTeam]);
+  const watchedTeamNames = useMemo(() => [
+    favTeam?.name,
+    ...watchlist.map(team => team.name),
+  ].filter(Boolean) as string[], [favTeam, watchlist]);
+  const watchlistRows = useMemo(() => watchlist.map(team => ({
+    team,
+    colors: getTeamColors(team.name),
+    form: watchlistForms[team.teamId] || [],
+    stats: watchlistStats[team.name],
+  })), [watchlist, watchlistForms, watchlistStats]);
+  const recentRows = useMemo(() => recentlyViewed.slice(0, 8).map((item, index) => ({
+    item,
+    index,
+    stats: recentStats[item.name],
+  })), [recentlyViewed, recentStats]);
 
   function renderTeamPicker() {
     return (
@@ -561,10 +587,6 @@ export default function ProfileScreen() {
   }
 
   // ─── Render ─────────────────────────────────────────────────────────────────
-
-  const avatarColor = AVATAR_COLORS[avatarIdx] || '#185FA5';
-  const avatarLabel = scoutName ? scoutName.trim().slice(0, 2).toUpperCase() : '?';
-  const favColors = favTeam ? getTeamColors(favTeam.name) : { p: '#185FA5', s: '#0C447C' };
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
@@ -719,24 +741,21 @@ export default function ProfileScreen() {
         {watchlist.length === 0 ? (
           <Text style={[styles.emptyHint, { color: c.textFaint }]}>İzlemek istediğin takımları buraya ekle.</Text>
         ) : (
-          watchlist.map((team) => {
-            const wColors = getTeamColors(team.name);
-            const wForm = watchlistForms[team.teamId] || [];
-            const wStats = watchlistStats[team.name];
+          watchlistRows.map(({ team, colors, form, stats }) => {
             return (
               <TouchableOpacity key={team.name} style={[styles.watchlistItem, { backgroundColor: c.surface, borderBottomColor: c.borderLight }]}
-                onPress={() => router.push({ pathname: '/team_stats', params: { teamName: team.name, teamId: team.teamId, leagueName: team.leagueName, leagueFlag: team.leagueFlag, apiId: team.apiId, fdId: 0, pos: wStats?.pos ?? 0, played: wStats?.played ?? 0, win: wStats?.win ?? 0, draw: wStats?.draw ?? 0, loss: wStats?.loss ?? 0, gf: wStats?.gf ?? 0, ga: wStats?.ga ?? 0, pts: wStats?.pts ?? 0 } })}>
-                <View style={[styles.watchlistDot, { backgroundColor: wColors.p }]} />
+                onPress={() => router.push({ pathname: '/team_stats', params: { teamName: team.name, teamId: team.teamId, leagueName: team.leagueName, leagueFlag: team.leagueFlag, apiId: team.apiId, fdId: 0, pos: stats?.pos ?? 0, played: stats?.played ?? 0, win: stats?.win ?? 0, draw: stats?.draw ?? 0, loss: stats?.loss ?? 0, gf: stats?.gf ?? 0, ga: stats?.ga ?? 0, pts: stats?.pts ?? 0 } })}>
+                <View style={[styles.watchlistDot, { backgroundColor: colors.p }]} />
                 <View style={styles.watchlistInfo}>
                   <Text style={[styles.watchlistName, { color: c.text }]}>{team.name}</Text>
                   <Text style={[styles.watchlistLeague, { color: c.textMuted }]}>{team.leagueFlag} {team.leagueName}</Text>
                 </View>
                 <View style={styles.watchlistForm}>
-                  {loadingWatchlist && wForm.length === 0
+                  {loadingWatchlist && form.length === 0
                     ? [0, 1, 2].map(i => (
                         <View key={i} style={[styles.formDotSm, { backgroundColor: c.borderLight }]} />
                       ))
-                    : wForm.map((r, i) => (
+                    : form.map((r, i) => (
                         <View key={i} style={[styles.formDotSm,
                           r === 'G' ? { backgroundColor: c.win } : r === 'B' ? { backgroundColor: c.draw } : { backgroundColor: c.loss }]}>
                           <Text style={styles.formDotSmText}>{r}</Text>
@@ -765,11 +784,10 @@ export default function ProfileScreen() {
                 <Text style={[styles.sectionAction, { color: c.primary }]}>Temizle</Text>
               </TouchableOpacity>
             </View>
-            {recentlyViewed.slice(0, 8).map((item, i) => {
-              const rStats = recentStats[item.name];
+            {recentRows.map(({ item, index, stats }) => {
               return (
-              <TouchableOpacity key={i} style={[styles.recentItem, { backgroundColor: c.surface, borderBottomColor: c.borderLight }]}
-                onPress={() => router.push({ pathname: '/team_stats', params: { teamName: item.name, teamId: item.id, leagueName: item.leagueName, leagueFlag: '', apiId: item.apiId, fdId: 0, pos: rStats?.pos ?? 0, played: rStats?.played ?? 0, win: rStats?.win ?? 0, draw: rStats?.draw ?? 0, loss: rStats?.loss ?? 0, gf: rStats?.gf ?? 0, ga: rStats?.ga ?? 0, pts: rStats?.pts ?? 0 } })}>
+              <TouchableOpacity key={`${item.apiId}-${item.id}-${index}`} style={[styles.recentItem, { backgroundColor: c.surface, borderBottomColor: c.borderLight }]}
+                onPress={() => router.push({ pathname: '/team_stats', params: { teamName: item.name, teamId: item.id, leagueName: item.leagueName, leagueFlag: '', apiId: item.apiId, fdId: 0, pos: stats?.pos ?? 0, played: stats?.played ?? 0, win: stats?.win ?? 0, draw: stats?.draw ?? 0, loss: stats?.loss ?? 0, gf: stats?.gf ?? 0, ga: stats?.ga ?? 0, pts: stats?.pts ?? 0 } })}>
                 <View style={[styles.recentIcon, { backgroundColor: c.primaryLight }]}>
                   <Text style={[styles.recentIconText, { color: c.primaryDark }]}>
                     {item.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
