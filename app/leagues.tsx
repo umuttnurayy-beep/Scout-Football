@@ -132,6 +132,8 @@ export default function LeaguesScreen() {
 
   const retryStandings = useCallback(() => loadStandings(activeLeague.apiId), [activeLeague.apiId]);
   const retryKnockouts = useCallback(() => loadKnockouts(), []);
+  const showUclStandings = useCallback(() => setUclView('standings'), []);
+  const showUclBracket = useCallback(() => setUclView('bracket'), []);
 
   const groupedTies = useMemo(
     () => knockouts ? groupTies(knockouts[activeStage] || []) : [],
@@ -191,7 +193,7 @@ export default function LeaguesScreen() {
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false}
         style={[styles.leagueNav, { borderBottomColor: c.border, backgroundColor: c.surface }]}
-        contentContainerStyle={{ paddingHorizontal: 14 }}>
+        contentContainerStyle={styles.leagueNavContent}>
         {configuredLeagues.map(l => (
           <TouchableOpacity key={l.id}
             style={[styles.leaguePill, { borderColor: c.border }, activeLeague.id === l.id && styles.leaguePillActive]}
@@ -204,7 +206,7 @@ export default function LeaguesScreen() {
 
       <View style={[styles.leagueHeader, { borderBottomColor: c.border, backgroundColor: c.surface }]}>
         <Text style={styles.leagueHeaderFlag}>{activeLeague.flag}</Text>
-        <View style={{ flex: 1 }}>
+        <View style={styles.flexOne}>
           <Text style={[styles.leagueHeaderName, { color: c.text }]}>{activeLeague.name}</Text>
           <Text style={[styles.leagueHeaderSub, { color: c.textMuted }]}>{activeLeague.country} · {activeLeague.season}</Text>
         </View>
@@ -376,7 +378,7 @@ export default function LeaguesScreen() {
                   ] as const).filter(Boolean).map((p, i) => p && (
                     <View key={i} style={[stStyles.profileRow, { borderBottomColor: c.borderLight }]}>
                       <Text style={stStyles.profileIcon}>{p.icon}</Text>
-                      <View style={{ flex: 1 }}>
+                      <View style={styles.flexOne}>
                         <Text style={[stStyles.profileLabel, { color: c.textMuted }]}>{p.label}</Text>
                         <Text style={[stStyles.profileTeam, { color: c.text }]} numberOfLines={1}>{p.team.team}</Text>
                         <Text style={[stStyles.profileInsight, { color: c.textMuted }]}>{p.insight}</Text>
@@ -398,8 +400,8 @@ export default function LeaguesScreen() {
                           return (
                             <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
                               <Text style={[styles.effRank, { color }]}>{i + 1}</Text>
-                              <View style={{ flex: 1 }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <View style={styles.flexOne}>
+                                <View style={styles.effBarRow}>
                                   <Text style={[styles.effTeam, { color: c.text }]} numberOfLines={1}>{row.team}</Text>
                                   <View style={[styles.effBarWrap, { backgroundColor: c.border }]}>
                                     <View style={[styles.effBarFill, { width: `${ratio * 100}%`, backgroundColor: color }]} />
@@ -456,12 +458,12 @@ export default function LeaguesScreen() {
                   <View style={[styles.uclToggle, { borderColor: c.border }]}>
                     <TouchableOpacity
                       style={[styles.uclToggleBtn, uclView === 'standings' && styles.uclToggleBtnActive]}
-                      onPress={() => setUclView('standings')}>
+                      onPress={showUclStandings}>
                       <Text style={[styles.uclToggleText, { color: c.textMuted }, uclView === 'standings' && styles.uclToggleTextActive]}>Puan Tablosu</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.uclToggleBtn, uclView === 'bracket' && styles.uclToggleBtnActive]}
-                      onPress={() => setUclView('bracket')}>
+                      onPress={showUclBracket}>
                       <Text style={[styles.uclToggleText, { color: c.textMuted }, uclView === 'bracket' && styles.uclToggleTextActive]}>🏆 Eşleşmeler</Text>
                     </TouchableOpacity>
                   </View>
@@ -470,7 +472,7 @@ export default function LeaguesScreen() {
                 {activeLeague.apiId === 2 && uclView === 'bracket' && (
                   <>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}
-                      style={[styles.stageNav, { borderBottomColor: c.border }]} contentContainerStyle={{ paddingHorizontal: 14, gap: 6 }}>
+                      style={[styles.stageNav, { borderBottomColor: c.border }]} contentContainerStyle={styles.stageNavContent}>
                       {UCL_STAGES.map(s => (
                         <TouchableOpacity key={s.key}
                           style={[styles.stagePill, { borderColor: c.border }, activeStage === s.key && styles.stagePillActive]}
@@ -646,8 +648,8 @@ export default function LeaguesScreen() {
                       return (
                         <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
                           <Text style={[styles.effRank, { color }]}>{i + 1}</Text>
-                          <View style={{ flex: 1 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <View style={styles.flexOne}>
+                            <View style={styles.effBarRow}>
                               <Text style={[styles.effTeam, { color: c.text }]} numberOfLines={1}>{row.team}</Text>
                               <View style={[styles.effBarWrap, { backgroundColor: c.border }]}>
                                 <View style={[styles.effBarFill, { width: `${ratio * 100}%`, backgroundColor: color }]} />
@@ -675,8 +677,8 @@ export default function LeaguesScreen() {
                       return (
                         <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
                           <Text style={[styles.effRank, { color }]}>{i + 1}</Text>
-                          <View style={{ flex: 1 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <View style={styles.flexOne}>
+                            <View style={styles.effBarRow}>
                               <Text style={[styles.effTeam, { color: c.text }]} numberOfLines={1}>{row.team}</Text>
                               <View style={[styles.effBarWrap, { backgroundColor: c.border }]}>
                                 <View style={[styles.effBarFill, { width: `${ratio * 100}%`, backgroundColor: color }]} />
@@ -705,8 +707,8 @@ export default function LeaguesScreen() {
                       return (
                         <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
                           <Text style={[styles.effRank, { color }]}>{i + 1}</Text>
-                          <View style={{ flex: 1 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <View style={styles.flexOne}>
+                            <View style={styles.effBarRow}>
                               <Text style={[styles.effTeam, { color: c.text }]} numberOfLines={1}>{row.team}</Text>
                               <View style={[styles.effBarWrap, { backgroundColor: c.border }]}>
                                 <View style={[styles.effBarFill, { width: `${ratio * 100}%`, backgroundColor: color }]} />
@@ -735,8 +737,8 @@ export default function LeaguesScreen() {
                       return (
                         <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
                           <Text style={[styles.effRank, { color }]}>{i + 1}</Text>
-                          <View style={{ flex: 1 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <View style={styles.flexOne}>
+                            <View style={styles.effBarRow}>
                               <Text style={[styles.effTeam, { color: c.text }]} numberOfLines={1}>{row.team}</Text>
                               <View style={[styles.effBarWrap, { backgroundColor: c.border }]}>
                                 <View style={[styles.effBarFill, { width: `${ratio * 100}%`, backgroundColor: color }]} />
@@ -753,7 +755,7 @@ export default function LeaguesScreen() {
           </>
         )}
 
-        <View style={{ height: 30 }} />
+        <View style={styles.bottomSpacer} />
       </ScrollView>
 
       <BottomTabBar activeTab="leagues" />
@@ -770,12 +772,15 @@ const styles = StyleSheet.create({
   appNameBlue:         { color: '#2563EB' },
   pageTitle:           { fontSize: 13 },
   leagueNav:           { maxHeight: 48, borderBottomWidth: 0.5 },
+  leagueNavContent:    { paddingHorizontal: 14 },
   leaguePill:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, marginRight: 6, borderRadius: 20, borderWidth: 0.5, gap: 4 },
   leaguePillActive:    { backgroundColor: '#185FA5', borderColor: '#185FA5' },
   leagueFlag:          { fontSize: 14 },
   leaguePillText:      { fontSize: 12 },
   leaguePillTextActive:{ color: '#fff' },
   scroll:              { flex: 1 },
+  flexOne:             { flex: 1 },
+  bottomSpacer:        { height: 30 },
   stateFrame:          { minHeight: 360, justifyContent: 'flex-start' },
   leagueHeader:        { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 0.5 },
   leagueHeaderFlag:    { fontSize: 32 },
@@ -806,6 +811,7 @@ const styles = StyleSheet.create({
   uclToggleText:       { fontSize: 13, fontWeight: '500' },
   uclToggleTextActive: { color: '#fff', fontWeight: '600' },
   stageNav:            { maxHeight: 44, borderBottomWidth: 0.5 },
+  stageNavContent:     { paddingHorizontal: 14, gap: 6 },
   stagePill:           { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 0.5, marginRight: 6 },
   stagePillActive:     { backgroundColor: '#185FA5', borderColor: '#185FA5' },
   stagePillText:       { fontSize: 12 },
@@ -813,6 +819,7 @@ const styles = StyleSheet.create({
   effSubtitle:         { fontSize: 11, paddingHorizontal: 14, marginBottom: 6, marginTop: -4 },
   effRow:              { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 14, paddingVertical: 7, borderBottomWidth: 0.5, gap: 8 },
   effRank:             { width: 22, fontSize: 12, fontWeight: '700', textAlign: 'center', paddingTop: 1 },
+  effBarRow:           { flexDirection: 'row', alignItems: 'center', gap: 6 },
   effTeam:             { width: 110, fontSize: 12, fontWeight: '500' },
   effBarWrap:          { flex: 1, height: 10, borderRadius: 5, overflow: 'hidden', alignSelf: 'center' },
   effBarFill:          { height: '100%', borderRadius: 5 },
