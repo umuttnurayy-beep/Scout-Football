@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CURRENT_FOOTBALL_SEASON } from '../constants/seasons';
 import { API_BASE_URL } from './config';
 import { isOddsGameMatch } from './oddsMatching';
+import { arrayOrEmpty, isRecord, normalizeNextPreview, standingsMapOrEmpty, standingsOrEmpty } from './apiNormalizers';
 export {
   ApiResponseError,
   clearContextFallbackStats,
@@ -297,58 +298,6 @@ export type HomeData = {
   } | null;
   generatedAt: string;
 };
-
-function arrayOrEmpty<T = unknown>(value: unknown): T[] {
-  return Array.isArray(value) ? value : [];
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
-}
-
-function isStanding(value: unknown): value is Standing {
-  if (!value || typeof value !== 'object') return false;
-  const row = value as Partial<Standing>;
-  return typeof row.team === 'string' &&
-    typeof row.pos === 'number' &&
-    typeof row.played === 'number' &&
-    typeof row.pts === 'number';
-}
-
-function standingsOrEmpty(value: unknown): Standing[] {
-  return arrayOrEmpty<unknown>(value).filter(isStanding);
-}
-
-function standingsMapOrEmpty(value: unknown): Record<number, Standing[]> {
-  if (!isRecord(value)) return {};
-  return Object.entries(value).reduce<Record<number, Standing[]>>((acc, [key, rows]) => {
-    const leagueApiId = Number(key);
-    if (!Number.isFinite(leagueApiId)) return acc;
-    acc[leagueApiId] = standingsOrEmpty(rows);
-    return acc;
-  }, {});
-}
-
-function normalizeNextPreview(value: unknown): HomeData['nextPreview'] {
-  if (!isRecord(value)) return null;
-  if (
-    typeof value.date !== 'string' ||
-    !Array.isArray(value.matches) ||
-    !Array.isArray(value.superLigMatches)
-  ) {
-    return null;
-  }
-  const source = value.source === 'fresh' || value.source === 'cache' || value.source === 'stale'
-    ? value.source
-    : null;
-  return {
-    date: value.date,
-    matches: arrayOrEmpty<FDMatch>(value.matches),
-    superLigMatches: arrayOrEmpty<SLMatch>(value.superLigMatches),
-    featuredMatchId: typeof value.featuredMatchId === 'number' ? value.featuredMatchId : null,
-    source,
-  };
-}
 
 export async function checkBackendHealth(): Promise<boolean> {
   try {
