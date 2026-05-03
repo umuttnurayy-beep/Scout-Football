@@ -33,7 +33,7 @@ export default function EmptyStateCard({
         {onRetry ? (
           <TouchableOpacity onPress={onRetry} style={[s.retryPill, { borderColor: c.primary }]} activeOpacity={0.7}>
             <Ionicons name="refresh" size={13} color={c.primary} />
-            <Text style={[s.retryPillText, { color: c.primary }]}>{retryLabel}</Text>
+            <Text style={[s.retryPillText, { color: c.primary }]} numberOfLines={1}>{retryLabel}</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -61,7 +61,9 @@ export default function EmptyStateCard({
 
 const s = StyleSheet.create({
   full: {
+    minHeight: 260,
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 48,
     paddingHorizontal: 32,
   },
@@ -103,6 +105,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 5,
     minHeight: 30,
+    flexShrink: 0,
   },
   retryPillText: { fontSize: 12, fontWeight: '600' },
 });
