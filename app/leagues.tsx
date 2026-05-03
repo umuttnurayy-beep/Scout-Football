@@ -150,6 +150,35 @@ export default function LeaguesScreen() {
     mostGoals, bestDef, mostTempo, bestWinRate, surpriseTeam, liderTags,
   } = useMemo(() => computeLeagueStats(standings, isDark), [standings, isDark]);
 
+  const trendProfiles = useMemo(() => {
+    const withRates = standings.map(r => ({
+      ...r,
+      gfPer:    r.played > 0 ? r.gf / r.played : 0,
+      gaPer:    r.played > 0 ? r.ga / r.played : 0,
+      tempoPer: r.played > 0 ? (r.gf + r.ga) / r.played : 0,
+      drawPer:  r.played > 0 ? r.draw / r.played : 0,
+    }));
+
+    const attackTop = [...withRates].sort((a, b) => b.gfPer - a.gfPer).slice(0, 10);
+    const defTop    = [...withRates].sort((a, b) => a.gaPer - b.gaPer).slice(0, 10);
+    const tempoTop  = [...withRates].sort((a, b) => b.tempoPer - a.tempoPer).slice(0, 10);
+    const drawTop   = [...withRates].sort((a, b) => b.drawPer - a.drawPer).slice(0, 10);
+    const maxDef    = defTop[defTop.length - 1]?.gaPer || 1;
+    const minDef    = defTop[0]?.gaPer || 0;
+
+    return {
+      attackTop,
+      defTop,
+      tempoTop,
+      drawTop,
+      maxAtk: attackTop[0]?.gfPer || 1,
+      maxDef,
+      defRange: maxDef - minDef || 1,
+      maxTempo: tempoTop[0]?.tempoPer || 1,
+      maxDraw: drawTop[0]?.drawPer || 1,
+    };
+  }, [standings]);
+
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
       <View style={[styles.topbar, { backgroundColor: c.surface }]}>
@@ -592,30 +621,7 @@ export default function LeaguesScreen() {
                     onRetry={retryStandings}
                   />
                 </View>
-              ) : (() => {
-                const withRates = standings.map(r => ({
-                  ...r,
-                  gfPer:    r.played > 0 ? r.gf / r.played : 0,
-                  gaPer:    r.played > 0 ? r.ga / r.played : 0,
-                  tempoPer: r.played > 0 ? (r.gf + r.ga) / r.played : 0,
-                  drawPer:  r.played > 0 ? r.draw / r.played : 0,
-                }));
-
-                const attackTop = [...withRates].sort((a, b) => b.gfPer - a.gfPer).slice(0, 10);
-                const maxAtk    = attackTop[0]?.gfPer || 1;
-
-                const defTop    = [...withRates].sort((a, b) => a.gaPer - b.gaPer).slice(0, 10);
-                const maxDef    = defTop[defTop.length - 1]?.gaPer || 1;
-                const minDef    = defTop[0]?.gaPer || 0;
-                const defRange  = maxDef - minDef || 1;
-
-                const tempoTop  = [...withRates].sort((a, b) => b.tempoPer - a.tempoPer).slice(0, 10);
-                const maxTempo  = tempoTop[0]?.tempoPer || 1;
-
-                const drawTop   = [...withRates].sort((a, b) => b.drawPer - a.drawPer).slice(0, 10);
-                const maxDraw   = drawTop[0]?.drawPer || 1;
-
-                return (
+              ) : (
                   <>
                     <View style={[stStyles.trendNote, { backgroundColor: c.primaryLight }]}>
                       <Text style={[stStyles.trendNoteText, { color: c.text }]}>
@@ -626,16 +632,16 @@ export default function LeaguesScreen() {
 
                     <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>HÜCUM GÜCÜ (Gol/Maç)</Text>
                     <Text style={[styles.effSubtitle, { color: c.textFaint }]}>Maç başı en fazla gol atan takımlar</Text>
-                    {attackTop[0] && (
+                    {trendProfiles.attackTop[0] && (
                       <View style={[stStyles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
                         <Text style={[stStyles.insightText, { color: c.text }]}>
-                          En golcü {attackTop[0].team}, maç başı {attackTop[0].gfPer.toFixed(1)} golle ligin hücum motorunu temsil ediyor.
+                          En golcü {trendProfiles.attackTop[0].team}, maç başı {trendProfiles.attackTop[0].gfPer.toFixed(1)} golle ligin hücum motorunu temsil ediyor.
                         </Text>
                         <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Yüksek hücum gücü, 2.5 üst ve KG-var senaryolarında güçlü bir ipucu sunar.</Text>
                       </View>
                     )}
-                    {attackTop.map((row, i) => {
-                      const ratio = row.gfPer / maxAtk;
+                    {trendProfiles.attackTop.map((row, i) => {
+                      const ratio = row.gfPer / trendProfiles.maxAtk;
                       const color = i === 0 ? c.primary : i < 3 ? '#E6A817' : i < 5 ? '#4CAF50' : c.textVeryFaint;
                       return (
                         <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
@@ -655,16 +661,16 @@ export default function LeaguesScreen() {
 
                     <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>SAVUNMA DİRENCİ (Yenilen/Maç)</Text>
                     <Text style={[styles.effSubtitle, { color: c.textFaint }]}>En az gol yiyen takımlar — düşük değer daha iyi</Text>
-                    {defTop[0] && (
+                    {trendProfiles.defTop[0] && (
                       <View style={[stStyles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
                         <Text style={[stStyles.insightText, { color: c.text }]}>
-                          {defTop[0].team} maç başı yalnızca {defTop[0].gaPer.toFixed(1)} gol yiyor — ligin en sağlam savunması.
+                          {trendProfiles.defTop[0].team} maç başı yalnızca {trendProfiles.defTop[0].gaPer.toFixed(1)} gol yiyor — ligin en sağlam savunması.
                         </Text>
                         <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Az gol yiyen takımlar, alt 2.5 ve kale sıfır senaryolarında güvenilir referans noktasıdır.</Text>
                       </View>
                     )}
-                    {defTop.map((row, i) => {
-                      const ratio = (maxDef - row.gaPer) / defRange;
+                    {trendProfiles.defTop.map((row, i) => {
+                      const ratio = (trendProfiles.maxDef - row.gaPer) / trendProfiles.defRange;
                       const color = i === 0 ? '#1B5E20' : i < 3 ? '#388E3C' : i < 5 ? '#4CAF50' : c.textVeryFaint;
                       return (
                         <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
@@ -684,16 +690,16 @@ export default function LeaguesScreen() {
 
                     <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>TEMPO ENDEKSİ (Toplam Gol/Maç)</Text>
                     <Text style={[styles.effSubtitle, { color: c.textFaint }]}>Maçlarında en fazla toplam gol oynanan takımlar — over eğilimi göstergesi</Text>
-                    {tempoTop[0] && (
+                    {trendProfiles.tempoTop[0] && (
                       <View style={[stStyles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
                         <Text style={[stStyles.insightText, { color: c.text }]}>
-                          {tempoTop[0].team} maçları bu ligde en heyecanlı seyrediyor — maç başı {tempoTop[0].tempoPer.toFixed(1)} toplam gol.
+                          {trendProfiles.tempoTop[0].team} maçları bu ligde en heyecanlı seyrediyor — maç başı {trendProfiles.tempoTop[0].tempoPer.toFixed(1)} toplam gol.
                         </Text>
                         <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Toplam gol ortalaması, over/alt kararlarının en doğrudan göstergesidir.</Text>
                       </View>
                     )}
-                    {tempoTop.map((row, i) => {
-                      const ratio  = row.tempoPer / maxTempo;
+                    {trendProfiles.tempoTop.map((row, i) => {
+                      const ratio  = row.tempoPer / trendProfiles.maxTempo;
                       const isOver = row.tempoPer >= 2.5;
                       const color  = i === 0 ? '#E65100' : i < 3 ? '#F4511E' : i < 5 ? '#FF7043' : c.textVeryFaint;
                       return (
@@ -715,16 +721,16 @@ export default function LeaguesScreen() {
 
                     <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>BERABERLİK EĞİLİMİ</Text>
                     <Text style={[styles.effSubtitle, { color: c.textFaint }]}>En fazla beraberlikle biten maç oynayan takımlar</Text>
-                    {drawTop[0] && (
+                    {trendProfiles.drawTop[0] && (
                       <View style={[stStyles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
                         <Text style={[stStyles.insightText, { color: c.text }]}>
-                          {drawTop[0].team} bu sezon en sık beraberlik oynayan takım — {drawTop[0].draw} kez eşit bitti, sonuç belirsizliği yüksek.
+                          {trendProfiles.drawTop[0].team} bu sezon en sık beraberlik oynayan takım — {trendProfiles.drawTop[0].draw} kez eşit bitti, sonuç belirsizliği yüksek.
                         </Text>
                         <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Beraberlik eğilimi yüksek takımlar sonuç belirsizliği ve çift ihtimal senaryolarında öne çıkar.</Text>
                       </View>
                     )}
-                    {drawTop.map((row, i) => {
-                      const ratio = row.drawPer / maxDraw;
+                    {trendProfiles.drawTop.map((row, i) => {
+                      const ratio = row.drawPer / trendProfiles.maxDraw;
                       const color = i === 0 ? '#5b2d8e' : i < 3 ? '#7B1FA2' : i < 5 ? '#9C27B0' : c.textVeryFaint;
                       return (
                         <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
@@ -742,8 +748,7 @@ export default function LeaguesScreen() {
                       );
                     })}
                   </>
-                );
-              })()
+              )
             )}
           </>
         )}
