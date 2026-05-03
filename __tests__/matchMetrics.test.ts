@@ -15,6 +15,12 @@ import {
   scoutScore,
   marqueeBonus,
   favoriteText,
+  levelFromExpectedGoals,
+  riskFromMetrics,
+  confidenceText,
+  trendBarPercent,
+  singleMatchScoutText,
+  readH2HMatch,
   hasUsableStandingsMap,
   timeToMins,
   formatTime,
@@ -298,6 +304,38 @@ describe('computeMetrics', () => {
     expect(typeof r.summary).toBe('string');
     expect(r.summary.length).toBeGreaterThan(0);
   });
+
+  test('includes leader, neighbor, and safety-line context from full standings', () => {
+    const rows = Array.from({ length: 18 }, (_, index) => makeStanding({
+      pos: index + 1,
+      teamId: 100 + index,
+      team: `Team ${index + 1}`,
+      played: 30,
+      pts: 80 - index * 3,
+      gf: 50 - index,
+      ga: 20 + index,
+    }));
+    const homeRow = rows[9];
+    const awayRow = rows[11];
+
+    const r = computeMetrics(homeRow as any, awayRow as any, rows as any);
+
+    expect(r.leaderPts).toBe(80);
+    expect(r.totalTeams).toBe(18);
+    expect(r.homeAbovePts).toBe(rows[8].pts);
+    expect(r.homeBelowPts).toBe(rows[10].pts);
+    expect(r.awayAbovePts).toBe(rows[10].pts);
+    expect(r.awayBelowPts).toBe(rows[12].pts);
+    expect(r.safetyPts).toBe(rows[13].pts);
+  });
+
+  test('omits safety-line context for short tables', () => {
+    const shortRows = [home, away];
+    const r = computeMetrics(home as any, away as any, shortRows as any);
+
+    expect(r.totalTeams).toBe(2);
+    expect(r.safetyPts).toBeUndefined();
+  });
 });
 
 // ─── buildMatchSummary ────────────────────────────────────────────────────────
@@ -493,6 +531,37 @@ describe('scoutScore', () => {
     expect(high - low).toBe(2);
   });
 
+  test('adds +1 for medium-high xG (> 2.5 and <= 3.0)', () => {
+    const m = makeMatch({ leagueApiId: 9999, time: '15:00', finished: true });
+    const mediumHigh = scoutScore(m, makeMetrics({ expectedGoals: 2.8 }));
+    const low = scoutScore(m, makeMetrics({ expectedGoals: 2.0 }));
+    expect(mediumHigh - low).toBe(1);
+  });
+
+  test('adds +2 for balanced high-PPG teams', () => {
+    const m = makeMatch({ leagueApiId: 9999, time: '15:00', finished: true });
+    const balancedStrong = scoutScore(m, makeMetrics({
+      favorite: 'balanced',
+      homePpg: 1.9,
+      awayPpg: 1.8,
+      expectedGoals: 2.0,
+    }));
+    const balancedRegular = scoutScore(m, makeMetrics({
+      favorite: 'balanced',
+      homePpg: 1.7,
+      awayPpg: 1.8,
+      expectedGoals: 2.0,
+    }));
+    expect(balancedStrong - balancedRegular).toBe(2);
+  });
+
+  test('adds +2 for top-8 vs top-8 matchup outside top five', () => {
+    const m = makeMatch({ leagueApiId: 9999, time: '15:00', finished: true });
+    const top8 = scoutScore(m, makeMetrics({ homePos: 7, awayPos: 8, expectedGoals: 2.0 }));
+    const lower = scoutScore(m, makeMetrics({ homePos: 7, awayPos: 12, expectedGoals: 2.0 }));
+    expect(top8 - lower).toBe(2);
+  });
+
   test('subtracts 1 for high-confidence + low-tempo defensive game', () => {
     const m = makeMatch({ leagueApiId: 9999, time: '15:00', finished: true });
     const medium = scoutScore(m, makeMetrics({ confidence: 'medium', tempo: 2.0 }));
@@ -528,6 +597,66 @@ describe('favoriteText', () => {
 });
 
 // ─── hasUsableStandingsMap ────────────────────────────────────────────────────
+
+describe('display helper labels', () => {
+  test('classifies expected-goals levels', () => {
+    expect(levelFromExpectedGoals(2.8)).toBe('Yüksek');
+    expect(levelFromExpectedGoals(2.0)).toBe('Düşük');
+    expect(levelFromExpectedGoals(2.4)).toBe('Orta');
+  });
+
+  test('derives risk and confidence labels from data quality and confidence', () => {
+    expect(riskFromMetrics(NO_DATA)).toBe('Orta');
+    expect(riskFromMetrics(makeMetrics({ confidence: 'high' }))).toBe('Düşük');
+    expect(riskFromMetrics(makeMetrics({ confidence: 'low' }))).toBe('Yüksek');
+    expect(riskFromMetrics(makeMetrics({ confidence: 'medium' }))).toBe('Orta');
+
+    expect(confidenceText(NO_DATA)).toBe('Sınırlı');
+    expect(confidenceText(makeMetrics({ confidence: 'high' }))).toBe('Yüksek');
+    expect(confidenceText(makeMetrics({ confidence: 'medium' }))).toBe('Orta');
+    expect(confidenceText(makeMetrics({ confidence: 'low' }))).toBe('Düşük');
+  });
+
+  test('maps trend labels to stable progress widths', () => {
+    expect(trendBarPercent('Yüksek')).toBe(82);
+    expect(trendBarPercent('Düşük')).toBe(36);
+    expect(trendBarPercent('Sınırlı')).toBe(34);
+    expect(trendBarPercent('Orta')).toBe(58);
+  });
+
+  test('builds single-match scout copy for no-data and data-backed cases', () => {
+    const m = makeMatch({ home: 'Arsenal', away: 'Liverpool' });
+
+    expect(singleMatchScoutText(m, NO_DATA)).toContain('sezon verisi sınırlı');
+    expect(singleMatchScoutText(m, makeMetrics({
+      expectedGoals: 3.0,
+      favorite: 'home',
+      confidence: 'medium',
+    }))).toContain('yüksek tempo');
+    expect(singleMatchScoutText(m, makeMetrics({
+      expectedGoals: 1.8,
+      favorite: 'balanced',
+      confidence: 'low',
+    }))).toContain('kontrollü tempo');
+  });
+
+  test('normalizes H2H records from both flat and nested API shapes', () => {
+    expect(readH2HMatch({
+      home: 'Arsenal',
+      away: 'Chelsea',
+      homeScore: 2,
+      awayScore: 1,
+      date: '2026-05-03T12:00:00Z',
+    })).toMatchObject({ home: 'Arsenal', away: 'Chelsea', homeScore: 2, awayScore: 1 });
+
+    expect(readH2HMatch({
+      homeTeam: { shortName: 'PSG' },
+      awayTeam: { name: 'Bayern Munich' },
+      score: { fullTime: { home: 0, away: 0 } },
+      utcDate: '2026-05-03T12:00:00Z',
+    })).toMatchObject({ home: 'PSG', away: 'Bayern Munich', homeScore: 0, awayScore: 0 });
+  });
+});
 
 describe('hasUsableStandingsMap', () => {
   test('returns false for null', () => {
