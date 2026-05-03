@@ -277,7 +277,8 @@ function DataNoticeCard({ type, message, onRetry }: { type: HomeDataNotice; mess
         {message || dataNoticeMessage(type)}
       </Text>
       {onRetry && (
-        <TouchableOpacity onPress={onRetry} style={[sc.noticeRetryBtn, { borderColor: accentColor }]}>
+        <TouchableOpacity onPress={onRetry} style={[sc.noticeRetryBtn, { borderColor: accentColor }]} activeOpacity={0.75}>
+          <Ionicons name="refresh" size={13} color={accentColor} />
           <Text style={[sc.noticeRetryText, { color: accentColor }]}>Tekrar Dene</Text>
         </TouchableOpacity>
       )}
@@ -1280,7 +1281,7 @@ const sc = StyleSheet.create({
   emptyIconBtn:   { width: 44, height: 44, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   noticeCard:        { marginHorizontal: 14, marginTop: 12, marginBottom: 2, borderRadius: 10, borderWidth: 1, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 9 },
   noticeText:        { flex: 1, fontSize: 12, lineHeight: 17 },
-  noticeRetryBtn:    { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1 },
+  noticeRetryBtn:    { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, minHeight: 28 },
   noticeRetryText:   { fontSize: 12, fontWeight: '600' },
   emptyAction:    { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, borderWidth: 1, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
   emptyActionIcon:{ width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },

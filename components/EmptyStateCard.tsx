@@ -1,4 +1,5 @@
 import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 
@@ -31,6 +32,7 @@ export default function EmptyStateCard({
         </View>
         {onRetry ? (
           <TouchableOpacity onPress={onRetry} style={[s.retryPill, { borderColor: c.primary }]} activeOpacity={0.7}>
+            <Ionicons name="refresh" size={13} color={c.primary} />
             <Text style={[s.retryPillText, { color: c.primary }]}>{retryLabel}</Text>
           </TouchableOpacity>
         ) : null}
@@ -49,6 +51,7 @@ export default function EmptyStateCard({
           style={[s.retryBtn, { backgroundColor: c.primary }]}
           activeOpacity={0.8}
         >
+          <Ionicons name="refresh" size={16} color="#fff" />
           <Text style={s.retryBtnText}>{retryLabel}</Text>
         </TouchableOpacity>
       ) : null}
@@ -66,10 +69,15 @@ const s = StyleSheet.create({
   title:    { fontSize: 16, fontWeight: '600', textAlign: 'center', marginBottom: 6 },
   subtitle: { fontSize: 13, textAlign: 'center', lineHeight: 19, marginBottom: 20 },
   retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
     paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 20,
     marginTop: 4,
+    minHeight: 40,
   },
   retryBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
 
@@ -87,10 +95,14 @@ const s = StyleSheet.create({
   compactTitle: { fontSize: 13, fontWeight: '600', marginBottom: 2 },
   compactSub:   { fontSize: 12, lineHeight: 16 },
   retryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     borderWidth: 1,
     borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 5,
+    minHeight: 30,
   },
   retryPillText: { fontSize: 12, fontWeight: '600' },
 });
