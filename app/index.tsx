@@ -1000,6 +1000,10 @@ export default function HomeScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
+  const retryBackendHealth = useCallback(() => {
+    checkBackendHealth().then(ok => setBackendOffline(!ok));
+  }, []);
+
   const openLeagues = useCallback(() => {
     router.push('/leagues');
   }, [router]);
@@ -1036,7 +1040,7 @@ export default function HomeScreen() {
         const { m, metrics } = item;
         if (!m || !metrics) return null;
         return (
-          <View style={{ paddingHorizontal: 14, marginBottom: 4 }}>
+          <View style={styles.heroListItem}>
             <HeroCard m={m} metrics={metrics} onPress={() => goToMatch(m, metrics)} />
           </View>
         );
@@ -1104,7 +1108,7 @@ export default function HomeScreen() {
           <Image source={require('../assets/images/sf-logo.png')} style={styles.headerLogo} />
           <Text style={styles.appName}><Text style={styles.appNameBlue}>Scout</Text>Football</Text>
         </View>
-        <TouchableOpacity onPress={() => loadMatches(selectedDate)} disabled={refreshing}>
+        <TouchableOpacity onPress={refreshSelectedDate} disabled={refreshing}>
           <View style={styles.refreshContent}>
             {refreshing && <ActivityIndicator size="small" color={c.primary} />}
             <Text style={[styles.refreshBtn, { color: c.primary }]}>
@@ -1121,7 +1125,7 @@ export default function HomeScreen() {
           <Text style={[styles.offlineBannerText, { color: isDark ? '#F5A07A' : '#A84324' }]}>
             Sunucuya ulaşılamıyor — veriler son cache&apos;ten yükleniyor
           </Text>
-          <TouchableOpacity onPress={() => checkBackendHealth().then(ok => setBackendOffline(!ok))}>
+          <TouchableOpacity onPress={retryBackendHealth}>
             <Text style={[styles.offlineRetry, { color: '#E16F3D' }]}>Yenile</Text>
           </TouchableOpacity>
         </View>
@@ -1193,7 +1197,7 @@ export default function HomeScreen() {
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => loadMatches(selectedDate)}
+              onRefresh={refreshSelectedDate}
               tintColor={c.primary}
               colors={[c.primary]}
             />
@@ -1237,6 +1241,7 @@ const styles = StyleSheet.create({
   scoutPillText:      { fontSize: 13, color: '#185FA5', fontWeight: '700' },
   scoutPillTextActive:{ color: '#fff' },
   scroll:             { flex: 1 },
+  heroListItem:       { paddingHorizontal: 14, marginBottom: 4 },
   loadingArea:        { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });
 
