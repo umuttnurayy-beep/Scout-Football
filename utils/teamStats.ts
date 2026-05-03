@@ -49,6 +49,7 @@ export function parseForm(
   }
   return (matches as FDMatch[])
     .filter(m => m.score?.fullTime?.home != null)
+    .sort((a, b) => a.utcDate.localeCompare(b.utcDate))
     .slice(-5)
     .map(m => {
       const isHome = m.homeTeam?.id === teamId;

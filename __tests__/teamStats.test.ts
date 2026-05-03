@@ -5,10 +5,10 @@ import { transliterate, teamsMatch, parseForm } from '../utils/teamStats';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-function makeFDMatch(homeId: number, home: number | null, away: number | null): FDMatch {
+function makeFDMatch(homeId: number, home: number | null, away: number | null, utcDate = '2026-05-01T14:00:00Z'): FDMatch {
   return {
     id: Math.random(),
-    utcDate: '2026-05-01T14:00:00Z',
+    utcDate,
     status: home != null ? 'FINISHED' : 'SCHEDULED',
     homeTeam: { id: homeId, name: 'Home FC' },
     awayTeam: { id: 99,     name: 'Away FC' },
@@ -120,6 +120,21 @@ describe('parseForm — FD path (isSL=false)', () => {
       makeFDMatch(teamId, 0, 2),  // M
     ];
     expect(parseForm(matches, teamId, false)).toEqual(['G', 'B', 'M']);
+  });
+
+  test('sorts by utcDate before slicing — reverse-order input gives correct last 5', () => {
+    // newest-first input: the 6th oldest match is a loss (M), last 5 are all wins (G)
+    const matches = [
+      makeFDMatch(teamId, 3, 0, '2026-05-06T14:00:00Z'), // newest  → G (kept, pos 5)
+      makeFDMatch(teamId, 2, 0, '2026-05-05T14:00:00Z'), //          → G (kept, pos 4)
+      makeFDMatch(teamId, 1, 0, '2026-05-04T14:00:00Z'), //          → G (kept, pos 3)
+      makeFDMatch(teamId, 1, 0, '2026-05-03T14:00:00Z'), //          → G (kept, pos 2)
+      makeFDMatch(teamId, 1, 0, '2026-05-02T14:00:00Z'), //          → G (kept, pos 1)
+      makeFDMatch(teamId, 0, 3, '2026-05-01T14:00:00Z'), // oldest   → M (dropped)
+    ];
+    const result = parseForm(matches, teamId, false);
+    expect(result).toHaveLength(5);
+    expect(result.every(r => r === 'G')).toBe(true);
   });
 });
 
