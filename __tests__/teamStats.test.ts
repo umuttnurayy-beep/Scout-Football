@@ -1,7 +1,7 @@
 jest.mock('../services/api', () => ({}));
 
 import type { FDMatch, SLFormMatch } from '../services/api';
-import { transliterate, teamsMatch, parseForm } from '../utils/teamStats';
+import { transliterate, teamsMatch, parseForm, calcSeasonStats, calcSLSeasonStats } from '../utils/teamStats';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -173,5 +173,145 @@ describe('parseForm — SL path (isSL=true)', () => {
 
   test('empty match list returns empty array', () => {
     expect(parseForm([], teamId, true)).toEqual([]);
+  });
+});
+
+// ─── calcSeasonStats ─────────────────────────────────────────────────────────
+
+describe('calcSeasonStats', () => {
+  const HOME = 57; // team under test plays as home
+  const AWAY = 99; // fixed away opponent id in makeFDMatch
+
+  function fdHome(h: number, a: number) { return makeFDMatch(HOME, h, a); }
+  function fdAway(h: number, a: number) { return makeFDMatch(AWAY, h, a); } // team is away (id=HOME not in homeTeam)
+
+  test('returns null for empty match list', () => {
+    expect(calcSeasonStats([], HOME)).toBeNull();
+  });
+
+  test('returns null when all matches are unfinished', () => {
+    expect(calcSeasonStats([makeFDMatch(HOME, null, null)], HOME)).toBeNull();
+  });
+
+  test('total equals number of finished matches', () => {
+    const r = calcSeasonStats([fdHome(2, 1), makeFDMatch(HOME, null, null)], HOME);
+    expect(r?.total).toBe(1);
+  });
+
+  test('home win 2-1: correct record and averages', () => {
+    const r = calcSeasonStats([fdHome(2, 1)], HOME)!;
+    expect(r.home).toEqual({ played: 1, win: 1, draw: 0, loss: 0 });
+    expect(r.away).toEqual({ played: 0, win: 0, draw: 0, loss: 0 });
+    expect(r.avgGF).toBe('2.0');
+    expect(r.avgGA).toBe('1.0');
+  });
+
+  test('home draw 1-1: draw recorded, BTTS', () => {
+    const r = calcSeasonStats([fdHome(1, 1)], HOME)!;
+    expect(r.home).toEqual({ played: 1, win: 0, draw: 1, loss: 0 });
+    expect(r.bttsPct).toBe(100);
+  });
+
+  test('home loss 0-2: loss recorded, failed to score', () => {
+    const r = calcSeasonStats([fdHome(0, 2)], HOME)!;
+    expect(r.home).toEqual({ played: 1, win: 0, draw: 0, loss: 1 });
+    expect(r.failedToScorePct).toBe(100);
+  });
+
+  test('clean sheet: ga=0 → cleanSheetPct 100', () => {
+    const r = calcSeasonStats([fdHome(1, 0)], HOME)!;
+    expect(r.cleanSheetPct).toBe(100);
+    expect(r.bttsPct).toBe(0);
+  });
+
+  test('away perspective: win when away team scores more', () => {
+    // makeFDMatch(AWAY, 1, 2) → homeTeam.id=AWAY, awayTeam.id=99
+    // team HOME is NOT in this match at all — need team as away
+    // makeFDMatch(AWAY, 1, 2) and teamId=AWAY means home perspective for AWAY team
+    // For HOME team as away: use makeFDMatch(99, 1, 3) where HOME=57≠homeTeam.id=99
+    const m = makeFDMatch(AWAY, 1, 3); // homeTeam=99(AWAY), awayTeam=99 also? no — awayTeam id is always 99 in helper
+    // Actually for HOME=57 as away: homeTeam.id must NOT be 57
+    // makeFDMatch sets homeTeam.id=homeId and awayTeam.id=99
+    // So for HOME=57 as away team: homeId != 57, e.g. homeId=10, awayTeam.id=99 ≠ 57, so HOME(57) is neither → but that's wrong
+    // The correct approach: HOME team plays as away when awayTeam.id === HOME
+    // But the helper always sets awayTeam.id=99. So test away with teamId=99:
+    const away = makeFDMatch(HOME, 1, 3); // homeTeam=57, awayTeam=99; for teamId=99: away match, gf=3, ga=1
+    const r = calcSeasonStats([away], AWAY)!;
+    expect(r.away).toEqual({ played: 1, win: 1, draw: 0, loss: 0 });
+    expect(r.avgGF).toBe('3.0');
+    expect(r.avgGA).toBe('1.0');
+  });
+
+  test('over 1.5/2.5/3.5 thresholds', () => {
+    const m1 = fdHome(1, 1); // 2 goals → over1.5 only
+    const m2 = fdHome(2, 1); // 3 goals → over1.5 + over2.5
+    const m3 = fdHome(3, 2); // 5 goals → all three
+    const r = calcSeasonStats([m1, m2, m3], HOME)!;
+    expect(r.over15Pct).toBe(100);
+    expect(r.over25Pct).toBe(Math.round(2 / 3 * 100));
+    expect(r.over35Pct).toBe(Math.round(1 / 3 * 100));
+  });
+
+  test('mixed home and away record', () => {
+    const r = calcSeasonStats([
+      fdHome(2, 0),          // home win, clean sheet
+      fdHome(1, 1),          // home draw
+      makeFDMatch(HOME, 0, 1), // home loss, failed to score
+    ], HOME)!;
+    expect(r.home).toEqual({ played: 3, win: 1, draw: 1, loss: 1 });
+    expect(r.total).toBe(3);
+    expect(r.cleanSheetPct).toBe(Math.round(1 / 3 * 100));
+    expect(r.failedToScorePct).toBe(Math.round(1 / 3 * 100));
+  });
+});
+
+// ─── calcSLSeasonStats ────────────────────────────────────────────────────────
+
+describe('calcSLSeasonStats', () => {
+  const TEAM = 133804;
+
+  test('returns null for empty list', () => {
+    expect(calcSLSeasonStats([], TEAM)).toBeNull();
+  });
+
+  test('returns null when all scores are null', () => {
+    expect(calcSLSeasonStats([makeSLMatch(TEAM, null, null)], TEAM)).toBeNull();
+  });
+
+  test('home win 2-0: correct record + clean sheet', () => {
+    const r = calcSLSeasonStats([makeSLMatch(TEAM, 2, 0)], TEAM)!;
+    expect(r.home).toEqual({ played: 1, win: 1, draw: 0, loss: 0 });
+    expect(r.cleanSheetPct).toBe(100);
+    expect(r.avgGF).toBe('2.0');
+    expect(r.avgGA).toBe('0.0');
+  });
+
+  test('away win when team is away: gf = awayScore', () => {
+    const m = makeSLMatch(99, 1, 3); // opponent home, TEAM away; gf=3, ga=1
+    const r = calcSLSeasonStats([m], TEAM)!;
+    expect(r.away).toEqual({ played: 1, win: 1, draw: 0, loss: 0 });
+    expect(r.avgGF).toBe('3.0');
+  });
+
+  test('BTTS when both teams score', () => {
+    const r = calcSLSeasonStats([makeSLMatch(TEAM, 2, 1)], TEAM)!;
+    expect(r.bttsPct).toBe(100);
+  });
+
+  test('over thresholds', () => {
+    const r = calcSLSeasonStats([
+      makeSLMatch(TEAM, 1, 1), // 2 goals
+      makeSLMatch(TEAM, 2, 1), // 3 goals
+      makeSLMatch(TEAM, 3, 2), // 5 goals
+    ], TEAM)!;
+    expect(r.over15Pct).toBe(100);
+    expect(r.over25Pct).toBe(Math.round(2 / 3 * 100));
+    expect(r.over35Pct).toBe(Math.round(1 / 3 * 100));
+  });
+
+  test('failed to score when gf=0', () => {
+    const r = calcSLSeasonStats([makeSLMatch(TEAM, 0, 2)], TEAM)!;
+    expect(r.failedToScorePct).toBe(100);
+    expect(r.cleanSheetPct).toBe(0);
   });
 });

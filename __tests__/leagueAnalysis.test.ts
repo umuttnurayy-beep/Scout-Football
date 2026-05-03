@@ -6,6 +6,7 @@ import {
   getTagColor,
   getLeagueCharacter,
   computeLeagueStats,
+  getTeamLabel,
   type UCLTie,
   type Level,
   type LeagueStanding,
@@ -366,5 +367,52 @@ describe('computeLeagueStats', () => {
     expect(r.leader).toBeNull();
     expect(r.ligChar).toBeNull();
     expect(r.liderTags).toEqual([]);
+  });
+});
+
+// ─── getTeamLabel ─────────────────────────────────────────────────────────────
+
+describe('getTeamLabel', () => {
+  // params: gfPer, gaPer, winRate, pos, total, avgGfPer, avgGaPer, isDark?
+  const avg = { gfPer: 1.5, gaPer: 1.2 };
+
+  test('returns "Formda" when winRate >= 0.60', () => {
+    expect(getTeamLabel(1.5, 1.2, 0.60, 1, 20, avg.gfPer, avg.gaPer).label).toBe('Formda');
+    expect(getTeamLabel(1.5, 1.2, 0.75, 1, 20, avg.gfPer, avg.gaPer).label).toBe('Formda');
+  });
+
+  test('returns "Hücumcu & Kırılgan" when gf >= 1.25x avg AND ga >= 1.15x avg', () => {
+    // gfPer=1.5*1.25=1.875, gaPer=1.2*1.15=1.38
+    expect(getTeamLabel(1.9, 1.4, 0.40, 5, 20, avg.gfPer, avg.gaPer).label).toBe('Hücumcu & Kırılgan');
+  });
+
+  test('returns "Hücumcu" when gf >= 1.20x avg but ga < 1.15x avg', () => {
+    // gfPer=1.5*1.20=1.80 needed, gaPer below 1.38
+    expect(getTeamLabel(1.85, 1.1, 0.40, 5, 20, avg.gfPer, avg.gaPer).label).toBe('Hücumcu');
+  });
+
+  test('returns "Savunmacı" when gaPer <= 0.80x avg', () => {
+    // gaPer=1.2*0.80=0.96
+    expect(getTeamLabel(1.2, 0.9, 0.40, 5, 20, avg.gfPer, avg.gaPer).label).toBe('Savunmacı');
+  });
+
+  test('returns "Dengesiz" when winRate < 0.25 and pos > 60% of total', () => {
+    // pos=14 > 20*0.60=12
+    expect(getTeamLabel(1.0, 1.5, 0.20, 14, 20, avg.gfPer, avg.gaPer).label).toBe('Dengesiz');
+  });
+
+  test('returns "Dengeli" for average stats', () => {
+    expect(getTeamLabel(1.5, 1.2, 0.45, 8, 20, avg.gfPer, avg.gaPer).label).toBe('Dengeli');
+  });
+
+  test('Formda check takes priority over Hücumcu when winRate >= 0.60', () => {
+    // High gfPer would trigger Hücumcu but winRate >= 0.60 returns Formda first
+    expect(getTeamLabel(2.5, 1.0, 0.65, 1, 20, avg.gfPer, avg.gaPer).label).toBe('Formda');
+  });
+
+  test('returns a label with a color property', () => {
+    const r = getTeamLabel(1.5, 1.2, 0.45, 8, 20, avg.gfPer, avg.gaPer);
+    expect(typeof r.label).toBe('string');
+    expect(typeof r.color).toBe('string');
   });
 });
