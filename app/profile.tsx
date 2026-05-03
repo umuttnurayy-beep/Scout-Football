@@ -3,7 +3,7 @@ import Constants from 'expo-constants';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Alert, Image, Linking, Modal, ScrollView, StyleSheet,
+  Alert, Image, Linking, Modal, RefreshControl, ScrollView, StyleSheet,
   Switch, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { FDMatch, SLFormMatch, Standing, getSuperLigStandings, getSuperLigTeamForm, getStandings, getTeamForm } from '../services/api';
@@ -212,6 +212,8 @@ export default function ProfileScreen() {
   const [watchlistForms, setWatchlistForms] = useState<Record<number, string[]>>({});
   const [watchlistStats, setWatchlistStats] = useState<Record<string, { played: number; win: number; draw: number; loss: number; gf: number; ga: number; pts: number; pos: number }>>({});
   const [recentStats, setRecentStats] = useState<Record<string, { played: number; win: number; draw: number; loss: number; gf: number; ga: number; pts: number; pos: number }>>({});
+  const [loadingWatchlist, setLoadingWatchlist] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [teamPickerVisible, setTeamPickerVisible] = useState(false);
   const [teamPickerMode, setTeamPickerMode] = useState<'fav' | 'watchlist'>('fav');
@@ -294,6 +296,7 @@ export default function ProfileScreen() {
   }
 
   async function loadWatchlistForms(wl: FavTeam[]) {
+    setLoadingWatchlist(true);
     const forms: Record<number, string[]> = {};
     const stats: Record<string, { played: number; win: number; draw: number; loss: number; gf: number; ga: number; pts: number; pos: number }> = {};
 
@@ -336,6 +339,7 @@ export default function ProfileScreen() {
 
     setWatchlistForms(forms);
     setWatchlistStats(stats);
+    setLoadingWatchlist(false);
   }
 
   async function saveName() {
@@ -439,6 +443,19 @@ export default function ProfileScreen() {
         ...watchlist.map(team => team.name),
       ].filter(Boolean) as string[];
       await registerPushToken(updated, watchedTeams);
+    }
+  }
+
+  async function onRefresh() {
+    setRefreshing(true);
+    try {
+      await Promise.allSettled([
+        favTeam ? loadFavTeamData(favTeam) : Promise.resolve(),
+        watchlist.length > 0 ? loadWatchlistForms(watchlist) : Promise.resolve(),
+        recentlyViewed.length > 0 ? loadRecentStats(recentlyViewed) : Promise.resolve(),
+      ]);
+    } finally {
+      setRefreshing(false);
     }
   }
 
@@ -563,7 +580,11 @@ export default function ProfileScreen() {
         <Text style={[styles.topbarTitle, { color: c.text }]}>Scout Rozeti</Text>
       </View>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} colors={[c.primary]} />}
+      >
 
         {/* ── Scout Kimlik Kartı ── */}
         <View style={[styles.identityCard, { backgroundColor: c.surface }]}>
@@ -710,16 +731,19 @@ export default function ProfileScreen() {
                   <Text style={[styles.watchlistName, { color: c.text }]}>{team.name}</Text>
                   <Text style={[styles.watchlistLeague, { color: c.textMuted }]}>{team.leagueFlag} {team.leagueName}</Text>
                 </View>
-                {wForm.length > 0 && (
-                  <View style={styles.watchlistForm}>
-                    {wForm.map((r, i) => (
-                      <View key={i} style={[styles.formDotSm,
-                        r === 'G' ? { backgroundColor: c.win } : r === 'B' ? { backgroundColor: c.draw } : { backgroundColor: c.loss }]}>
-                        <Text style={styles.formDotSmText}>{r}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
+                <View style={styles.watchlistForm}>
+                  {loadingWatchlist && wForm.length === 0
+                    ? [0, 1, 2].map(i => (
+                        <View key={i} style={[styles.formDotSm, { backgroundColor: c.borderLight }]} />
+                      ))
+                    : wForm.map((r, i) => (
+                        <View key={i} style={[styles.formDotSm,
+                          r === 'G' ? { backgroundColor: c.win } : r === 'B' ? { backgroundColor: c.draw } : { backgroundColor: c.loss }]}>
+                          <Text style={styles.formDotSmText}>{r}</Text>
+                        </View>
+                      ))
+                  }
+                </View>
                 <TouchableOpacity style={styles.watchlistRemove}
                   onPress={() => removeWatchlistItem(team.name)}>
                   <Text style={[styles.watchlistRemoveText, { color: c.textVeryFaint }]}>✕</Text>
