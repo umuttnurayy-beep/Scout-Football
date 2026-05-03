@@ -530,8 +530,10 @@ export default function HomeScreen() {
       if (homeData) {
         if (requestId !== loadSeq.current) return;
         setBackendOffline(false);
-        applyHomeData(dateStr, homeData, {
-          notice: homeData.stale ? 'stale' : homeData.sourceSeverity ?? null,
+        const hydratedHomeData = await hydratePartialHomeData(dateStr, homeData);
+        if (requestId !== loadSeq.current) return;
+        applyHomeData(dateStr, hydratedHomeData, {
+          notice: hydratedHomeData.stale ? 'stale' : hydratedHomeData.sourceSeverity ?? null,
           persist: true,
         });
         return;
@@ -576,8 +578,18 @@ export default function HomeScreen() {
     options: { notice: HomeDataNotice | null; persist?: boolean },
   ) {
     const homeStandings = homeData.standings || {};
-    const visible = buildVisibleMatches(homeData.matches || [], homeData.superLigMatches || []);
-    setStandingsMap(homeStandings);
+    const mainSourceMissing = (homeData.sourceSeverity === 'warning' || homeData.sourceSeverity === 'error') &&
+      (homeData.matches?.length ?? 0) === 0 &&
+      (homeData.superLigMatches?.length ?? 0) > 0;
+    const payloadVisible = buildVisibleMatches(homeData.matches || [], homeData.superLigMatches || []);
+    const visible = mainSourceMissing && matches.some(m => m.leagueApiId !== 203)
+      ? [
+        ...matches.filter(m => m.leagueApiId !== 203),
+        ...payloadVisible.filter(m => m.leagueApiId === 203),
+      ]
+      : payloadVisible;
+    const nextStandingsMap = hasUsableStandingsMap(homeStandings) ? homeStandings : standingsMap;
+    setStandingsMap(nextStandingsMap);
     setMatches(visible);
     setBackendFeaturedMatchId(homeData.featuredMatchId ?? null);
     setHomeDataNotice(options.notice);
@@ -586,11 +598,33 @@ export default function HomeScreen() {
         ? summarizeSourceWarnings(homeData.sourceWarnings, homeData.sourceSeverity)
         : null,
     );
-    setNextDayPreview(visible.length <= 1 ? buildNextPreviewFromHomeData(homeData, homeStandings) : null);
+    setNextDayPreview(visible.length <= 1 ? buildNextPreviewFromHomeData(homeData, nextStandingsMap) : null);
 
-    if (options.persist) {
-      persistStandingsCache(dateStr, homeStandings);
+    if (options.persist && !mainSourceMissing) {
+      persistStandingsCache(dateStr, nextStandingsMap);
       AsyncStorage.setItem(`${HOME_DATA_CACHE_KEY}:${dateStr}`, JSON.stringify(homeData)).catch(() => {});
+    }
+  }
+
+  async function hydratePartialHomeData(dateStr: string, homeData: HomeData): Promise<HomeData> {
+    const mainSourceMissing = (homeData.sourceSeverity === 'warning' || homeData.sourceSeverity === 'error') &&
+      (homeData.matches?.length ?? 0) === 0 &&
+      (homeData.superLigMatches?.length ?? 0) > 0;
+    if (!mainSourceMissing) return homeData;
+    try {
+      const rawHome = await AsyncStorage.getItem(`${HOME_DATA_CACHE_KEY}:${dateStr}`);
+      if (!rawHome) return homeData;
+      const cached = JSON.parse(rawHome) as HomeData;
+      if (!Array.isArray(cached.matches) || cached.matches.length === 0) return homeData;
+      return {
+        ...homeData,
+        matches: cached.matches,
+        standings: hasUsableStandingsMap(homeData.standings) ? homeData.standings : cached.standings || {},
+        featuredMatchId: homeData.featuredMatchId ?? cached.featuredMatchId ?? null,
+        nextPreview: homeData.nextPreview ?? cached.nextPreview ?? null,
+      };
+    } catch {
+      return homeData;
     }
   }
 

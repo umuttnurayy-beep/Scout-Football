@@ -48,6 +48,52 @@ const NEON = '#00E676';
 
 const UCL_LEAGUE_PHASE_STAGES = new Set(['LEAGUE_PHASE', 'GROUP_STAGE']);
 
+function buildRouteFallbackMatch({
+  matchId,
+  home,
+  away,
+  homeTeamId,
+  awayTeamId,
+  utcDate,
+  leagueApiId,
+  league,
+  scoreParam,
+  finishedParam,
+  isFromLive,
+}: {
+  matchId: string;
+  home: string;
+  away: string;
+  homeTeamId: number;
+  awayTeamId: number;
+  utcDate: string;
+  leagueApiId: number;
+  league: string;
+  scoreParam: string;
+  finishedParam: boolean;
+  isFromLive: boolean;
+}): FDMatchDetail | null {
+  if (!matchId || !home || !away) return null;
+  const [homeScoreRaw, awayScoreRaw] = scoreParam ? scoreParam.split(/\s*[-:]\s*/) : [];
+  const homeScore = homeScoreRaw !== undefined ? Number(homeScoreRaw) : null;
+  const awayScore = awayScoreRaw !== undefined ? Number(awayScoreRaw) : null;
+  const hasScore = Number.isFinite(homeScore) && Number.isFinite(awayScore);
+  return {
+    id: Number(matchId),
+    utcDate: utcDate || new Date().toISOString(),
+    status: finishedParam ? 'FINISHED' : isFromLive ? 'LIVE' : 'SCHEDULED',
+    homeTeam: { id: homeTeamId, name: home, shortName: home },
+    awayTeam: { id: awayTeamId, name: away, shortName: away },
+    score: {
+      fullTime: {
+        home: hasScore ? homeScore : null,
+        away: hasScore ? awayScore : null,
+      },
+    },
+    competition: { id: leagueApiId, name: league },
+  };
+}
+
 export default function MatchDetail() {
   const { colors: c, isDark } = useTheme();
   const router = useRouter();
@@ -99,6 +145,19 @@ export default function MatchDetail() {
   const matchDate = utcDate ? new Date(utcDate).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'}) : '';
   const matchTime = utcDate ? new Date(utcDate).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}) : '';
   const secondaryCacheKey = `${DETAIL_SECONDARY_CACHE_PREFIX}_${matchId || 'unknown'}`;
+  const routeFallbackMatch = useMemo(() => buildRouteFallbackMatch({
+    matchId,
+    home,
+    away,
+    homeTeamId,
+    awayTeamId,
+    utcDate,
+    leagueApiId,
+    league,
+    scoreParam,
+    finishedParam,
+    isFromLive,
+  }), [away, awayTeamId, finishedParam, home, homeTeamId, isFromLive, league, leagueApiId, matchId, scoreParam, utcDate]);
 
   useEffect(()=>{ setMatchData(null);setH2hData([]);setWeatherData(null);setOddsData(null);setHomeForm([]);setAwayForm([]);setStaleNotice(false);setSecondaryLoading(false);setDataIssues(new Set()); },[matchId, refreshCount]);
 
@@ -123,7 +182,7 @@ export default function MatchDetail() {
     async function load(){
       setLoading(true);
       const contextPayload = await getMatchContext(matchId, finishedParam);
-      const stats = contextPayload?.match || await getMatchStats(matchId);
+      const stats = contextPayload?.match || await getMatchStats(matchId) || routeFallbackMatch;
       if (cancelled) return;
       const matchContext = resolveMatchContext(stats, { home, away, city, homeTeamId, awayTeamId });
       const contextIssues = new Set(contextPayload?.issues || []);
@@ -150,7 +209,7 @@ export default function MatchDetail() {
       if (contextPayload) setH2hData(h2hValue);
       setStaleNotice(hasStaleDetailData([stats, homeFormValue, awayFormValue], isStaleApiData));
       setDataIssues(buildDetailDataIssues({
-        matchMissing: !stats,
+        matchMissing: !contextPayload?.match && stats === routeFallbackMatch,
         formRejected,
         h2hRejected: contextIssues.has('h2h'),
         weatherRejected: false,
@@ -199,7 +258,7 @@ export default function MatchDetail() {
     if(matchId) load(); else setLoading(false);
     return () => { cancelled = true; setSecondaryLoading(false); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[matchId, refreshCount]);
+  },[matchId, refreshCount, routeFallbackMatch]);
 
   const matchContext = resolveMatchContext(matchData, { home, away, city, homeTeamId, awayTeamId });
   const displayHomeName = matchContext.homeName;
@@ -1037,4 +1096,3 @@ const styles = StyleSheet.create({
 });
 
 const scStyles = scoutStyles;
-
