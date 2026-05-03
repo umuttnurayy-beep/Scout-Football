@@ -45,10 +45,58 @@ type TeamSummaryStats = {
   pos: number;
 };
 
+type TeamStatsRouteTeam = {
+  name: string;
+  teamId: number;
+  leagueName: string;
+  leagueFlag: string;
+  apiId: number;
+};
+
+type TeamStatsRouteParams = {
+  teamName: string;
+  teamId: number;
+  leagueName: string;
+  leagueFlag: string;
+  apiId: number;
+  fdId: number;
+} & TeamSummaryStats;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function safeJsonParse<T>(raw: string, fallback: T): T {
   try { return JSON.parse(raw) as T; } catch { return fallback; }
+}
+
+const EMPTY_TEAM_STATS: TeamSummaryStats = {
+  played: 0,
+  win: 0,
+  draw: 0,
+  loss: 0,
+  gf: 0,
+  ga: 0,
+  pts: 0,
+  pos: 0,
+};
+
+function buildTeamStatsParams(team: TeamStatsRouteTeam, stats?: TeamSummaryStats): TeamStatsRouteParams {
+  const safeStats = stats ?? EMPTY_TEAM_STATS;
+  return {
+    teamName: team.name,
+    teamId: team.teamId,
+    leagueName: team.leagueName,
+    leagueFlag: team.leagueFlag,
+    apiId: team.apiId,
+    fdId: 0,
+    pos: safeStats.pos,
+    played: safeStats.played,
+    win: safeStats.win,
+    draw: safeStats.draw,
+    loss: safeStats.loss,
+    gf: safeStats.gf,
+    ga: safeStats.ga,
+    pts: safeStats.pts,
+  };
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -469,15 +517,7 @@ export default function ProfileScreen() {
   function goToTeamStats(team: FavTeam) {
     router.push({
       pathname: '/team_stats',
-      params: {
-        teamName: team.name,
-        teamId: team.teamId,
-        leagueName: team.leagueName,
-        leagueFlag: team.leagueFlag,
-        apiId: team.apiId,
-        fdId: 0,
-        pos: favPos, played: favPlayed, win: favWin, draw: favDraw, loss: favLoss, gf: favGf, ga: favGa, pts: favPts,
-      },
+      params: buildTeamStatsParams(team, favSummaryStats),
     });
   }
 
@@ -495,6 +535,16 @@ export default function ProfileScreen() {
   const avatarColor = useMemo(() => AVATAR_COLORS[avatarIdx] || '#185FA5', [avatarIdx]);
   const avatarLabel = useMemo(() => scoutName ? scoutName.trim().slice(0, 2).toUpperCase() : '?', [scoutName]);
   const favColors = useMemo(() => favTeam ? getTeamColors(favTeam.name) : { p: '#185FA5', s: '#0C447C' }, [favTeam]);
+  const favSummaryStats = useMemo<TeamSummaryStats>(() => ({
+    played: favPlayed,
+    win: favWin,
+    draw: favDraw,
+    loss: favLoss,
+    gf: favGf,
+    ga: favGa,
+    pts: favPts,
+    pos: favPos,
+  }), [favDraw, favGa, favGf, favLoss, favPlayed, favPos, favPts, favWin]);
   const watchedTeamNames = useMemo(() => [
     favTeam?.name,
     ...watchlist.map(team => team.name),
@@ -744,7 +794,7 @@ export default function ProfileScreen() {
           watchlistRows.map(({ team, colors, form, stats }) => {
             return (
               <TouchableOpacity key={team.name} style={[styles.watchlistItem, { backgroundColor: c.surface, borderBottomColor: c.borderLight }]}
-                onPress={() => router.push({ pathname: '/team_stats', params: { teamName: team.name, teamId: team.teamId, leagueName: team.leagueName, leagueFlag: team.leagueFlag, apiId: team.apiId, fdId: 0, pos: stats?.pos ?? 0, played: stats?.played ?? 0, win: stats?.win ?? 0, draw: stats?.draw ?? 0, loss: stats?.loss ?? 0, gf: stats?.gf ?? 0, ga: stats?.ga ?? 0, pts: stats?.pts ?? 0 } })}>
+                onPress={() => router.push({ pathname: '/team_stats', params: buildTeamStatsParams(team, stats) })}>
                 <View style={[styles.watchlistDot, { backgroundColor: colors.p }]} />
                 <View style={styles.watchlistInfo}>
                   <Text style={[styles.watchlistName, { color: c.text }]}>{team.name}</Text>
@@ -787,7 +837,13 @@ export default function ProfileScreen() {
             {recentRows.map(({ item, index, stats }) => {
               return (
               <TouchableOpacity key={`${item.apiId}-${item.id}-${index}`} style={[styles.recentItem, { backgroundColor: c.surface, borderBottomColor: c.borderLight }]}
-                onPress={() => router.push({ pathname: '/team_stats', params: { teamName: item.name, teamId: item.id, leagueName: item.leagueName, leagueFlag: '', apiId: item.apiId, fdId: 0, pos: stats?.pos ?? 0, played: stats?.played ?? 0, win: stats?.win ?? 0, draw: stats?.draw ?? 0, loss: stats?.loss ?? 0, gf: stats?.gf ?? 0, ga: stats?.ga ?? 0, pts: stats?.pts ?? 0 } })}>
+                onPress={() => router.push({ pathname: '/team_stats', params: buildTeamStatsParams({
+                  name: item.name,
+                  teamId: item.id,
+                  leagueName: item.leagueName,
+                  leagueFlag: '',
+                  apiId: item.apiId,
+                }, stats) })}>
                 <View style={[styles.recentIcon, { backgroundColor: c.primaryLight }]}>
                   <Text style={[styles.recentIconText, { color: c.primaryDark }]}>
                     {item.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
