@@ -580,7 +580,7 @@ export default function ProfileScreen() {
                 ))}
               </View>
             ))}
-            <View style={{ height: 40 }} />
+            <View style={styles.pickerBottomSpacer} />
           </ScrollView>
         </View>
       </Modal>
@@ -707,7 +707,7 @@ export default function ProfileScreen() {
                     ))}
                   </View>
                 ) : favLoadError ? (
-                  <View style={{ marginTop: 8 }}>
+                  <View style={styles.favErrorWrap}>
                     <EmptyStateCard
                       compact
                       icon="📡"
@@ -854,18 +854,16 @@ export default function ProfileScreen() {
           <Text style={[styles.themeAutoHint, { color: c.textFaint }]}>
             Otomatik: 07:00-19:59 açık, 20:00-06:59 koyu
           </Text>
-          <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingBottom: 14 }}>
+          <View style={styles.themeSegmentRow}>
             {([['light', '☀️ Açık'], ['system', '⚙️ Otomatik'], ['dark', '🌙 Koyu']] as const).map(([m, label]) => (
               <TouchableOpacity
                 key={m}
                 onPress={() => setMode(m)}
-                style={[{
-                  flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center',
-                  borderWidth: 1.5,
+                style={[styles.themeSegmentBtn, {
                   borderColor: mode === m ? c.primary : c.border,
                   backgroundColor: mode === m ? c.primaryLight : c.surface,
                 }]}>
-                <Text style={{ fontSize: 12, color: mode === m ? c.primary : c.textMuted, fontWeight: mode === m ? '600' : '400' }}>
+                <Text style={[styles.themeSegmentText, { color: mode === m ? c.primary : c.textMuted, fontWeight: mode === m ? '600' : '400' }]}>
                   {label}
                 </Text>
               </TouchableOpacity>
@@ -873,7 +871,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <View style={{ height: 12 }} />
+        <View style={styles.sectionSpacer} />
 
         {/* ── Bildirimler kartı ── */}
         <View style={[styles.settingsCard, { backgroundColor: c.surface }]}>
@@ -926,7 +924,7 @@ export default function ProfileScreen() {
 
         </View>
 
-        <View style={{ height: 12 }} />
+        <View style={styles.sectionSpacer} />
 
         {/* ── Diğer ayarlar ── */}
         <View style={[styles.settingsCard, { backgroundColor: c.surface }]}>
@@ -952,7 +950,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <View style={{ height: 30 }} />
+        <View style={styles.bottomSpacer} />
       </ScrollView>
 
       <BottomTabBar activeTab="profile" />
@@ -971,6 +969,8 @@ const styles = StyleSheet.create({
   appName: { fontSize: 16, fontWeight: '600', color: '#00BAFF' },
   appNameBlue: { color: '#2563EB' },
   scroll: { flex: 1 },
+  sectionSpacer: { height: 12 },
+  bottomSpacer: { height: 30 },
 
   // Identity card
   identityCard: { flexDirection: 'row', alignItems: 'center', padding: 18, marginBottom: 8, gap: 14 },
@@ -997,6 +997,7 @@ const styles = StyleSheet.create({
   favCard: { marginHorizontal: 14, borderRadius: 14, overflow: 'hidden', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6 },
   favCardStripe: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 5 },
   favCardContent: { padding: 16, paddingLeft: 20 },
+  favErrorWrap: { marginTop: 8 },
   favCardTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
   favTeamBadge: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   favTeamBadgeText: { fontSize: 14, fontWeight: '700' },
@@ -1048,6 +1049,9 @@ const styles = StyleSheet.create({
   settingLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.6 },
   settingsValue: { fontSize: 13 },
   settingsDivider: { height: 0.5, marginLeft: 14 },
+  themeSegmentRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingBottom: 14 },
+  themeSegmentBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', borderWidth: 1.5 },
+  themeSegmentText: { fontSize: 12 },
 
   // Notification settings
   notifSectionHeader: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 6 },
@@ -1076,6 +1080,7 @@ const styles = StyleSheet.create({
   pickerTeamDot: { width: 10, height: 10, borderRadius: 5 },
   pickerTeamName: { flex: 1, fontSize: 15 },
   pickerArrow: { fontSize: 18 },
+  pickerBottomSpacer: { height: 40 },
 
   // Avatar picker modal
   avatarModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
