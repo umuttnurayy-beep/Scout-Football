@@ -290,12 +290,61 @@ export type OddsData = {
   away: string;
 };
 
+type OddsOutcome = { name: string; price: number };
+type OddsMarket = { key: string; outcomes: OddsOutcome[] };
+type OddsBookmaker = { markets: OddsMarket[] };
+type OddsGame = { home_team: string; away_team: string; bookmakers: OddsBookmaker[] };
+
 function isOddsData(value: unknown): value is OddsData {
   if (!value || typeof value !== 'object') return false;
   const odds = value as Partial<Record<keyof OddsData, unknown>>;
   return typeof odds.home === 'string' &&
     typeof odds.away === 'string' &&
     (odds.draw === undefined || typeof odds.draw === 'string');
+}
+
+function isOddsOutcome(value: unknown): value is OddsOutcome {
+  if (!value || typeof value !== 'object') return false;
+  const outcome = value as Partial<OddsOutcome>;
+  return typeof outcome.name === 'string' &&
+    typeof outcome.price === 'number' &&
+    Number.isFinite(outcome.price) &&
+    outcome.price > 0;
+}
+
+function normalizeOddsGames(value: unknown): OddsGame[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((game): OddsGame[] => {
+    if (!game || typeof game !== 'object') return [];
+    const candidate = game as {
+      home_team?: unknown;
+      away_team?: unknown;
+      bookmakers?: unknown;
+    };
+    if (typeof candidate.home_team !== 'string' || typeof candidate.away_team !== 'string') return [];
+    const bookmakers = Array.isArray(candidate.bookmakers)
+      ? candidate.bookmakers.flatMap((bookmaker): OddsBookmaker[] => {
+        if (!bookmaker || typeof bookmaker !== 'object') return [];
+        const marketsRaw = (bookmaker as { markets?: unknown }).markets;
+        const markets = Array.isArray(marketsRaw)
+          ? marketsRaw.flatMap((market): OddsMarket[] => {
+            if (!market || typeof market !== 'object') return [];
+            const marketCandidate = market as { key?: unknown; outcomes?: unknown };
+            const outcomes = Array.isArray(marketCandidate.outcomes)
+              ? marketCandidate.outcomes.filter(isOddsOutcome)
+              : [];
+            return typeof marketCandidate.key === 'string' && outcomes.length > 0
+              ? [{ key: marketCandidate.key, outcomes }]
+              : [];
+          })
+          : [];
+        return markets.length > 0 ? [{ markets }] : [];
+      })
+      : [];
+    return bookmakers.length > 0
+      ? [{ home_team: candidate.home_team, away_team: candidate.away_team, bookmakers }]
+      : [];
+  });
 }
 
 export type HomeData = {
@@ -446,23 +495,17 @@ export async function getOdds(homeTeam: string, awayTeam: string, leagueApiId: n
     if (cachedOdds) return cachedOdds;
 
     const res = await fetchWithTimeout(`${BASE_URL}/odds?sport=${sport}`);
-    type OddsOutcome = { name: string; price: number };
-    type OddsMarket = { key: string; outcomes: OddsOutcome[] };
-    type OddsBookmaker = { markets?: OddsMarket[] };
-    type OddsGame = { home_team: string; away_team: string; bookmakers?: OddsBookmaker[] };
-
-    const data = await readApiJson<OddsGame[]>(res, []);
-    if (!Array.isArray(data)) return null;
+    const data = normalizeOddsGames(await readApiJson<unknown>(res, []));
 
     const match = data.find((game) => isOddsGameMatch(game, homeTeam, awayTeam));
 
     if (!match) return null;
 
     let bestHome = 0, bestDraw = 0, bestAway = 0;
-    for (const bookmaker of match.bookmakers || []) {
-      const market = bookmaker.markets?.find((m) => m.key === 'h2h');
+    for (const bookmaker of match.bookmakers) {
+      const market = bookmaker.markets.find((m) => m.key === 'h2h');
       if (!market) continue;
-      const outcomes = market.outcomes || [];
+      const outcomes = market.outcomes;
       const h = outcomes.find((o) => o.name === match.home_team)?.price || 0;
       const d = outcomes.find((o) => o.name === 'Draw')?.price || 0;
       const a = outcomes.find((o) => o.name === match.away_team)?.price || 0;

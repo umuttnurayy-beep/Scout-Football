@@ -165,6 +165,62 @@ describe('API endpoint helper fallbacks and normalization', () => {
     await expect(getOdds('Arsenal', 'Chelsea', 9999)).resolves.toBeNull();
   });
 
+  it('filters malformed odds response rows before selecting prices', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+    fetchMock.mockResolvedValue(jsonResponse([
+      null,
+      {
+        home_team: 'Arsenal',
+        away_team: 'Chelsea',
+        bookmakers: 'bad',
+      },
+      {
+        home_team: 'Arsenal',
+        away_team: 'Chelsea',
+        bookmakers: [
+          { markets: [
+            { key: 'h2h', outcomes: [
+              { name: 'Arsenal', price: '1.70' },
+              { name: 'Draw', price: Number.NaN },
+              { name: 'Chelsea', price: -4 },
+            ] },
+            { key: 123, outcomes: [{ name: 'Arsenal', price: 1.65 }] },
+          ] },
+          { markets: [
+            { key: 'h2h', outcomes: [
+              { name: 'Arsenal', price: 1.75 },
+              { name: 'Draw', price: 3.2 },
+              { name: 'Chelsea', price: 4.5 },
+            ] },
+          ] },
+        ],
+      },
+    ]));
+
+    await expect(getOdds('Arsenal', 'Chelsea', 2021)).resolves.toEqual({
+      home: '1.75',
+      draw: '3.20',
+      away: '4.50',
+    });
+  });
+
+  it('returns null when odds response contains no usable h2h prices', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+    fetchMock.mockResolvedValue(jsonResponse([
+      {
+        home_team: 'Arsenal',
+        away_team: 'Chelsea',
+        bookmakers: [
+          { markets: [{ key: 'totals', outcomes: [{ name: 'Over', price: 1.8 }] }] },
+          { markets: [{ key: 'h2h', outcomes: [{ name: 'Arsenal', price: Number.POSITIVE_INFINITY }] }] },
+        ],
+      },
+    ]));
+
+    await expect(getOdds('Arsenal', 'Chelsea', 2021)).resolves.toBeNull();
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+  });
+
   it('normalizes Super Lig list helpers and returns safe fallbacks', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse([{ id: 1 }, null]));
     await expect(getSuperLigMatches('2026-05-03')).resolves.toEqual([{ id: 1 }, null]);
