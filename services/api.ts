@@ -24,6 +24,17 @@ function fetchWithTimeout(url: string, opts?: RequestInit): Promise<Response> {
   return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timer));
 }
 
+async function readArrayEndpoint<T>(url: string, scope: string): Promise<T[]> {
+  try {
+    const res = await fetchWithTimeout(url);
+    const data = await readApiJson<T[]>(res, []);
+    return arrayOrEmpty<T>(data);
+  } catch (e) {
+    logApiError(scope, e);
+    return [];
+  }
+}
+
 const LEAGUE_MAP: Record<number, number> = {
   39: 2021,
   140: 2014,
@@ -325,15 +336,8 @@ export async function getStandings(leagueId: number): Promise<Standing[]> {
 }
 
 export async function getTodayMatches(date?: string): Promise<FDMatch[]> {
-  try {
-    const url = date ? `${BASE_URL}/matches?date=${date}` : `${BASE_URL}/matches`;
-    const res = await fetchWithTimeout(url);
-    const data = await readApiJson<FDMatch[]>(res, []);
-    return arrayOrEmpty<FDMatch>(data);
-  } catch (e) {
-    logApiError('getTodayMatches', e);
-    return [];
-  }
+  const url = date ? `${BASE_URL}/matches?date=${date}` : `${BASE_URL}/matches`;
+  return readArrayEndpoint<FDMatch>(url, 'getTodayMatches');
 }
 
 export async function getHomeData(date: string): Promise<HomeData | null> {
@@ -402,26 +406,12 @@ export async function getMatchContext(matchId: string, isFinished?: boolean): Pr
 }
 
 export async function getH2H(matchId: string, isFinished?: boolean): Promise<FDMatch[]> {
-  try {
-    const url = isFinished ? `${BASE_URL}/h2h/${matchId}?finished=1` : `${BASE_URL}/h2h/${matchId}`;
-    const res = await fetchWithTimeout(url);
-    const data = await readApiJson<FDMatch[]>(res, []);
-    return arrayOrEmpty<FDMatch>(data);
-  } catch (e) {
-    logApiError('getH2H', e);
-    return [];
-  }
+  const url = isFinished ? `${BASE_URL}/h2h/${matchId}?finished=1` : `${BASE_URL}/h2h/${matchId}`;
+  return readArrayEndpoint<FDMatch>(url, 'getH2H');
 }
 
 export async function getTeamForm(teamId: number): Promise<FDMatch[]> {
-  try {
-    const res = await fetchWithTimeout(`${BASE_URL}/team/${teamId}/matches`);
-    const data = await readApiJson<FDMatch[]>(res, []);
-    return arrayOrEmpty<FDMatch>(data);
-  } catch (e) {
-    logApiError('getTeamForm', e);
-    return [];
-  }
+  return readArrayEndpoint<FDMatch>(`${BASE_URL}/team/${teamId}/matches`, 'getTeamForm');
 }
 
 export async function getWeather(city: string): Promise<WeatherData | null> {
@@ -516,14 +506,7 @@ export type FDTeamData = {
 };
 
 export async function getTopScorers(leagueId: number): Promise<FDScorer[]> {
-  try {
-    const res = await fetchWithTimeout(`${BASE_URL}/scorers/${leagueId}`);
-    const data = await readApiJson<FDScorer[]>(res, []);
-    return arrayOrEmpty<FDScorer>(data);
-  } catch (e) {
-    logApiError('getTopScorers', e);
-    return [];
-  }
+  return readArrayEndpoint<FDScorer>(`${BASE_URL}/scorers/${leagueId}`, 'getTopScorers');
 }
 
 export async function getFdTeamData(teamId: number): Promise<FDTeamData | null> {
@@ -573,14 +556,10 @@ export type H2HRawItem = {
 };
 
 export async function getAllSportsH2H(homeTeam: string, awayTeam: string): Promise<H2HRawItem[]> {
-  try {
-    const res = await fetchWithTimeout(`${BASE_URL}/allsports/h2h?home=${encodeURIComponent(homeTeam)}&away=${encodeURIComponent(awayTeam)}`);
-    const data = await readApiJson<H2HRawItem[]>(res, []);
-    return arrayOrEmpty(data);
-  } catch (e) {
-    logApiError('getAllSportsH2H', e);
-    return [];
-  }
+  return readArrayEndpoint<H2HRawItem>(
+    `${BASE_URL}/allsports/h2h?home=${encodeURIComponent(homeTeam)}&away=${encodeURIComponent(awayTeam)}`,
+    'getAllSportsH2H',
+  );
 }
 
 // --- Süper Lig (TheSportsDB) ---
@@ -597,26 +576,12 @@ export async function getSuperLigStandings(): Promise<Standing[]> {
 }
 
 export async function getSuperLigMatches(date?: string): Promise<SLMatch[]> {
-  try {
-    const url = date ? `${BASE_URL}/superlig/matches?date=${date}` : `${BASE_URL}/superlig/matches`;
-    const res = await fetchWithTimeout(url);
-    const data = await readApiJson<SLMatch[]>(res, []);
-    return arrayOrEmpty<SLMatch>(data);
-  } catch (e) {
-    logApiError('getSuperLigMatches', e);
-    return [];
-  }
+  const url = date ? `${BASE_URL}/superlig/matches?date=${date}` : `${BASE_URL}/superlig/matches`;
+  return readArrayEndpoint<SLMatch>(url, 'getSuperLigMatches');
 }
 
 export async function getSuperLigTeamForm(teamId: number): Promise<SLFormMatch[]> {
-  try {
-    const res = await fetchWithTimeout(`${BASE_URL}/superlig/team-form/${teamId}`);
-    const data = await readApiJson<SLFormMatch[]>(res, []);
-    return arrayOrEmpty<SLFormMatch>(data);
-  } catch (e) {
-    logApiError('getSuperLigTeamForm', e);
-    return [];
-  }
+  return readArrayEndpoint<SLFormMatch>(`${BASE_URL}/superlig/team-form/${teamId}`, 'getSuperLigTeamForm');
 }
 
 export interface SuperLigTeamContext {
@@ -641,25 +606,11 @@ export async function getSuperLigTeamContext(teamId: number): Promise<SuperLigTe
 }
 
 export async function getSuperLigPlayers(teamId: number): Promise<SLPlayer[]> {
-  try {
-    const res = await fetchWithTimeout(`${BASE_URL}/superlig/players/${teamId}`);
-    const data = await readApiJson<SLPlayer[]>(res, []);
-    return arrayOrEmpty<SLPlayer>(data);
-  } catch (e) {
-    logApiError('getSuperLigPlayers', e);
-    return [];
-  }
+  return readArrayEndpoint<SLPlayer>(`${BASE_URL}/superlig/players/${teamId}`, 'getSuperLigPlayers');
 }
 
 export async function getSuperLigScorers(): Promise<SLScorer[]> {
-  try {
-    const res = await fetchWithTimeout(`${BASE_URL}/superlig/scorers`);
-    const data = await readApiJson<SLScorer[]>(res, []);
-    return arrayOrEmpty<SLScorer>(data);
-  } catch (e) {
-    logApiError('getSuperLigScorers', e);
-    return [];
-  }
+  return readArrayEndpoint<SLScorer>(`${BASE_URL}/superlig/scorers`, 'getSuperLigScorers');
 }
 
 export async function getSuperLigMatch(eventId: string): Promise<SLEventData | null> {

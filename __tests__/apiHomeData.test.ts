@@ -13,7 +13,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   setItem: jest.fn(),
 }));
 
-import { getHomeData, getStandings, getUclKnockouts } from '../services/api';
+import { getH2H, getHomeData, getStandings, getTodayMatches, getUclKnockouts } from '../services/api';
 import { clearLastApiError, getLastApiError } from '../services/apiResponse';
 
 const fetchMock = jest.fn();
@@ -198,6 +198,53 @@ describe('standings and knockouts API helpers', () => {
     expect(data).toEqual({
       roundOf16: [],
       quarterFinals: [{ id: 7, homeTeam: 'A', awayTeam: 'B' }],
+    });
+  });
+});
+
+describe('array endpoint API helpers', () => {
+  let consoleErrorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    clearLastApiError();
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('returns typed arrays from list endpoints and applies query variants', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse([{ id: 1, status: 'SCHEDULED' }]));
+    fetchMock.mockResolvedValueOnce(jsonResponse([{ id: 2, status: 'FINISHED' }]));
+
+    await expect(getTodayMatches('2026-05-03')).resolves.toEqual([{ id: 1, status: 'SCHEDULED' }]);
+    await expect(getH2H('77', true)).resolves.toEqual([{ id: 2, status: 'FINISHED' }]);
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'https://example.test/matches?date=2026-05-03',
+      expect.objectContaining({ signal: expect.any(Object) }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'https://example.test/h2h/77?finished=1',
+      expect.objectContaining({ signal: expect.any(Object) }),
+    );
+  });
+
+  it('normalizes malformed list payloads and records request failures', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ matches: [] }));
+    await expect(getTodayMatches()).resolves.toEqual([]);
+    expect(getLastApiError()).toBeNull();
+
+    fetchMock.mockRejectedValueOnce(new Error('network down'));
+    await expect(getH2H('77')).resolves.toEqual([]);
+    expect(getLastApiError()).toMatchObject({
+      scope: 'getH2H',
+      code: 'client_error',
+      message: 'network down',
     });
   });
 });
