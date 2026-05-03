@@ -42,6 +42,12 @@ describe('readApiJson', () => {
     expect(isStaleApiData(data)).toBe(false);
   });
 
+  it('handles primitive and undefined payloads with safe fallback behavior', async () => {
+    await expect(readApiJson(response(undefined), 'fallback')).resolves.toBe('fallback');
+    await expect(readApiJson(response('ok'), 'fallback')).resolves.toBe('ok');
+    await expect(readApiJson(response({ ok: true, data: 7 }), 0)).resolves.toBe(7);
+  });
+
   it('throws ApiResponseError for explicit API errors and HTTP failures', async () => {
     await expect(readApiJson(
       response({ ok: false, error: { code: 'bad_source', message: 'Bad source' } }, true, 200),
@@ -80,6 +86,13 @@ describe('api error and fallback stats', () => {
       scope: 'home',
       code: 'client_error',
       message: 'network down',
+    });
+
+    logApiError('raw', 'string failure');
+    expect(getLastApiError()).toMatchObject({
+      scope: 'raw',
+      code: 'client_error',
+      message: 'Unknown API error',
     });
   });
 

@@ -14,6 +14,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 }));
 
 import { getHomeData, getStandings, getUclKnockouts } from '../services/api';
+import { clearLastApiError, getLastApiError } from '../services/apiResponse';
 
 const fetchMock = jest.fn();
 global.fetch = fetchMock as unknown as typeof fetch;
@@ -26,8 +27,16 @@ function jsonResponse(payload: unknown, ok = true) {
 }
 
 describe('getHomeData', () => {
+  let consoleErrorSpy: jest.SpyInstance;
+
   beforeEach(() => {
     fetchMock.mockReset();
+    clearLastApiError();
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
   });
 
   it('normalizes nested standings and next preview payloads', async () => {
@@ -81,6 +90,60 @@ describe('getHomeData', () => {
 
     fetchMock.mockResolvedValue(jsonResponse({ matches: null, superLigMatches: [] }));
     await expect(getHomeData('2026-05-02')).resolves.toBeNull();
+  });
+
+  it('preserves envelope stale metadata and source warning severity', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({
+      ok: true,
+      stale: true,
+      warning: { code: 'partial' },
+      data: {
+        date: '2026-05-02',
+        matches: [{ id: 1 }],
+        superLigMatches: [],
+        standings: {},
+        sourceWarnings: ['football-data unavailable'],
+        sourceSeverity: 'warning',
+        generatedAt: '2026-05-02T10:00:00Z',
+      },
+    }));
+
+    const data = await getHomeData('2026-05-02');
+
+    expect(data).toMatchObject({
+      stale: true,
+      sourceWarnings: ['football-data unavailable'],
+      sourceSeverity: 'warning',
+      nextPreview: null,
+    });
+  });
+
+  it('returns null and records structured error info for envelope and JSON failures', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      ok: false,
+      error: { code: 'home_source_down', message: 'source failed' },
+    }));
+
+    await expect(getHomeData('2026-05-02')).resolves.toBeNull();
+    expect(getLastApiError()).toMatchObject({
+      scope: 'getHomeData',
+      code: 'home_source_down',
+      message: 'source failed',
+    });
+
+    clearLastApiError();
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.reject(new Error('invalid json')),
+    } as unknown as Response);
+
+    await expect(getHomeData('2026-05-02')).resolves.toBeNull();
+    expect(getLastApiError()).toMatchObject({
+      scope: 'getHomeData',
+      code: 'client_error',
+      message: 'invalid json',
+    });
   });
 });
 
