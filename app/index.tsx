@@ -900,9 +900,10 @@ export default function HomeScreen() {
     if (activeFilter !== 'Scout' || sortedMatches.length === 0) return sortedMatches;
     if (!featuredCacheLoaded || !matchesReadyForSelectedDate) return [];
     const cacheKey = `${selectedDateKey}:Scout`;
+    const backendFeatured = sortedMatches.find(m => m.id === backendFeaturedMatchId);
     const cachedId = featuredMatchCache[cacheKey];
     const cached = sortedMatches.find(m => m.id === cachedId);
-    const stableFeatured = cached || sortedMatches.find(m => m.id === backendFeaturedMatchId);
+    const stableFeatured = backendFeatured || cached;
     if (!stableFeatured) return sortedMatches;
     return [stableFeatured, ...sortedMatches.filter(m => m.id !== stableFeatured.id)];
   }, [activeFilter, sortedMatches, backendFeaturedMatchId, selectedDateKey, featuredMatchCache, featuredCacheLoaded, matchesReadyForSelectedDate]);
@@ -911,8 +912,9 @@ export default function HomeScreen() {
     if (activeFilter !== 'Scout' || sortedMatches.length === 0) return;
     if (!featuredCacheLoaded || !matchesReadyForSelectedDate) return;
     const cacheKey = `${selectedDateKey}:Scout`;
-    if (featuredMatchCache[cacheKey]) return;
     const backendFeatured = sortedMatches.find(m => m.id === backendFeaturedMatchId);
+    if (featuredMatchCache[cacheKey] === backendFeatured?.id) return;
+    if (!backendFeatured && featuredMatchCache[cacheKey]) return;
     const nextCache = { ...featuredMatchCache, [cacheKey]: (backendFeatured || sortedMatches[0]).id };
     setFeaturedMatchCache(nextCache);
     AsyncStorage.setItem(FEATURED_MATCH_CACHE_KEY, JSON.stringify(nextCache)).catch(() => {});
