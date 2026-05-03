@@ -14,7 +14,7 @@ export type SeasonStats = {
 // ─── string helpers ─────────────────────────────────────────────────────────
 
 export function normalizeTeamName(name: string): string {
-  return name.toLowerCase()
+  return transliterate(name)
     .replace(/\b(fc|afc|cf|sc)\b/g, '')
     .replace(/[^a-z0-9\s]/g, '')
     .replace(/\s+/g, ' ')
@@ -26,6 +26,7 @@ export function transliterate(s: string): string {
     .replace(/[İı]/g, 'i').replace(/[ğ]/g, 'g')
     .replace(/[şŞ]/g, 's').replace(/[çÇ]/g, 'c')
     .replace(/[öÖ]/g, 'o').replace(/[üÜ]/g, 'u')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/\s+/g, ' ').trim();
 }
 

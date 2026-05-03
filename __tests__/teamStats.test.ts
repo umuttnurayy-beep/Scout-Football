@@ -39,6 +39,10 @@ describe('transliterate', () => {
     expect(transliterate('ışık')).toBe('isik');
   });
 
+  test('removes common Latin accent marks without dropping letters', () => {
+    expect(transliterate('Cádiz Málaga Atlético')).toBe('cadiz malaga atletico');
+  });
+
   test('collapses multiple spaces and trims', () => {
     expect(transliterate('  A  B  ')).toBe('a b');
   });
@@ -62,6 +66,15 @@ describe('teamsMatch', () => {
 
   test('one name contains the other', () => {
     expect(teamsMatch('Manchester City', 'Manchester')).toBe(true);
+  });
+
+  test('matches accented and unaccented team names', () => {
+    expect(teamsMatch('Cádiz CF', 'Cadiz')).toBe(true);
+    expect(teamsMatch('Málaga Club de Fútbol', 'Malaga')).toBe(true);
+  });
+
+  test('matches Turkish diacritics after normalization', () => {
+    expect(teamsMatch('İstanbul Başakşehir FK', 'Istanbul Basaksehir')).toBe(true);
   });
 
   test('completely different teams do not match', () => {
@@ -329,7 +342,7 @@ describe('normalizeTeamName', () => {
 
   test('strips SC and CF tokens', () => {
     expect(normalizeTeamName('SC Freiburg')).toBe('freiburg');
-    expect(normalizeTeamName('Cádiz CF')).toBe('cdiz');
+    expect(normalizeTeamName('Cádiz CF')).toBe('cadiz');
   });
 
   test('removes non-alphanumeric characters', () => {
