@@ -1010,26 +1010,44 @@ export default function HomeScreen() {
             {item.sub && <Text style={[sc.sectionSub, { color: c.textFaint }]}>{item.sub}</Text>}
           </View>
         );
-      case 'hero':
+      case 'hero': {
+        const { m, metrics } = item;
+        if (!m || !metrics) return null;
         return (
           <View style={{ paddingHorizontal: 14, marginBottom: 4 }}>
-            <HeroCard m={item.m!} metrics={item.metrics!} onPress={() => goToMatch(item.m!, item.metrics)} />
+            <HeroCard m={m} metrics={metrics} onPress={() => goToMatch(m, metrics)} />
           </View>
         );
-      case 'highlight':
-        return <HighlightCard m={item.m!} rank={item.rank!} metrics={item.metrics!} onPress={() => goToMatch(item.m!, item.metrics)} />;
+      }
+      case 'highlight': {
+        const { m, metrics, rank } = item;
+        if (!m || !metrics || rank === undefined) return null;
+        return <HighlightCard m={m} rank={rank} metrics={metrics} onPress={() => goToMatch(m, metrics)} />;
+      }
       case 'day-summary':
-        return <DaySummaryCard summary={item.summary!} />;
-      case 'match':
-        return <MatchRow m={item.m!} metrics={item.metrics!} onPress={() => goToMatch(item.m!, item.metrics)} />;
-      case 'single-insight':
-        return <SingleInsightCard m={item.m!} metrics={item.metrics!} />;
-      case 'single-trends':
-        return <SingleTrendsCard m={item.m!} metrics={item.metrics!} />;
+        return item.summary ? <DaySummaryCard summary={item.summary} /> : null;
+      case 'match': {
+        const { m, metrics } = item;
+        if (!m || !metrics) return null;
+        return <MatchRow m={m} metrics={metrics} onPress={() => goToMatch(m, metrics)} />;
+      }
+      case 'single-insight': {
+        const { m, metrics } = item;
+        if (!m || !metrics) return null;
+        return <SingleInsightCard m={m} metrics={metrics} />;
+      }
+      case 'single-trends': {
+        const { m, metrics } = item;
+        if (!m || !metrics) return null;
+        return <SingleTrendsCard m={m} metrics={metrics} />;
+      }
       case 'single-h2h':
         return <SingleH2HCard h2h={item.h2h || []} />;
-      case 'tomorrow-featured':
-        return <TomorrowFeaturedCard m={item.m!} metrics={item.metrics!} onPress={() => goToMatch(item.m!, item.metrics)} />;
+      case 'tomorrow-featured': {
+        const { m, metrics } = item;
+        if (!m || !metrics) return null;
+        return <TomorrowFeaturedCard m={m} metrics={metrics} onPress={() => goToMatch(m, metrics)} />;
+      }
       case 'empty-scout':
         return (
           <EmptyScoutState
