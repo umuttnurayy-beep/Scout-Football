@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import BottomTabBar from '../components/BottomTabBar';
 import EmptyStateCard from '../components/EmptyStateCard';
-import RefreshStatusBar from '../components/RefreshStatusBar';
+import RefreshStatusBar, { REFRESH_STATUS_MESSAGES } from '../components/RefreshStatusBar';
 import { SkeletonMatchCard, SkeletonSectionHeader } from '../components/SkeletonLoader';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -1150,7 +1150,7 @@ export default function HomeScreen() {
       </ScrollView>
 
       {refreshing && !loading && (
-        <RefreshStatusBar />
+        <RefreshStatusBar message={REFRESH_STATUS_MESSAGES.matches} />
       )}
 
       {loading ? (

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import BottomTabBar from '../components/BottomTabBar';
 import EmptyStateCard from '../components/EmptyStateCard';
-import RefreshStatusBar from '../components/RefreshStatusBar';
+import RefreshStatusBar, { REFRESH_STATUS_MESSAGES } from '../components/RefreshStatusBar';
 import { SkeletonLeagueTable } from '../components/SkeletonLoader';
 import TieCard from '../components/TieCard';
 import { useTheme } from '../context/ThemeContext';
@@ -226,7 +226,7 @@ export default function LeaguesScreen() {
       </View>
 
       {refreshing && !loading && (
-        <RefreshStatusBar message="Lig verileri yenileniyor..." />
+        <RefreshStatusBar message={REFRESH_STATUS_MESSAGES.leagues} />
       )}
 
       <ScrollView
