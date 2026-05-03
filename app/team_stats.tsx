@@ -19,6 +19,7 @@ import { DISPLAY_FOOTBALL_SEASON } from '../constants/seasons';
 import { formDataEmptyMessage } from '../utils/emptyStates';
 import scoutStyles from '../utils/scoutStyles';
 import { SeasonStats, calcSLSeasonStats, calcSeasonStats, getTeamProfile, parseForm, teamsMatch, transliterate } from '../utils/teamStats';
+import { isArrayOf, readTimedCache, writeTimedCache } from '../utils/timedCache';
 
 const AF_POSITION_MAP: Record<string, string> = {
   G: 'Kaleci', D: 'Defans', M: 'Orta saha', F: 'Forvet',
@@ -47,6 +48,28 @@ function playerNameKey(name?: string | null) {
   return transliterate(name || '').toLowerCase().trim();
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function isSlFormMatch(value: unknown): value is SLFormMatch {
+  if (!isRecord(value)) return false;
+  return typeof value.homeTeamId === 'number' &&
+    (typeof value.awayTeamId === 'number' || value.awayTeamId == null) &&
+    (typeof value.homeScore === 'number' || value.homeScore == null) &&
+    (typeof value.awayScore === 'number' || value.awayScore == null);
+}
+
+function isSlPlayer(value: unknown): value is SLPlayer {
+  if (!isRecord(value)) return false;
+  return typeof value.name === 'string';
+}
+
+function isSlScorer(value: unknown): value is SLScorer {
+  if (!isRecord(value)) return false;
+  return typeof value.name === 'string' && typeof value.goals === 'number' && typeof value.team === 'string';
+}
+
 const LIGHT_RANK_COLORS = [
   { bg: '#FAEEDA', color: '#633806' },
   { bg: '#D3D1C7', color: '#2C2C2A' },
@@ -64,22 +87,6 @@ const DARK_RANK_COLORS = [
 const SL_FORM_TTL    = 30 * 60 * 1000;       // 30 dakika
 const SL_PLAYERS_TTL =  6 * 60 * 60 * 1000;  // 6 saat
 const SL_SCORERS_TTL =  1 * 60 * 60 * 1000;  // 1 saat
-
-async function readSlCache<T>(key: string, ttl: number): Promise<T | null> {
-  try {
-    const raw = await AsyncStorage.getItem(key);
-    if (!raw) return null;
-    const { ts, data } = JSON.parse(raw) as { ts: number; data: T };
-    if (Date.now() - ts > ttl) return null;
-    return data;
-  } catch {
-    return null;
-  }
-}
-
-function writeSlCache(key: string, data: unknown): void {
-  AsyncStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })).catch(() => {});
-}
 
 function routeString(params: UnknownOutputParams, key: string, fallback = ''): string {
   const value = params[key];
@@ -253,25 +260,25 @@ export default function TeamStatsScreen() {
       const [cachedForm, cachedPlayers, cachedScorers] = force
         ? [null, null, null]
         : await Promise.all([
-            readSlCache<SLFormMatch[]>(formKey, SL_FORM_TTL),
-            readSlCache<SLPlayer[]>(playersKey, SL_PLAYERS_TTL),
-            readSlCache<SLScorer[]>(scorersKey, SL_SCORERS_TTL),
+            readTimedCache(formKey, SL_FORM_TTL, isArrayOf(isSlFormMatch)),
+            readTimedCache(playersKey, SL_PLAYERS_TTL, isArrayOf(isSlPlayer)),
+            readTimedCache(scorersKey, SL_SCORERS_TTL, isArrayOf(isSlScorer)),
           ]);
 
       const [formMatches, players, allScorers] = await Promise.all([
         cachedForm
           ? Promise.resolve(cachedForm)
-          : getSuperLigTeamForm(teamId).then(d => { writeSlCache(formKey, d); return d; }),
+          : getSuperLigTeamForm(teamId).then(d => { writeTimedCache(formKey, d); return d; }),
         apiId !== 203
           ? Promise.resolve<SLPlayer[]>([])
           : cachedPlayers
             ? Promise.resolve(cachedPlayers)
-            : getSuperLigPlayers(teamId).then(d => { writeSlCache(playersKey, d); return d; }),
+            : getSuperLigPlayers(teamId).then(d => { writeTimedCache(playersKey, d); return d; }),
         apiId !== 203
           ? Promise.resolve<SLScorer[]>([])
           : cachedScorers
             ? Promise.resolve(cachedScorers)
-            : getSuperLigScorers().then(d => { writeSlCache(scorersKey, d); return d; }),
+            : getSuperLigScorers().then(d => { writeTimedCache(scorersKey, d); return d; }),
       ]);
 
       // Form hesapla
