@@ -17,7 +17,7 @@ import { useTheme } from '../context/ThemeContext';
 import { DISPLAY_FOOTBALL_SEASON } from '../constants/seasons';
 import { formDataEmptyMessage } from '../utils/emptyStates';
 import scoutStyles from '../utils/scoutStyles';
-import { SeasonStats, calcSLSeasonStats, calcSeasonStats, getTeamProfile, teamsMatch, transliterate } from '../utils/teamStats';
+import { SeasonStats, calcSLSeasonStats, calcSeasonStats, getTeamProfile, parseForm, teamsMatch, transliterate } from '../utils/teamStats';
 
 const AF_POSITION_MAP: Record<string, string> = {
   G: 'Kaleci', D: 'Defans', M: 'Orta saha', F: 'Forvet',
@@ -167,16 +167,7 @@ export default function TeamStatsScreen() {
     setFormLoadError(false);
     try {
       const matches = await getTeamForm(teamId);
-      const form = matches
-        .filter((m) => m.score?.fullTime?.home != null)
-        .slice(-5)
-        .map((m) => {
-          const isHome = m.homeTeam?.id === teamId;
-          const gfor = isHome ? m.score.fullTime.home : m.score.fullTime.away;
-          const gag  = isHome ? m.score.fullTime.away : m.score.fullTime.home;
-          return (gfor ?? 0) > (gag ?? 0) ? 'G' : (gfor ?? 0) === (gag ?? 0) ? 'B' : 'M';
-        });
-      setRecentForm(form);
+      setRecentForm(parseForm(matches, teamId, false));
       setSeasonStats(calcSeasonStats(matches, teamId));
     } catch {
       setFormLoadError(true);

@@ -6,7 +6,7 @@ import {
   Alert, Image, Linking, Modal, RefreshControl, ScrollView, StyleSheet,
   Switch, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
-import { FDMatch, SLFormMatch, Standing, getSuperLigStandings, getSuperLigTeamForm, getStandings, getTeamForm } from '../services/api';
+import { Standing, getSuperLigStandings, getSuperLigTeamForm, getStandings, getTeamForm } from '../services/api';
 import EmptyStateCard from '../components/EmptyStateCard';
 import {
   DEFAULT_PREFS, NotifPrefs, cancelAllNotifications,

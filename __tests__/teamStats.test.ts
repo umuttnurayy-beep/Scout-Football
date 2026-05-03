@@ -1,7 +1,7 @@
 jest.mock('../services/api', () => ({}));
 
 import type { FDMatch, SLFormMatch } from '../services/api';
-import { transliterate, teamsMatch, parseForm, calcSeasonStats, calcSLSeasonStats } from '../utils/teamStats';
+import { transliterate, teamsMatch, parseForm, calcSeasonStats, calcSLSeasonStats, normalizeTeamName, getTeamProfile } from '../utils/teamStats';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -313,5 +313,86 @@ describe('calcSLSeasonStats', () => {
     const r = calcSLSeasonStats([makeSLMatch(TEAM, 0, 2)], TEAM)!;
     expect(r.failedToScorePct).toBe(100);
     expect(r.cleanSheetPct).toBe(0);
+  });
+});
+
+// ─── normalizeTeamName ────────────────────────────────────────────────────────
+
+describe('normalizeTeamName', () => {
+  test('lowercases and strips FC prefix', () => {
+    expect(normalizeTeamName('Arsenal FC')).toBe('arsenal');
+  });
+
+  test('strips AFC prefix', () => {
+    expect(normalizeTeamName('AFC Bournemouth')).toBe('bournemouth');
+  });
+
+  test('strips SC and CF tokens', () => {
+    expect(normalizeTeamName('SC Freiburg')).toBe('freiburg');
+    expect(normalizeTeamName('Cádiz CF')).toBe('cdiz');
+  });
+
+  test('removes non-alphanumeric characters', () => {
+    expect(normalizeTeamName("Brighton & Hove Albion")).toBe('brighton hove albion');
+  });
+
+  test('collapses multiple spaces', () => {
+    expect(normalizeTeamName('Manchester  City')).toBe('manchester city');
+  });
+
+  test('plain name passes through lowercased', () => {
+    expect(normalizeTeamName('Liverpool')).toBe('liverpool');
+  });
+});
+
+// ─── getTeamProfile ───────────────────────────────────────────────────────────
+
+describe('getTeamProfile', () => {
+  test('Dominant: avgGf ≥ 2.0 and avgGa ≤ 1.0', () => {
+    const p = getTeamProfile(2.0, 1.0, 60, false);
+    expect(p.label).toBe('Dominant');
+    expect(p.emoji).toBe('👑');
+  });
+
+  test('Tempolu: total goals > 3.2 (not Dominant)', () => {
+    // avgGf=2.0, avgGa=1.3 → total=3.3>3.2, but NOT dominant (ga>1.0)
+    const p = getTeamProfile(2.0, 1.3, 50, false);
+    expect(p.label).toBe('Tempolu');
+  });
+
+  test('Hücumcu: avgGf ≥ 1.8 and avgGa ≥ 1.4 (total ≤ 3.2)', () => {
+    const p = getTeamProfile(1.8, 1.4, 50, false);
+    expect(p.label).toBe('Hücumcu');
+  });
+
+  test('Katı Savunmacı: avgGf ≤ 1.0 and avgGa ≤ 0.8', () => {
+    const p = getTeamProfile(0.9, 0.7, 40, false);
+    expect(p.label).toBe('Katı Savunmacı');
+  });
+
+  test('Savunmacı: avgGf ≤ 1.2 and avgGa ≤ 1.0 (but not Katı)', () => {
+    const p = getTeamProfile(1.1, 1.0, 40, false);
+    expect(p.label).toBe('Savunmacı');
+  });
+
+  test('Kırılgan Savunma: avgGa > 1.7 when total tempo does not dominate', () => {
+    const p = getTeamProfile(1.3, 1.8, 45, false);
+    expect(p.label).toBe('Kırılgan Savunma');
+  });
+
+  test('Kontrollü: winPct ≥ 55 and avgGf ≥ 1.5', () => {
+    const p = getTeamProfile(1.6, 1.2, 55, false);
+    expect(p.label).toBe('Kontrollü');
+  });
+
+  test('Dengeli: catch-all default', () => {
+    const p = getTeamProfile(1.3, 1.1, 45, false);
+    expect(p.label).toBe('Dengeli');
+  });
+
+  test('isDark changes color for Dominant', () => {
+    const light = getTeamProfile(2.0, 1.0, 60, false);
+    const dark  = getTeamProfile(2.0, 1.0, 60, true);
+    expect(light.color).not.toBe(dark.color);
   });
 });
