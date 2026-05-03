@@ -40,6 +40,7 @@ describe('RefreshStatusBar', () => {
     expect(text.props.children).toBe(REFRESH_STATUS_MESSAGES.default);
     expect(text.props.numberOfLines).toBe(1);
     expect(text.props.style[1]).toEqual({ color: colors.textSub });
+    expect(text.props.style[0]).toMatchObject({ flexShrink: 1, minWidth: 0 });
   });
 
   it('renders a screen-specific message when provided', () => {

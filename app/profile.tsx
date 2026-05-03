@@ -957,7 +957,7 @@ const styles = StyleSheet.create({
   favStatValue: { fontSize: 15, fontWeight: '700', color: '#fff', marginBottom: 3 },
   favStatLabel: { fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: '500', textAlign: 'center' },
   favStatDivider: { width: 0.5, height: 36, backgroundColor: 'rgba(255,255,255,0.2)' },
-  formDots: { flexDirection: 'row', gap: 4 },
+  formDots: { flexDirection: 'row', gap: 4, minHeight: 20, alignItems: 'center', justifyContent: 'center' },
   formDot: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   formDotText: { fontSize: 9, fontWeight: '700', color: '#fff' },
   // Keep static fallback colors for StyleSheet (overridden in JSX via c.win/draw/loss)
@@ -971,7 +971,7 @@ const styles = StyleSheet.create({
   watchlistInfo: { flex: 1 },
   watchlistName: { fontSize: 14, fontWeight: '600' },
   watchlistLeague: { fontSize: 12, marginTop: 2 },
-  watchlistForm: { flexDirection: 'row', gap: 3 },
+  watchlistForm: { width: 54, minHeight: 16, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 3 },
   formDotSm: { width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   formDotSmText: { fontSize: 7, fontWeight: '700', color: '#fff' },
   watchlistRemove: { padding: 6 },

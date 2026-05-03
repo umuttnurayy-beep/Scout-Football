@@ -36,5 +36,7 @@ const s = StyleSheet.create({
   text: {
     fontSize: 12,
     fontWeight: '500',
+    flexShrink: 1,
+    minWidth: 0,
   },
 });

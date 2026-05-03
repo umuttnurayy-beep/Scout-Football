@@ -63,11 +63,16 @@ describe('EmptyStateCard', () => {
     const retryLabel = retryButton.props.children[1];
 
     expect(card.props.style[1]).toEqual({ backgroundColor: '#F7F9FC', borderColor: colors.border });
+    expect(card.props.style[0]).toMatchObject({ minHeight: 58 });
+    expect(card.props.children[1].props.style).toMatchObject({ flex: 1, minWidth: 0 });
+    expect(card.props.children[1].props.children[0].props.numberOfLines).toBe(2);
     expect(retryButton.props.onPress).toBe(retry);
     expect(retryButton.props.style[1]).toEqual({ borderColor: colors.primary });
+    expect(retryButton.props.style[0]).toMatchObject({ maxWidth: 132, flexShrink: 0 });
     expect(retryButton.props.children[0].props).toMatchObject({ name: 'refresh', color: colors.primary });
     expect(retryLabel.props.children).toBe('Yeniden Yükle');
     expect(retryLabel.props.numberOfLines).toBe(1);
+    expect(retryLabel.props.style[0]).toMatchObject({ flexShrink: 1 });
   });
 
   it('omits retry controls when no retry handler is provided', () => {

@@ -26,9 +26,9 @@ export default function EmptyStateCard({
     return (
       <View style={[s.compact, { backgroundColor: isDark ? c.surface : '#F7F9FC', borderColor: c.border }]}>
         <Text style={s.compactIcon}>{icon}</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={[s.compactTitle, { color: c.text }]}>{title}</Text>
-          {subtitle ? <Text style={[s.compactSub, { color: c.textSub }]}>{subtitle}</Text> : null}
+        <View style={s.compactCopy}>
+          <Text style={[s.compactTitle, { color: c.text }]} numberOfLines={2}>{title}</Text>
+          {subtitle ? <Text style={[s.compactSub, { color: c.textSub }]} numberOfLines={2}>{subtitle}</Text> : null}
         </View>
         {onRetry ? (
           <TouchableOpacity onPress={onRetry} style={[s.retryPill, { borderColor: c.primary }]} activeOpacity={0.7}>
@@ -89,11 +89,13 @@ const s = StyleSheet.create({
     marginHorizontal: 14,
     marginVertical: 8,
     padding: 12,
+    minHeight: 58,
     borderRadius: 10,
     borderWidth: 1,
     gap: 10,
   },
   compactIcon:  { fontSize: 22 },
+  compactCopy:  { flex: 1, minWidth: 0 },
   compactTitle: { fontSize: 13, fontWeight: '600', marginBottom: 2 },
   compactSub:   { fontSize: 12, lineHeight: 16 },
   retryPill: {
@@ -106,6 +108,7 @@ const s = StyleSheet.create({
     paddingVertical: 5,
     minHeight: 30,
     flexShrink: 0,
+    maxWidth: 132,
   },
-  retryPillText: { fontSize: 12, fontWeight: '600' },
+  retryPillText: { fontSize: 12, fontWeight: '600', flexShrink: 1 },
 });
