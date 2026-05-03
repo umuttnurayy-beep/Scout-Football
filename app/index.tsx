@@ -15,7 +15,7 @@ import {
   H2HRawItem, HomeData, checkBackendHealth, clearLastApiError, getAllSportsH2H, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, Standing,
 } from '../services/api';
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
-import { dataNoticeMessage, matchListEmptyMessage, summarizeSourceWarnings } from '../utils/emptyStates';
+import { dataNoticeMessage, matchListEmptyMessage } from '../utils/emptyStates';
 import {
   FeaturedMatchCache, ListItem, Match, Metrics,
   STANDINGS_LEAGUES,
@@ -442,11 +442,12 @@ export default function HomeScreen() {
   const [homeDataWarningText, setHomeDataWarningText] = useState<string | null>(null);
   const [loading, setLoading]           = useState(true);
   const [refreshing, setRefreshing]     = useState(false);
-  const [backendOffline, setBackendOffline] = useState(false);
+  const [, setBackendOffline] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const dateList          = useMemo(getDateList, []);
   const initialFocusDone  = useRef(false);
   const loadSeq           = useRef(0);
+  const lastGoodVisibleByDate = useRef<Record<string, Match[]>>({});
 
   useEffect(() => {
     AsyncStorage.getItem(FEATURED_MATCH_CACHE_KEY)
@@ -533,7 +534,7 @@ export default function HomeScreen() {
         const hydratedHomeData = await hydratePartialHomeData(dateStr, homeData);
         if (requestId !== loadSeq.current) return;
         applyHomeData(dateStr, hydratedHomeData, {
-          notice: hydratedHomeData.stale ? 'stale' : hydratedHomeData.sourceSeverity ?? null,
+          notice: null,
           persist: true,
         });
         return;
@@ -549,7 +550,7 @@ export default function HomeScreen() {
         if (rawHome) {
           const cachedHome = JSON.parse(rawHome);
           if (requestId !== loadSeq.current) return;
-          applyHomeData(dateStr, cachedHome, { notice: 'cache' });
+          applyHomeData(dateStr, cachedHome, { notice: null });
           return;
         }
       } catch {}
@@ -582,9 +583,10 @@ export default function HomeScreen() {
       (homeData.matches?.length ?? 0) === 0 &&
       (homeData.superLigMatches?.length ?? 0) > 0;
     const payloadVisible = buildVisibleMatches(homeData.matches || [], homeData.superLigMatches || []);
-    const visible = mainSourceMissing && matches.some(m => m.leagueApiId !== 203)
+    const preservedVisible = lastGoodVisibleByDate.current[dateStr] || matches;
+    const visible = mainSourceMissing && preservedVisible.some(m => m.leagueApiId !== 203)
       ? [
-        ...matches.filter(m => m.leagueApiId !== 203),
+        ...preservedVisible.filter(m => m.leagueApiId !== 203),
         ...payloadVisible.filter(m => m.leagueApiId === 203),
       ]
       : payloadVisible;
@@ -593,12 +595,12 @@ export default function HomeScreen() {
     setMatches(visible);
     setBackendFeaturedMatchId(homeData.featuredMatchId ?? null);
     setHomeDataNotice(options.notice);
-    setHomeDataWarningText(
-      options.notice && options.notice !== 'stale' && options.notice !== 'cache'
-        ? summarizeSourceWarnings(homeData.sourceWarnings, homeData.sourceSeverity)
-        : null,
-    );
+    setHomeDataWarningText(null);
     setNextDayPreview(visible.length <= 1 ? buildNextPreviewFromHomeData(homeData, nextStandingsMap) : null);
+
+    if (!mainSourceMissing && visible.some(m => m.leagueApiId !== 203)) {
+      lastGoodVisibleByDate.current[dateStr] = visible;
+    }
 
     if (options.persist && !mainSourceMissing) {
       persistStandingsCache(dateStr, nextStandingsMap);
@@ -647,7 +649,7 @@ export default function HomeScreen() {
   }
 
   function applyFallbackNoticeFromApiState() {
-    setHomeDataNotice(getLastApiError() ? 'error' : null);
+    setHomeDataNotice(null);
     setHomeDataWarningText(null);
   }
 
@@ -908,7 +910,7 @@ export default function HomeScreen() {
   const listItems = useMemo<ListItem[]>(() => {
     const scoutMode = activeFilter === 'Scout' && featuredMatches.length > 0;
     const items: ListItem[] = [];
-    if (activeFilter === 'Scout' && homeDataNotice) {
+    if (activeFilter === 'Scout' && homeDataNotice === 'error' && featuredMatches.length === 0) {
       items.push({ key: `notice-${homeDataNotice}`, type: 'notice', notice: homeDataNotice, warningText: homeDataWarningText });
     }
 
@@ -1034,10 +1036,6 @@ export default function HomeScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
-  const retryBackendHealth = useCallback(() => {
-    checkBackendHealth().then(ok => setBackendOffline(!ok));
-  }, []);
-
   const openLeagues = useCallback(() => {
     router.push('/leagues');
   }, [router]);
@@ -1151,19 +1149,6 @@ export default function HomeScreen() {
           </View>
         </TouchableOpacity>
       </View>
-
-      {/* Backend offline banner */}
-      {backendOffline && (
-        <View style={[styles.offlineBanner, { backgroundColor: isDark ? '#2B1F1A' : '#FFF1EC', borderColor: isDark ? '#7B4A37' : '#F2B39A' }]}>
-          <Ionicons name="cloud-offline-outline" size={14} color="#E16F3D" />
-          <Text style={[styles.offlineBannerText, { color: isDark ? '#F5A07A' : '#A84324' }]}>
-            Sunucuya ulaşılamıyor — veriler son cache&apos;ten yükleniyor
-          </Text>
-          <TouchableOpacity onPress={retryBackendHealth}>
-            <Text style={[styles.offlineRetry, { color: '#E16F3D' }]}>Yenile</Text>
-          </TouchableOpacity>
-        </View>
-      )}
 
       {/* Tarih şeridi */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false}

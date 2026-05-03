@@ -88,15 +88,15 @@ export function staleAnalysisMessage(): string {
 
 export function dataNoticeMessage(type: 'stale' | 'cache' | 'warning' | 'error'): string {
   if (type === 'stale') {
-    return 'Sunucu güncel veriyi hazırlayamadı; ekranda son başarılı sunucu yanıtı gösteriliyor.';
+    return 'Veriler güncelleniyor; maç listesi hazır olduğunda otomatik yenilenecek.';
   }
   if (type === 'cache') {
-    return 'Sunucuya ulaşılamadı; ekranda bu cihazdaki son kayıtlı maç verisi gösteriliyor.';
+    return 'Maç listesi hazırlanıyor; güncellemek için tekrar deneyebilirsin.';
   }
   if (type === 'warning') {
-    return 'Bazı yardımcı veri kaynakları sınırlı çalışıyor; ana maç listesi mevcut ama bazı karşılaştırmalar eksik olabilir.';
+    return 'Bazı analiz verileri hazırlanıyor; maç listesi kullanılabilir.';
   }
-  return 'Veri şu an alınamadı. Ekrandaki bilgiler eski cache veya sınırlı kaynakla yüklenmiş olabilir.';
+  return 'Veriler şu an yenilenemedi. Birazdan tekrar deneyebilirsin.';
 }
 
 export function summarizeSourceWarnings(

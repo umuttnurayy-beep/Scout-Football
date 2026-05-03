@@ -10,18 +10,20 @@ import {
 } from '../utils/emptyStates';
 
 describe('dataNoticeMessage', () => {
-  it('distinguishes server stale data from local device cache', () => {
+  it('keeps cache and stale notices non-technical', () => {
     const stale = dataNoticeMessage('stale');
     const cache = dataNoticeMessage('cache');
 
-    expect(stale).toContain('son başarılı sunucu yanıtı');
-    expect(cache).toContain('bu cihazdaki son kayıtlı maç verisi');
+    expect(stale).toContain('Veriler güncelleniyor');
+    expect(cache).toContain('Maç listesi hazırlanıyor');
+    expect(cache).not.toContain('cihazdaki');
+    expect(cache).not.toContain('cache');
     expect(stale).not.toBe(cache);
   });
 
   it('keeps warning and error notices user-facing', () => {
-    expect(dataNoticeMessage('warning')).toContain('yardımcı veri kaynakları');
-    expect(dataNoticeMessage('error')).toContain('Veri şu an alınamadı');
+    expect(dataNoticeMessage('warning')).toContain('analiz verileri');
+    expect(dataNoticeMessage('error')).toContain('Veriler şu an yenilenemedi');
   });
 });
 

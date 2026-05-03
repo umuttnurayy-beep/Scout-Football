@@ -181,9 +181,19 @@ export default function MatchDetail() {
     let cancelled = false;
     async function load(){
       setLoading(true);
+      if (routeFallbackMatch) {
+        setMatchData(routeFallbackMatch);
+        setLoading(false);
+        setSecondaryLoading(true);
+      }
       const contextPayload = await getMatchContext(matchId, finishedParam);
-      const stats = contextPayload?.match || await getMatchStats(matchId) || routeFallbackMatch;
+      const stats = contextPayload?.match || routeFallbackMatch || await getMatchStats(matchId);
       if (cancelled) return;
+      if (!stats) {
+        setLoading(false);
+        setSecondaryLoading(false);
+        return;
+      }
       const matchContext = resolveMatchContext(stats, { home, away, city, homeTeamId, awayTeamId });
       const contextIssues = new Set(contextPayload?.issues || []);
       let homeFormValue = contextPayload?.homeForm || [];

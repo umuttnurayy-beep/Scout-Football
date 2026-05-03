@@ -17,10 +17,12 @@ import { isStaleApiData, logApiError, readApiJson, recordContextFallback } from 
 const BASE_URL = API_BASE_URL;
 
 const FETCH_TIMEOUT_MS = 12_000;
+const HOME_FETCH_TIMEOUT_MS = 25_000;
+const CONTEXT_FETCH_TIMEOUT_MS = 20_000;
 
-function fetchWithTimeout(url: string, opts?: RequestInit): Promise<Response> {
+function fetchWithTimeout(url: string, opts?: RequestInit, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timer));
 }
 
@@ -399,7 +401,7 @@ export async function getTodayMatches(date?: string): Promise<FDMatch[]> {
 
 export async function getHomeData(date: string): Promise<HomeData | null> {
   try {
-    const res = await fetchWithTimeout(`${BASE_URL}/home?date=${encodeURIComponent(date)}`);
+    const res = await fetchWithTimeout(`${BASE_URL}/home?date=${encodeURIComponent(date)}`, undefined, HOME_FETCH_TIMEOUT_MS);
     const data = await readApiJson<unknown>(res, null);
     if (!isRecord(data) || !Array.isArray(data.matches) || !Array.isArray(data.superLigMatches)) return null;
     return {
@@ -446,7 +448,7 @@ export type MatchContextData = {
 export async function getMatchContext(matchId: string, isFinished?: boolean): Promise<MatchContextData | null> {
   try {
     const url = isFinished ? `${BASE_URL}/match/${matchId}/context?finished=1` : `${BASE_URL}/match/${matchId}/context`;
-    const res = await fetchWithTimeout(url);
+    const res = await fetchWithTimeout(url, undefined, CONTEXT_FETCH_TIMEOUT_MS);
     const data = await readApiJson<MatchContextData | null>(res, null);
     if (!data || !data.match) return null;
     return {

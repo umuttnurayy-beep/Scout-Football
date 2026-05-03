@@ -136,6 +136,11 @@ export function clearContextFallbackStats() {
   contextFallbackStats.recent = [];
 }
 
+function isAbortLikeError(error: unknown): error is Error {
+  if (!(error instanceof Error)) return false;
+  return error.name === 'AbortError' || /aborted|abort/i.test(error.message);
+}
+
 export function logApiError(scope: string, error: unknown) {
   if (error instanceof ApiResponseError) {
     lastApiError = {
@@ -146,6 +151,16 @@ export function logApiError(scope: string, error: unknown) {
       at: Date.now(),
     };
     console.error(`${scope} hata: [${error.code}] ${error.message}`);
+    return;
+  }
+  if (isAbortLikeError(error)) {
+    lastApiError = {
+      scope,
+      code: 'request_aborted',
+      message: error.message || 'Request aborted',
+      at: Date.now(),
+    };
+    console.warn(`${scope} zaman aşımı: ${lastApiError.message}`);
     return;
   }
   lastApiError = {
