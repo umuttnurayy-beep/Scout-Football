@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import type { UnknownOutputParams } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Image, RefreshControl, ScrollView, StyleSheet,
@@ -80,24 +81,42 @@ function writeSlCache(key: string, data: unknown): void {
   AsyncStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })).catch(() => {});
 }
 
+function routeString(params: UnknownOutputParams, key: string, fallback = ''): string {
+  const value = params[key];
+  if (Array.isArray(value)) return value[0] ?? fallback;
+  return value ?? fallback;
+}
+
+function routeInt(params: UnknownOutputParams, key: string): number {
+  return parseInt(routeString(params, key, '0'), 10) || 0;
+}
+
+type RecentTeam = { id: number; apiId: number; name?: string; leagueName?: string; timestamp?: number };
+
+function isRecentTeam(value: unknown): value is RecentTeam {
+  if (!value || typeof value !== 'object') return false;
+  const item = value as Partial<RecentTeam>;
+  return typeof item.id === 'number' && typeof item.apiId === 'number';
+}
+
 export default function TeamStatsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { colors: c, isDark } = useTheme();
 
-  const teamName  = Array.isArray(params.teamName)  ? params.teamName[0]  : (params.teamName  || '');
-  const teamId    = parseInt(Array.isArray(params.teamId)   ? params.teamId[0]   : (params.teamId   || '0'));
-  const leagueName = Array.isArray(params.leagueName) ? params.leagueName[0] : (params.leagueName || '');
-  const leagueFlag = Array.isArray(params.leagueFlag) ? params.leagueFlag[0] : (params.leagueFlag || '');
-  const apiId = parseInt(Array.isArray(params.apiId) ? params.apiId[0] : (params.apiId || '0'));
-  const fdId  = parseInt(Array.isArray(params.fdId)  ? params.fdId[0]  : (params.fdId  || '0'));
-  const played = parseInt(Array.isArray(params.played) ? params.played[0] : (params.played || '0'));
-  const win    = parseInt(Array.isArray(params.win)    ? params.win[0]    : (params.win    || '0'));
-  const draw   = parseInt(Array.isArray(params.draw)   ? params.draw[0]   : (params.draw   || '0'));
-  const loss   = parseInt(Array.isArray(params.loss)   ? params.loss[0]   : (params.loss   || '0'));
-  const gf     = parseInt(Array.isArray(params.gf)     ? params.gf[0]     : (params.gf     || '0'));
-  const ga     = parseInt(Array.isArray(params.ga)     ? params.ga[0]     : (params.ga     || '0'));
-  const pts    = parseInt(Array.isArray(params.pts)    ? params.pts[0]    : (params.pts    || '0'));
+  const teamName   = routeString(params, 'teamName');
+  const teamId     = routeInt(params, 'teamId');
+  const leagueName = routeString(params, 'leagueName');
+  const leagueFlag = routeString(params, 'leagueFlag');
+  const apiId      = routeInt(params, 'apiId');
+  const fdId       = routeInt(params, 'fdId');
+  const played     = routeInt(params, 'played');
+  const win        = routeInt(params, 'win');
+  const draw       = routeInt(params, 'draw');
+  const loss       = routeInt(params, 'loss');
+  const gf         = routeInt(params, 'gf');
+  const ga         = routeInt(params, 'ga');
+  const pts        = routeInt(params, 'pts');
 
   const [activeTab, setActiveTab] = useState<'takim' | 'oyuncular'>('takim');
 
@@ -170,8 +189,9 @@ export default function TeamStatsScreen() {
   async function recordRecentlyViewed() {
     try {
       const raw = await AsyncStorage.getItem('scout_recent');
-      const list = raw ? JSON.parse(raw) : [];
-      const filtered = (list as { id: number; apiId: number }[]).filter((r) => !(r.id === teamId && r.apiId === apiId));
+      const parsed = raw ? JSON.parse(raw) as unknown : [];
+      const list = Array.isArray(parsed) ? parsed.filter(isRecentTeam) : [];
+      const filtered = list.filter((r) => !(r.id === teamId && r.apiId === apiId));
       const updated = [{ id: teamId, name: teamName, leagueName, apiId, timestamp: Date.now() }, ...filtered].slice(0, 10);
       await AsyncStorage.setItem('scout_recent', JSON.stringify(updated));
     } catch {}
