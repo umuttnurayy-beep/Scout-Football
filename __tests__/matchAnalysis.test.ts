@@ -6,13 +6,28 @@ jest.mock('../services/config', () => ({
 }));
 
 import {
+  buildMatchCharacterDetail,
+  buildReasons,
+  buildScoutPick,
+  buildScoutSummary,
+  calcFormPoints,
+  calcFormStats,
   getMotivationComment,
   getDeepH2HStats,
+  getH2HComment,
+  getOddsComment,
+  getRefereeProfile,
+  getStat,
+  getTeamStyle,
   getGuven,
   getWeatherComment,
   isWeatherRisk,
   getDrawAnalysis,
   getCompareComment,
+  getUclKnockoutMotivation,
+  resolveFormTeamIds,
+  resolveMatchContext,
+  resolveWeatherCity,
   strHash,
   shiftLevel,
   MIN_H2H,
@@ -393,5 +408,168 @@ describe('getCompareComment', () => {
   it('handles equal stats without crashing', () => {
     const st = makeStats({ totalAvgGf: '1.5', totalAvgGa: '1.2' });
     expect(() => getCompareComment(st, st, 'TeamA', 'TeamB')).not.toThrow();
+  });
+});
+
+describe('scout narrative builders', () => {
+  const openHome = makeStats({
+    total: 10,
+    totalAvgGf: '2.0',
+    totalAvgGa: '1.6',
+    over25Pct: 72,
+    kgVarPct: 64,
+    homeWinPct: 70,
+    homePlayed: 6,
+  });
+  const openAway = makeStats({
+    total: 10,
+    totalAvgGf: '1.9',
+    totalAvgGa: '1.5',
+    over25Pct: 68,
+    kgVarPct: 60,
+    awayWinPct: 25,
+    awayPlayed: 6,
+  });
+  const lowGoal = makeStats({
+    total: 9,
+    totalAvgGf: '0.9',
+    totalAvgGa: '0.8',
+    over25Pct: 24,
+    kgVarPct: 32,
+    homeWinPct: 30,
+    awayWinPct: 25,
+    homePlayed: 5,
+    awayPlayed: 5,
+  });
+
+  it('buildReasons mixes base facts with advanced caveats', () => {
+    const reasons = buildReasons(
+      'Home',
+      'Away',
+      makeStats({ total: 4, totalAvgGf: '1.8', totalAvgGa: '1.5', over25Pct: 70, kgVarPct: 35, homeWinPct: 90, homePlayed: 2 }),
+      makeStats({ total: 5, totalAvgGf: '1.2', totalAvgGa: '1.7', over25Pct: 65, kgVarPct: 40, awayWinPct: 20, awayPlayed: 2 }),
+      9,
+      4,
+      1,
+      3,
+      { direction: 'up', pts5: 10, ptsPrev: 3 },
+      { direction: 'down', pts5: 2, ptsPrev: 8 },
+      true,
+    );
+
+    expect(reasons.length).toBeGreaterThanOrEqual(5);
+    expect(reasons.length).toBeLessThanOrEqual(10);
+    expect(reasons.join(' ')).toContain('Home');
+  });
+
+  it('buildScoutSummary highlights high-tempo profiles and weather caveats', () => {
+    const summary = buildScoutSummary(
+      'Home',
+      'Away',
+      openHome,
+      openAway,
+      10,
+      8,
+      5,
+      true,
+      0,
+      { direction: 'up', pts5: 10, ptsPrev: 4 },
+      { direction: 'stable', pts5: 5, ptsPrev: 5 },
+    );
+
+    expect(summary.length).toBeGreaterThan(80);
+    expect(summary).toContain('Hava');
+  });
+
+  it('buildScoutPick returns goals, low-score, home, away and caution tones', () => {
+    expect(buildScoutPick('Home', 'Away', openHome, openAway, 9, 7, 5, false).tone).toBe('goals');
+    expect(buildScoutPick('Home', 'Away', lowGoal, lowGoal, 5, 5, 5, false).tone).toBe('draw');
+    expect(buildScoutPick('Home', 'Away', openHome, lowGoal, 12, 3, 5, false).tone).toBe('home');
+    expect(buildScoutPick('Home', 'Away', lowGoal, openAway, 2, 12, 5, false).tone).toBe('away');
+    expect(buildScoutPick('Home', 'Away', makeStats({ total: 2, totalAvgGf: '1.1', over25Pct: 48, kgVarPct: 40 }), makeStats({ total: 2, totalAvgGf: '1.0', over25Pct: 46, kgVarPct: 42 }), 3, 3, 0, true).tone).toBe('caution');
+  });
+
+  it('buildMatchCharacterDetail picks style, attack and fallback narratives', () => {
+    expect(buildMatchCharacterDetail('Home', 'Away', openHome, openAway, 8, 7, 0, 'Dominant', 'Savunmacı')).toContain('Home');
+    expect(buildMatchCharacterDetail('Home', 'Away', lowGoal, lowGoal, 4, 4, 0).length).toBeGreaterThan(40);
+    expect(buildMatchCharacterDetail('Home', 'Away', makeStats({ totalAvgGf: '1.3', totalAvgGa: '1.3', over25Pct: 50, kgVarPct: 50 }), makeStats({ totalAvgGf: '1.4', totalAvgGa: '1.4', over25Pct: 50, kgVarPct: 50 }), 6, 6, 0).length).toBeGreaterThan(40);
+  });
+});
+
+describe('form and detail helper utilities', () => {
+  const fixtures = [
+    { utcDate: '2025-01-03', homeTeam: { id: 1, name: 'Home' }, awayTeam: { id: 2, name: 'Away' }, score: { fullTime: { home: 3, away: 1 } } },
+    { utcDate: '2025-01-01', homeTeam: { id: 2, name: 'Away' }, awayTeam: { id: 1, name: 'Home' }, score: { fullTime: { home: 0, away: 0 } } },
+    { utcDate: '2025-01-02', homeTeam: { id: 1, name: 'Home' }, awayTeam: { id: 3, name: 'Other' }, score: { fullTime: { home: 1, away: 2 } } },
+    { utcDate: '2025-01-04', homeTeam: { id: 4, name: 'Fourth' }, awayTeam: { id: 1, name: 'Home' }, score: { fullTime: { home: 1, away: 2 } } },
+    { utcDate: '2025-01-05', homeTeam: { id: 1, name: 'Home' }, awayTeam: { id: 5, name: 'Fifth' }, score: { fullTime: { home: 2, away: 2 } } },
+    { utcDate: '2025-01-06', homeTeam: { id: 6, name: 'Sixth' }, awayTeam: { id: 1, name: 'Home' }, score: { fullTime: { home: 0, away: 1 } } },
+    { utcDate: '2025-01-07', homeTeam: { id: 1, name: 'Home' }, awayTeam: { id: 7, name: 'NoScore' }, score: { fullTime: { home: null, away: null } } },
+  ] as any[];
+
+  it('calcFormStats aggregates home/away splits and percentages', () => {
+    const stats = calcFormStats(fixtures, 1);
+
+    expect(stats.total).toBe(6);
+    expect(stats.homePlayed).toBe(3);
+    expect(stats.awayPlayed).toBe(3);
+    expect(stats.homeWinPct).toBe(33);
+    expect(stats.awayWinPct).toBe(67);
+    expect(stats.over25Pct).toBe(67);
+    expect(stats.kgVarPct).toBe(67);
+  });
+
+  it('calcFormPoints sorts chronologically before taking the latest five', () => {
+    expect(calcFormPoints(fixtures, 1)).toBe(10);
+  });
+
+  it('getStat reads fuzzy stat keys and falls back to zero', () => {
+    const stats = [
+      { type: 'Shots on Goal', value: '7' },
+      { type: 'Ball Possession', value: '61%' },
+    ];
+
+    expect(getStat(stats as any, 'shots on')).toBe(7);
+    expect(getStat(stats as any, 'possession')).toBe(61);
+    expect(getStat(stats as any, 'corners')).toBe(0);
+    expect(getStat(undefined, 'corners')).toBe(0);
+  });
+
+  it('getTeamStyle classifies notable scoring profiles', () => {
+    expect(getTeamStyle(makeStats({ totalAvgGf: '2.1', totalAvgGa: '0.8' }) as any).label).toBe('Dominant');
+    expect(getTeamStyle(makeStats({ totalAvgGf: '0.9', totalAvgGa: '0.8' }) as any).label).toContain('Savun');
+    expect(getTeamStyle(makeStats({ totalAvgGf: '1.3', totalAvgGa: '1.7' }) as any).label).toContain('Savun');
+  });
+
+  it('H2H, odds, referee and UCL helper text branches return usable narratives', () => {
+    expect(getH2HComment(makeH2H(2, 1, 0) as any, 'Home FC', 'Away FC')).toBeTruthy();
+    expect(getH2HComment(makeH2H(6, 5, 0) as any, 'Home FC', 'Away FC')).toContain('5/6');
+    expect(getOddsComment(null, 'Home', {} as any)).toBeTruthy();
+    expect(getOddsComment({ home: '1.45', away: '7.0' } as any, 'Home', { risk: 'Düşük' } as any)).toContain('1.45');
+    expect(getOddsComment({ home: '2.2', away: '2.2' } as any, 'Home', { risk: 'Orta' } as any)).toBeTruthy();
+    expect(getRefereeProfile('Sample Referee', 2021).narrative.length).toBeGreaterThan(20);
+    expect(getUclKnockoutMotivation('FINAL')).toBeTruthy();
+    expect(getUclKnockoutMotivation('UNKNOWN_STAGE')).toBeTruthy();
+  });
+
+  it('resolver helpers prefer API detail but fall back to route data', () => {
+    const stats = {
+      homeTeam: { id: 11, name: 'Manchester United', shortName: 'Man United' },
+      awayTeam: { id: 22, name: 'Chelsea', shortName: 'Chelsea' },
+      status: 'TIMED',
+      stage: 'REGULAR_SEASON',
+    } as any;
+
+    expect(resolveFormTeamIds(stats, 1, 2)).toEqual({ home: 11, away: 22 });
+    expect(resolveFormTeamIds(null, 1, 2)).toEqual({ home: 1, away: 2 });
+    expect(resolveWeatherCity('London', stats, 'Route Home')).toBe('London');
+    expect(resolveWeatherCity(null, stats, 'Route Home')).toBeTruthy();
+    expect(resolveMatchContext(stats, { home: 'Route Home', away: 'Route Away', city: null, homeTeamId: 1, awayTeamId: 2 })).toMatchObject({
+      homeName: 'Man United',
+      awayName: 'Chelsea',
+      homeTeamId: 11,
+      awayTeamId: 22,
+      status: 'TIMED',
+    });
   });
 });
