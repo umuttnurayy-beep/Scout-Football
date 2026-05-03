@@ -302,6 +302,19 @@ export default function MatchDetail() {
   const awayFormPts= calcFormPoints(awayForm,  formTeamIds.away);
   const hasFormData= homeStats.total>0 && awayStats.total>0;
   const { hasFormIssue, hasH2HIssue, hasWeatherIssue, hasOddsIssue } = detailIssueFlags(dataIssues);
+  const formDataPending = secondaryLoading && !hasFormData && !hasFormIssue;
+  const formNoticeMessage = (kind: 'performance' | 'comparison' | 'form' | 'homeAway' | 'prediction' | 'character') => {
+    if (!formDataPending) return detailDataMessage(kind, hasFormIssue ? 'sourceError' : 'empty');
+    switch (kind) {
+      case 'performance': return 'Performans verisi yükleniyor...';
+      case 'comparison': return 'Takım karşılaştırması hazırlanıyor...';
+      case 'form': return 'Son form verisi yükleniyor...';
+      case 'homeAway': return 'İç saha / deplasman analizi hazırlanıyor...';
+      case 'prediction': return 'Scout tahmini hesaplanıyor...';
+      case 'character': return 'Maç karakteri hazırlanıyor...';
+      default: return 'Veriler yükleniyor...';
+    }
+  };
 
   const weatherRisk= isWeatherRisk(weatherData);
   const homeTrend  = hasFormData ? getFormTrend(homeForm, formTeamIds.home) : null;
@@ -626,7 +639,7 @@ export default function MatchDetail() {
           </>
         ) : (
           <DetailDataNotice
-            message={detailDataMessage('performance', hasFormIssue ? 'sourceError' : 'empty')}
+            message={formNoticeMessage('performance')}
             boxStyle={styles.noDataBox}
             textStyle={styles.noDataText}
           />
@@ -653,7 +666,7 @@ export default function MatchDetail() {
           </>
         ) : (
           <DetailDataNotice
-            message={detailDataMessage('comparison', hasFormIssue ? 'sourceError' : 'empty')}
+            message={formNoticeMessage('comparison')}
             boxStyle={styles.noDataBox}
             textStyle={styles.noDataText}
           />
@@ -688,7 +701,7 @@ export default function MatchDetail() {
           </>
         ) : (
           <DetailDataNotice
-            message={detailDataMessage('form', hasFormIssue ? 'sourceError' : 'empty')}
+            message={formNoticeMessage('form')}
             boxStyle={styles.noDataBox}
             textStyle={styles.noDataText}
           />
@@ -700,7 +713,7 @@ export default function MatchDetail() {
           <DetailInsightBox message={homeAwayComment} boxStyle={[scStyles.insightBox,ts.insightBox]} textStyle={[scStyles.insightText,ts.insightText]} />
         ) : (
           <DetailDataNotice
-            message={detailDataMessage('homeAway', hasFormIssue ? 'sourceError' : 'empty')}
+            message={formNoticeMessage('homeAway')}
             boxStyle={styles.noDataBox}
             textStyle={styles.noDataText}
           />
@@ -964,7 +977,7 @@ export default function MatchDetail() {
           </>
         ) : (
           <DetailDataNotice
-            message={detailDataMessage('character', hasFormIssue ? 'sourceError' : 'empty')}
+            message={formNoticeMessage('character')}
             boxStyle={styles.noDataBox}
             textStyle={styles.noDataText}
           />

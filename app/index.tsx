@@ -19,7 +19,7 @@ import { dataNoticeMessage, matchListEmptyMessage } from '../utils/emptyStates';
 import {
   FeaturedMatchCache, ListItem, Match, Metrics,
   STANDINGS_LEAGUES,
-  buildDaySummary, buildNextPreviewFromHomeData, buildVisibleMatches,
+  buildDaySummary, buildHomeCardAnalysis, buildNextPreviewFromHomeData, buildVisibleMatches,
   computeMetrics, confidenceText, expectedLine, favoriteText,
   findStanding, hasUsableStandingsMap, levelFromExpectedGoals,
   NO_DATA,
@@ -31,7 +31,7 @@ import {
 // ─── constants ───────────────────────────────────────────────────────────────
 
 const STANDINGS_CACHE_KEY = 'scout_standings_cache_v5';
-const FEATURED_MATCH_CACHE_KEY = 'scout_featured_match_cache_v1';
+const FEATURED_MATCH_CACHE_KEY = 'scout_featured_match_cache_v3';
 const HOME_DATA_CACHE_KEY = 'scout_home_data_cache_v1';
 const STANDINGS_TTL = 60 * 60 * 1000; // 1 saat — aynı gün içinde de bayat puan tablosunu yenile
 type HomeDataNotice = 'stale' | 'cache' | 'warning' | 'error';
@@ -73,6 +73,7 @@ function isToday(date: Date) { return date.toDateString() === new Date().toDateS
 // ─── components ──────────────────────────────────────────────────────────────
 
 function HeroCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress: () => void }) {
+  const cardAnalysis = buildHomeCardAnalysis(m, metrics);
   return (
     <TouchableOpacity style={sc.heroCard} onPress={onPress} activeOpacity={0.85}>
       <View style={sc.heroTop}>
@@ -104,10 +105,10 @@ function HeroCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
             <Text style={sc.heroMetricDot}>·</Text>
             <Text style={sc.heroMetricPrimary} numberOfLines={1}>{favoriteText(m, metrics)}</Text>
           </View>
-          <Text style={sc.heroSummary}>{metrics.summary}</Text>
+          <Text style={sc.heroSummary}>{cardAnalysis.summary}</Text>
         </>
       ) : (
-        <Text style={sc.heroSummary}>{metrics.summary}</Text>
+        <Text style={sc.heroSummary}>{cardAnalysis.summary}</Text>
       )}
     </TouchableOpacity>
   );
@@ -203,6 +204,7 @@ function SingleH2HCard({ h2h }: { h2h: H2HRawItem[] }) {
 
 function TomorrowFeaturedCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress: () => void }) {
   const { colors: c } = useTheme();
+  const cardAnalysis = buildHomeCardAnalysis(m, metrics);
   return (
     <TouchableOpacity style={[sc.tomorrowCard, { backgroundColor: c.surface, borderColor: c.cardBorder }]} onPress={onPress} activeOpacity={0.86}>
       <View style={sc.hlTop}>
@@ -217,7 +219,7 @@ function TomorrowFeaturedCard({ m, metrics, onPress }: { m: Match; metrics: Metr
         <Text style={[sc.hlTime, { color: c.text }]}>{m.finished && m.score ? m.score : m.time}</Text>
         <Text style={[sc.hlTeam, { color: c.text, textAlign: 'right' }]} numberOfLines={1}>{m.away}</Text>
       </View>
-      <Text style={[sc.hlMetric, { color: c.primary }]}>{metrics.hasData ? `${expectedLine(metrics)} · ${favoriteText(m, metrics)}` : metrics.summary}</Text>
+      <Text style={[sc.hlMetric, { color: c.primary }]}>{metrics.hasData ? `${expectedLine(metrics)} · ${favoriteText(m, metrics)}` : cardAnalysis.summary}</Text>
     </TouchableOpacity>
   );
 }
@@ -358,6 +360,7 @@ function HighlightCard({ m, rank, metrics, onPress }: {
   m: Match; rank: number; metrics: Metrics; onPress: () => void;
 }) {
   const { colors: c } = useTheme();
+  const cardAnalysis = buildHomeCardAnalysis(m, metrics);
   const label = rank === 0 ? '⭐ Öne Çıkan' : rank === 1 ? '🎯 İzlenecek' : '📌 Dikkat';
   const borderColor = rank === 0 ? c.primary : rank === 1 ? '#E6A817' : c.textFaint;
   return (
@@ -374,10 +377,10 @@ function HighlightCard({ m, rank, metrics, onPress }: {
       {metrics.hasData ? (
         <>
           <Text style={[sc.hlMetric, { color: c.primary }]}>{expectedLine(metrics)} · {favoriteText(m, metrics)}</Text>
-          <Text style={[sc.hlSummary, { color: c.textSub }]}>{metrics.summary}</Text>
+          <Text style={[sc.hlSummary, { color: c.textSub }]}>{cardAnalysis.summary}</Text>
         </>
       ) : (
-        <Text style={[sc.hlSummary, { color: c.textSub }]}>{metrics.summary}</Text>
+        <Text style={[sc.hlSummary, { color: c.textSub }]}>{cardAnalysis.summary}</Text>
       )}
     </TouchableOpacity>
   );
@@ -433,10 +436,12 @@ export default function HomeScreen() {
   const { colors: c, isDark } = useTheme();
   const [activeFilter, setActiveFilter] = useState<string>('Scout');
   const [matches, setMatches]           = useState<Match[]>([]);
+  const [matchesDateStr, setMatchesDateStr] = useState<string | null>(null);
   const [standingsMap, setStandingsMap] = useState<Record<number, Standing[]>>({});
   const [nextDayPreview, setNextDayPreview] = useState<{ m: Match; metrics: Metrics } | null>(null);
   const [singleH2H, setSingleH2H] = useState<H2HRawItem[]>([]);
   const [featuredMatchCache, setFeaturedMatchCache] = useState<FeaturedMatchCache>({});
+  const [featuredCacheLoaded, setFeaturedCacheLoaded] = useState(false);
   const [backendFeaturedMatchId, setBackendFeaturedMatchId] = useState<number | null>(null);
   const [homeDataNotice, setHomeDataNotice] = useState<HomeDataNotice | null>(null);
   const [homeDataWarningText, setHomeDataWarningText] = useState<string | null>(null);
@@ -445,6 +450,8 @@ export default function HomeScreen() {
   const [, setBackendOffline] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const dateList          = useMemo(getDateList, []);
+  const selectedDateKey   = formatDateParam(selectedDate);
+  const matchesReadyForSelectedDate = matchesDateStr === selectedDateKey;
   const initialFocusDone  = useRef(false);
   const loadSeq           = useRef(0);
   const lastGoodVisibleByDate = useRef<Record<string, Match[]>>({});
@@ -452,9 +459,10 @@ export default function HomeScreen() {
   useEffect(() => {
     AsyncStorage.getItem(FEATURED_MATCH_CACHE_KEY)
       .then(raw => {
-        if (raw) setFeaturedMatchCache(JSON.parse(raw));
+        if (raw) setFeaturedMatchCache(prev => ({ ...JSON.parse(raw), ...prev }));
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setFeaturedCacheLoaded(true));
   }, []);
 
   useEffect(() => {
@@ -558,6 +566,7 @@ export default function HomeScreen() {
       if (!__DEV__) {
         setStandingsMap({});
         setMatches([]);
+        setMatchesDateStr(dateStr);
         setNextDayPreview(null);
         return;
       }
@@ -593,6 +602,7 @@ export default function HomeScreen() {
     const nextStandingsMap = hasUsableStandingsMap(homeStandings) ? homeStandings : standingsMap;
     setStandingsMap(nextStandingsMap);
     setMatches(visible);
+    setMatchesDateStr(dateStr);
     setBackendFeaturedMatchId(homeData.featuredMatchId ?? null);
     setHomeDataNotice(options.notice);
     setHomeDataWarningText(null);
@@ -663,6 +673,7 @@ export default function HomeScreen() {
     const rowsMap = await ensureStandingsForMatches(visible, dateStr, requestId, baseMap);
     if (requestId !== loadSeq.current) return;
     setMatches(visible);
+    setMatchesDateStr(dateStr);
     if (visible.length === 1) {
       void loadNextDayPreview(date, requestId, rowsMap);
     } else {
@@ -870,10 +881,11 @@ export default function HomeScreen() {
   }, [matches, metricsMap, selectedDate, backendFeaturedMatchId]);
 
   const filteredMatches = useMemo(() => {
+    if (!matchesReadyForSelectedDate) return [];
     if (activeFilter === 'Scout') return matches;
     const lig = LIG_FILTERS.find(f => f.label === activeFilter);
     return lig ? matches.filter(m => m.leagueApiId === lig.id) : matches;
-  }, [matches, activeFilter]);
+  }, [matches, activeFilter, matchesReadyForSelectedDate]);
 
   const sortedMatches = useMemo(
     () => [...filteredMatches].sort((a, b) => {
@@ -886,26 +898,25 @@ export default function HomeScreen() {
 
   const featuredMatches = useMemo(() => {
     if (activeFilter !== 'Scout' || sortedMatches.length === 0) return sortedMatches;
-    const backendFeatured = sortedMatches.find(m => m.id === backendFeaturedMatchId);
-    if (backendFeatured) return [backendFeatured, ...sortedMatches.filter(m => m.id !== backendFeatured.id)];
-    const dateKey = formatDateParam(selectedDate);
-    const cacheKey = `${dateKey}:Scout`;
+    if (!featuredCacheLoaded || !matchesReadyForSelectedDate) return [];
+    const cacheKey = `${selectedDateKey}:Scout`;
     const cachedId = featuredMatchCache[cacheKey];
     const cached = sortedMatches.find(m => m.id === cachedId);
-    if (!cached) return sortedMatches;
-    return [cached, ...sortedMatches.filter(m => m.id !== cached.id)];
-  }, [activeFilter, sortedMatches, backendFeaturedMatchId, selectedDate, featuredMatchCache]);
+    const stableFeatured = cached || sortedMatches.find(m => m.id === backendFeaturedMatchId);
+    if (!stableFeatured) return sortedMatches;
+    return [stableFeatured, ...sortedMatches.filter(m => m.id !== stableFeatured.id)];
+  }, [activeFilter, sortedMatches, backendFeaturedMatchId, selectedDateKey, featuredMatchCache, featuredCacheLoaded, matchesReadyForSelectedDate]);
 
   useEffect(() => {
     if (activeFilter !== 'Scout' || sortedMatches.length === 0) return;
-    if (backendFeaturedMatchId && sortedMatches.some(m => m.id === backendFeaturedMatchId)) return;
-    const dateKey = formatDateParam(selectedDate);
-    const cacheKey = `${dateKey}:Scout`;
+    if (!featuredCacheLoaded || !matchesReadyForSelectedDate) return;
+    const cacheKey = `${selectedDateKey}:Scout`;
     if (featuredMatchCache[cacheKey]) return;
-    const nextCache = { ...featuredMatchCache, [cacheKey]: sortedMatches[0].id };
+    const backendFeatured = sortedMatches.find(m => m.id === backendFeaturedMatchId);
+    const nextCache = { ...featuredMatchCache, [cacheKey]: (backendFeatured || sortedMatches[0]).id };
     setFeaturedMatchCache(nextCache);
     AsyncStorage.setItem(FEATURED_MATCH_CACHE_KEY, JSON.stringify(nextCache)).catch(() => {});
-  }, [activeFilter, sortedMatches, backendFeaturedMatchId, selectedDate, featuredMatchCache]);
+  }, [activeFilter, sortedMatches, backendFeaturedMatchId, selectedDateKey, featuredMatchCache, featuredCacheLoaded, matchesReadyForSelectedDate]);
 
   const listItems = useMemo<ListItem[]>(() => {
     const scoutMode = activeFilter === 'Scout' && featuredMatches.length > 0;
@@ -1194,7 +1205,7 @@ export default function HomeScreen() {
         <RefreshStatusBar message={REFRESH_STATUS_MESSAGES.matches} />
       )}
 
-      {loading ? (
+      {loading || !featuredCacheLoaded || !matchesReadyForSelectedDate ? (
         <ScrollView style={styles.scroll} contentContainerStyle={listContentStyle}>
           <SkeletonSectionHeader />
           {[0, 1, 2].map(i => <SkeletonMatchCard key={i} />)}

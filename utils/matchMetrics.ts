@@ -1,5 +1,5 @@
 import { FDMatch, H2HRawItem, HomeData, SLMatch, Standing, getCityForTeam } from '../services/api';
-import { strHash } from './matchAnalysis';
+import { buildScoutPick, strHash, type MatchFormStats } from './matchAnalysis';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -30,11 +30,25 @@ export const MARQUEE_MATCHUPS: { leagueApiId: number; teams: [string, string]; b
   { leagueApiId: 2014, teams: ['Real Madrid', 'Barcelona'], bonus: 12 },
   { leagueApiId: 2014, teams: ['Real Madrid', 'Atletico Madrid'], bonus: 8 },
   { leagueApiId: 2021, teams: ['Manchester United', 'Liverpool'], bonus: 10 },
+  { leagueApiId: 2021, teams: ['Man United', 'Liverpool'], bonus: 10 },
   { leagueApiId: 2021, teams: ['Manchester United', 'Manchester City'], bonus: 9 },
+  { leagueApiId: 2021, teams: ['Man United', 'Man City'], bonus: 9 },
   { leagueApiId: 2021, teams: ['Arsenal', 'Tottenham'], bonus: 8 },
   { leagueApiId: 2002, teams: ['Bayern', 'Dortmund'], bonus: 9 },
   { leagueApiId: 2015, teams: ['Paris Saint-Germain', 'Marseille'], bonus: 8 },
 ];
+
+export const MAJOR_TEAMS = [
+  'Real Madrid', 'Barcelona', 'Atletico Madrid',
+  'Bayern', 'Borussia Dortmund', 'Dortmund',
+  'Paris Saint-Germain', 'PSG',
+  'Arsenal', 'Liverpool', 'Manchester City', 'Man City', 'Manchester United', 'Man United', 'Man Utd', 'Chelsea', 'Tottenham',
+  'Inter', 'Internazionale', 'Milan', 'AC Milan', 'Juventus', 'Napoli', 'Roma',
+  'Galatasaray', 'Fenerbahce', 'Fenerbahçe', 'Besiktas', 'Beşiktaş', 'Trabzonspor',
+];
+
+const SINGLE_MAJOR_TEAM_BONUS = 7;
+const DOUBLE_MAJOR_TEAM_BONUS = 18;
 
 export const STANDINGS_LEAGUES: { leagueApiId: number; apiId: number }[] = [
   { leagueApiId: 2021, apiId: 39 },
@@ -81,6 +95,12 @@ export type Metrics = {
   awayAbovePts?: number;
   awayBelowPts?: number;
   safetyPts?: number;
+  homeAvgGf?: number;
+  homeAvgGa?: number;
+  awayAvgGf?: number;
+  awayAvgGa?: number;
+  homeWinPct?: number;
+  awayWinPct?: number;
   reason?: string;
   summary: string;
 };
@@ -270,6 +290,7 @@ export function computeMetrics(home: Standing | null, away: Standing | null, sta
   const tempo = (home.gf + home.ga + away.gf + away.ga) / (home.played + away.played);
 
   const round1 = (n: number) => Math.round(n * 10) / 10;
+  const pct = (n: number) => Math.round(n * 100);
   const leaderPts = standings?.reduce((max, s) => Math.max(max, s.pts), 0);
   const homeNeighbors = getStandingNeighbors(standings, home.pos);
   const awayNeighbors = getStandingNeighbors(standings, away.pos);
@@ -297,6 +318,12 @@ export function computeMetrics(home: Standing | null, away: Standing | null, sta
     awayAbovePts: awayNeighbors.abovePts,
     awayBelowPts: awayNeighbors.belowPts,
     safetyPts,
+    homeAvgGf: round1(homeAtk),
+    homeAvgGa: round1(homeDef),
+    awayAvgGf: round1(awayAtk),
+    awayAvgGa: round1(awayDef),
+    homeWinPct: pct(home.win / home.played),
+    awayWinPct: pct(away.win / away.played),
     summary: buildMatchSummary({ expectedGoals, favorite, confidence, tempo, homePpg, awayPpg }),
   };
 }
@@ -335,6 +362,21 @@ export function marqueeBonus(m: Match): number {
   return matchup?.bonus ?? 0;
 }
 
+function isMajorTeamName(teamName: string): boolean {
+  const team = normalizeTeam(teamName);
+  return MAJOR_TEAMS.some(major => {
+    const normalizedMajor = normalizeTeam(major);
+    return team.includes(normalizedMajor) || normalizedMajor.includes(team);
+  });
+}
+
+export function majorTeamBonus(m: Match): number {
+  const count = [m.home, m.away].filter(isMajorTeamName).length;
+  if (count >= 2) return DOUBLE_MAJOR_TEAM_BONUS;
+  if (count === 1) return SINGLE_MAJOR_TEAM_BONUS;
+  return 0;
+}
+
 export function scoutScore(m: Match, metrics: Metrics): number {
   let s = LEAGUE_WEIGHT[m.leagueApiId] ?? 8;
   const mins = timeToMins(m.time);
@@ -350,6 +392,7 @@ export function scoutScore(m: Match, metrics: Metrics): number {
   };
   s += posBonusFn(metrics.homePos) + posBonusFn(metrics.awayPos);
   s += marqueeBonus(m);
+  s += majorTeamBonus(m);
 
   if (metrics.homePos !== undefined && metrics.awayPos !== undefined) {
     if (metrics.homePos <= 5 && metrics.awayPos <= 5) s += 4;
@@ -476,15 +519,192 @@ export function uniqueLeagueIds(matches: Match[]): number[] {
 
 export function favoriteText(m: Match, metrics: Metrics): string {
   if (!metrics.hasData) return '';
-  if (metrics.favorite === 'balanced') return 'Dengeli eşleşme';
-  const favName = metrics.favorite === 'home' ? m.home : m.away;
-  if (metrics.confidence === 'high')   return `${favName} belirgin favori`;
-  if (metrics.confidence === 'medium') return `${favName} favori`;
-  return `${favName} hafif önde`;
+  return buildHomeCardAnalysis(m, metrics).headline;
 }
 
 export function expectedLine(metrics: Metrics): string {
   return `Beklenen ~${metrics.expectedGoals.toFixed(1)} gol`;
+}
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function compactSentence(text: string, maxLength = 132) {
+  const sentence = text.split(/(?<=\.)\s+/)[0] || text;
+  return sentence.length <= maxLength ? sentence : `${sentence.slice(0, maxLength - 1).trim()}…`;
+}
+
+function pickVariant(lines: string[], hash: number) {
+  return lines[Math.abs(hash) % lines.length];
+}
+
+function homeCardHeadline(m: Match, metrics: Metrics, pick: ReturnType<typeof buildScoutPick>, hash: number) {
+  const homeName = m.home;
+  const awayName = m.away;
+  const leader = metrics.favorite === 'home' ? homeName : metrics.favorite === 'away' ? awayName : null;
+
+  if (pick.tone === 'goals') {
+    return pickVariant([
+      'Tempo sinyali izlenmeli',
+      'Gol çizgisi oyunla netleşir',
+      'İlk bölüm tempo için önemli',
+      'Hücum ritmi belirleyici olacak',
+    ], hash);
+  }
+  if (pick.tone === 'caution') {
+    return pickVariant([
+      'Sinyaller temkin istiyor',
+      'Taraf okuması net değil',
+      'Denge tarafı ağır basıyor',
+      'İlk bölüm verisi kritik',
+    ], hash);
+  }
+  if (pick.tone === 'draw') {
+    return pickVariant([
+      'Kontrollü skor profili',
+      'Denge ve düşük tempo önde',
+      'Dar skor ihtimali canlı',
+      'Sabırlı oyun senaryosu',
+    ], hash);
+  }
+  if (pick.tone === 'home') {
+    return pickVariant([
+      `${homeName} veriyle öne çıkıyor`,
+      `${homeName} tarafında avantaj var`,
+      `${homeName} daha güçlü sinyal veriyor`,
+      `${homeName} oyunda kalmaya yakın`,
+    ], hash);
+  }
+  if (pick.tone === 'away') {
+    return pickVariant([
+      `${awayName} veriyle öne çıkıyor`,
+      `${awayName} deplasmanda tehdit taşıyor`,
+      `${awayName} daha güçlü sinyal veriyor`,
+      `${awayName} oyunda kalmaya yakın`,
+    ], hash);
+  }
+  if (leader) return `${leader} hafif önde`;
+  return pickVariant(['Dengeli eşleşme', 'Taraflar birbirine yakın', 'Net favori yok'], hash);
+}
+
+function homeCardSummary(m: Match, metrics: Metrics, pick: ReturnType<typeof buildScoutPick>, hash: number) {
+  const homeName = m.home;
+  const awayName = m.away;
+  const goalLevel = metrics.expectedGoals >= 2.9 ? 'gol beklentisi yüksek' : metrics.expectedGoals >= 2.4 ? 'gol beklentisi orta-üst' : 'skor profili kontrollü';
+  const ppgGap = Math.abs(metrics.homePpg - metrics.awayPpg);
+  const homeAttack = metrics.homeAvgGf || 0;
+  const awayAttack = metrics.awayAvgGf || 0;
+  const homeDef = metrics.homeAvgGa || 0;
+  const awayDef = metrics.awayAvgGa || 0;
+  const attackGap = Math.abs(homeAttack - awayAttack);
+  const defenseGap = Math.abs(homeDef - awayDef);
+
+  if (pick.tone === 'goals') {
+    return pickVariant([
+      `${goalLevel}; iki takımın hücum üretimi maç içi tempoyu öne çıkarıyor.`,
+      `Gol tarafı açık kalıyor; ilk 20 dakikadaki baskı ve şut hacmi belirleyici.`,
+      `Taraf seçimi yerine tempo daha okunabilir; ${expectedLine(metrics).toLowerCase()}.`,
+      `Hücum verileri düşük skora tamamen kapanmıyor, maç ritmi ana sinyal olacak.`,
+    ], hash);
+  }
+  if (pick.tone === 'caution') {
+    return pickVariant([
+      `Form ve taraf sinyalleri bölünüyor; ilk gol maçın yönünü değiştirebilir.`,
+      `Net favori sinyali zayıf, bu yüzden tempo ve baskı dengesi izlenmeli.`,
+      `${homeName} ve ${awayName} farklı alanlarda öne çıkıyor; tek veriyle karar vermemek gerekir.`,
+      `Denge yüksek; maçın ilk bölümü modelin yönünü netleştirecek.`,
+    ], hash);
+  }
+  if (pick.tone === 'draw') {
+    return pickVariant([
+      `${goalLevel}; iki taraf için de sabırlı başlangıç daha olası görünüyor.`,
+      `Gol çizgisi sınırlı kalıyor, dar skor senaryosu veriyle uyumlu.`,
+      `Form farkı büyük değil; kontrollü oyun ve tek gol etkisi öne çıkıyor.`,
+      `Tempo sinyali düşük, maçın açılması için erken kırılma anı gerekebilir.`,
+    ], hash);
+  }
+  if (pick.tone === 'home') {
+    return pickVariant([
+      `${homeName} form ve üretim tarafında önde; ${awayName} savunma eşleşmesi dikkat istiyor.`,
+      `${homeName} avantajlı görünse de tempo seviyesi maçın riskini belirleyecek.`,
+      `Ev sahibi tarafı daha güçlü sinyal veriyor; ${goalLevel}.`,
+      `${homeName} oyun kontrolüne daha yakın, fakat farkın sahaya yansıması ilk bölümde netleşir.`,
+    ], hash);
+  }
+  if (pick.tone === 'away') {
+    return pickVariant([
+      `${awayName} form ve üretim tarafında önde; deplasman gol tehdidi öne çıkıyor.`,
+      `${awayName} avantajlı görünse de maç temposu risk seviyesini belirleyecek.`,
+      `Deplasman tarafı daha güçlü sinyal veriyor; ${goalLevel}.`,
+      `${awayName} oyunda kalmaya yakın, fakat ilk bölüm baskısı tabloyu değiştirebilir.`,
+    ], hash);
+  }
+  if (ppgGap <= 0.25 && attackGap <= 0.35 && defenseGap <= 0.35) {
+    return pickVariant([
+      `Takımların form, hücum ve savunma çizgisi yakın; denge sinyali güçlü.`,
+      `Sezon verisi iki tarafı ayırmıyor, maç içi momentum daha önemli.`,
+      `Taraflar birbirine yakın; ilk gol ve tempo değişimi ana kırılma noktası.`,
+    ], hash);
+  }
+  return pickVariant([
+    `${goalLevel}; form ve hücum-savunma dengesi birlikte okunmalı.`,
+    `Sezon verisi tek yöne sert akmıyor, maç ritmi belirleyici olacak.`,
+    `Ana sinyal ${goalLevel}; taraf yorumu ise form farkına bağlı.`,
+  ], hash);
+}
+
+function standingsStatsFromMetrics(metrics: Metrics, side: 'home' | 'away'): MatchFormStats {
+  const played = side === 'home' ? metrics.homePlayed : metrics.awayPlayed;
+  const avgGf = side === 'home' ? metrics.homeAvgGf : metrics.awayAvgGf;
+  const avgGa = side === 'home' ? metrics.homeAvgGa : metrics.awayAvgGa;
+  const winPct = side === 'home' ? metrics.homeWinPct : metrics.awayWinPct;
+  const expectedPct = clamp(28 + metrics.expectedGoals * 12, 30, 72);
+  const bttsPct = clamp(34 + (metrics.homeAvgGf || 0) * 8 + (metrics.awayAvgGf || 0) * 8, 35, 70);
+
+  return {
+    total: played || 0,
+    totalAvgGf: (avgGf || 0).toFixed(1),
+    totalAvgGa: (avgGa || 0).toFixed(1),
+    over25Pct: Math.round(expectedPct),
+    kgVarPct: Math.round(bttsPct),
+    homeWinPct: side === 'home' ? winPct || 0 : 0,
+    awayWinPct: side === 'away' ? winPct || 0 : 0,
+    totalWinPct: winPct || 0,
+    homePlayed: side === 'home' ? played || 0 : 0,
+    awayPlayed: side === 'away' ? played || 0 : 0,
+  };
+}
+
+export function buildHomeCardAnalysis(m: Match, metrics: Metrics): { headline: string; summary: string } {
+  if (!metrics.hasData) return { headline: '', summary: metrics.summary };
+
+  const hasSignalInputs =
+    metrics.homeAvgGf !== undefined &&
+    metrics.homeAvgGa !== undefined &&
+    metrics.awayAvgGf !== undefined &&
+    metrics.awayAvgGa !== undefined;
+
+  if (!hasSignalInputs) {
+    if (metrics.favorite === 'balanced') return { headline: 'Dengeli eşleşme', summary: metrics.summary };
+    const favName = metrics.favorite === 'home' ? m.home : m.away;
+    const suffix = metrics.confidence === 'high' ? 'sezon tablosunda belirgin önde' : metrics.confidence === 'medium' ? 'sezon tablosunda önde' : 'sezon tablosunda hafif önde';
+    return { headline: `${favName} ${suffix}`, summary: metrics.summary };
+  }
+
+  const homeStats = standingsStatsFromMetrics(metrics, 'home');
+  const awayStats = standingsStatsFromMetrics(metrics, 'away');
+  const homeFormPts = clamp(Math.round(metrics.homePpg * 5), 0, 15);
+  const awayFormPts = clamp(Math.round(metrics.awayPpg * 5), 0, 15);
+  const h2hCount = 0;
+  const weatherRisk = false;
+  const hash = strHash(`${m.home}-${m.away}-${m.id}`);
+  const pick = buildScoutPick(m.home, m.away, homeStats, awayStats, homeFormPts, awayFormPts, h2hCount, weatherRisk);
+
+  return {
+    headline: homeCardHeadline(m, metrics, pick, hash),
+    summary: homeCardSummary(m, metrics, pick, hash + 7),
+  };
 }
 
 export function levelFromExpectedGoals(value: number): string {

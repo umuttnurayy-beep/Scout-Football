@@ -98,6 +98,25 @@ describe('homeService', () => {
     expect(calls.standings.sort()).toEqual([2014, 2021]);
   });
 
+  test('prioritizes a two-major-team match even when its league has lower base weight', async () => {
+    const { service } = createService({
+      fdByDate: {
+        '2026-05-01': [
+          fdMatch(10, 2001, 'Club Brugge', 'Copenhagen'),
+          fdMatch(20, 203, 'Galatasaray', 'Fenerbahce'),
+        ],
+      },
+      slByDate: {
+        '2026-05-01': [slMatch(20, 'Galatasaray', 'Fenerbahce')],
+      },
+    });
+
+    const res = await service.buildHome('2026-05-01');
+
+    expect(res.ok).toBe(true);
+    expect(res.data.featuredMatchId).toBe(20);
+  });
+
   test('filters unsupported football-data leagues out of the home payload', async () => {
     const { service } = createService({
       fdByDate: {
@@ -156,7 +175,7 @@ describe('homeService', () => {
 
   test('reuses cached future home payload for nextPreview before hitting upstream again', async () => {
     const cache = createMemoryCache({
-      'home_v2_2026-05-02': {
+      'home_v4_2026-05-02': {
         date: '2026-05-02',
         matches: [
           fdMatch(21, 2014, 'Girona', 'Mallorca'),
@@ -192,7 +211,7 @@ describe('homeService', () => {
 
   test('derives sourceSeverity from legacy cached payloads without explicit severity', async () => {
     const cache = createMemoryCache({
-      'home_v2_2026-05-01': {
+      'home_v4_2026-05-01': {
         date: '2026-05-01',
         matches: [fdMatch(1, 2021, 'Leeds', 'Burnley')],
         superLigMatches: [],
@@ -225,7 +244,7 @@ describe('homeService', () => {
       generatedAt: '2026-05-01T00:00:00.000Z',
     };
     const cache = createMemoryCache({
-      'home_last_good_v2_2026-05-01': stalePayload,
+      'home_last_good_v4_2026-05-01': stalePayload,
     });
     const { service } = createService({
       cache,
@@ -259,6 +278,77 @@ describe('homeService', () => {
     expect(res.data.sourceSeverity).toBe('error');
     expect(res.data.issues).toContain('matches');
     expect(res.data.sourceWarnings).toContain('Main match feed failed for the selected day.');
+  });
+
+  test('does not overwrite the stable featured match when the main feed is partial', async () => {
+    const cache = createMemoryCache({
+      'home_featured_v3_2026-05-01': 201401,
+    });
+    const { service } = createService({
+      cache,
+      fdError: true,
+      slByDate: {
+        '2026-05-01': [slMatch(20301, 'Antalyaspor', 'Alanyaspor')],
+      },
+    });
+
+    const partial = await service.buildHome('2026-05-01');
+    expect(partial.data.featuredMatchId).toBe(201401);
+    expect(cache.store.get('home_featured_v3_2026-05-01')).toBe(201401);
+
+    cache.store.delete('home_v4_2026-05-01');
+    const recovered = createService({
+      cache,
+      fdByDate: {
+        '2026-05-01': [
+          fdMatch(201401, 2014, 'Espanyol', 'Real Madrid'),
+          fdMatch(20301, 203, 'Antalyaspor', 'Alanyaspor'),
+        ],
+      },
+      slByDate: {
+        '2026-05-01': [slMatch(20301, 'Antalyaspor', 'Alanyaspor')],
+      },
+    });
+
+    const fresh = await recovered.service.buildHome('2026-05-01');
+    expect(fresh.data.featuredMatchId).toBe(201401);
+  });
+
+  test('ignores legacy featured locks from older scoring versions', async () => {
+    const cache = createMemoryCache({
+      'home_featured_v2_2026-05-03': 2283056,
+    });
+    const { service } = createService({
+      cache,
+      fdByDate: {
+        '2026-05-03': [
+          fdMatch(538132, 2021, 'Man United', 'Liverpool'),
+          fdMatch(544544, 2014, 'Espanyol', 'Real Madrid'),
+        ],
+      },
+      slByDate: {
+        '2026-05-03': [slMatch(2283056, 'Antalyaspor', 'Alanyaspor')],
+      },
+    });
+
+    const res = await service.buildHome('2026-05-03');
+
+    expect(res.data.featuredMatchId).toBe(538132);
+    expect(cache.store.get('home_featured_v3_2026-05-03')).toBe(538132);
+  });
+
+  test('does not create a new featured lock from partial upstream data', async () => {
+    const { service, cache } = createService({
+      fdError: true,
+      slByDate: {
+        '2026-05-01': [slMatch(20301, 'Antalyaspor', 'Alanyaspor')],
+      },
+    });
+
+    const res = await service.buildHome('2026-05-01');
+
+    expect(res.data.featuredMatchId).toBeNull();
+    expect(cache.store.get('home_featured_v3_2026-05-01')).toBeUndefined();
   });
 
   test('returns standings issue when standings fetch fails but payload still exists', async () => {

@@ -2,9 +2,13 @@ jest.mock('../services/api', () => ({
   getCityForTeam: jest.fn(() => null),
 }));
 
-jest.mock('../utils/matchAnalysis', () => ({
-  strHash: jest.fn(() => 42),
-}));
+jest.mock('../utils/matchAnalysis', () => {
+  const actual = jest.requireActual('../utils/matchAnalysis');
+  return {
+    ...actual,
+    strHash: jest.fn(() => 42),
+  };
+});
 
 import {
   normalizeTeam,
@@ -14,6 +18,7 @@ import {
   buildDaySummary,
   scoutScore,
   marqueeBonus,
+  majorTeamBonus,
   favoriteText,
   levelFromExpectedGoals,
   riskFromMetrics,
@@ -62,7 +67,7 @@ function makeStanding(overrides: Partial<StandingShape> = {}): StandingShape {
 function makeMatch(overrides: Partial<Match> = {}): Match {
   return {
     id: 1, leagueApiId: 2021, league: 'Premier Lig',
-    home: 'Arsenal', away: 'Liverpool',
+    home: 'Leeds', away: 'Burnley',
     time: '15:00', score: null, finished: true,
     city: null, utcDate: '2026-05-01T14:00:00Z',
     homeTeamId: 57, awayTeamId: 64,
@@ -469,6 +474,20 @@ describe('marqueeBonus', () => {
 
 // ─── scoutScore ───────────────────────────────────────────────────────────────
 
+describe('majorTeamBonus', () => {
+  test('adds a strong bonus when one major team plays', () => {
+    expect(majorTeamBonus(makeMatch({ home: 'Real Madrid', away: 'Espanyol' }))).toBe(7);
+  });
+
+  test('adds a very strong bonus when two major teams meet', () => {
+    expect(majorTeamBonus(makeMatch({ home: 'Real Madrid', away: 'Barcelona' }))).toBe(18);
+  });
+
+  test('returns 0 for regular teams', () => {
+    expect(majorTeamBonus(makeMatch({ home: 'Leeds', away: 'Burnley' }))).toBe(0);
+  });
+});
+
 describe('scoutScore', () => {
   const noData = NO_DATA;
 
@@ -522,7 +541,7 @@ describe('scoutScore', () => {
   test('adds marquee bonus on top of base', () => {
     const regular  = scoutScore(makeMatch({ leagueApiId: 2014, home: 'Sevilla', away: 'Valencia', time: '15:00', finished: true }), noData);
     const clasico  = scoutScore(makeMatch({ leagueApiId: 2014, home: 'Real Madrid', away: 'Barcelona', time: '15:00', finished: true }), noData);
-    expect(clasico - regular).toBe(12);
+    expect(clasico - regular).toBe(30);
   });
 
   test('adds +2 for high xG (> 3.0) when hasData', () => {
@@ -584,16 +603,16 @@ describe('favoriteText', () => {
     expect(favoriteText(m, makeMetrics({ favorite: 'balanced', confidence: 'low' }))).toBe('Dengeli eşleşme');
   });
 
-  test('returns "[Home] belirgin favori" for home + high confidence', () => {
-    expect(favoriteText(m, makeMetrics({ favorite: 'home', confidence: 'high' }))).toBe('Arsenal belirgin favori');
+  test('returns table-context label for home + high confidence', () => {
+    expect(favoriteText(m, makeMetrics({ favorite: 'home', confidence: 'high' }))).toBe('Arsenal sezon tablosunda belirgin önde');
   });
 
-  test('returns "[Away] favori" for away + medium confidence', () => {
-    expect(favoriteText(m, makeMetrics({ favorite: 'away', confidence: 'medium' }))).toBe('Liverpool favori');
+  test('returns table-context label for away + medium confidence', () => {
+    expect(favoriteText(m, makeMetrics({ favorite: 'away', confidence: 'medium' }))).toBe('Liverpool sezon tablosunda önde');
   });
 
-  test('returns "[Home] hafif önde" for home + low confidence', () => {
-    expect(favoriteText(m, makeMetrics({ favorite: 'home', confidence: 'low' }))).toBe('Arsenal hafif önde');
+  test('returns table-context label for home + low confidence', () => {
+    expect(favoriteText(m, makeMetrics({ favorite: 'home', confidence: 'low' }))).toBe('Arsenal sezon tablosunda hafif önde');
   });
 });
 

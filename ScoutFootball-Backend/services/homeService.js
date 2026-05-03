@@ -1,7 +1,8 @@
 const HOME_SUPPORTED_LEAGUES = [2021, 2014, 2002, 2019, 2015, 2001];
-const HOME_CACHE_VERSION = 'v2';
+const HOME_CACHE_VERSION = 'v4';
+const HOME_FEATURED_VERSION = 'v3';
 const HOME_LOOKAHEAD_DAYS = 7;
-const HOME_FEATURED_TTL = 36 * 60 * 60 * 1000;
+const HOME_FEATURED_TTL = 365 * 24 * 60 * 60 * 1000;
 const HOME_STALE_TTL = 48 * 60 * 60 * 1000;
 const HOME_LEAGUE_WEIGHT = {
   2001: 30,
@@ -12,6 +13,29 @@ const HOME_LEAGUE_WEIGHT = {
   2015: 18,
   203: 14,
 };
+const HOME_MAJOR_TEAMS = [
+  'real madrid', 'barcelona', 'atletico madrid',
+  'bayern', 'borussia dortmund', 'dortmund',
+  'psg', 'paris',
+  'arsenal', 'liverpool', 'manchester city', 'man city', 'manchester united', 'man united', 'man utd', 'chelsea', 'tottenham',
+  'inter', 'internazionale', 'milan', 'juventus', 'napoli', 'roma',
+  'galatasaray', 'fenerbahce', 'fenerbahçe', 'besiktas', 'beşiktaş', 'trabzonspor',
+];
+const HOME_MARQUEE_MATCHUPS = [
+  { teams: ['galatasaray', 'fenerbahce'], bonus: 12 },
+  { teams: ['galatasaray', 'fenerbahçe'], bonus: 12 },
+  { teams: ['real madrid', 'barcelona'], bonus: 12 },
+  { teams: ['man united', 'liverpool'], bonus: 10 },
+  { teams: ['manchester united', 'liverpool'], bonus: 10 },
+  { teams: ['man united', 'man city'], bonus: 9 },
+  { teams: ['manchester united', 'manchester city'], bonus: 9 },
+  { teams: ['inter', 'milan'], bonus: 9 },
+  { teams: ['milan', 'juventus'], bonus: 9 },
+  { teams: ['inter', 'juventus'], bonus: 9 },
+  { teams: ['bayern', 'dortmund'], bonus: 9 },
+];
+const HOME_SINGLE_MAJOR_TEAM_BONUS = 7;
+const HOME_DOUBLE_MAJOR_TEAM_BONUS = 18;
 
 function normalizeHomeDate(rawDate) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(rawDate || ''))
@@ -123,10 +147,18 @@ function createHomeService(deps) {
     if (!match.finished) score += 1;
     if (match.minutes >= 20 * 60) score += 2;
     else if (match.minutes >= 18 * 60) score += 1;
-    const pair = `${match.home} ${match.away}`.toLowerCase();
-    if (/real madrid|barcelona|bayern|psg|paris|arsenal|liverpool|manchester|inter|milan|juventus|galatasaray|fenerbahce|fenerbahçe|besiktas|beşiktaş/.test(pair)) {
-      score += 3;
-    }
+    const teams = [match.home, match.away].map(team => String(team || '').toLowerCase());
+    const majorCount = teams.filter(team =>
+      HOME_MAJOR_TEAMS.some(major => team.includes(major) || major.includes(team))
+    ).length;
+    if (majorCount >= 2) score += HOME_DOUBLE_MAJOR_TEAM_BONUS;
+    else if (majorCount === 1) score += HOME_SINGLE_MAJOR_TEAM_BONUS;
+    const marquee = HOME_MARQUEE_MATCHUPS.find(item => {
+      const [a, b] = item.teams;
+      return (teams[0].includes(a) && teams[1].includes(b)) ||
+        (teams[0].includes(b) && teams[1].includes(a));
+    });
+    if (marquee) score += marquee.bonus;
     return score;
   }
 
@@ -191,15 +223,15 @@ function createHomeService(deps) {
     };
   }
 
-  async function selectStableFeaturedMatchId(date, matches, superLigMatches) {
-    const candidates = visibleFeaturedCandidates(matches, superLigMatches);
-    if (candidates.length === 0) return null;
-
-    const cacheKey = `home_featured_v1_${date}`;
-    const cachedId = await getCache(cacheKey);
-    if (cachedId && candidates.some(match => match.id === Number(cachedId))) {
-      return Number(cachedId);
+  async function selectStableFeaturedMatchId(date, matches, superLigMatches, options = {}) {
+    const cacheKey = `home_featured_${HOME_FEATURED_VERSION}_${date}`;
+    const cachedId = Number(await getCache(cacheKey) || await getStaleCache(cacheKey)) || null;
+    if (cachedId) {
+      return cachedId;
     }
+
+    const candidates = visibleFeaturedCandidates(matches, superLigMatches);
+    if (candidates.length === 0 || options.freezeSelection) return null;
 
     const selected = [...candidates].sort((a, b) => {
       const diff = scoreFeaturedCandidate(b) - scoreFeaturedCandidate(a);
@@ -267,7 +299,9 @@ function createHomeService(deps) {
 
         const supportedMatches = filterSupportedMatches(matches);
         const currentLeagueIds = visibleLeagueIdsFromPayload(supportedMatches, superLigMatches);
-        const featuredMatchId = await selectStableFeaturedMatchId(date, supportedMatches, superLigMatches);
+        const featuredMatchId = await selectStableFeaturedMatchId(date, supportedMatches, superLigMatches, {
+          freezeSelection: upstreamErrors.length > 0,
+        });
         let nextPreview = null;
         let nextLeagueIds = [];
 
@@ -299,6 +333,7 @@ function createHomeService(deps) {
                 nextDate,
                 supportedNextMatches,
                 nextSuperLigMatches,
+                { freezeSelection: false },
               );
               nextPreview = {
                 date: nextDate,

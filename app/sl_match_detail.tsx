@@ -558,6 +558,18 @@ export default function SLMatchDetail() {
   const awayFormPts = hasRealFormData ? calcFormPointsSL(awayForm,  awayTeamId) : 0;
   const usingStandingsFallback = homeStandingStats !== null || awayStandingStats !== null;
   const { hasFormIssue, hasH2HIssue, hasWeatherIssue } = detailIssueFlags(dataIssues);
+  const formDataPending = secondaryLoading && !hasFormData && !hasFormIssue;
+  const formNoticeMessage = (kind: 'performance' | 'comparison' | 'homeAway' | 'prediction' | 'character') => {
+    if (!formDataPending) return detailDataMessage(kind, hasFormIssue ? 'sourceError' : 'empty');
+    switch (kind) {
+      case 'performance': return 'Performans verisi yükleniyor...';
+      case 'comparison': return 'Takım karşılaştırması hazırlanıyor...';
+      case 'homeAway': return 'İç saha / deplasman analizi hazırlanıyor...';
+      case 'prediction': return 'Scout tahmini hesaplanıyor...';
+      case 'character': return 'Maç karakteri hazırlanıyor...';
+      default: return 'Veriler yükleniyor...';
+    }
+  };
 
   const weatherRisk = isWeatherRisk(weatherData);
   const homeTrend   = hasRealFormData ? getFormTrendSL(homeForm, homeTeamId) : null;
@@ -778,7 +790,7 @@ export default function SLMatchDetail() {
           </>
         ) : (
           <DetailDataNotice
-            message={detailDataMessage('performance', hasFormIssue ? 'sourceError' : 'empty')}
+            message={formNoticeMessage('performance')}
             boxStyle={styles.noDataBox}
             textStyle={styles.noDataText}
           />
@@ -833,7 +845,7 @@ export default function SLMatchDetail() {
           </>
         ) : (
           <DetailDataNotice
-            message={detailDataMessage('comparison', hasFormIssue ? 'sourceError' : 'empty')}
+            message={formNoticeMessage('comparison')}
             boxStyle={styles.noDataBox}
             textStyle={styles.noDataText}
           />
@@ -847,7 +859,7 @@ export default function SLMatchDetail() {
               <DetailInsightBox message={homeAwayComment} boxStyle={scStyles.insightBox} textStyle={scStyles.insightText} />
             ) : (
               <DetailDataNotice
-                message={detailDataMessage('homeAway', hasFormIssue ? 'sourceError' : 'empty')}
+                message={formNoticeMessage('homeAway')}
                 boxStyle={styles.noDataBox}
                 textStyle={styles.noDataText}
               />
@@ -895,7 +907,7 @@ export default function SLMatchDetail() {
           <>
             <DetailSectionTitle style={scStyles.sectionLabel}>SCOUT TAHMİNİ</DetailSectionTitle>
             <DetailDataNotice
-              message={detailDataMessage('prediction', hasFormIssue ? 'sourceError' : 'empty')}
+              message={formNoticeMessage('prediction')}
               boxStyle={styles.noDataBox}
               textStyle={styles.noDataText}
             />
@@ -1073,7 +1085,7 @@ export default function SLMatchDetail() {
           </>
         ) : (
           <DetailDataNotice
-            message={detailDataMessage('character', hasFormIssue ? 'sourceError' : 'empty')}
+            message={formNoticeMessage('character')}
             boxStyle={styles.noDataBox}
             textStyle={styles.noDataText}
           />

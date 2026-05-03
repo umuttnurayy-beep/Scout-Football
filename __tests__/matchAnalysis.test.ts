@@ -489,12 +489,46 @@ describe('scout narrative builders', () => {
     expect(summary).toContain('Hava');
   });
 
+  it('buildScoutSummary explains split home/away signals instead of picking one blindly', () => {
+    const summary = buildScoutSummary(
+      'Everton',
+      'Man City',
+      makeStats({ total: 10, totalAvgGf: '1.2', totalAvgGa: '1.3', homeWinPct: 70, homePlayed: 6, over25Pct: 52, kgVarPct: 48 }),
+      makeStats({ total: 10, totalAvgGf: '2.0', totalAvgGa: '1.0', awayWinPct: 55, awayPlayed: 6, over25Pct: 58, kgVarPct: 52 }),
+      4,
+      10,
+      4,
+      false,
+      0,
+    );
+
+    expect(summary).toContain('Everton tarafında');
+    expect(summary).toContain('Man City tarafında');
+  });
+
   it('buildScoutPick returns goals, low-score, home, away and caution tones', () => {
     expect(buildScoutPick('Home', 'Away', openHome, openAway, 9, 7, 5, false).tone).toBe('goals');
     expect(buildScoutPick('Home', 'Away', lowGoal, lowGoal, 5, 5, 5, false).tone).toBe('draw');
     expect(buildScoutPick('Home', 'Away', openHome, lowGoal, 12, 3, 5, false).tone).toBe('home');
     expect(buildScoutPick('Home', 'Away', lowGoal, openAway, 2, 12, 5, false).tone).toBe('away');
     expect(buildScoutPick('Home', 'Away', makeStats({ total: 2, totalAvgGf: '1.1', over25Pct: 48, kgVarPct: 40 }), makeStats({ total: 2, totalAvgGf: '1.0', over25Pct: 46, kgVarPct: 42 }), 3, 3, 0, true).tone).toBe('caution');
+  });
+
+  it('buildScoutPick stays cautious when venue and form signals conflict', () => {
+    const pick = buildScoutPick(
+      'Everton',
+      'Man City',
+      makeStats({ total: 10, totalAvgGf: '1.2', totalAvgGa: '1.3', homeWinPct: 70, homePlayed: 6, over25Pct: 50, kgVarPct: 45 }),
+      makeStats({ total: 10, totalAvgGf: '2.0', totalAvgGa: '1.0', awayWinPct: 55, awayPlayed: 6, over25Pct: 55, kgVarPct: 50 }),
+      4,
+      10,
+      4,
+      false,
+    );
+
+    expect(pick.label).toContain('Man City');
+    expect(pick.detail).toContain('Everton');
+    expect(pick.detail).toContain('Man City');
   });
 
   it('buildMatchCharacterDetail picks style, attack and fallback narratives', () => {

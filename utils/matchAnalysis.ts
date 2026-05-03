@@ -6,6 +6,7 @@ export type Stil = 'Hücumcu' | 'Savunmacı' | 'Dengeli';
 export type Level = 'Düşük' | 'Orta' | 'Yüksek';
 
 export const MIN_H2H = 3;
+type SignalSide = 'home' | 'away' | 'balanced';
 
 export interface MatchFormStats {
   total: number;
@@ -40,6 +41,102 @@ export interface ScoutPick {
   label: string;
   detail: string;
   tone: 'home' | 'away' | 'draw' | 'goals' | 'caution';
+}
+
+type MatchSignalSnapshot = {
+  hAtk: number;
+  aAtk: number;
+  hDef: number;
+  aDef: number;
+  avgOver: number;
+  avgKg: number;
+  hHomeWin: number;
+  aAwayWin: number;
+  hHomePlayed: number;
+  aAwayPlayed: number;
+  formSide: SignalSide;
+  venueSide: SignalSide;
+  attackSide: SignalSide;
+  overallSide: SignalSide;
+  homeEdge: number;
+  awayEdge: number;
+  conflict: boolean;
+  conflictText: string | null;
+};
+
+function sideFromDiff(diff: number, threshold: number): SignalSide {
+  if (diff >= threshold) return 'home';
+  if (diff <= -threshold) return 'away';
+  return 'balanced';
+}
+
+function parseStatValue(value: string | number | undefined): number {
+  const parsed = parseFloat(String(value ?? 0));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function buildMatchSignalSnapshot(
+  home: string,
+  away: string,
+  hSt: MatchFormStats,
+  aSt: MatchFormStats,
+  hFP: number,
+  aFP: number,
+): MatchSignalSnapshot {
+  const hAtk = parseStatValue(hSt.totalAvgGf);
+  const aAtk = parseStatValue(aSt.totalAvgGf);
+  const hDef = parseStatValue(hSt.totalAvgGa);
+  const aDef = parseStatValue(aSt.totalAvgGa);
+  const avgOver = (hSt.over25Pct + aSt.over25Pct) / 2;
+  const avgKg = (hSt.kgVarPct + aSt.kgVarPct) / 2;
+  const hHomeWin = hSt.homeWinPct ?? 0;
+  const aAwayWin = aSt.awayWinPct ?? 0;
+  const hHomePlayed = hSt.homePlayed ?? 0;
+  const aAwayPlayed = aSt.awayPlayed ?? 0;
+  const formSide = sideFromDiff(hFP - aFP, 4);
+  const venueSide = sideFromDiff(hHomeWin - aAwayWin, 12);
+  const attackSide = sideFromDiff((hAtk - aDef) - (aAtk - hDef), 0.35);
+  const homeEdge = (hFP - aFP) + (hAtk - aDef) * 3 + (hHomeWin >= 55 ? 2 : 0);
+  const awayEdge = (aFP - hFP) + (aAtk - hDef) * 3 + (aAwayWin >= 45 ? 2 : 0);
+  const overallSide = sideFromDiff(homeEdge - awayEdge, 4);
+  const namedSides = [formSide, venueSide, attackSide].filter(side => side !== 'balanced');
+  const conflict = namedSides.includes('home') && namedSides.includes('away');
+  let conflictText: string | null = null;
+
+  if (conflict) {
+    const homeBits: string[] = [];
+    const awayBits: string[] = [];
+    if (venueSide === 'home') homeBits.push('iç saha avantajı');
+    if (formSide === 'home') homeBits.push('son form');
+    if (attackSide === 'home') homeBits.push('hücum-savunma eşleşmesi');
+    if (venueSide === 'away') awayBits.push('deplasman performansı');
+    if (formSide === 'away') awayBits.push('son form');
+    if (attackSide === 'away') awayBits.push('deplasman gol tehdidi');
+    const homeText = homeBits.length ? homeBits.join(' ve ') : 'bazı temel sinyaller';
+    const awayText = awayBits.length ? awayBits.join(' ve ') : 'bazı temel sinyaller';
+    conflictText = `${home} tarafında ${homeText} öne çıkarken, ${away} tarafında ${awayText} karşı ağırlık oluşturuyor. Bu yüzden taraf yorumu tek veriyle değil, sinyallerin dengesiyle okunmalı.`;
+  }
+
+  return {
+    hAtk,
+    aAtk,
+    hDef,
+    aDef,
+    avgOver,
+    avgKg,
+    hHomeWin,
+    aAwayWin,
+    hHomePlayed,
+    aAwayPlayed,
+    formSide,
+    venueSide,
+    attackSide,
+    overallSide,
+    homeEdge,
+    awayEdge,
+    conflict,
+    conflictText,
+  };
 }
 
 export const ANALYSIS_DELTA = [0, 0, 1, -1, 0, 0, 1, -1, 0, 0, 0];
@@ -250,20 +347,19 @@ export function buildScoutSummary(
   hTrend?: FormTrend | null,
   aTrend?: FormTrend | null,
 ): string {
-  const hAtk = parseFloat(hSt.totalAvgGf as string);
-  const aAtk = parseFloat(aSt.totalAvgGf as string);
-  const hDef = parseFloat(hSt.totalAvgGa as string);
-  const aDef = parseFloat(aSt.totalAvgGa as string);
-  const avgOver = (hSt.over25Pct + aSt.over25Pct) / 2;
-  const avgKg = (hSt.kgVarPct + aSt.kgVarPct) / 2;
-  const hHomeWin = hSt.homeWinPct ?? 0;
-  const aAwayWin = aSt.awayWinPct ?? 0;
-  const hHomePlayed = hSt.homePlayed ?? 0;
-  const aAwayPlayed = aSt.awayPlayed ?? 0;
+  const signal = buildMatchSignalSnapshot(home, away, hSt, aSt, hFP, aFP);
+  const {
+    hAtk, aAtk, hDef, aDef, avgOver, avgKg,
+    hHomeWin, aAwayWin, hHomePlayed, aAwayPlayed,
+  } = signal;
   const totalSample = Math.min(hSt.total, aSt.total);
   const hMove = hTrend ? hTrend.pts5 - hTrend.ptsPrev : 0;
   const aMove = aTrend ? aTrend.pts5 - aTrend.ptsPrev : 0;
   const lines: string[] = [];
+
+  if (signal.conflictText) {
+    lines.push(signal.conflictText);
+  }
 
   if (hAtk >= 1.7 && aAtk >= 1.7 && hDef >= 1.3 && aDef >= 1.3) {
     lines.push('İki takım da hücumda üretken ama savunmada açık veriyor. Bu nedenle maçın ana hikayesi taraf seçiminden çok tempo ve gol akışı olabilir.');
@@ -297,7 +393,7 @@ export function buildScoutSummary(
     lines.push('Toplam gol trendi düşük olsa da karşılıklı skor ihtimali tamamen kapanmıyor. 1-1 gibi dar skorlu ve dengeli bir senaryo hâlâ masada.');
   }
 
-  const main = lines.length > 0 ? lines[hash % lines.length] : 'Veriler tek bir yöne sert biçimde akmıyor. Form, gol profili ve savunma dengesi birlikte düşünüldüğünde maçın kırılma anı büyük olasılıkla ilk gol veya tempo değişimi olacak.';
+  const main = signal.conflictText || (lines.length > 0 ? lines[hash % lines.length] : 'Veriler tek bir yöne sert biçimde akmıyor. Form, gol profili ve savunma dengesi birlikte düşünüldüğünde maçın kırılma anı büyük olasılıkla ilk gol veya tempo değişimi olacak.');
   const outlook: string[] = [];
 
   if (totalSample < 6) {
@@ -329,20 +425,20 @@ export function buildScoutPick(
   h2hCount: number,
   weatherRisk: boolean,
 ): ScoutPick {
-  const hAtk = parseFloat(hSt.totalAvgGf as string);
-  const aAtk = parseFloat(aSt.totalAvgGf as string);
-  const hDef = parseFloat(hSt.totalAvgGa as string);
-  const aDef = parseFloat(aSt.totalAvgGa as string);
-  const avgOver = (hSt.over25Pct + aSt.over25Pct) / 2;
-  const avgKg = (hSt.kgVarPct + aSt.kgVarPct) / 2;
-  const hHomeWin = hSt.homeWinPct ?? 0;
-  const aAwayWin = aSt.awayWinPct ?? 0;
+  const signal = buildMatchSignalSnapshot(home, away, hSt, aSt, hFP, aFP);
+  const { hAtk, aAtk, avgOver, avgKg, homeEdge, awayEdge } = signal;
   const sample = Math.min(hSt.total, aSt.total);
   const lowConfidence = sample < 5 || weatherRisk || h2hCount < 2;
   const overLabel = Math.round(avgOver);
   const kgLabel = Math.round(avgKg);
-  const homeEdge = (hFP - aFP) + (hAtk - aDef) * 3 + (hHomeWin >= 55 ? 2 : 0);
-  const awayEdge = (aFP - hFP) + (aAtk - hDef) * 3 + (aAwayWin >= 45 ? 2 : 0);
+
+  if (signal.conflict && Math.abs(homeEdge - awayEdge) < 7) {
+    return {
+      label: 'Sinyaller iki tarafa bölünüyor',
+      detail: `${signal.conflictText} Scout pick bu yüzden tek tarafı sert biçimde seçmek yerine maçın ilk bölümündeki tempo, baskı ve ceza sahası girişlerini beklemeyi öneriyor.`,
+      tone: avgOver >= 58 ? 'goals' : 'caution',
+    };
+  }
 
   if (lowConfidence) {
     if (avgOver >= 58 || hAtk + aAtk >= 2.6) {
@@ -420,6 +516,13 @@ export function buildScoutPick(
   }
 
   if (homeEdge >= awayEdge + 7) {
+    if (signal.conflictText) {
+      return {
+        label: `${home} tarafı daha güçlü`,
+        detail: `${signal.conflictText} Buna rağmen toplam form, iç saha ve hücum-savunma ağırlığı ${home} tarafını biraz daha öne taşıyor.`,
+        tone: 'home',
+      };
+    }
     return {
       label: `${home} tarafı daha güçlü`,
       detail: `${home} tarafında form, iç saha ve hücum-savunma eşleşmesi belirgin üstün. Ev sahibinin maçı kendi ritmine çekme şansı daha yüksek görünüyor.`,
@@ -427,6 +530,13 @@ export function buildScoutPick(
     };
   }
   if (awayEdge >= homeEdge + 7) {
+    if (signal.conflictText) {
+      return {
+        label: `${away} tarafı daha güçlü`,
+        detail: `${signal.conflictText} Buna rağmen toplam form ve deplasman gol tehdidi ${away} tarafını daha güçlü senaryo haline getiriyor.`,
+        tone: 'away',
+      };
+    }
     return {
       label: `${away} tarafı daha güçlü`,
       detail: `${away} form ve deplasman üretimiyle net sinyal veriyor. Deplasman riskine rağmen oyunda kalma ihtimali dikkat çekiyor.`,
