@@ -9,7 +9,7 @@ import EmptyStateCard from '../components/EmptyStateCard';
 import { SkeletonPlayerList, SkeletonStatBlock } from '../components/SkeletonLoader';
 import {
   AllSportsTeamStats, FDScorer, FDSquadPlayer,
-  SLPlayer, SLScorer,
+  SLFormMatch, SLPlayer, SLScorer,
   getAllSportsTeamStats, getFdTeamData, getTeamForm, getTopScorers,
   getSuperLigTeamForm, getSuperLigPlayers, getSuperLigScorers,
 } from '../services/api';
@@ -41,6 +41,28 @@ const DARK_RANK_COLORS = [
   { bg: '#2B3036', color: '#C9D1D9' },
   { bg: '#3A2018', color: '#F0A98A' },
 ];
+
+// ─── SL frontend cache ───────────────────────────────────────────────────────
+
+const SL_FORM_TTL    = 30 * 60 * 1000;       // 30 dakika
+const SL_PLAYERS_TTL =  6 * 60 * 60 * 1000;  // 6 saat
+const SL_SCORERS_TTL =  1 * 60 * 60 * 1000;  // 1 saat
+
+async function readSlCache<T>(key: string, ttl: number): Promise<T | null> {
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    if (!raw) return null;
+    const { ts, data } = JSON.parse(raw) as { ts: number; data: T };
+    if (Date.now() - ts > ttl) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function writeSlCache(key: string, data: unknown): void {
+  AsyncStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })).catch(() => {});
+}
 
 export default function TeamStatsScreen() {
   const router = useRouter();
@@ -122,7 +144,7 @@ export default function TeamStatsScreen() {
         loadForm(),
         loadPlayers(),
         loadAllSports(),
-        isSportsDbLeague ? loadSLData() : Promise.resolve(),
+        isSportsDbLeague ? loadSLData(true) : Promise.resolve(),
       ]);
     } finally {
       setRefreshing(false);
@@ -191,15 +213,38 @@ export default function TeamStatsScreen() {
     }
   }
 
-  async function loadSLData() {
+  async function loadSLData(force = false) {
     if (!teamId) return;
     setLoadingForm(true);
     setLoadingPlayers(true);
+
+    const formKey    = `ts_sl_form_v1_${teamId}`;
+    const playersKey = `ts_sl_players_v1_${teamId}`;
+    const scorersKey = 'ts_sl_scorers_v1';
+
     try {
+      const [cachedForm, cachedPlayers, cachedScorers] = force
+        ? [null, null, null]
+        : await Promise.all([
+            readSlCache<SLFormMatch[]>(formKey, SL_FORM_TTL),
+            readSlCache<SLPlayer[]>(playersKey, SL_PLAYERS_TTL),
+            readSlCache<SLScorer[]>(scorersKey, SL_SCORERS_TTL),
+          ]);
+
       const [formMatches, players, allScorers] = await Promise.all([
-        getSuperLigTeamForm(teamId),
-        apiId === 203 ? getSuperLigPlayers(teamId) : Promise.resolve([]),
-        apiId === 203 ? getSuperLigScorers() : Promise.resolve([]),
+        cachedForm
+          ? Promise.resolve(cachedForm)
+          : getSuperLigTeamForm(teamId).then(d => { writeSlCache(formKey, d); return d; }),
+        apiId !== 203
+          ? Promise.resolve<SLPlayer[]>([])
+          : cachedPlayers
+            ? Promise.resolve(cachedPlayers)
+            : getSuperLigPlayers(teamId).then(d => { writeSlCache(playersKey, d); return d; }),
+        apiId !== 203
+          ? Promise.resolve<SLScorer[]>([])
+          : cachedScorers
+            ? Promise.resolve(cachedScorers)
+            : getSuperLigScorers().then(d => { writeSlCache(scorersKey, d); return d; }),
       ]);
 
       // Form hesapla
