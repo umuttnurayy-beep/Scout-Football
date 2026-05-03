@@ -30,6 +30,22 @@ const POSITION_TO_CODE: Record<string, string> = {
   'Attacker': 'F', 'Offence': 'F', 'Forward': 'F',
 };
 
+function positionCode(position?: string | null): string {
+  return POSITION_TO_CODE[position || ''] || 'M';
+}
+
+function groupPlayersByPosition<T extends { position?: string | null }>(players: T[]) {
+  return AF_POSITION_ORDER.reduce((acc, pos) => {
+    const rows = players.filter(p => positionCode(p.position) === pos);
+    if (rows.length > 0) acc[pos] = rows;
+    return acc;
+  }, {} as Record<string, T[]>);
+}
+
+function playerNameKey(name?: string | null) {
+  return transliterate(name || '').toLowerCase().trim();
+}
+
 const LIGHT_RANK_COLORS = [
   { bg: '#FAEEDA', color: '#633806' },
   { bg: '#D3D1C7', color: '#2C2C2A' },
@@ -283,14 +299,30 @@ export default function TeamStatsScreen() {
     [fdScorers],
   );
 
-  const groupedSquad = useMemo(() =>
-    AF_POSITION_ORDER.reduce((acc, pos) => {
-      const players = fdSquad.filter(p => (POSITION_TO_CODE[p.position || ''] || 'M') === pos);
-      if (players.length > 0) acc[pos] = players;
-      return acc;
-    }, {} as Record<string, FDSquadPlayer[]>),
-    [fdSquad],
+  const groupedSquad = useMemo(() => groupPlayersByPosition(fdSquad), [fdSquad]);
+  const groupedSlPlayers = useMemo(() => groupPlayersByPosition(slPlayers), [slPlayers]);
+
+  const slScorerByName = useMemo(
+    () => new Map(slTeamScorers.map(s => [playerNameKey(s.name), s])),
+    [slTeamScorers],
   );
+
+  const fdScorerByPlayerId = useMemo(() => {
+    const map = new Map<number, FDScorer>();
+    fdScorers.forEach(s => {
+      if (s.player?.id != null) map.set(s.player.id, s);
+    });
+    return map;
+  }, [fdScorers]);
+
+  const fdScorerByName = useMemo(() => {
+    const map = new Map<string, FDScorer>();
+    fdScorers.forEach(s => {
+      const key = playerNameKey(s.player?.name);
+      if (key) map.set(key, s);
+    });
+    return map;
+  }, [fdScorers]);
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
@@ -639,13 +671,13 @@ export default function TeamStatsScreen() {
                 <EmptyStateCard compact icon="👥" title="Kadro verisi bulunamadı." />
               ) : (
                 AF_POSITION_ORDER.map(pos => {
-                  const players = slPlayers.filter((p) => (POSITION_TO_CODE[p.position || ''] || 'M') === pos);
-                  if (players.length === 0) return null;
+                  const players = groupedSlPlayers[pos];
+                  if (!players) return null;
                   return (
                     <View key={pos}>
                       <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>{AF_POSITION_MAP[pos]}</Text>
                       {players.map((p, i: number) => {
-                        const scorer = slTeamScorers.find((s) => s.name === p.name);
+                        const scorer = slScorerByName.get(playerNameKey(p.name));
                         return (
                           <View key={i} style={[styles.playerItem, { borderBottomColor: c.border }]}>
                             <View style={[styles.playerPhotoSmall, { backgroundColor: c.primaryLight }]} />
@@ -772,9 +804,9 @@ export default function TeamStatsScreen() {
                     <View key={pos}>
                       <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>{AF_POSITION_MAP[pos]}</Text>
                       {players.map((p, i: number) => {
-                        const scorer = fdScorers.find((s) =>
-                          s.player?.id === p.id || teamsMatch(s.player?.name || '', p.name)
-                        );
+                        const scorer = fdScorerByPlayerId.get(p.id) ??
+                          fdScorerByName.get(playerNameKey(p.name)) ??
+                          fdScorers.find((s) => teamsMatch(s.player?.name || '', p.name));
                         return (
                           <View key={i} style={[styles.playerItem, { borderBottomColor: c.border }]}>
                             <View style={[styles.playerPhotoSmall, { backgroundColor: c.primaryLight }]} />
