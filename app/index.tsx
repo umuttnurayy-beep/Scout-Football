@@ -994,17 +994,35 @@ export default function HomeScreen() {
     setSelectedDate(new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate()));
   }, [nextDayPreview, selectedDate]);
 
+  const refreshSelectedDate = useCallback(() => {
+    loadMatches(selectedDate);
+    // loadMatches intentionally reads latest screen state while selectedDate is the trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate]);
+
+  const openLeagues = useCallback(() => {
+    router.push('/leagues');
+  }, [router]);
+
+  const openStats = useCallback(() => {
+    router.push('/stats');
+  }, [router]);
+
+  const openNextPreviewMatch = useCallback(() => {
+    if (nextDayPreview) goToMatch(nextDayPreview.m, nextDayPreview.metrics);
+  }, [goToMatch, nextDayPreview]);
+
   const keyExtractor = useCallback((item: ListItem) => item.key, []);
   const listContentStyle = useMemo(() => ({ paddingBottom: 16 }), []);
 
-  function renderListItem({ item }: { item: ListItem }) {
+  const renderListItem = useCallback(({ item }: { item: ListItem }) => {
     switch (item.type) {
       case 'notice':
         return (
           <DataNoticeCard
             type={item.notice || 'error'}
             message={item.warningText}
-            onRetry={item.notice === 'error' || item.notice === 'cache' ? () => loadMatches(selectedDate) : undefined}
+            onRetry={item.notice === 'error' || item.notice === 'cache' ? refreshSelectedDate : undefined}
           />
         );
       case 'section-header':
@@ -1058,10 +1076,10 @@ export default function HomeScreen() {
             selectedDate={selectedDate}
             preview={nextDayPreview}
             onNextDate={goToNextPreviewDate}
-            onRefresh={() => loadMatches(selectedDate)}
-            onOpenLeagues={() => router.push('/leagues')}
-            onOpenStats={() => router.push('/stats')}
-            onOpenMatch={() => nextDayPreview && goToMatch(nextDayPreview.m, nextDayPreview.metrics)}
+            onRefresh={refreshSelectedDate}
+            onOpenLeagues={openLeagues}
+            onOpenStats={openStats}
+            onOpenMatch={openNextPreviewMatch}
           />
         );
       case 'empty':
@@ -1075,7 +1093,7 @@ export default function HomeScreen() {
       default:
         return null;
     }
-  }
+  }, [c.textFaint, c.textMuted, goToMatch, goToNextPreviewDate, nextDayPreview, openLeagues, openNextPreviewMatch, openStats, refreshSelectedDate, selectedDate]);
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
