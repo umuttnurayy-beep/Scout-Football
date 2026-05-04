@@ -700,7 +700,7 @@ export default function SLMatchDetail() {
       <View style={[scStyles.card, { backgroundColor: scoutCardBg, borderBottomColor: scoutBorderCol }]}>
         <View style={scStyles.headerRow}>
           <Text style={[scStyles.headerLabel, { color: scoutPurple }]}>🧠 SCOUT ÖZETİ</Text>
-          <View style={[scStyles.guvenPill,
+          {hasFormData ? <View style={[scStyles.guvenPill,
             analysis.guven==='Yüksek'?{backgroundColor: isDark ? '#0D2010' : '#E8F8F0'}:
             analysis.guven==='Düşük'?{backgroundColor: isDark ? '#2C0A0A' : '#FDE8E8'}:{backgroundColor: isDark ? '#2A1F00' : '#FFF8E1'}]}>
             <Text style={[scStyles.guvenText,
@@ -710,8 +710,9 @@ export default function SLMatchDetail() {
             <TouchableOpacity onPress={()=>setShowScoutHelp(showScoutHelp==='guven'?null:'guven')} style={scStyles.inlineHelpBtn}>
               <Text style={[scStyles.inlineHelpText,{color:analysis.guven==='Yüksek'? (isDark ? '#3FB950' : '#1B6B3A') :analysis.guven==='Düşük'? (isDark ? '#F85149' : '#A32D2D') : (isDark ? '#E3B341' : '#7A5700')}]}>{showScoutHelp==='guven'?'×':'?'}</Text>
             </TouchableOpacity>
-          </View>
+          </View> : null}
         </View>
+        {hasFormData ? <>
         <View style={scStyles.metricsRow}>
           {(['stil','gol','tempo','risk'] as const).map(key=>{
             const val = analysis[key] as string;
@@ -762,6 +763,13 @@ export default function SLMatchDetail() {
             {analysis.reasons.map((r,i)=>(
               <Text key={i} style={[scStyles.nedenBullet, { color: c.textSub }]}>• {r}</Text>
             ))}
+          </View>
+        )}
+        </> : (
+          <View style={[styles.limitedDataBanner, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.72)', borderColor: scoutBorderCol }]}>
+            <Text style={[styles.limitedDataText, { color: c.textSub }]}>
+              {formNoticeMessage('prediction')}
+            </Text>
           </View>
         )}
       </View>

@@ -477,7 +477,7 @@ export default function MatchDetail() {
       <View style={[scStyles.card,{backgroundColor:isDark?'#1A1228':'#f4f0ff',borderBottomColor:isDark?'#2D2040':'#ddd6ff'}]}>
         <View style={scStyles.headerRow}>
           <Text style={[scStyles.headerLabel,{color:isDark?'#C19BFF':'#5b2d8e'}]}>🧠 SCOUT ÖZETİ</Text>
-          <View style={[scStyles.guvenPill,{backgroundColor:
+          {hasFormData ? <View style={[scStyles.guvenPill,{backgroundColor:
             analysis.guven==='Yüksek' ? (isDark?'#0D2010':'#E8F8F0') :
             analysis.guven==='Düşük'  ? (isDark?'#2C0A0A':'#FDE8E8') :
             (isDark?'#2A1F00':'#FFF8E1')}]}>
@@ -488,9 +488,10 @@ export default function MatchDetail() {
             <TouchableOpacity onPress={()=>setShowScoutHelp(showScoutHelp==='guven'?null:'guven')} style={scStyles.inlineHelpBtn}>
               <Text style={[scStyles.inlineHelpText,{color:analysis.guven==='Yüksek'?(isDark?'#3FB950':'#1B6B3A'):analysis.guven==='Düşük'?(isDark?'#F85149':'#A32D2D'):(isDark?'#E3B341':'#7A5700')}]}>{showScoutHelp==='guven'?'×':'?'}</Text>
             </TouchableOpacity>
-          </View>
+          </View> : null}
         </View>
 
+        {hasFormData ? <>
         <View style={scStyles.metricsRow}>
           {(['stil','gol','tempo','risk'] as const).map(key=>{
             const val = analysis[key] as string;
@@ -544,6 +545,13 @@ export default function MatchDetail() {
             {analysis.reasons.map((r,i)=>(
               <Text key={i} style={[scStyles.nedenBullet,{color:c.textSub}]}>• {r}</Text>
             ))}
+          </View>
+        )}
+        </> : (
+          <View style={[styles.limitedDataBanner, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.72)', borderColor: isDark ? '#2D2040' : '#ddd6ff' }]}>
+            <Text style={[styles.limitedDataText, { color: c.textSub }]}>
+              {formNoticeMessage('prediction')}
+            </Text>
           </View>
         )}
       </View>
