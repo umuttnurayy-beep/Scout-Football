@@ -611,18 +611,26 @@ export default function HomeScreen() {
     options: { notice: HomeDataNotice | null; persist?: boolean },
   ) {
     const homeStandings = homeData.standings || {};
-    const mainSourceMissing = (homeData.sourceSeverity === 'warning' || homeData.sourceSeverity === 'error') &&
+    const payloadVisible = buildVisibleMatches(homeData.matches || [], homeData.superLigMatches || []);
+    const preservedVisible = lastGoodVisibleByDate.current[dateStr] || (matchesDateStr === dateStr ? matches : []);
+    const hasPreservedMainMatches = preservedVisible.some(m => m.leagueApiId !== 203);
+    const mainSourceMissing = (
+      (homeData.sourceSeverity === 'warning' || homeData.sourceSeverity === 'error') ||
+      hasPreservedMainMatches
+    ) &&
       (homeData.matches?.length ?? 0) === 0 &&
       (homeData.superLigMatches?.length ?? 0) > 0;
-    const payloadVisible = buildVisibleMatches(homeData.matches || [], homeData.superLigMatches || []);
-    const preservedVisible = lastGoodVisibleByDate.current[dateStr] || matches;
     const visible = mainSourceMissing && preservedVisible.some(m => m.leagueApiId !== 203)
       ? [
         ...preservedVisible.filter(m => m.leagueApiId !== 203),
         ...payloadVisible.filter(m => m.leagueApiId === 203),
       ]
       : payloadVisible;
-    const nextStandingsMap = hasUsableStandingsMap(homeStandings) ? homeStandings : standingsMap;
+    const nextStandingsMap = mainSourceMissing
+      ? mergeStandingsMaps(standingsMap, homeStandings)
+      : hasUsableStandingsMap(homeStandings)
+        ? homeStandings
+        : standingsMap;
     setStandingsMap(nextStandingsMap);
     setMatches(visible);
     setMatchesDateStr(dateStr);
@@ -654,7 +662,7 @@ export default function HomeScreen() {
       return {
         ...homeData,
         matches: cached.matches,
-        standings: hasUsableStandingsMap(homeData.standings) ? homeData.standings : cached.standings || {},
+        standings: mergeStandingsMaps(cached.standings || {}, homeData.standings || {}),
         featuredMatchId: homeData.featuredMatchId ?? cached.featuredMatchId ?? null,
         nextPreview: homeData.nextPreview ?? cached.nextPreview ?? null,
       };
@@ -684,6 +692,19 @@ export default function HomeScreen() {
   function applyFallbackNoticeFromApiState() {
     setHomeDataNotice(null);
     setHomeDataWarningText(null);
+  }
+
+  function mergeStandingsMaps(
+    base: Record<number, Standing[]> = {},
+    incoming: Record<number, Standing[]> = {},
+  ) {
+    const merged = { ...base };
+    Object.entries(incoming).forEach(([leagueApiId, rows]) => {
+      if (Array.isArray(rows) && rows.length > 0) {
+        merged[Number(leagueApiId)] = rows;
+      }
+    });
+    return merged;
   }
 
   async function applyVisibleMatchesForFallback(
@@ -827,13 +848,26 @@ export default function HomeScreen() {
     if (requestId !== loadSeq.current) return baseMap;
 
     const updated = { ...baseMap };
+    let changed = false;
     leagueRows.forEach(([leagueApiId, rows]) => {
-      if (rows.length > 0) updated[leagueApiId] = rows;
+      if (rows.length > 0) {
+        updated[leagueApiId] = rows;
+        changed = true;
+      }
     });
+    if (!changed) return baseMap;
     setStandingsMap(updated);
     persistStandingsCache(dateStr, updated);
     return updated;
   }
+
+  useEffect(() => {
+    if (!matchesReadyForSelectedDate || matches.length === 0 || !matchesDateStr) return;
+    const missing = uniqueLeagueIds(matches).filter(leagueApiId => !standingsMap[leagueApiId]?.length);
+    if (missing.length === 0) return;
+    const requestId = loadSeq.current;
+    void ensureStandingsForMatches(matches, matchesDateStr, requestId, standingsMap);
+  }, [matches, matchesDateStr, matchesReadyForSelectedDate, standingsMap]);
 
   const metricsMap = useMemo(() => {
     const map = new Map<number, Metrics>();
