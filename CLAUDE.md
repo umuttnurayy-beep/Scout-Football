@@ -1,6 +1,6 @@
 # ScoutFootball — CLAUDE.md
 
-## Guncel Durum Notlari (2026-04-26)
+## Guncel Durum Notlari (2026-05-05)
 
 - Railway backend artik ana GitHub reposuna bagli: `umuttnurayy-beep/Scout-Football`, branch `main`, root directory `/ScoutFootball-Backend`.
 - Ayrik `ScoutFootball-Backend` reposu eski deploy kaynagi olarak kalabilir; aktif deploy akisi ana repo uzerinden yurumelidir.
@@ -10,6 +10,12 @@
 - EAS project ID: `82f6a1df-704f-4f50-b813-3bc9b2e33e4e`.
 - iOS bundle id ve Android package: `com.umutnuray.scoutfootball`.
 - OTA update hazirligi yapildi: `expo-updates`, `updates.url`, `runtimeVersion.policy = appVersion`, EAS production channel `production`.
+- Ana ekran `getHomeData(date)` ile tek payload uzerinden beslenir. Tarih degisiminde once AsyncStorage home cache gosterilir, ardindan taze veri arka planda yenilenir; kullaniciya "son cache" uyarisi basilmaz.
+- Ana ekrandan mac detayina geciste mac context preload sessizdir. Arka plan `getMatchContext`/H2H/ikincil veri hatalari sayfa zaten cizilebiliyorsa toast olarak gosterilmez.
+- Gunun maci backend `featuredMatchId` ile gelir ve frontend'de tarih bazli cache'lenir; bir tarih icin secilen gunun maci sonradan degismemelidir.
+- Analiz metinleri tek karar hattindan beslenir: `buildScoutPick` karar uretir, ana kart kisa yorumu `cardComment`, Scout Ozeti `buildScoutSummaryFromPick`, Pick aciklamasi `detail` alanini kullanir.
+- Scout Ozeti veri raporu degil analist yorumu gibi yazilmalidir: sayi kalabaligi yerine hucum-savunma eslesmesi, form etkisi, saha/deplasman dengesi, gol senaryosu ve risk yorumu one alinmali; detayli sayilar "Neden? / gerekceler" ve alt bolumlerde kalmalidir.
+- Radar grafikte sag/sol yatay etiketler kirpilmeyecek sekilde anchor'lanir; capraz etiketler kendi eksen noktasinda ortali kalmalidir (`components/RadarChart.tsx`).
 
 
 ## Build ve Submit Notlari
@@ -41,7 +47,11 @@ ScoutFootball/                    ← React Native + Expo (frontend)
 └── CLAUDE.md
 
 ScoutFootball-Backend/            ← Node.js + Express (backend)
-└── server.js                     ← Tek dosya; tüm endpoint'ler burada
+├── server.js                     ← start entrypoint
+├── app.js                        ← Express app + route wiring
+├── routes/                       ← Endpoint modulleri
+├── services/                     ← Veri kaynaklari/cache/context servisleri
+└── models/                       ← MongoDB modelleri
 ```
 
 ---
@@ -64,23 +74,23 @@ ScoutFootball-Backend/            ← Node.js + Express (backend)
 
 **URL:** `https://scoutfootball-backend-production.up.railway.app`
 
-**GitHub:** `umuttnurayy-beep/ScoutFootball-Backend` (main branch: `master`)
+**GitHub:** `umuttnurayy-beep/Scout-Football` (branch: `main`, root directory: `/ScoutFootball-Backend`)
 
-Railway, `master` branch'e her push'ta otomatik deploy eder. Deploy ~1-2 dakika sürer.
+Railway, ana repo `main` branch'ine push gelince `/ScoutFootball-Backend` klasorunden otomatik deploy eder. Deploy genelde 1-2 dakika surer.
 
 ### Ortam Değişkenleri (Railway)
 
 | Değişken | Kaynak |
 |---|---|
 | `FOOTBALL_DATA_KEY` | football-data.org |
-| `WEATHER_API_KEY` | WeatherAPI.com |
+| `WEATHER_KEY` | WeatherAPI.com |
 | `ODDS_API_KEY` | The Odds API |
 | `THESPORTSDB_KEY` | TheSportsDB (Süper Lig — ücretsiz plan için `3` veya premium key) |
 | `MONGODB_URI` | Railway MongoDB eklentisi |
-| `RAPID_API_KEY` | API-Football / RapidAPI (ayarlanmamış — boş string) |
+| `RAPID_API_KEY` | API-Football / RapidAPI |
 | `ALLSPORTS_KEY` | AllSports API (korner + possession için) |
 
-> `RAPID_API_KEY` boş olduğunda `apifootball()` fonksiyonu hata fırlatır. Bu yüzden tüm `/af/` endpoint'leri şu an boş array/null döner.
+> `RAPID_API_KEY` bos veya upstream erisimi sorunlu oldugunda `/af/` endpoint'leri bos array/null doner ve frontend sessiz fallback yapar.
 >
 > Eski `COLLECT_API_KEY` artık kullanılmıyor — Süper Lig entegrasyonu TheSportsDB'ye taşındı.
 
@@ -187,7 +197,9 @@ Bahis oranları için. `match_detail.tsx` içindeki `getOddsComment()` yorumu bu
 
 ---
 
-## Backend Endpoint'leri (server.js)
+## Backend Endpoint'leri (`ScoutFootball-Backend`)
+
+Backend entrypoint `server.js`, Express uygulama kurulumu ve route wiring ise `app.js` ve `routes/` altindadir. Eski notlarda "tum endpoint'ler server.js icinde" deniyordu; artik dogru kabul edilmemeli.
 
 ### Football-data.org Kökenli
 
@@ -195,7 +207,9 @@ Bahis oranları için. `match_detail.tsx` içindeki `getOddsComment()` yorumu bu
 |---|---|---|---|
 | GET | `/standings/:leagueId` | Puan tablosu (ESPN fallback ile) | `standings_v3_{id}` |
 | GET | `/matches?date=` | Günlük maçlar | `matches_{date}` |
+| GET | `/home?date=` | Ana ekran birleşik payload'i (maclar + SL + standings + featured + preview) | home/date cache |
 | GET | `/match/:matchId` | Maç detay | `match_{id}` |
+| GET | `/match/:matchId/context?finished=1` | Maç detay context'i (match + form + H2H + issue listesi) | context cache |
 | GET | `/h2h/:matchId` | H2H geçmişi | `h2h_{id}` |
 | GET | `/team/:teamId` | Takım + kadro | `team_{id}` |
 | GET | `/team/:teamId/matches` | Takım mevcut sezon maçları | `team_matches_season_v2_{id}` |
@@ -260,36 +274,36 @@ Bahis oranları için. `match_detail.tsx` içindeki `getOddsComment()` yorumu bu
 ## Frontend Ekranları
 
 ### `app/index.tsx` — Ana Ekran
-- Tarih şeridi (±3 gün), lig filtreleri + **"🔍 Scout"** varsayılan filtresi.
-- `loadMatches(date, silent)`: `getTodayMatches(dateStr)` ve `getSuperLigMatches(dateStr)` paralel çağrılır → birleştirilir.
-- `loadStandings()`: ekran açılışında 6 FD ligi + Süper Lig için standings paralel çekilir (`STANDINGS_LEAGUES` tablosu). Backend 1 saat cache'li, maliyet düşük.
-- `useFocusEffect` ile ekrana her dönüşte sessiz yenileme; `initialFocusDone` ref ile ilk çift-fetch engellenir.
-- **Metrik motoru — gerçek standings verisine dayanır** (`computeMetrics`, `findStanding`, `buildMatchSummary`):
-  - Her maç için iki takımın standings satırı eşleşir (önce `teamId`, yoksa normalize edilmiş ad fallback'i ile — ESPN/TheSportsDB kaynaklı satırlarda `teamId=0` olabilir).
-  - Beklenen gol (xG proxy) = `(homeAtk + awayDef)/2 + (awayAtk + homeDef)/2` (maç başı hücum/savunma ortalamasından).
-  - Favori = puan/maç farkı; `|diff| < 0.3` → dengeli, `> 1.0` → yüksek güven.
-  - Tempo = toplam gol ortalaması. Sezon başı (`played < 3`) → "Erken sezon — yeterli veri yok" etiketi.
-  - Hiçbir deterministik hash veya uydurma etiket yok; kullanıcıya gösterilen her rakam gerçek sezon verisinden türetilir.
-- **Scout modu** (yalnızca `activeFilter === 'Scout' && isToday(selectedDate)`):
-  1. **GÜNÜN MAÇI** — `scoutScore()` ile en yüksek skorlu maç. Lig ağırlığı + zamansal bonus + metrik bonusu (yüksek xG, dengeli güçlü ekip eşleşmesi). Koyu mavi hero kart; tek satırda "Beklenen ~X.Y gol · Takım belirgin favori / Dengeli eşleşme" gösterir ve altına küçük "Tahmin: Ev A.B — C.D Dep" dağılımı.
-  2. **GÜNÜN ÖNE ÇIKANLARI** — sonraki 3 maç (⭐ Öne Çıkan / 🎯 İzlenecek / 📌 Dikkat etiketleriyle); kartlarda "Beklenen ~X.Y gol · Favori" tek satırı + açıklama cümlesi.
-  3. **BUGÜN NE BEKLENİYOR?** — `buildDaySummary()` ortalama xG + yüksek gol profili sayısı + dengeli/favori dağılımı üzerinden konuşur.
-  4. **TÜM MAÇLAR** — scout skoruna göre sıralı liste. Her satırda "Beklenen ~X.Y gol · Takım favori" veya "Dengeli eşleşme" bilgi satırı.
-- **Favori dili** (`favoriteText`): confidence tabanlı insan diline çevrilir — `high` → "belirgin favori", `medium` → "favori", `low` → "hafif önde", `balanced` → "Dengeli eşleşme". Kriptik "+0.4 p/m" gibi sayısal fark arayüzde gösterilmez (arka planda `metrics.diff` mevcut, yalnızca dilsel eşik için kullanılır).
-- Lig filtresi veya başka bir gün seçilince sade liste görünümü aktif olur.
-- Süper Lig maçlarına tıklamak (leagueApiId: 203) maç detayına **gitmez** (`goToMatch` erken return).
-- Veri eksik durumlarda etiket gizlenir, yerine `metrics.reason` ("Sezon verisi bulunamadı", "Takım tablo satırı eşleşmedi", "Erken sezon — yeterli veri yok") gösterilir. Sahte değer üretilmez.
+- Tarih seridi (±3 gun), lig filtreleri + **"Scout"** varsayilan filtresi.
+- Ana veri akisi `getHomeData(dateStr)` uzerinden gelir. Backend payload'i maclar, Super Lig maclari, standings, `featuredMatchId` ve next preview alanlarini birlikte tasir.
+- `loadMatches(date, silent)` cache-first calisir: once `scout_home_data_cache_v1:{date}` okunur ve ekrana basilir, sonra taze `/home` verisi arka planda yenilenir. Kullaniciya cache uyarisi gosterilmez.
+- `applyHomeData()` Super Lig + ana ligleri birlestirir, kismi upstream sorunlarinda son iyi gorunen veriyi korumaya calisir.
+- `hydratePartialHomeData()` ana mac kaynagi gecici eksikse ayni tarihin cache'inden eksik ana maclari tamamlar.
+- Ana ekrandan detaya geciste `preloadMatchContext(id, finished, { silent: true })` calisir. Bu sadece hiz icindir; basarisiz olursa toast basilmaz.
+- **Metrik motoru** (`computeMetrics`, `findStanding`, `buildHomeCardAnalysis`):
+  - Standings satiri once `teamId`, olmazsa normalize edilmis takim adi ile eslesir.
+  - Beklenen gol, puan/maç, takim gol atma/yeme ortalamalari ve tablo konumu gibi gercek sezon metriklerinden turetilir.
+  - Ana kart basligi ve kisa yorumu artik `buildScoutPick` karar hattindan gelir: kart basligi `pick.label`, kisa yorum `pick.cardComment`.
+  - Kart, Scout Ozeti ve Scout Pick ayni mac senaryosunu anlatmalidir; farkli metin motorlariyla ters sinyal uretmemelidir.
+- **Scout modu**:
+  1. **GUNUN MACI** — backend `featuredMatchId` varsa o mac kullanilir; yoksa `selectFeaturedMatch()` / `scoutScore()` ile secilir. Tarih bazli cache nedeniyle ayni tarih icin secilen mac degismemelidir.
+  2. **GUNUN ONE CIKANLARI** — sonraki scout maclari kartlarla gosterilir.
+  3. **BUGUN NE BEKLENIYOR?** — gun genelindeki metriklerden ozet.
+  4. **GUNUN KALAN MACLARI** — sadece kalan mac varsa baslik gosterilir; hepsi tamamlandiysa baslik saklanir.
+- Lig filtresi veya baska bir gun secilince sade liste gorunumu aktif olur; mac satirlari yine ayni kart analiz kararini kullanir.
+- Veri eksik durumlarda sahte deger uretilmez; `metrics.reason` gosterilir.
 
 ### `app/match_detail.tsx` — Maç Detayı
-- **Tek-scroll analiz sayfası** (sekme yok). Tepede skorboard/durum şeridi, sonra sıralı bölümler:
-  - **MAÇ İSTATİSTİKLERİ** — iki takımın form kaynaklı avg. gol, W/D/L, over 2.5%, BTTS% vb. karşılaştırması.
-  - **Radar grafiği** — `react-native-svg` ile 5 eksen: Hücum, Savunma, Form, Galibiyet, 2.5 Üst.
-  - **HAVA ETKİSİ** — `getCityForTeam()` ile şehir (null dönerse bölüm gizlenir), WeatherAPI sonucu + etki yorumu.
-  - **HAKEM** — `matchData.referees[0].name` + lig bazlı `getRefereeProfile()` yorumu.
-  - **H2H — GEÇMİŞ KARŞILAŞMALAR** — son 10 karşılaşma kart listesi.
-- **Oranlar** ayrı bir bölüm değildir; `getOdds()` sonucu `getOddsComment()` içinde analiz metnine gömülür.
-- `useEffect` içinde 6 paralel çağrı: `getMatchStats`, `getH2H`, `getWeather`, `getOdds`, iki `getTeamForm` (home/away).
-- `buildMatchAnalysis()` form + H2H + hava sinyallerinden birleşik bir profil (stil, gol, tempo, risk, güven) üretir; kısa/orta cümleler ve "Neden?" gerekçe havuzundan seçer.
+- **Tek-scroll analiz sayfasi** (sekme yok). Route parametrelerinden fallback match kurulur; bu sayede context gec gelirse skor/temel mac bilgisi yine hizli cizilir.
+- Ana context akisi `getMatchContext(matchId, finished, { silent: Boolean(routeFallbackMatch) })` ile calisir. Context gelmezse team form + H2H fallback'leri kullanilir; ikincil fallback hatalari kullaniciya toast olarak basilmaz.
+- **Scout karar hatti**:
+  - `buildMatchAnalysis()` stil/gol/tempo/risk/guven etiketlerini ve `scoutPick` kararini uretir.
+  - `buildScoutPick()` tek karar kaynagidir: label, detail, `cardComment`, tone.
+  - `buildScoutSummaryFromPick()` Scout Ozeti'ni ayni pick uzerinden yazar; ozet veri raporu degil analist yorumu gibi olmalidir.
+  - "Neden? — Gerekceleri goster" bolumu daha sayisal ve kanit odakli kalabilir.
+- **Performans Profili** radar grafigi `react-native-svg` ile 5 eksen kullanir: Hucum, Savunma, Form, Galibiyet, 2.5 Ust. Etiketler kirpilmeyecek sekilde anchor'lanir (`RadarChart.tsx`).
+- Sirali bolumler: Scout Ozeti, Performans Profili, Takim Karsilastirmasi, Son Form, Ic Saha/Deplasman Analizi, H2H, hava/hakem/oran/motivasyon gibi veri varsa gosterilen ek analizler.
+- **Oranlar** ayri ana sekme degildir; `getOdds()` sonucu `getOddsComment()` icinde analiz metnine gomulur.
 
 ### `app/leagues.tsx` — Lig Paneli
 - 7 lig desteklenir (Premier Lig, La Liga, Bundesliga, Serie A, Ligue 1, UCL, Süper Lig).
@@ -301,11 +315,12 @@ Bahis oranları için. `match_detail.tsx` içindeki `getOddsComment()` yorumu bu
 - **Hücum/Savunma Gücü skoru:** lig içi **min-max normalizasyon**, 1.00-10.00 aralığında. `attackScore(team) = 1 + (gfPer(team) - minGfPer) / (maxGfPer - minGfPer) * 9` (en çok atan = 10.00, en az atan = 1.00). `defenseScore(team)` benzer ama `ga/maç` için ters yön (en az yiyen = 10.00). Eski rank-based + Math.round formülü (her ara değeri 10'a yuvarlayan) kaldırıldı — kullanıcı artık "10/10 savunma" gördüğünde bu ligin gerçekten en iyisi olduğundan emin olabilir.
 - **UCL özel:** "Puan Tablosu / Eşleşmeler" (`uclView: 'standings' | 'bracket'`) toggle; bracket modunda stage sekmeleri (Play-off, Son 16, Çeyrek Final, Yarı Final, Final). `groupTies()` iki bacaklı turu tek karta indirir, `tieResult()` agregat skoru hesaplar.
 - Puan tablosu pozisyon badge renkleri (`getBadgeStyle`):
-  - Mavi `#185FA5` → UCL
-  - Sarı `#E6A817` → Avrupa Ligi
-  - Yeşil `#27AE60` → Konferans Ligi
-  - Kırmızı `#C0392B` → Küme düşme (yalnızca Süper Lig)
-- Süper Lig'de 1. sıra UCL rengi, 2-3. Avrupa, 4-6. Konferans, son 3 küme düşme.
+  - UCL lig fazi: 1-8 mavi `Direkt Son 16`, 9-24 sari/turuncu `Play-off`.
+  - Premier Lig: 1-5 mavi `Sampiyonlar Ligi`, 6 turuncu `Avrupa Ligi`, 18-20 kirmizi `Kume Dusme`; Konferans rengi kullanilmaz.
+  - La Liga / Serie A: 1-4 mavi, 5 turuncu, 6 yesil `Konferans Ligi Eleme`, 18-20 kirmizi.
+  - Bundesliga: 1-4 mavi, 5 turuncu, 6 yesil, 16 koyu kirmizi `Kume Dusme Play-off`, 17-18 kirmizi.
+  - Ligue 1: 1-3 mavi, 4 farkli mavi `Sampiyonlar Ligi Eleme`, 5 turuncu, 6 yesil, 16 koyu kirmizi play-off, 17-18 kirmizi.
+  - Super Lig: 1 mavi, 2 `Sampiyonlar Ligi Eleme`, 3 `Avrupa Ligi Eleme`, 4 yesil `Konferans Ligi Eleme`, 16-18 kirmizi.
 
 ### `app/stats.tsx` — İstatistik Lig Seçimi
 - 7 lig listelenir (Süper Lig dahil).
@@ -355,9 +370,12 @@ Bahis oranları için. `match_detail.tsx` içindeki `getOddsComment()` yorumu bu
 ```typescript
 // Football-data.org
 getStandings(leagueId: number)            // LEAGUE_MAP ile apiId → fdId dönüşümü
+getHomeData(date?: string)                // ana ekran birleşik payload
 getTodayMatches(date?: string)
 getMatchStats(matchId: string)
-getH2H(matchId: string)
+preloadMatchContext(matchId, isFinished?, options?) // detay context prefetch; silent destekler
+getMatchContext(matchId, isFinished?, options?)     // match + form + H2H context
+getH2H(matchId: string, isFinished?, options?)      // options.silent ile ikincil hatalar susturulabilir
 getTeamForm(teamId: number)
 getTopScorers(fdId: number)
 getWeather(city: string)
@@ -420,10 +438,25 @@ Sarı:            #E6A817
 `services/api.ts` → backend URL → Railway → harici API  
 Harici API'lere frontend'den **doğrudan istek atılmaz**. Her şey backend üzerinden geçer.
 
+### Analiz ve Yorum Kuralı
+- Ana kart, Scout Ozeti, Scout Pick ve Scout Pick aciklamasi ayni mac senaryosunu anlatmalidir.
+- Tek karar kaynagi `utils/matchAnalysis.ts` icindeki `buildScoutPick()` olmalidir. Yeni metin eklenirken `label`, `detail`, `cardComment`, `tone` birlikte dusunulmelidir.
+- `buildScoutSummaryFromPick()` Scout Ozeti'ni pick kararina bagli yorumlar. Burada sayi kalabaligi yapma; veri anlamini futbol diliyle acikla.
+- Detayli sayisal kanitlar `buildReasons()` / "Neden?" bolumunde ve takim karsilastirma tablolarinda kalabilir.
+- "Kesin", "banko", "garanti" gibi iddiali ifadeler kullanilmaz. Veri sinirliysa veya sinyaller celisiyorsa analiz bunu acikca soylemeli.
+- Ana ekran daha sinirli standings verisiyle baslayabilir; bu nedenle ana kartlar detay kadar derin veri iddiasinda bulunmamali. Context hazir oldugunda detay daha zengin yorumlar.
+
+### Hata Bildirimi Kuralı
+- Kullaniciya sadece ekrani kullanilamaz hale getiren hatalar gosterilmeli.
+- Arka plan/preload/context/H2H/weather/odds gibi ikincil yenileme hatalari, ekranda kullanilabilir veri varsa toast olarak basilmaz.
+- `services/api.ts` icinde ilgili fonksiyonlara `options.silent` eklenebilir; silent modunda `logApiError()` cagrilmaz.
+
 ### Cache Key Versiyonlama
 Cache'lenmiş boş veri sorunu yaşanırsa cache key'ine `_v2`, `_v3` gibi sürüm ekle.  
 Mevcut sürümler:
 - `scout_standings_cache_v2` (AsyncStorage — frontend index.tsx; backend `/standings/:leagueId` → `standings_v3_{id}`)
+- `scout_home_data_cache_v1:{date}` (AsyncStorage — ana ekran cache-first veri)
+- `match_detail_secondary_v1_{matchId}` ve `sl_match_detail_secondary_v1_{matchId}` (detay sayfası ikincil H2H/weather/odds cache)
 - `af_topscorers_v2_{leagueId}_{season}`
 - `af_leagueteams_v2_{leagueId}_{season}`
 - `superlig_standings_v1`, `superlig_matches_v1_{date}`, `superlig_scorers_v1`, `superlig_form_season_v3_{teamId}`, `superlig_players_v1_{teamId}`
@@ -478,9 +511,8 @@ npx expo start
 # TypeScript kontrolü
 npx tsc --noEmit --skipLibCheck
 
-# Backend push (Railway otomatik deploy eder)
-cd ScoutFootball-Backend
-git add server.js
+# Backend/frontend push (Railway backend'i otomatik deploy eder)
+git add <dosyalar>
 git commit -m "..."
 git push
 ```
@@ -493,6 +525,8 @@ Test: Expo Go uygulamasıyla QR kod taranır.
 
 ## Gelecekte Yapılabilecekler
 
+- Ana ekrandaki gunun maci + ilk scout maclari icin detay context cache'i backend tarafinda daha proaktif isitilabilir; bu, detay sayfasina girince verilerin hazir gelme oranini artirir.
+- Ana ekranda context hazirsa kart analizini de direkt detay context verisiyle beslemek, ana kart ve detay arasindaki veri derinligi farkini daha da azaltir.
 - Oyuncu detay sayfası (profil + istatistikler) — kadro satırlarından tıklanabilir hale getir
 - Gerçek push bildirim altyapısı (`expo-notifications`): şu anda profile'daki toggle yalnızca flag.
 - Google Play yayını (build + store listing)
