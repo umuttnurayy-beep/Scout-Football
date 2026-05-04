@@ -33,8 +33,8 @@ export default function RadarChart({ homeVals, awayVals, labels }: { homeVals: n
         const tip=pt(a,labelR);
         const horizontal=Math.cos(a);
         const vertical=Math.sin(a);
-        const anchor=horizontal>0.45?'start':horizontal<-0.45?'end':'middle';
-        const x=tip.x+(anchor==='start'?2:anchor==='end'?-2:0);
+        const anchor=horizontal>0.45?'end':horizontal<-0.45?'start':'middle';
+        const x=horizontal>0.45?WIDTH-12:horizontal<-0.45?12:tip.x;
         const y=tip.y+(vertical>0.45?8:vertical<-0.45?-2:4);
         return<SvgText key={i} x={x} y={y} textAnchor={anchor} fontSize={11} fontWeight="600" fill={labelFill}>{labels[i]}</SvgText>;
       })}
