@@ -1051,7 +1051,7 @@ export default function HomeScreen() {
       router.push(slMatchHref);
       return;
     }
-    void preloadMatchContext(String(m.id), m.finished);
+    void preloadMatchContext(String(m.id), m.finished, { silent: true });
     router.push({
       pathname: '/match_detail',
       params: {

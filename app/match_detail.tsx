@@ -186,7 +186,7 @@ export default function MatchDetail() {
         setLoading(false);
         setSecondaryLoading(true);
       }
-      const contextPayload = await getMatchContext(matchId, finishedParam);
+      const contextPayload = await getMatchContext(matchId, finishedParam, { silent: Boolean(routeFallbackMatch) });
       const stats = contextPayload?.match || routeFallbackMatch || await getMatchStats(matchId);
       if (cancelled) return;
       if (!stats) {

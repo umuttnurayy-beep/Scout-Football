@@ -451,7 +451,7 @@ function matchContextRequestKey(matchId: string, isFinished?: boolean) {
   return `${matchId}:${isFinished ? 'finished' : 'active'}`;
 }
 
-async function fetchMatchContext(matchId: string, isFinished?: boolean): Promise<MatchContextData | null> {
+async function fetchMatchContext(matchId: string, isFinished?: boolean, options?: { silent?: boolean }): Promise<MatchContextData | null> {
   try {
     const url = isFinished ? `${BASE_URL}/match/${matchId}/context?finished=1` : `${BASE_URL}/match/${matchId}/context`;
     const res = await fetchWithTimeout(url, undefined, CONTEXT_FETCH_TIMEOUT_MS);
@@ -465,16 +465,16 @@ async function fetchMatchContext(matchId: string, isFinished?: boolean): Promise
       issues: arrayOrEmpty<string>(data.issues),
     };
   } catch (e) {
-    logApiError('getMatchContext', e);
+    if (!options?.silent) logApiError('getMatchContext', e);
     return null;
   }
 }
 
-export function preloadMatchContext(matchId: string, isFinished?: boolean): Promise<MatchContextData | null> {
+export function preloadMatchContext(matchId: string, isFinished?: boolean, options?: { silent?: boolean }): Promise<MatchContextData | null> {
   const key = matchContextRequestKey(matchId, isFinished);
   const existing = matchContextRequests.get(key);
   if (existing) return existing;
-  const request = fetchMatchContext(matchId, isFinished);
+  const request = fetchMatchContext(matchId, isFinished, options);
   matchContextRequests.set(key, request);
   request.then(value => {
     if (!value) matchContextRequests.delete(key);
@@ -484,8 +484,8 @@ export function preloadMatchContext(matchId: string, isFinished?: boolean): Prom
   return request;
 }
 
-export async function getMatchContext(matchId: string, isFinished?: boolean): Promise<MatchContextData | null> {
-  return preloadMatchContext(matchId, isFinished);
+export async function getMatchContext(matchId: string, isFinished?: boolean, options?: { silent?: boolean }): Promise<MatchContextData | null> {
+  return preloadMatchContext(matchId, isFinished, options);
 }
 
 export async function getH2H(matchId: string, isFinished?: boolean, options?: { silent?: boolean }): Promise<FDMatch[]> {
