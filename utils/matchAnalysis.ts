@@ -388,7 +388,7 @@ export function buildScoutSummary(
   if (avgOver >= 60 && avgKg >= 55) {
     lines.push('Gol trendi ve karşılıklı skor verisi aynı yöne bakıyor. Bu tablo iki tarafın da skora katkı verme ihtimalini güçlendiriyor.');
   } else if (avgOver >= 60 && avgKg <= 45) {
-    lines.push('Gol çizgisi yüksek görünüyor ama karşılıklı skor aynı güçte desteklenmiyor. Gollü ama tek tarafın daha baskın olduğu bir maç da ihtimaller arasında.');
+    lines.push('Toplam gol beklentisi yüksek görünüyor ama karşılıklı gol aynı güçte desteklenmiyor. Gollü ama tek tarafın daha baskın olduğu bir maç da ihtimaller arasında.');
   } else if (avgOver <= 40 && avgKg >= 55) {
     lines.push('Toplam gol trendi düşük olsa da karşılıklı skor ihtimali tamamen kapanmıyor. 1-1 gibi dar skorlu ve dengeli bir senaryo hâlâ masada.');
   }
@@ -435,10 +435,10 @@ export function buildScoutPick(
 
   if (signal.conflict && sideGap < 14) {
     return {
-      label: avgOver >= 58 ? 'Skor üretimi önde' : 'Taraf seçimi zayıf',
+      label: avgOver >= 58 ? '2.5 üst daha yakın' : 'Taraf seçimi riskli',
       detail: avgOver >= 58
-        ? `Kazanan taraf net ayrışmıyor; bu yüzden analiz gol çizgisine kayıyor. Hücum verisi maçın düşük skora kilitlenmeme ihtimalini güçlendiriyor.`
-        : `İki taraf farklı verilerde öne çıkıyor. Maç önü kazanan seçimi zayıf; bu profilde taraf pazarı gereksiz risk taşıyor.`,
+        ? `Scout özeti kazanan tarafı net ayırmıyor, ama hücum ve gol verisi maçın 2.5 üst tarafına daha yakın durduğunu gösteriyor.`
+        : `Scout özeti iki takımı farklı alanlarda öne çıkarıyor. Bu yüzden kazanan taraf seçimi yerine bu maçı riskli görmek daha doğru.`,
       tone: avgOver >= 58 ? 'goals' : 'caution',
     };
   }
@@ -446,36 +446,36 @@ export function buildScoutPick(
   if (lowConfidence) {
     if (avgOver >= 58 || hAtk + aAtk >= 2.6) {
       return {
-        label: 'Gol çizgisi daha okunaklı',
-        detail: `Veri güveni sınırlı olsa da hücum üretimi skor ihtimalini açık bırakıyor. Kazanan taraf yerine maçın gol üretimi daha anlaşılır sinyal veriyor.`,
+        label: '2.5 üst ihtimali önde',
+        detail: `Veri güveni tam yüksek değil, yine de iki takımın hücum üretimi düşük skordan çok gollü maç ihtimalini destekliyor.`,
         tone: 'goals',
       };
     }
     if (avgOver <= 42 || hAtk + aAtk <= 2.0) {
       return {
-        label: 'Dar skor beklenir',
-        detail: `Gol profili hızlı açılan bir maça işaret etmiyor: gol ortalaması %${overLabel}. Bu tabloda kontrollü oyun ve düşük skor daha yakın duruyor.`,
+        label: '2.5 alt daha yakın',
+        detail: `Gol verisi hızlı açılan bir maça işaret etmiyor. Bu tabloda kontrollü oyun ve düşük skor beklentisi daha mantıklı.`,
         tone: 'draw',
       };
     }
     if (homeEdge >= awayEdge + 3) {
       return {
-        label: `${home} yenilmez tarafa yakın`,
-        detail: `${home} tarafında hafif üstünlük var, fakat galibiyet için yeterince sert sinyal yok. Kaybetmeme senaryosu daha dengeli duruyor.`,
+        label: `${home} kaybetmez`,
+        detail: `${home} tarafında hafif üstünlük var, fakat galibiyet için sinyal yeterince güçlü değil. Kaybetmeme seçimi daha dengeli duruyor.`,
         tone: 'home',
       };
     }
     if (awayEdge >= homeEdge + 3) {
       return {
-        label: `${away} yenilmez tarafa yakın`,
-        detail: `${away} tarafında oyunda kalma sinyali var. Veri sınırlı olduğu için doğrudan galibiyet yerine kaybetmeme senaryosu daha dengeli duruyor.`,
+        label: `${away} kaybetmez`,
+        detail: `${away} tarafında oyunda kalma sinyali var. Veri sınırlı olduğu için doğrudan galibiyet yerine kaybetmeme seçimi daha dengeli duruyor.`,
         tone: 'away',
       };
     }
     if (avgKg >= 52) {
       return {
-        label: 'İki taraf da gol bulabilir',
-        detail: `İki takımın da gol bulma ortalaması %${kgLabel}. Taraf seçimi yerine iki ekibin skor katkısı daha okunabilir sinyal veriyor.`,
+        label: 'Karşılıklı gol beklenir',
+        detail: `İki takımın da gol bulma alışkanlığı var. Scout özeti kazanan taraftan çok iki ekibin de skor katkısını öne çıkarıyor.`,
         tone: 'goals',
       };
     }
@@ -488,40 +488,40 @@ export function buildScoutPick(
 
   if (avgOver >= 64 && avgKg >= 58 && hAtk >= 1.4 && aAtk >= 1.4) {
     return {
-      label: 'Karşılıklı gol senaryosu güçlü',
-      detail: `Gol profili iki taraftan da destek alıyor: gol ortalaması %${overLabel}, karşılıklı skor ortalaması %${kgLabel}. Taraf yerine iki ekibin skor katkısı daha net.`,
+      label: 'Karşılıklı gol beklenir',
+      detail: `Scout özeti iki takımın da gol bulma ihtimalini destekliyor. Kazanan seçmekten çok iki ekibin skora katkısı daha güçlü sinyal veriyor.`,
       tone: 'goals',
     };
   }
 
   if (avgOver >= 62 && hAtk + aAtk >= 2.8) {
     return {
-      label: 'Üst skor tarafı ağır basıyor',
-      detail: `Toplam gol trendi güçlü (%${overLabel}). Karşılıklı skor aynı ölçüde desteklenmese bile maçın düşük skora sıkışmama ihtimali daha yüksek.`,
+      label: '2.5 üst daha yakın',
+      detail: `Toplam gol ve hücum verisi maçın düşük skora sıkışmama ihtimalini artırıyor. Scout özeti gollü maç tarafını daha güçlü gösteriyor.`,
       tone: 'goals',
     };
   }
 
   if (avgOver <= 38 && avgKg <= 48) {
     return {
-      label: 'Alt skor profili önde',
-      detail: `Gol trendi düşük kalıyor: gol ortalaması %${overLabel}. Dar skor ve sabırlı başlangıç bu veriye daha uyumlu.`,
+      label: '2.5 alt daha yakın',
+      detail: `Gol trendi düşük kalıyor. Scout özeti bu maçta yüksek skor yerine kontrollü ve dar skor ihtimalini öne çıkarıyor.`,
       tone: 'draw',
     };
   }
 
   if (avgOver <= 42 && Math.abs(hFP - aFP) <= 3) {
     return {
-      label: 'Kontrollü oyun beklenir',
-      detail: 'Form farkı sınırlı, gol trendi düşük. Beraberlik veya tek farkla bitecek kontrollü skor çizgisi daha mantıklı.',
+      label: 'Düşük skorlu maç beklenir',
+      detail: 'Form farkı sınırlı, gol trendi düşük. Scout özeti beraberlik veya tek farkla bitecek kontrollü bir maça daha yakın duruyor.',
       tone: 'draw',
     };
   }
 
   if (avgOver >= 58 && hAtk + aAtk >= 2.45 && sideGap < 14) {
     return {
-      label: 'Gol beklentisi daha net',
-      detail: `İki takımın gol üretimi toplam skor ihtimalini destekliyor. Taraf farkı sınırlı kaldığı için kazanan yerine gol çizgisi daha net seçim.`,
+      label: '2.5 üst daha yakın',
+      detail: `İki takımın gol üretimi skor ihtimalini destekliyor. Taraf farkı sınırlı kaldığı için scout özeti gollü maç tarafını daha güçlü gösteriyor.`,
       tone: 'goals',
     };
   }
@@ -529,42 +529,42 @@ export function buildScoutPick(
   if (homeEdge >= awayEdge + 12) {
     if (signal.conflictText) {
       return {
-        label: `${home} yenilmez çizgide`,
-        detail: `${away} bazı verilerde direnç gösterse de toplam form, iç saha etkisi ve hücum-savunma eşleşmesi ${home} tarafını öne taşıyor. Galibiyet yerine yenilmezlik daha dengeli.`,
+        label: `${home} kaybetmez`,
+        detail: `${away} bazı verilerde direnç gösterse de toplam form, iç saha etkisi ve hücum-savunma eşleşmesi ${home} tarafını öne taşıyor.`,
         tone: 'home',
       };
     }
     return {
       label: `${home} galibiyete yakın`,
-      detail: `${home} tarafında form, iç saha ve hücum-savunma eşleşmesi belirgin üstün. Maçı kendi ritmine çekme şansı daha yüksek.`,
+      detail: `${home} tarafında form, iç saha ve hücum-savunma eşleşmesi belirgin üstün. Scout özeti maçın kontrolünü ev sahibine daha yakın görüyor.`,
       tone: 'home',
     };
   }
   if (awayEdge >= homeEdge + 12) {
     if (signal.conflictText) {
       return {
-        label: `${away} yenilmez çizgide`,
-        detail: `${home} bazı verilerde direnç gösterse de son form ve deplasman gol tehdidi ${away} tarafını öne taşıyor. Galibiyet yerine yenilmezlik daha dengeli.`,
+        label: `${away} kaybetmez`,
+        detail: `${home} bazı verilerde direnç gösterse de son form ve deplasman gol tehdidi ${away} tarafını öne taşıyor.`,
         tone: 'away',
       };
     }
     return {
       label: `${away} galibiyete yakın`,
-      detail: `${away} form ve deplasman üretimiyle net sinyal veriyor. Deplasman riskine rağmen galibiyet tarafı veriyle destekleniyor.`,
+      detail: `${away} form ve deplasman üretimiyle net sinyal veriyor. Scout özeti deplasman riskine rağmen galibiyet tarafını destekliyor.`,
       tone: 'away',
     };
   }
   if (homeEdge >= awayEdge + 4) {
     return {
-      label: `${home} yenilmez çizgide`,
-      detail: `${home} tarafı hafif önde. Fark galibiyet için sert değil; yenilmezlik senaryosu daha mantıklı.`,
+      label: `${home} kaybetmez`,
+      detail: `${home} tarafı hafif önde. Fark galibiyet için yeterince güçlü değil; kaybetmeme seçimi daha mantıklı.`,
       tone: 'home',
     };
   }
   if (awayEdge >= homeEdge + 4) {
     return {
-      label: `${away} yenilmez çizgide`,
-      detail: `${away} tarafı hafif önde. Fark galibiyet için sert değil; yenilmezlik senaryosu daha mantıklı.`,
+      label: `${away} kaybetmez`,
+      detail: `${away} tarafı hafif önde. Fark galibiyet için yeterince güçlü değil; kaybetmeme seçimi daha mantıklı.`,
       tone: 'away',
     };
   }

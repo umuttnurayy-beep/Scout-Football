@@ -526,8 +526,8 @@ describe('scout narrative builders', () => {
       false,
     );
 
-    expect(pick.label).toContain('Taraf seçimi zayıf');
-    expect(pick.detail).toContain('farklı verilerde');
+    expect(pick.label).toContain('Taraf seçimi riskli');
+    expect(pick.detail).toContain('farklı alanlarda');
   });
 
   it('buildScoutPick prefers goal direction when side edge is limited but goal signal is stronger', () => {
@@ -543,7 +543,7 @@ describe('scout narrative builders', () => {
     );
 
     expect(pick.tone).toBe('goals');
-    expect(pick.label).toContain('Gol');
+    expect(pick.label).toContain('2.5 üst');
     expect(pick.detail).toContain('Taraf');
   });
 

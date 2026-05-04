@@ -240,7 +240,7 @@ export function buildMatchSummary(m: {
   confidence: 'low' | 'medium' | 'high'; tempo: number; homePpg: number; awayPpg: number;
 }): string {
   const bits: string[] = [];
-  if (m.expectedGoals >= 3.2)      bits.push('gol çizgisi canlı');
+  if (m.expectedGoals >= 3.2)      bits.push('gollü maç ihtimali yüksek');
   else if (m.expectedGoals >= 2.5) bits.push('gol beklentisi orta-üst');
   else if (m.expectedGoals < 2.0)  bits.push('kontrollü skor profili');
 
@@ -555,15 +555,15 @@ function homeCardHeadline(m: Match, metrics: Metrics, pick: ReturnType<typeof bu
       'Net favori yok',
       'Sinyaller iki tarafa bölünüyor',
       'Dengeli ve riskli eşleşme',
-      'Taraf seçimi temkin istiyor',
+      'Kazanan seçimi riskli',
     ], hash);
   }
   if (pick.tone === 'draw') {
     return pickVariant([
-      'Kontrollü skor profili',
+      'Düşük skorlu maç profili',
       'Düşük skor ihtimali var',
       'Dar skor ihtimali canlı',
-      'Gol çizgisi sınırlı',
+      'Gollü maç sinyali zayıf',
     ], hash);
   }
   if (pick.tone === 'home') {
@@ -617,7 +617,7 @@ function homeCardSummary(m: Match, metrics: Metrics, pick: ReturnType<typeof bui
   if (pick.tone === 'draw') {
     return pickVariant([
       `${goalLevel}; iki taraf için de sabırlı başlangıç daha olası görünüyor.`,
-      `Gol çizgisi sınırlı kalıyor, dar skor senaryosu veriyle uyumlu.`,
+      `Gol verisi düşük kalıyor; dar skor senaryosu veriyle uyumlu.`,
       `Form farkı büyük değil; kontrollü oyun ve tek gol etkisi öne çıkıyor.`,
       `Hücum verisi güçlü değil; maçın açılması için erken kırılma anı gerekebilir.`,
     ], hash);

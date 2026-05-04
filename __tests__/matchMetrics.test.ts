@@ -357,8 +357,8 @@ describe('buildMatchSummary', () => {
     expect(buildMatchSummary(base)).toBe('Takım verilerine göre standart bir maç profili.');
   });
 
-  test('includes "gol çizgisi canlı" for xG >= 3.2', () => {
-    expect(buildMatchSummary({ ...base, expectedGoals: 3.5 }).toLowerCase()).toContain('gol çizgisi canlı');
+  test('includes "gollü maç ihtimali yüksek" for xG >= 3.2', () => {
+    expect(buildMatchSummary({ ...base, expectedGoals: 3.5 }).toLowerCase()).toContain('gollü maç ihtimali yüksek');
   });
 
   test('includes "gol beklentisi orta-üst" for 2.5 <= xG < 3.2', () => {

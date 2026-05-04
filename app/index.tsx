@@ -170,7 +170,7 @@ function SingleTrendsCard({ m, metrics }: { m: Match; metrics: Metrics }) {
         <Ionicons name="analytics-outline" size={17} color={c.primary} />
         <Text style={[sc.singleTitle, { color: c.primary }]}>MAÇ TRENDLERİ</Text>
       </View>
-      <ProgressRow label="Gol çizgisi" value={`~${metrics.expectedGoals.toFixed(1)} gol · ${goalLevel}`} percent={trendBarPercent(goalLevel)} />
+      <ProgressRow label="Gol beklentisi" value={`~${metrics.expectedGoals.toFixed(1)} gol · ${goalLevel}`} percent={trendBarPercent(goalLevel)} />
       <ProgressRow label="Taraf okuması" value={sideValue || 'Dengeli'} percent={metrics.favorite === 'balanced' ? 52 : 70} />
       <ProgressRow label="Veri güveni" value={confidence} percent={trendBarPercent(confidence)} />
       <Text style={[sc.trendFoot, { color: c.textMuted }]}>Beklenen gol, lig tablosu ve form eşleşmesinden türetilen özet sinyal.</Text>
