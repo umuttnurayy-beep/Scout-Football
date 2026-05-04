@@ -526,9 +526,25 @@ describe('scout narrative builders', () => {
       false,
     );
 
-    expect(pick.label).toContain('Man City');
-    expect(pick.detail).toContain('Everton');
-    expect(pick.detail).toContain('Man City');
+    expect(pick.label).toContain('taraf bahsi yok');
+    expect(pick.detail).toContain('Taraf verileri');
+  });
+
+  it('buildScoutPick prefers goal direction when side edge is limited but goal signal is stronger', () => {
+    const pick = buildScoutPick(
+      'Chelsea',
+      'Nottingham',
+      makeStats({ total: 10, totalAvgGf: '1.7', totalAvgGa: '1.4', homeWinPct: 45, homePlayed: 6, over25Pct: 62, kgVarPct: 56 }),
+      makeStats({ total: 10, totalAvgGf: '1.5', totalAvgGa: '1.5', awayWinPct: 42, awayPlayed: 6, over25Pct: 60, kgVarPct: 54 }),
+      8,
+      10,
+      4,
+      false,
+    );
+
+    expect(pick.tone).toBe('goals');
+    expect(pick.label).toContain('gol');
+    expect(pick.detail).toContain('Taraf');
   });
 
   it('buildMatchCharacterDetail picks style, attack and fallback narratives', () => {

@@ -433,12 +433,12 @@ export function buildScoutPick(
   const overLabel = Math.round(avgOver);
   const kgLabel = Math.round(avgKg);
 
-  if (signal.conflict && sideGap < 10) {
+  if (signal.conflict && sideGap < 14) {
     return {
-      label: 'Sinyaller iki tarafa bölünüyor',
+      label: avgOver >= 58 ? 'En güvenli tercih: gol yönü' : 'En güvenli tercih: taraf bahsi yok',
       detail: avgOver >= 58
-        ? `Taraf verileri net ayrışmıyor; daha güvenilir sinyal gol temposunda. İlk bölümde şut ve ceza sahası girişleri takip edilmeli.`
-        : `Taraf verileri net ayrışmıyor. Pick taraf yerine ilk bölüm baskısı, tempo ve skor akışını beklemeyi öneriyor.`,
+        ? `Taraf avantajı sınırlı kaldığı için kazanan seçimi riskli. Hücum ve skor verisi daha net sinyal verdiğinden pick gol tarafında kalıyor.`
+        : `Taraf verileri birbirini dengeliyor. Bu maçta en sağlıklı tercih maç önü taraf seçmek yerine ilk bölüm baskısını beklemek.`,
       tone: avgOver >= 58 ? 'goals' : 'caution',
     };
   }
@@ -446,132 +446,132 @@ export function buildScoutPick(
   if (lowConfidence) {
     if (avgOver >= 58 || hAtk + aAtk >= 2.6) {
       return {
-        label: 'Gol temposu maç içinde netleşir',
-        detail: `Veri güveni sınırlı ama hücum üretimi gol ihtimalini tamamen kapatmıyor. İlk 15-20 dakikada tempo, şut ve ceza sahası girişleri artarsa gol beklentisi de daha güvenli hale gelir.`,
+        label: 'En güvenli tercih: canlı gol bekle',
+        detail: `Maç önü veri güveni sınırlı. İlk 15-20 dakikada tempo, şut ve ceza sahası girişleri artarsa gol tarafı daha oynanabilir hale gelir.`,
         tone: 'goals',
       };
     }
     if (avgOver <= 42 || hAtk + aAtk <= 2.0) {
       return {
-        label: 'İlk beklenti kontrollü skor',
-        detail: `Örneklem sınırlı ve gol profili hızlı açılan bir maça işaret etmiyor: gol ortalaması %${overLabel}. Maç hızlı başlamazsa dar skor ve sabırlı oyun çizgisi daha uyumlu duruyor.`,
+        label: 'En güvenli tercih: düşük skor',
+        detail: `Gol profili hızlı açılan bir maça işaret etmiyor: gol ortalaması %${overLabel}. Maç hızlı başlamazsa dar skor tarafı daha mantıklı kalır.`,
         tone: 'draw',
       };
     }
     if (homeEdge >= awayEdge + 3) {
       return {
-        label: `${home} tarafı daha güvenli`,
-        detail: `${home} tarafında hafif üstünlük var, fakat doğrudan galibiyet sinyali tek başına güçlü değil. Bu nedenle ev sahibinin oyunda kalma ihtimali daha net görünüyor.`,
+        label: `En güvenli tercih: ${home} kaybetmez`,
+        detail: `${home} tarafında hafif üstünlük var ama galibiyet sinyali güçlü değil. Bu yüzden doğrudan kazanır yerine kaybetmeme çizgisi daha güvenli.`,
         tone: 'home',
       };
     }
     if (awayEdge >= homeEdge + 3) {
       return {
-        label: `${away} oyunda kalabilir`,
-        detail: `${away} tarafında oyunda kalma sinyali var. Veri sınırlı olduğu için doğrudan galibiyet yerine deplasmanın direnç göstermesi daha olası duruyor.`,
+        label: `En güvenli tercih: ${away} kaybetmez`,
+        detail: `${away} tarafında oyunda kalma sinyali var. Veri sınırlı olduğu için doğrudan galibiyet yerine kaybetmeme çizgisi daha güvenli.`,
         tone: 'away',
       };
     }
     if (avgKg >= 52) {
       return {
-        label: 'Karşılıklı gol için tempo önemli',
-        detail: `İki takımın da gol bulma ortalaması %${kgLabel}. Maç öncesi güven düşük olsa da iki taraf erken bölümde kaleye gidebilirse karşılıklı skor ihtimali canlı kalır.`,
+        label: 'En güvenli tercih: KG için tempo bekle',
+        detail: `İki takımın da gol bulma ortalaması %${kgLabel}. Erken bölümde iki taraf da kaleye giderse karşılıklı skor tarafı güçlenir.`,
         tone: 'goals',
       };
     }
     return {
-      label: 'Maç öncesinde net yön yok',
-      detail: 'Veri güveni düşük ve taraf sinyalleri net değil. İlk gol, tempo ve şut hacmi görülmeden tarafa ya da gole fazla güvenmek riskli olur.',
+      label: 'En güvenli tercih: maç içi bekle',
+      detail: 'Maç önü verisi net bir taraf veya gol seçimi vermiyor. İlk 15-20 dakikadaki tempo ve şut hacmi görülmeden seçim yapmak riskli.',
       tone: 'caution',
     };
   }
 
   if (avgOver >= 64 && avgKg >= 58 && hAtk >= 1.4 && aAtk >= 1.4) {
     return {
-      label: 'Gollü maç senaryosu güçlü',
-      detail: `Gol profili iki taraftan da destek alıyor: gol ortalaması %${overLabel}, karşılıklı skor ortalaması %${kgLabel}. Bu tabloda taraf seçiminden çok maç temposu öne çıkıyor.`,
+      label: 'En güvenli tercih: gollü maç',
+      detail: `Gol profili iki taraftan da destek alıyor: gol ortalaması %${overLabel}, karşılıklı skor ortalaması %${kgLabel}. Taraf yerine gol yönü daha net.`,
       tone: 'goals',
     };
   }
 
   if (avgOver >= 62 && hAtk + aAtk >= 2.8) {
     return {
-      label: 'Gol beklentisi taraf seçiminden daha net',
-      detail: `Toplam gol trendi güçlü (%${overLabel}). Karşılıklı skor aynı ölçüde desteklenmese bile maçın düşük skora sıkışmama ihtimali yüksek görünüyor.`,
+      label: 'En güvenli tercih: gol yönü',
+      detail: `Toplam gol trendi güçlü (%${overLabel}). Karşılıklı skor aynı ölçüde desteklenmese bile düşük skora sıkışmama ihtimali daha yüksek.`,
       tone: 'goals',
     };
   }
 
   if (avgOver <= 38 && avgKg <= 48) {
     return {
-      label: 'Düşük skorlu maç daha uyumlu',
-      detail: `Gol trendi düşük kalıyor: gol ortalaması %${overLabel}. Bu nedenle dar skor, sabırlı başlangıç ve düşük tempolu maç profili daha olası görünüyor.`,
+      label: 'En güvenli tercih: düşük skor',
+      detail: `Gol trendi düşük kalıyor: gol ortalaması %${overLabel}. Dar skor ve sabırlı başlangıç bu veriye daha uyumlu.`,
       tone: 'draw',
     };
   }
 
   if (avgOver <= 42 && Math.abs(hFP - aFP) <= 3) {
     return {
-      label: 'Denge ve düşük tempo öne çıkıyor',
-      detail: 'Form farkı sınırlı, gol trendi düşük. Beraberlik ya da tek farkla bitecek kontrollü skor çizgisi daha güçlü duruyor.',
+      label: 'En güvenli tercih: düşük skor',
+      detail: 'Form farkı sınırlı, gol trendi düşük. Beraberlik veya tek farkla bitecek kontrollü skor çizgisi daha mantıklı.',
       tone: 'draw',
     };
   }
 
-  if (avgOver >= 58 && hAtk + aAtk >= 2.45 && sideGap < 10) {
+  if (avgOver >= 58 && hAtk + aAtk >= 2.45 && sideGap < 14) {
     return {
-      label: 'Gol beklentisi taraf seçiminden daha net',
-      detail: `İki takımın gol üretimi toplam skor ihtimalini destekliyor. Taraf farkı sınırlı kaldığı için pick, kazanan taraf yerine maçın gol temposuna yaslanıyor.`,
+      label: 'En güvenli tercih: gol yönü',
+      detail: `İki takımın gol üretimi toplam skor ihtimalini destekliyor. Taraf farkı sınırlı kaldığı için kazanan yerine gol temposu daha net seçim.`,
       tone: 'goals',
     };
   }
 
-  if (homeEdge >= awayEdge + 7) {
+  if (homeEdge >= awayEdge + 12) {
     if (signal.conflictText) {
       return {
-        label: `${home} tarafı daha güçlü`,
-        detail: `Pick gerekçesi: ${away} bazı verilerde direnç gösterse de toplam form, iç saha etkisi ve hücum-savunma eşleşmesi ${home} tarafını biraz daha öne taşıyor.`,
+        label: `En güvenli tercih: ${home} kaybetmez`,
+        detail: `${away} bazı verilerde direnç gösterse de toplam form, iç saha etkisi ve hücum-savunma eşleşmesi ${home} tarafını öne taşıyor. Direkt galibiyet yerine kaybetmeme daha güvenli.`,
         tone: 'home',
       };
     }
     return {
-      label: `${home} tarafı daha güçlü`,
-      detail: `${home} tarafında form, iç saha ve hücum-savunma eşleşmesi belirgin üstün. Ev sahibinin maçı kendi ritmine çekme şansı daha yüksek görünüyor.`,
+      label: `En güvenli tercih: ${home} kazanır`,
+      detail: `${home} tarafında form, iç saha ve hücum-savunma eşleşmesi belirgin üstün. Maçı kendi ritmine çekme şansı daha yüksek.`,
       tone: 'home',
     };
   }
-  if (awayEdge >= homeEdge + 7) {
+  if (awayEdge >= homeEdge + 12) {
     if (signal.conflictText) {
       return {
-        label: `${away} tarafı daha güçlü`,
-        detail: `Pick gerekçesi: ${home} bazı verilerde direnç gösterse de son form ve deplasman gol tehdidi ${away} tarafını biraz daha öne taşıyor.`,
+        label: `En güvenli tercih: ${away} kaybetmez`,
+        detail: `${home} bazı verilerde direnç gösterse de son form ve deplasman gol tehdidi ${away} tarafını öne taşıyor. Direkt galibiyet yerine kaybetmeme daha güvenli.`,
         tone: 'away',
       };
     }
     return {
-      label: `${away} tarafı daha güçlü`,
-      detail: `${away} form ve deplasman üretimiyle net sinyal veriyor. Deplasman riskine rağmen oyunda kalma ihtimali dikkat çekiyor.`,
+      label: `En güvenli tercih: ${away} kazanır`,
+      detail: `${away} form ve deplasman üretimiyle net sinyal veriyor. Deplasman riskine rağmen galibiyet tarafı veriyle destekleniyor.`,
       tone: 'away',
     };
   }
   if (homeEdge >= awayEdge + 4) {
     return {
-      label: `${home} oyunda kalmaya daha yakin`,
-      detail: `${home} kaybetmeme çizgisinde daha güçlü duruyor. Doğrudan galibiyet yerine maç boyunca avantajlı tarafta kalması daha olası.`,
+      label: `En güvenli tercih: ${home} kaybetmez`,
+      detail: `${home} tarafı hafif önde. Fark galibiyet için sert değil; kaybetmeme çizgisi daha mantıklı.`,
       tone: 'home',
     };
   }
   if (awayEdge >= homeEdge + 4) {
     return {
-      label: `${away} oyunda kalmaya daha yakin`,
-      detail: `${away} oyunda kalma ve sonuç alma tarafında daha iyi sinyal veriyor. Deplasman riskine rağmen direnç göstermesi olası.`,
+      label: `En güvenli tercih: ${away} kaybetmez`,
+      detail: `${away} tarafı hafif önde. Fark galibiyet için sert değil; kaybetmeme çizgisi daha mantıklı.`,
       tone: 'away',
     };
   }
 
   return {
-    label: 'Maç öncesinde temkinli kalınabilir',
-    detail: 'Maç öncesi sinyaller birbirini net desteklemiyor. İlk gol, tempo ve ceza sahası girişleri görülmeden tarafa ya da gole fazla yüklenilmemek daha sağlıklı olur.',
+    label: 'En güvenli tercih: maç içi bekle',
+    detail: 'Maç önü sinyalleri net bir taraf veya gol seçimi vermiyor. İlk gol, tempo ve ceza sahası girişleri görülmeden seçim yapmak riskli.',
     tone: 'draw',
   };
 }
