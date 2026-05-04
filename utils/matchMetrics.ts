@@ -543,45 +543,43 @@ function homeCardHeadline(m: Match, metrics: Metrics, pick: ReturnType<typeof bu
   const homeName = m.home;
   const awayName = m.away;
   const leader = metrics.favorite === 'home' ? homeName : metrics.favorite === 'away' ? awayName : null;
+  const goalText = metrics.expectedGoals >= 3.0
+    ? ['Gol ihtimali yüksek', 'Açık maç profili', 'Skor potansiyeli güçlü', 'İki taraf için gol alanı var']
+    : ['Gol ihtimali orta-üst', 'Skor potansiyeli var', 'İki taraf da gol arayabilir', 'Gole yakın maç profili'];
 
   if (pick.tone === 'goals') {
-    return pickVariant([
-      'Tempo sinyali izlenmeli',
-      'Gol çizgisi oyunla netleşir',
-      'İlk bölüm tempo için önemli',
-      'Hücum ritmi belirleyici olacak',
-    ], hash);
+    return pickVariant(goalText, hash);
   }
   if (pick.tone === 'caution') {
     return pickVariant([
-      'Sinyaller temkin istiyor',
-      'Taraf okuması net değil',
-      'Denge tarafı ağır basıyor',
-      'İlk bölüm verisi kritik',
+      'Net favori yok',
+      'Sinyaller iki tarafa bölünüyor',
+      'Dengeli ve riskli eşleşme',
+      'Taraf seçimi temkin istiyor',
     ], hash);
   }
   if (pick.tone === 'draw') {
     return pickVariant([
       'Kontrollü skor profili',
-      'Denge ve düşük tempo önde',
+      'Düşük skor ihtimali var',
       'Dar skor ihtimali canlı',
-      'Sabırlı oyun senaryosu',
+      'Gol çizgisi sınırlı',
     ], hash);
   }
   if (pick.tone === 'home') {
     return pickVariant([
-      `${homeName} veriyle öne çıkıyor`,
-      `${homeName} tarafında avantaj var`,
-      `${homeName} daha güçlü sinyal veriyor`,
-      `${homeName} oyunda kalmaya yakın`,
+      `${homeName} formda önde`,
+      `${homeName} daha avantajlı`,
+      `${homeName} sezon verisinde önde`,
+      `${homeName} kaybetmeme tarafında`,
     ], hash);
   }
   if (pick.tone === 'away') {
     return pickVariant([
-      `${awayName} veriyle öne çıkıyor`,
-      `${awayName} deplasmanda tehdit taşıyor`,
-      `${awayName} daha güçlü sinyal veriyor`,
-      `${awayName} oyunda kalmaya yakın`,
+      `${awayName} formda önde`,
+      `${awayName} deplasmanda tehditli`,
+      `${awayName} sezon verisinde önde`,
+      `${awayName} kaybetmeme tarafında`,
     ], hash);
   }
   if (leader) return `${leader} hafif önde`;
@@ -602,18 +600,18 @@ function homeCardSummary(m: Match, metrics: Metrics, pick: ReturnType<typeof bui
 
   if (pick.tone === 'goals') {
     return pickVariant([
-      `${goalLevel}; iki takımın hücum üretimi maç içi tempoyu öne çıkarıyor.`,
-      `Gol tarafı açık kalıyor; ilk 20 dakikadaki baskı ve şut hacmi belirleyici.`,
-      `Taraf seçimi yerine tempo daha okunabilir; ${expectedLine(metrics).toLowerCase()}.`,
-      `Hücum verileri düşük skora tamamen kapanmıyor, maç ritmi ana sinyal olacak.`,
+      `${goalLevel}; iki takımın gol üretimi düşük skora kapanmıyor.`,
+      `Hücum ortalamaları gol ihtimalini destekliyor, taraf avantajı ise daha sınırlı.`,
+      `${expectedLine(metrics)}; bu maçta ana sinyal skor potansiyeli.`,
+      `Savunma verileri iki taraf için de gol alanı bırakıyor.`,
     ], hash);
   }
   if (pick.tone === 'caution') {
     return pickVariant([
       `Form ve taraf sinyalleri bölünüyor; ilk gol maçın yönünü değiştirebilir.`,
-      `Net favori sinyali zayıf, bu yüzden tempo ve baskı dengesi izlenmeli.`,
-      `${homeName} ve ${awayName} farklı alanlarda öne çıkıyor; tek veriyle karar vermemek gerekir.`,
-      `Denge yüksek; maçın ilk bölümü modelin yönünü netleştirecek.`,
+      `Net favori sinyali zayıf; iki tarafın da güçlü ve zayıf alanı var.`,
+      `${homeName} ve ${awayName} farklı verilerde öne çıkıyor, bu yüzden tek taraf yorumu riskli.`,
+      `Denge yüksek; skor ya da erken baskı maçın yönünü değiştirebilir.`,
     ], hash);
   }
   if (pick.tone === 'draw') {
@@ -621,35 +619,35 @@ function homeCardSummary(m: Match, metrics: Metrics, pick: ReturnType<typeof bui
       `${goalLevel}; iki taraf için de sabırlı başlangıç daha olası görünüyor.`,
       `Gol çizgisi sınırlı kalıyor, dar skor senaryosu veriyle uyumlu.`,
       `Form farkı büyük değil; kontrollü oyun ve tek gol etkisi öne çıkıyor.`,
-      `Tempo sinyali düşük, maçın açılması için erken kırılma anı gerekebilir.`,
+      `Hücum verisi güçlü değil; maçın açılması için erken kırılma anı gerekebilir.`,
     ], hash);
   }
   if (pick.tone === 'home') {
     return pickVariant([
-      `${homeName} form ve üretim tarafında önde; ${awayName} savunma eşleşmesi dikkat istiyor.`,
-      `${homeName} avantajlı görünse de tempo seviyesi maçın riskini belirleyecek.`,
+      `${homeName} form ve üretim tarafında önde; ${awayName} savunması baskı yiyebilir.`,
+      `${homeName} avantajlı görünüyor, ancak gol beklentisi maçın riskini artırıyor.`,
       `Ev sahibi tarafı daha güçlü sinyal veriyor; ${goalLevel}.`,
-      `${homeName} oyun kontrolüne daha yakın, fakat farkın sahaya yansıması ilk bölümde netleşir.`,
+      `${homeName} oyun kontrolüne daha yakın; fark özellikle hücum verisinden geliyor.`,
     ], hash);
   }
   if (pick.tone === 'away') {
     return pickVariant([
       `${awayName} form ve üretim tarafında önde; deplasman gol tehdidi öne çıkıyor.`,
-      `${awayName} avantajlı görünse de maç temposu risk seviyesini belirleyecek.`,
+      `${awayName} avantajlı görünüyor, ancak deplasman riski tamamen kapanmıyor.`,
       `Deplasman tarafı daha güçlü sinyal veriyor; ${goalLevel}.`,
-      `${awayName} oyunda kalmaya yakın, fakat ilk bölüm baskısı tabloyu değiştirebilir.`,
+      `${awayName} oyunda kalmaya yakın; avantaj daha çok form ve gol üretiminden geliyor.`,
     ], hash);
   }
   if (ppgGap <= 0.25 && attackGap <= 0.35 && defenseGap <= 0.35) {
     return pickVariant([
       `Takımların form, hücum ve savunma çizgisi yakın; denge sinyali güçlü.`,
-      `Sezon verisi iki tarafı ayırmıyor, maç içi momentum daha önemli.`,
-      `Taraflar birbirine yakın; ilk gol ve tempo değişimi ana kırılma noktası.`,
+      `Sezon verisi iki tarafı net ayırmıyor; ilk gol daha belirleyici olabilir.`,
+      `Taraflar birbirine yakın; risk daha çok maçın skor akışında.`,
     ], hash);
   }
   return pickVariant([
     `${goalLevel}; form ve hücum-savunma dengesi birlikte okunmalı.`,
-    `Sezon verisi tek yöne sert akmıyor, maç ritmi belirleyici olacak.`,
+    `Sezon verisi tek yöne sert akmıyor; taraf yorumu temkinli kalmalı.`,
     `Ana sinyal ${goalLevel}; taraf yorumu ise form farkına bağlı.`,
   ], hash);
 }
