@@ -49,19 +49,114 @@ type SubTab = typeof SUB_TABS[number]['key'];
 type League   = typeof configuredLeagues[0];
 type Standing = LeagueStanding;
 
+const TABLE_COLORS = {
+  champions: '#185FA5',
+  championsQual: '#3B82F6',
+  europa: '#E6A817',
+  europaQual: '#F97316',
+  conference: '#27AE60',
+  relegationPlayoff: '#8E1B13',
+  relegation: '#C0392B',
+};
+
 function getBadgeStyle(pos: number, total: number, apiId: number) {
-  if (apiId === 2) return pos <= 8 ? styles.posTop : pos <= 24 ? styles.posMid : styles.posNormal;
+  if (apiId === 2) {
+    if (pos <= 8) return styles.posTop;
+    if (pos <= 24) return styles.posMid;
+    return styles.posNormal;
+  }
+  if (apiId === 39) {
+    if (pos <= 5) return styles.posTop;
+    if (pos === 6) return styles.posMid;
+    if (pos >= 18) return styles.posRel;
+    return styles.posNormal;
+  }
+  if (apiId === 61) {
+    if (pos <= 3) return styles.posTop;
+    if (pos === 4) return styles.posUclQual;
+    if (pos === 5) return styles.posMid;
+    if (pos === 6) return styles.posConf;
+    if (pos === 16) return styles.posRelPlayoff;
+    if (pos >= 17) return styles.posRel;
+    return styles.posNormal;
+  }
   if (apiId === 203) {
     if (pos === 1) return styles.posTop;
-    if (pos <= 3) return styles.posMid;
-    if (pos <= 6) return styles.posConf;
-    if (pos > total - 3) return styles.posRel;
+    if (pos === 2) return styles.posUclQual;
+    if (pos === 3) return styles.posEuropaQual;
+    if (pos === 4) return styles.posConf;
+    if (pos >= 16) return styles.posRel;
+    return styles.posNormal;
+  }
+  if (apiId === 78) {
+    if (pos <= 4) return styles.posTop;
+    if (pos === 5) return styles.posMid;
+    if (pos === 6) return styles.posConf;
+    if (pos === 16) return styles.posRelPlayoff;
+    if (pos >= 17) return styles.posRel;
+    return styles.posNormal;
+  }
+  if (apiId === 140 || apiId === 135) {
+    if (pos <= 4) return styles.posTop;
+    if (pos === 5) return styles.posMid;
+    if (pos === 6) return styles.posConf;
+    if (pos >= 18) return styles.posRel;
     return styles.posNormal;
   }
   if (pos <= 4) return styles.posTop;
   if (pos === 5) return styles.posMid;
   if (pos === 6) return styles.posConf;
   return styles.posNormal;
+}
+
+function getLeagueLegend(apiId: number) {
+  if (apiId === 2) {
+    return [
+      { color: TABLE_COLORS.champions, label: 'Direkt Son 16' },
+      { color: TABLE_COLORS.europa, label: 'Play-off' },
+    ];
+  }
+  if (apiId === 39) {
+    return [
+      { color: TABLE_COLORS.champions, label: 'Şampiyonlar Ligi' },
+      { color: TABLE_COLORS.europa, label: 'Avrupa Ligi' },
+      { color: TABLE_COLORS.relegation, label: 'Küme Düşme' },
+    ];
+  }
+  if (apiId === 61) {
+    return [
+      { color: TABLE_COLORS.champions, label: 'Şampiyonlar Ligi' },
+      { color: TABLE_COLORS.championsQual, label: 'Şampiyonlar Ligi Eleme' },
+      { color: TABLE_COLORS.europa, label: 'Avrupa Ligi' },
+      { color: TABLE_COLORS.conference, label: 'Konferans Ligi Eleme' },
+      { color: TABLE_COLORS.relegationPlayoff, label: 'Küme Düşme Play-off' },
+      { color: TABLE_COLORS.relegation, label: 'Küme Düşme' },
+    ];
+  }
+  if (apiId === 203) {
+    return [
+      { color: TABLE_COLORS.champions, label: 'Şampiyonlar Ligi' },
+      { color: TABLE_COLORS.championsQual, label: 'Şampiyonlar Ligi Eleme' },
+      { color: TABLE_COLORS.europaQual, label: 'Avrupa Ligi Eleme' },
+      { color: TABLE_COLORS.conference, label: 'Konferans Ligi Eleme' },
+      { color: TABLE_COLORS.relegation, label: 'Küme Düşme' },
+    ];
+  }
+  if (apiId === 78) {
+    return [
+      { color: TABLE_COLORS.champions, label: 'Şampiyonlar Ligi' },
+      { color: TABLE_COLORS.europa, label: 'Avrupa Ligi' },
+      { color: TABLE_COLORS.conference, label: 'Konferans Ligi Eleme' },
+      { color: TABLE_COLORS.relegationPlayoff, label: 'Küme Düşme Play-off' },
+      { color: TABLE_COLORS.relegation, label: 'Küme Düşme' },
+    ];
+  }
+  return [
+    { color: TABLE_COLORS.champions, label: 'Şampiyonlar Ligi' },
+    { color: TABLE_COLORS.europa, label: 'Avrupa Ligi' },
+    { color: TABLE_COLORS.conference, label: 'Konferans Ligi Eleme' },
+    { color: TABLE_COLORS.relegation, label: 'Küme Düşme' },
+  ];
 }
 
 // ── SCREEN ────────────────────────────────────────────────────
@@ -545,12 +640,12 @@ export default function LeaguesScreen() {
                         </View>
                       ))}
                       <View style={styles.legendBox}>
-                        <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: '#185FA5' }]} /><Text style={[styles.legendText, { color: c.textMuted }]}>Şampiyonlar Ligi</Text></View>
-                        <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: '#E6A817' }]} /><Text style={[styles.legendText, { color: c.textMuted }]}>Avrupa Ligi</Text></View>
-
-                        {activeLeague.apiId === 203 && (
-                          <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: '#C0392B' }]} /><Text style={[styles.legendText, { color: c.textMuted }]}>Küme Düşme</Text></View>
-                        )}
+                        {getLeagueLegend(activeLeague.apiId).map(item => (
+                          <View key={item.label} style={styles.legendRow}>
+                            <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+                            <Text style={[styles.legendText, { color: c.textMuted }]}>{item.label}</Text>
+                          </View>
+                        ))}
                       </View>
                     </>
                   )
@@ -795,10 +890,13 @@ const styles = StyleSheet.create({
   dataCell:            { fontSize: 11, width: 28, textAlign: 'center' },
   teamNameCell:        { flex: 1, fontSize: 12, fontWeight: '500' },
   posBadge:            { width: 20, height: 20, borderRadius: 4, alignItems: 'center', justifyContent: 'center', marginRight: 6 },
-  posTop:              { backgroundColor: '#185FA5' },
-  posMid:              { backgroundColor: '#E6A817' },
-  posConf:             { backgroundColor: '#27AE60' },
-  posRel:              { backgroundColor: '#C0392B' },
+  posTop:              { backgroundColor: TABLE_COLORS.champions },
+  posUclQual:          { backgroundColor: TABLE_COLORS.championsQual },
+  posMid:              { backgroundColor: TABLE_COLORS.europa },
+  posEuropaQual:       { backgroundColor: TABLE_COLORS.europaQual },
+  posConf:             { backgroundColor: TABLE_COLORS.conference },
+  posRelPlayoff:       { backgroundColor: TABLE_COLORS.relegationPlayoff },
+  posRel:              { backgroundColor: TABLE_COLORS.relegation },
   posNormal:           { backgroundColor: '#888' },
   posText:             { fontSize: 10, fontWeight: '600', color: '#fff' },
   legendBox:           { marginHorizontal: 14, marginTop: 12, gap: 6 },
