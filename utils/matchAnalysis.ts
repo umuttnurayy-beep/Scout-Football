@@ -435,10 +435,10 @@ export function buildScoutPick(
 
   if (signal.conflict && sideGap < 14) {
     return {
-      label: avgOver >= 58 ? 'En güvenli tercih: gol yönü' : 'En güvenli tercih: taraf bahsi yok',
+      label: avgOver >= 58 ? '1.5 Üst daha makul' : 'Taraf bahsi riskli',
       detail: avgOver >= 58
-        ? `Taraf avantajı sınırlı kaldığı için kazanan seçimi riskli. Hücum ve skor verisi daha net sinyal verdiğinden pick gol tarafında kalıyor.`
-        : `Taraf verileri birbirini dengeliyor. Bu maçta en sağlıklı tercih maç önü taraf seçmek yerine ilk bölüm baskısını beklemek.`,
+        ? `Kazanan taraf net ayrışmıyor. Hücum ve skor verisi düşük skora sıkışmama ihtimalini daha güçlü gösteriyor.`
+        : `Taraf verileri birbirini dengeliyor. Bu maçta doğrudan kazanan seçimi yerine taraf pazarından uzak durmak daha mantıklı.`,
       tone: avgOver >= 58 ? 'goals' : 'caution',
     };
   }
@@ -446,57 +446,57 @@ export function buildScoutPick(
   if (lowConfidence) {
     if (avgOver >= 58 || hAtk + aAtk >= 2.6) {
       return {
-        label: 'En güvenli tercih: canlı gol bekle',
-        detail: `Maç önü veri güveni sınırlı. İlk 15-20 dakikada tempo, şut ve ceza sahası girişleri artarsa gol tarafı daha oynanabilir hale gelir.`,
+        label: '1.5 Üst daha makul',
+        detail: `Maç önü veri güveni sınırlı olsa da hücum üretimi gol ihtimalini açık bırakıyor. Kazanan yerine gol çizgisi daha anlaşılır seçim.`,
         tone: 'goals',
       };
     }
     if (avgOver <= 42 || hAtk + aAtk <= 2.0) {
       return {
-        label: 'En güvenli tercih: düşük skor',
-        detail: `Gol profili hızlı açılan bir maça işaret etmiyor: gol ortalaması %${overLabel}. Maç hızlı başlamazsa dar skor tarafı daha mantıklı kalır.`,
+        label: '2.5 Alt daha mantıklı',
+        detail: `Gol profili hızlı açılan bir maça işaret etmiyor: gol ortalaması %${overLabel}. Dar skor çizgisi bu veriye daha uygun.`,
         tone: 'draw',
       };
     }
     if (homeEdge >= awayEdge + 3) {
       return {
-        label: `En güvenli tercih: ${home} kaybetmez`,
-        detail: `${home} tarafında hafif üstünlük var ama galibiyet sinyali güçlü değil. Bu yüzden doğrudan kazanır yerine kaybetmeme çizgisi daha güvenli.`,
+        label: `${home} kaybetmez`,
+        detail: `${home} tarafında hafif üstünlük var ama galibiyet sinyali güçlü değil. Doğrudan kazanır yerine kaybetmeme çizgisi daha mantıklı.`,
         tone: 'home',
       };
     }
     if (awayEdge >= homeEdge + 3) {
       return {
-        label: `En güvenli tercih: ${away} kaybetmez`,
-        detail: `${away} tarafında oyunda kalma sinyali var. Veri sınırlı olduğu için doğrudan galibiyet yerine kaybetmeme çizgisi daha güvenli.`,
+        label: `${away} kaybetmez`,
+        detail: `${away} tarafında oyunda kalma sinyali var. Veri sınırlı olduğu için doğrudan galibiyet yerine kaybetmeme çizgisi daha mantıklı.`,
         tone: 'away',
       };
     }
     if (avgKg >= 52) {
       return {
-        label: 'En güvenli tercih: KG için tempo bekle',
-        detail: `İki takımın da gol bulma ortalaması %${kgLabel}. Erken bölümde iki taraf da kaleye giderse karşılıklı skor tarafı güçlenir.`,
+        label: 'KG Var denenebilir',
+        detail: `İki takımın da gol bulma ortalaması %${kgLabel}. Taraf yerine iki ekibin de skor katkısı daha okunabilir sinyal veriyor.`,
         tone: 'goals',
       };
     }
     return {
-      label: 'En güvenli tercih: maç içi bekle',
-      detail: 'Maç önü verisi net bir taraf veya gol seçimi vermiyor. İlk 15-20 dakikadaki tempo ve şut hacmi görülmeden seçim yapmak riskli.',
+      label: 'Bu maç pas geçilebilir',
+      detail: 'Maç önü verisi net bir taraf, gol veya düşük skor seçimi vermiyor. Zorlamadan uzak durmak daha sağlıklı.',
       tone: 'caution',
     };
   }
 
   if (avgOver >= 64 && avgKg >= 58 && hAtk >= 1.4 && aAtk >= 1.4) {
     return {
-      label: 'En güvenli tercih: gollü maç',
-      detail: `Gol profili iki taraftan da destek alıyor: gol ortalaması %${overLabel}, karşılıklı skor ortalaması %${kgLabel}. Taraf yerine gol yönü daha net.`,
+      label: 'KG Var denenebilir',
+      detail: `Gol profili iki taraftan da destek alıyor: gol ortalaması %${overLabel}, karşılıklı skor ortalaması %${kgLabel}. Taraf yerine iki ekibin skor katkısı daha net.`,
       tone: 'goals',
     };
   }
 
   if (avgOver >= 62 && hAtk + aAtk >= 2.8) {
     return {
-      label: 'En güvenli tercih: gol yönü',
+      label: '2.5 Üst daha mantıklı',
       detail: `Toplam gol trendi güçlü (%${overLabel}). Karşılıklı skor aynı ölçüde desteklenmese bile düşük skora sıkışmama ihtimali daha yüksek.`,
       tone: 'goals',
     };
@@ -504,7 +504,7 @@ export function buildScoutPick(
 
   if (avgOver <= 38 && avgKg <= 48) {
     return {
-      label: 'En güvenli tercih: düşük skor',
+      label: '2.5 Alt daha mantıklı',
       detail: `Gol trendi düşük kalıyor: gol ortalaması %${overLabel}. Dar skor ve sabırlı başlangıç bu veriye daha uyumlu.`,
       tone: 'draw',
     };
@@ -512,7 +512,7 @@ export function buildScoutPick(
 
   if (avgOver <= 42 && Math.abs(hFP - aFP) <= 3) {
     return {
-      label: 'En güvenli tercih: düşük skor',
+      label: '2.5 Alt daha mantıklı',
       detail: 'Form farkı sınırlı, gol trendi düşük. Beraberlik veya tek farkla bitecek kontrollü skor çizgisi daha mantıklı.',
       tone: 'draw',
     };
@@ -520,8 +520,8 @@ export function buildScoutPick(
 
   if (avgOver >= 58 && hAtk + aAtk >= 2.45 && sideGap < 14) {
     return {
-      label: 'En güvenli tercih: gol yönü',
-      detail: `İki takımın gol üretimi toplam skor ihtimalini destekliyor. Taraf farkı sınırlı kaldığı için kazanan yerine gol temposu daha net seçim.`,
+      label: '1.5 Üst daha makul',
+      detail: `İki takımın gol üretimi toplam skor ihtimalini destekliyor. Taraf farkı sınırlı kaldığı için kazanan yerine gol çizgisi daha net seçim.`,
       tone: 'goals',
     };
   }
@@ -529,13 +529,13 @@ export function buildScoutPick(
   if (homeEdge >= awayEdge + 12) {
     if (signal.conflictText) {
       return {
-        label: `En güvenli tercih: ${home} kaybetmez`,
-        detail: `${away} bazı verilerde direnç gösterse de toplam form, iç saha etkisi ve hücum-savunma eşleşmesi ${home} tarafını öne taşıyor. Direkt galibiyet yerine kaybetmeme daha güvenli.`,
+        label: `${home} kaybetmez`,
+        detail: `${away} bazı verilerde direnç gösterse de toplam form, iç saha etkisi ve hücum-savunma eşleşmesi ${home} tarafını öne taşıyor. Direkt galibiyet yerine kaybetmeme daha mantıklı.`,
         tone: 'home',
       };
     }
     return {
-      label: `En güvenli tercih: ${home} kazanır`,
+      label: `${home} kazanır`,
       detail: `${home} tarafında form, iç saha ve hücum-savunma eşleşmesi belirgin üstün. Maçı kendi ritmine çekme şansı daha yüksek.`,
       tone: 'home',
     };
@@ -543,35 +543,35 @@ export function buildScoutPick(
   if (awayEdge >= homeEdge + 12) {
     if (signal.conflictText) {
       return {
-        label: `En güvenli tercih: ${away} kaybetmez`,
-        detail: `${home} bazı verilerde direnç gösterse de son form ve deplasman gol tehdidi ${away} tarafını öne taşıyor. Direkt galibiyet yerine kaybetmeme daha güvenli.`,
+        label: `${away} kaybetmez`,
+        detail: `${home} bazı verilerde direnç gösterse de son form ve deplasman gol tehdidi ${away} tarafını öne taşıyor. Direkt galibiyet yerine kaybetmeme daha mantıklı.`,
         tone: 'away',
       };
     }
     return {
-      label: `En güvenli tercih: ${away} kazanır`,
+      label: `${away} kazanır`,
       detail: `${away} form ve deplasman üretimiyle net sinyal veriyor. Deplasman riskine rağmen galibiyet tarafı veriyle destekleniyor.`,
       tone: 'away',
     };
   }
   if (homeEdge >= awayEdge + 4) {
     return {
-      label: `En güvenli tercih: ${home} kaybetmez`,
+      label: `${home} kaybetmez`,
       detail: `${home} tarafı hafif önde. Fark galibiyet için sert değil; kaybetmeme çizgisi daha mantıklı.`,
       tone: 'home',
     };
   }
   if (awayEdge >= homeEdge + 4) {
     return {
-      label: `En güvenli tercih: ${away} kaybetmez`,
+      label: `${away} kaybetmez`,
       detail: `${away} tarafı hafif önde. Fark galibiyet için sert değil; kaybetmeme çizgisi daha mantıklı.`,
       tone: 'away',
     };
   }
 
   return {
-    label: 'En güvenli tercih: maç içi bekle',
-    detail: 'Maç önü sinyalleri net bir taraf veya gol seçimi vermiyor. İlk gol, tempo ve ceza sahası girişleri görülmeden seçim yapmak riskli.',
+    label: 'Bu maç pas geçilebilir',
+    detail: 'Maç önü sinyalleri net bir taraf, gol veya düşük skor seçimi vermiyor. Zorlamadan uzak durmak daha sağlıklı.',
     tone: 'draw',
   };
 }

@@ -526,7 +526,7 @@ describe('scout narrative builders', () => {
       false,
     );
 
-    expect(pick.label).toContain('taraf bahsi yok');
+    expect(pick.label).toContain('Taraf bahsi riskli');
     expect(pick.detail).toContain('Taraf verileri');
   });
 
@@ -543,7 +543,7 @@ describe('scout narrative builders', () => {
     );
 
     expect(pick.tone).toBe('goals');
-    expect(pick.label).toContain('gol');
+    expect(pick.label).toContain('Üst');
     expect(pick.detail).toContain('Taraf');
   });
 
