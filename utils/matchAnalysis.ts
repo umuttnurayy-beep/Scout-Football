@@ -428,14 +428,17 @@ export function buildScoutPick(
   const signal = buildMatchSignalSnapshot(home, away, hSt, aSt, hFP, aFP);
   const { hAtk, aAtk, avgOver, avgKg, homeEdge, awayEdge } = signal;
   const sample = Math.min(hSt.total, aSt.total);
-  const lowConfidence = sample < 5 || weatherRisk || h2hCount < 2;
+  const lowConfidence = sample < 5 || weatherRisk;
+  const sideGap = Math.abs(homeEdge - awayEdge);
   const overLabel = Math.round(avgOver);
   const kgLabel = Math.round(avgKg);
 
-  if (signal.conflict && Math.abs(homeEdge - awayEdge) < 7) {
+  if (signal.conflict && sideGap < 10) {
     return {
       label: 'Sinyaller iki tarafa bölünüyor',
-      detail: `${signal.conflictText} Scout pick bu yüzden tek tarafı sert biçimde seçmek yerine maçın ilk bölümündeki tempo, baskı ve ceza sahası girişlerini beklemeyi öneriyor.`,
+      detail: avgOver >= 58
+        ? `Taraf verileri net ayrışmıyor; daha güvenilir sinyal gol temposunda. İlk bölümde şut ve ceza sahası girişleri takip edilmeli.`
+        : `Taraf verileri net ayrışmıyor. Pick taraf yerine ilk bölüm baskısı, tempo ve skor akışını beklemeyi öneriyor.`,
       tone: avgOver >= 58 ? 'goals' : 'caution',
     };
   }
@@ -515,11 +518,19 @@ export function buildScoutPick(
     };
   }
 
+  if (avgOver >= 58 && hAtk + aAtk >= 2.45 && sideGap < 10) {
+    return {
+      label: 'Gol beklentisi taraf seçiminden daha net',
+      detail: `İki takımın gol üretimi toplam skor ihtimalini destekliyor. Taraf farkı sınırlı kaldığı için pick, kazanan taraf yerine maçın gol temposuna yaslanıyor.`,
+      tone: 'goals',
+    };
+  }
+
   if (homeEdge >= awayEdge + 7) {
     if (signal.conflictText) {
       return {
         label: `${home} tarafı daha güçlü`,
-        detail: `${signal.conflictText} Buna rağmen toplam form, iç saha ve hücum-savunma ağırlığı ${home} tarafını biraz daha öne taşıyor.`,
+        detail: `Pick gerekçesi: ${away} bazı verilerde direnç gösterse de toplam form, iç saha etkisi ve hücum-savunma eşleşmesi ${home} tarafını biraz daha öne taşıyor.`,
         tone: 'home',
       };
     }
@@ -533,7 +544,7 @@ export function buildScoutPick(
     if (signal.conflictText) {
       return {
         label: `${away} tarafı daha güçlü`,
-        detail: `${signal.conflictText} Buna rağmen toplam form ve deplasman gol tehdidi ${away} tarafını daha güçlü senaryo haline getiriyor.`,
+        detail: `Pick gerekçesi: ${home} bazı verilerde direnç gösterse de son form ve deplasman gol tehdidi ${away} tarafını biraz daha öne taşıyor.`,
         tone: 'away',
       };
     }
