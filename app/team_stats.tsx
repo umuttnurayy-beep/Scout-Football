@@ -70,6 +70,25 @@ function isSlScorer(value: unknown): value is SLScorer {
   return typeof value.name === 'string' && typeof value.goals === 'number' && typeof value.team === 'string';
 }
 
+function finiteNumber(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function normalizeAllSportsStats(value: AllSportsTeamStats | null): AllSportsTeamStats | null {
+  if (!value) return null;
+  return {
+    matchesAnalyzed: finiteNumber(value.matchesAnalyzed) ?? 0,
+    avgCorners: finiteNumber(value.avgCorners),
+    avgOppCorners: finiteNumber(value.avgOppCorners),
+    avgPossession: finiteNumber(value.avgPossession),
+  };
+}
+
 const LIGHT_RANK_COLORS = [
   { bg: '#FAEEDA', color: '#633806' },
   { bg: '#D3D1C7', color: '#2C2C2A' },
@@ -241,7 +260,7 @@ export default function TeamStatsScreen() {
   async function loadAllSports() {
     try {
       const data = await getAllSportsTeamStats(teamName);
-      setAllSportsStats(data);
+      setAllSportsStats(normalizeAllSportsStats(data));
     } catch (e) {
       console.error('loadAllSports hata:', e);
     }
@@ -350,6 +369,12 @@ export default function TeamStatsScreen() {
     });
     return map;
   }, [fdScorers]);
+  const avgCorners = finiteNumber(allSportsStats?.avgCorners);
+  const avgOppCorners = finiteNumber(allSportsStats?.avgOppCorners);
+  const avgPossession = finiteNumber(allSportsStats?.avgPossession);
+  const totalCorners = avgCorners != null && avgOppCorners != null
+    ? avgCorners + avgOppCorners
+    : null;
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
@@ -598,35 +623,35 @@ export default function TeamStatsScreen() {
             )}
 
             {/* KORNER & POSSESSION — AllSports */}
-            {allSportsStats && (
+            {allSportsStats && (avgCorners != null || avgOppCorners != null || avgPossession != null) && (
               <>
                 <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>
                   KORNER & POZİSYON ({allSportsStats.matchesAnalyzed} maç)
                 </Text>
                 <View style={styles.statGrid}>
-                  {allSportsStats.avgCorners != null && (
+                  {avgCorners != null && (
                     <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
-                      <Text style={[styles.statVal, { color: c.primary }]}>{allSportsStats.avgCorners}</Text>
+                      <Text style={[styles.statVal, { color: c.primary }]}>{avgCorners.toFixed(1)}</Text>
                       <Text style={[styles.statLbl, { color: c.textMuted }]}>Ort. Korner</Text>
                     </View>
                   )}
-                  {allSportsStats.avgOppCorners != null && (
+                  {avgOppCorners != null && (
                     <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
-                      <Text style={[styles.statVal, { color: c.textMuted }]}>{allSportsStats.avgOppCorners}</Text>
+                      <Text style={[styles.statVal, { color: c.textMuted }]}>{avgOppCorners.toFixed(1)}</Text>
                       <Text style={[styles.statLbl, { color: c.textMuted }]}>Rakip Korner</Text>
                     </View>
                   )}
-                  {allSportsStats.avgCorners != null && allSportsStats.avgOppCorners != null && (
+                  {totalCorners != null && (
                     <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
                       <Text style={[styles.statVal, { color: c.text }]}>
-                        {(allSportsStats.avgCorners + allSportsStats.avgOppCorners).toFixed(1)}
+                        {totalCorners.toFixed(1)}
                       </Text>
                       <Text style={[styles.statLbl, { color: c.textMuted }]}>Toplam Ort.</Text>
                     </View>
                   )}
-                  {allSportsStats.avgPossession != null && (
+                  {avgPossession != null && (
                     <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
-                      <Text style={[styles.statVal, { color: c.primary }]}>{allSportsStats.avgPossession}%</Text>
+                      <Text style={[styles.statVal, { color: c.primary }]}>{avgPossession.toFixed(0)}%</Text>
                       <Text style={[styles.statLbl, { color: c.textMuted }]}>Ort. Possession</Text>
                     </View>
                   )}
