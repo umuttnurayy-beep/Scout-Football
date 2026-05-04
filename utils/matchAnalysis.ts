@@ -40,6 +40,7 @@ export interface MotivationContext {
 export interface ScoutPick {
   label: string;
   detail: string;
+  cardComment?: string;
   tone: 'home' | 'away' | 'draw' | 'goals' | 'caution';
 }
 
@@ -426,86 +427,139 @@ export function buildScoutPick(
   weatherRisk: boolean,
 ): ScoutPick {
   const signal = buildMatchSignalSnapshot(home, away, hSt, aSt, hFP, aFP);
-  const { hAtk, aAtk, avgOver, avgKg, homeEdge, awayEdge } = signal;
+  const { hAtk, aAtk, hDef, aDef, avgOver, avgKg, homeEdge, awayEdge } = signal;
   const sample = Math.min(hSt.total, aSt.total);
   const lowConfidence = sample < 5 || weatherRisk;
   const sideGap = Math.abs(homeEdge - awayEdge);
   const overLabel = Math.round(avgOver);
   const kgLabel = Math.round(avgKg);
+  const attackTotal = hAtk + aAtk;
+  const defensiveLoad = hDef + aDef;
+  const goalSignal = (avgOver >= 62 ? 2 : avgOver >= 56 ? 1 : 0) +
+    (avgKg >= 58 ? 1 : 0) +
+    (attackTotal >= 3.0 ? 2 : attackTotal >= 2.55 ? 1 : 0) +
+    (defensiveLoad >= 2.8 ? 1 : 0);
+  const lowGoalSignal = (avgOver <= 38 ? 2 : avgOver <= 44 ? 1 : 0) +
+    (attackTotal <= 2.15 ? 2 : attackTotal <= 2.45 ? 1 : 0) +
+    (defensiveLoad <= 2.1 ? 1 : 0);
+  const bothScoreSignal = avgKg >= 58 && hAtk >= 1.25 && aAtk >= 1.25;
+  const conflictPhrase = signal.conflict
+    ? 'Taraf verileri iki yöne bölündüğü için kazanan seçimi temkin istiyor.'
+    : '';
 
   if (signal.conflict && sideGap < 14) {
+    if (goalSignal >= 3) {
+      return {
+        label: bothScoreSignal ? 'Karşılıklı gol beklenir' : '2.5 üst daha yakın',
+        detail: bothScoreSignal
+          ? `Taraf avantajı net değil; iki takımın gol üretimi ve KG Var trendi daha okunur sinyal veriyor.`
+          : `Kazanan taraf ayrışmıyor; buna karşılık hücum ve 2.5 üst verisi gollü maç ihtimalini destekliyor.`,
+        cardComment: bothScoreSignal
+          ? `Taraf dengeli, iki takımın gol katkısı daha güçlü sinyal veriyor.`
+          : `Taraf seçimi zor; gol verisi 2.5 üst tarafını öne çıkarıyor.`,
+        tone: 'goals',
+      };
+    }
+    if (lowGoalSignal >= 3) {
+      return {
+        label: '2.5 alt daha yakın',
+        detail: `Taraf verileri karışık ve gol üretimi yüksek skoru desteklemiyor. Bu profil kontrollü skor tarafına daha yakın.`,
+        cardComment: `Taraf sinyali karışık; düşük skor verisi daha güvenli okunuyor.`,
+        tone: 'draw',
+      };
+    }
     return {
-      label: avgOver >= 58 ? '2.5 üst daha yakın' : 'Taraf seçimi riskli',
-      detail: avgOver >= 58
-        ? `Scout özeti kazanan tarafı net ayırmıyor, ama hücum ve gol verisi maçın 2.5 üst tarafına daha yakın durduğunu gösteriyor.`
-        : `Scout özeti iki takımı farklı alanlarda öne çıkarıyor. Bu yüzden kazanan taraf seçimi yerine bu maçı riskli görmek daha doğru.`,
-      tone: avgOver >= 58 ? 'goals' : 'caution',
+      label: 'Taraf seçimi riskli',
+      detail: `Ev sahibi ve deplasman tarafı farklı alanlarda öne çıkıyor. Net kazanan yerine maçın riskli ve dengeye açık olduğu okunmalı.`,
+      cardComment: `Sinyaller iki tarafa bölünüyor; kazanan seçimi riskli.`,
+      tone: 'caution',
     };
   }
 
   if (lowConfidence) {
-    if (avgOver >= 58 || hAtk + aAtk >= 2.6) {
+    if (weatherRisk && sample < 5 && goalSignal < 4 && lowGoalSignal < 4) {
       return {
-        label: '2.5 üst ihtimali önde',
-        detail: `Veri güveni tam yüksek değil, yine de iki takımın hücum üretimi düşük skordan çok gollü maç ihtimalini destekliyor.`,
+        label: 'Riskli maç profili',
+        detail: 'Veri örneklemi sınırlı ve hava koşulu riski var. Taraf ya da gol yönünde güçlü seçim yapmak yerine temkinli kalmak daha doğru.',
+        cardComment: 'Veri ve hava koşulu riski güçlü tahmin yönünü zayıflatıyor.',
+        tone: 'caution',
+      };
+    }
+    if (goalSignal >= 3) {
+      return {
+        label: bothScoreSignal ? 'Karşılıklı gol beklenir' : '2.5 üst ihtimali önde',
+        detail: bothScoreSignal
+          ? `Veri örneklemi sınırlı olsa da iki takımın gol üretimi karşılıklı skor ihtimalini destekliyor.`
+          : `Veri güveni sınırlı; yine de hücum üretimi ve 2.5 üst trendi düşük skor yerine gollü maç ihtimalini öne çıkarıyor.`,
+        cardComment: bothScoreSignal
+          ? `Sınırlı veride iki tarafın gol katkısı öne çıkıyor.`
+          : `Veri sınırlı ama gol üretimi 2.5 üst ihtimalini destekliyor.`,
         tone: 'goals',
       };
     }
-    if (avgOver <= 42 || hAtk + aAtk <= 2.0) {
+    if (lowGoalSignal >= 3) {
       return {
         label: '2.5 alt daha yakın',
-        detail: `Gol verisi hızlı açılan bir maça işaret etmiyor. Bu tabloda kontrollü oyun ve düşük skor beklentisi daha mantıklı.`,
+        detail: `Veri güveni sınırlı olsa da hücum ve 2.5 üst trendi düşük kalıyor. Kontrollü skor tarafı daha mantıklı.`,
+        cardComment: `Gol verisi düşük; kontrollü skor ihtimali önde.`,
         tone: 'draw',
       };
     }
     if (homeEdge >= awayEdge + 3) {
       return {
         label: `${home} kaybetmez`,
-        detail: `${home} tarafında hafif üstünlük var, fakat galibiyet için sinyal yeterince güçlü değil. Kaybetmeme seçimi daha dengeli duruyor.`,
+        detail: `${home} tarafında hafif üstünlük var, fakat veri güveni doğrudan galibiyet için yeterince güçlü değil. Kaybetmeme seçimi daha dengeli.`,
+        cardComment: `${home} tarafı hafif önde; kaybetmeme daha dengeli seçim.`,
         tone: 'home',
       };
     }
     if (awayEdge >= homeEdge + 3) {
       return {
         label: `${away} kaybetmez`,
-        detail: `${away} tarafında oyunda kalma sinyali var. Veri sınırlı olduğu için doğrudan galibiyet yerine kaybetmeme seçimi daha dengeli duruyor.`,
+        detail: `${away} tarafında oyunda kalma sinyali var. Veri sınırlı olduğu için doğrudan galibiyet yerine kaybetmeme seçimi daha dengeli.`,
+        cardComment: `${away} oyunda kalma sinyali veriyor; kaybetmeme daha güvenli.`,
         tone: 'away',
       };
     }
     if (avgKg >= 52) {
       return {
         label: 'Karşılıklı gol beklenir',
-        detail: `İki takımın da gol bulma alışkanlığı var. Scout özeti kazanan taraftan çok iki ekibin de skor katkısını öne çıkarıyor.`,
+        detail: `İki takımın da gol bulma alışkanlığı var. Kazanan taraftan çok iki ekibin skor katkısı daha anlamlı sinyal veriyor.`,
+        cardComment: `İki takımın gol bulma eğilimi taraf seçiminden daha güçlü.`,
         tone: 'goals',
       };
     }
     return {
       label: 'Riskli maç profili',
-      detail: 'Taraf, gol ve düşük skor sinyalleri birbirinden yeterince ayrışmıyor. Bu eşleşmede en doğru okuma temkinli kalmak.',
+      detail: 'Veri örneklemi ve sinyaller güçlü bir yöne kopmuyor. Bu eşleşmede agresif seçim yerine risk seviyesini öne almak daha doğru.',
+      cardComment: 'Veri sınırlı; güçlü bir tahmin yönü oluşmuyor.',
       tone: 'caution',
     };
   }
 
-  if (avgOver >= 64 && avgKg >= 58 && hAtk >= 1.4 && aAtk >= 1.4) {
+  if (bothScoreSignal && goalSignal >= 4) {
     return {
       label: 'Karşılıklı gol beklenir',
-      detail: `Scout özeti iki takımın da gol bulma ihtimalini destekliyor. Kazanan seçmekten çok iki ekibin skora katkısı daha güçlü sinyal veriyor.`,
+      detail: `İki takımın gol üretimi, KG Var trendi (%${kgLabel}) ve savunma eşleşmesi iki tarafın da skor bulma ihtimalini destekliyor.`,
+      cardComment: `Hücum ve KG Var verisi iki takımın da gol bulabileceğini gösteriyor.`,
       tone: 'goals',
     };
   }
 
-  if (avgOver >= 62 && hAtk + aAtk >= 2.8) {
+  if (goalSignal >= 4 && sideGap < 16) {
     return {
       label: '2.5 üst daha yakın',
-      detail: `Toplam gol ve hücum verisi maçın düşük skora sıkışmama ihtimalini artırıyor. Scout özeti gollü maç tarafını daha güçlü gösteriyor.`,
+      detail: `Taraf farkı belirgin değil; toplam hücum üretimi (${attackTotal.toFixed(1)}) ve 2.5 üst trendi (%${overLabel}) düşük skor yerine gollü maç senaryosunu destekliyor.`,
+      cardComment: `Gol üretimi ve 2.5 üst trendi gollü maç tarafını destekliyor.`,
       tone: 'goals',
     };
   }
 
-  if (avgOver <= 38 && avgKg <= 48) {
+  if (lowGoalSignal >= 4) {
     return {
       label: '2.5 alt daha yakın',
-      detail: `Gol trendi düşük kalıyor. Scout özeti bu maçta yüksek skor yerine kontrollü ve dar skor ihtimalini öne çıkarıyor.`,
+      detail: `Hücum üretimi ve 2.5 üst trendi düşük kalıyor. Maçın kontrollü ilerleme ve dar skor üretme ihtimali daha güçlü.`,
+      cardComment: `Hücum ve gol trendi düşük; dar skor ihtimali önde.`,
       tone: 'draw',
     };
   }
@@ -513,15 +567,17 @@ export function buildScoutPick(
   if (avgOver <= 42 && Math.abs(hFP - aFP) <= 3) {
     return {
       label: 'Düşük skorlu maç beklenir',
-      detail: 'Form farkı sınırlı, gol trendi düşük. Scout özeti beraberlik veya tek farkla bitecek kontrollü bir maça daha yakın duruyor.',
+      detail: 'Form farkı sınırlı ve gol trendi düşük. Beraberlik veya tek farkla bitecek kontrollü maç senaryosu daha mantıklı.',
+      cardComment: `Form yakın, gol trendi düşük; kontrollü maç profili öne çıkıyor.`,
       tone: 'draw',
     };
   }
 
-  if (avgOver >= 58 && hAtk + aAtk >= 2.45 && sideGap < 14) {
+  if (goalSignal >= 3 && sideGap < 14) {
     return {
       label: '2.5 üst daha yakın',
-      detail: `İki takımın gol üretimi skor ihtimalini destekliyor. Taraf farkı sınırlı kaldığı için scout özeti gollü maç tarafını daha güçlü gösteriyor.`,
+      detail: `Taraf farkı sınırlı, buna karşılık hücum üretimi ve gol trendi skorlu maç ihtimalini daha güçlü gösteriyor.`,
+      cardComment: `Taraf farkı sınırlı; gol verisi 2.5 üst tarafına yaklaştırıyor.`,
       tone: 'goals',
     };
   }
@@ -530,13 +586,15 @@ export function buildScoutPick(
     if (signal.conflictText) {
       return {
         label: `${home} kaybetmez`,
-        detail: `${away} bazı verilerde direnç gösterse de toplam form, iç saha etkisi ve hücum-savunma eşleşmesi ${home} tarafını öne taşıyor.`,
+        detail: `${away} bazı verilerde direnç gösterse de toplam form, iç saha etkisi ve hücum-savunma eşleşmesi ${home} tarafını öne taşıyor. Bu nedenle kaybetmeme daha dengeli seçim.`,
+        cardComment: `${home} avantajlı, ancak karşı sinyaller nedeniyle kaybetmeme daha sağlıklı.`,
         tone: 'home',
       };
     }
     return {
       label: `${home} galibiyete yakın`,
-      detail: `${home} tarafında form, iç saha ve hücum-savunma eşleşmesi belirgin üstün. Scout özeti maçın kontrolünü ev sahibine daha yakın görüyor.`,
+      detail: `${home} tarafında form, iç saha ve hücum-savunma eşleşmesi belirgin üstün. Maç kontrolü ev sahibine daha yakın görünüyor.`,
+      cardComment: `${home} form ve eşleşme verilerinde belirgin üstünlük taşıyor.`,
       tone: 'home',
     };
   }
@@ -544,34 +602,39 @@ export function buildScoutPick(
     if (signal.conflictText) {
       return {
         label: `${away} kaybetmez`,
-        detail: `${home} bazı verilerde direnç gösterse de son form ve deplasman gol tehdidi ${away} tarafını öne taşıyor.`,
+        detail: `${home} bazı verilerde direnç gösterse de son form ve deplasman gol tehdidi ${away} tarafını öne taşıyor. Bu nedenle kaybetmeme daha dengeli seçim.`,
+        cardComment: `${away} avantajlı, ancak deplasman riski nedeniyle kaybetmeme daha sağlıklı.`,
         tone: 'away',
       };
     }
     return {
       label: `${away} galibiyete yakın`,
-      detail: `${away} form ve deplasman üretimiyle net sinyal veriyor. Scout özeti deplasman riskine rağmen galibiyet tarafını destekliyor.`,
+      detail: `${away} form ve deplasman üretimiyle net sinyal veriyor. Deplasman riskine rağmen galibiyet tarafı veriyle destekleniyor.`,
+      cardComment: `${away} form ve deplasman üretiminde daha güçlü görünüyor.`,
       tone: 'away',
     };
   }
   if (homeEdge >= awayEdge + 4) {
     return {
       label: `${home} kaybetmez`,
-      detail: `${home} tarafı hafif önde. Fark galibiyet için yeterince güçlü değil; kaybetmeme seçimi daha mantıklı.`,
+      detail: `${home} tarafı hafif önde. Fark galibiyet için yeterince güçlü değil; kaybetmeme seçimi daha mantıklı.${conflictPhrase ? ` ${conflictPhrase}` : ''}`,
+      cardComment: `${home} hafif önde; kaybetmeme seçimi daha dengeli.`,
       tone: 'home',
     };
   }
   if (awayEdge >= homeEdge + 4) {
     return {
       label: `${away} kaybetmez`,
-      detail: `${away} tarafı hafif önde. Fark galibiyet için yeterince güçlü değil; kaybetmeme seçimi daha mantıklı.`,
+      detail: `${away} tarafı hafif önde. Fark galibiyet için yeterince güçlü değil; kaybetmeme seçimi daha mantıklı.${conflictPhrase ? ` ${conflictPhrase}` : ''}`,
+      cardComment: `${away} hafif önde; kaybetmeme seçimi daha dengeli.`,
       tone: 'away',
     };
   }
 
   return {
     label: 'Riskli maç profili',
-    detail: 'Maç önü sinyalleri taraf, gol veya düşük skor için net bir yöne kopmuyor. Bu tabloda seçimi zorlamak yerine riski öne almak daha sağlıklı.',
+    detail: 'Maç önü sinyalleri taraf, gol veya düşük skor için net bir yöne kopmuyor. Bu tabloda seçimi zorlamak yerine risk seviyesini öne almak daha sağlıklı.',
+    cardComment: 'Taraf ve gol sinyalleri net ayrışmıyor; riskli maç profili.',
     tone: 'draw',
   };
 }
@@ -590,33 +653,41 @@ export function buildScoutSummaryFromPick(
   const overLabel = Math.round(signal.avgOver);
   const kgLabel = Math.round(signal.avgKg);
   const totalGoals = (signal.hAtk + signal.aAtk).toFixed(1);
-  const conflictNote = signal.conflictText
-    ? ` ${signal.conflictText}`
-    : '';
+  const sample = Math.min(hSt.total, aSt.total);
+  const homeVenue = signal.hHomePlayed >= 4 ? `${home} iç saha galibiyet oranı %${signal.hHomeWin}` : '';
+  const awayVenue = signal.aAwayPlayed >= 4 ? `${away} deplasman galibiyet oranı %${signal.aAwayWin}` : '';
+  const venueText = [homeVenue, awayVenue].filter(Boolean).join(', ');
+  const formText = Math.abs(hFP - aFP) <= 2
+    ? `Son form puanları birbirine yakın (${hFP}-${aFP}); bu yüzden taraf yorumu tek başına güçlü değil.`
+    : `${hFP > aFP ? home : away} son formda daha iyi görünüyor (${Math.max(hFP, aFP)}-${Math.min(hFP, aFP)} puan).`;
+  const attackText = `${home} maç başı ${signal.hAtk.toFixed(1)} gol üretirken ${signal.hDef.toFixed(1)} gol yiyor; ${away} tarafında bu denge ${signal.aAtk.toFixed(1)} / ${signal.aDef.toFixed(1)}.`;
+  const goalText = `2.5 üst trendi %${overLabel}, karşılıklı gol eğilimi %${kgLabel}.`;
+  const conflictNote = signal.conflictText ? ` ${signal.conflictText}` : '';
+  const sampleNote = sample < 6 ? ' Örneklem sınırlı olduğu için yorumlar daha temkinli okunmalı.' : '';
   const weatherNote = weatherRisk ? ' Hava koşulu ritmi bozabileceği için risk artıyor.' : '';
 
   if (pick.tone === 'goals') {
     const main = pick.label.includes('Karşılıklı')
-      ? `Scout özeti bu maçta iki takımın da gol bulma ihtimalini öne çıkarıyor. Karşılıklı gol oranı %${kgLabel}; iki tarafın toplam gol üretimi de ${totalGoals} seviyesinde.`
-      : `Scout özeti bu maçta 2.5 üst tarafını daha güçlü görüyor. Gol trendi %${overLabel}; hücum üretimi düşük skordan çok gollü maç ihtimalini destekliyor.`;
-    return `${main}${conflictNote}${weatherNote}`;
+      ? `Scout özeti bu maçta iki takımın da gol bulma ihtimalini öne çıkarıyor. ${attackText} ${goalText} Bu tablo, kazanan taraftan çok iki ekibin de skor katkısına odaklanmayı daha mantıklı kılıyor.`
+      : `Scout özeti bu maçta 2.5 üst tarafını daha güçlü görüyor. İki takımın toplam gol üretimi ${totalGoals} seviyesinde ve ${goalText.toLowerCase()} Bu profil düşük skora kapanmayan, dönem dönem açık alan verebilecek bir senaryo oluşturuyor.`;
+    return `${main} ${formText}${venueText ? ` ${venueText}.` : ''}${conflictNote}${sampleNote}${weatherNote}`;
   }
 
   if (pick.tone === 'draw') {
-    return `Scout özeti bu maçta düşük skor tarafını daha mantıklı görüyor. Gol trendi %${overLabel}; tempo ve hücum verisi maçın kolay açılmayabileceğini gösteriyor.${conflictNote}${weatherNote}`;
+    return `Scout özeti bu maçta düşük skor tarafını daha mantıklı görüyor. ${attackText} ${goalText} Hücum üretimi ve tempo verisi maçın kolay açılmayabileceğini, ilk golün oyun planlarını belirgin şekilde değiştirebileceğini gösteriyor. ${formText}${venueText ? ` ${venueText}.` : ''}${conflictNote}${sampleNote}${weatherNote}`;
   }
 
   if (pick.tone === 'home') {
     const side = pick.label.includes('galibiyete') ? 'galibiyet' : 'kaybetmeme';
-    return `Scout özeti ${home} tarafını ${side} senaryosunda öne çıkarıyor. Form, iç saha etkisi ve hücum-savunma eşleşmesi ev sahibi tarafına daha yakın duruyor.${conflictNote}${weatherNote}`;
+    return `Scout özeti ${home} tarafını ${side} senaryosunda öne çıkarıyor. ${formText} ${attackText} Ev sahibi tarafının hücum-savunma eşleşmesi ve saha etkisi maç kontrolünü ${home} tarafına yaklaştırıyor.${venueText ? ` ${venueText}.` : ''}${conflictNote}${sampleNote}${weatherNote}`;
   }
 
   if (pick.tone === 'away') {
     const side = pick.label.includes('galibiyete') ? 'galibiyet' : 'kaybetmeme';
-    return `Scout özeti ${away} tarafını ${side} senaryosunda öne çıkarıyor. Son form ve deplasman gol tehdidi misafir tarafı destekliyor.${conflictNote}${weatherNote}`;
+    return `Scout özeti ${away} tarafını ${side} senaryosunda öne çıkarıyor. ${formText} ${attackText} Deplasman ekibinin gol üretimi ve oyunda kalma verisi, maçın tek taraflı ev sahibi üstünlüğüne dönmesini zorlaştırıyor.${venueText ? ` ${venueText}.` : ''}${conflictNote}${sampleNote}${weatherNote}`;
   }
 
-  return `Scout özeti bu maçta net bir yöne güçlü kırılım görmüyor. ${home} ve ${away} farklı verilerde öne çıktığı için taraf veya gol seçimini zorlamak yerine risk seviyesini yüksek okumak daha doğru.${weatherNote}`;
+  return `Scout özeti bu maçta net bir yöne güçlü kırılım görmüyor. ${attackText} ${goalText} ${formText} ${home} ve ${away} farklı verilerde öne çıktığı için taraf veya gol seçimini zorlamak yerine risk seviyesini yüksek okumak daha doğru.${venueText ? ` ${venueText}.` : ''}${conflictNote}${sampleNote}${weatherNote}`;
 }
 
 export function buildMatchCharacterDetail(

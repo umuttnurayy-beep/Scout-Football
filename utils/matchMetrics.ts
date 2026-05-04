@@ -588,6 +588,7 @@ function homeCardHeadline(m: Match, metrics: Metrics, pick: ReturnType<typeof bu
 }
 
 function homeCardSummary(m: Match, metrics: Metrics, pick: ReturnType<typeof buildScoutPick>, hash: number) {
+  if (pick.cardComment) return compactSentence(pick.cardComment, 120);
   if (pick.detail) return compactSentence(pick.detail, 120);
   const homeName = m.home;
   const awayName = m.away;
