@@ -652,42 +652,70 @@ export function buildScoutSummaryFromPick(
   const signal = buildMatchSignalSnapshot(home, away, hSt, aSt, hFP, aFP);
   const overLabel = Math.round(signal.avgOver);
   const kgLabel = Math.round(signal.avgKg);
-  const totalGoals = (signal.hAtk + signal.aAtk).toFixed(1);
   const sample = Math.min(hSt.total, aSt.total);
-  const homeVenue = signal.hHomePlayed >= 4 ? `${home} iç saha galibiyet oranı %${signal.hHomeWin}` : '';
-  const awayVenue = signal.aAwayPlayed >= 4 ? `${away} deplasman galibiyet oranı %${signal.aAwayWin}` : '';
-  const venueText = [homeVenue, awayVenue].filter(Boolean).join(', ');
-  const formText = Math.abs(hFP - aFP) <= 2
-    ? `Son form puanları birbirine yakın (${hFP}-${aFP}); bu yüzden taraf yorumu tek başına güçlü değil.`
-    : `${hFP > aFP ? home : away} son formda daha iyi görünüyor (${Math.max(hFP, aFP)}-${Math.min(hFP, aFP)} puan).`;
-  const attackText = `${home} maç başı ${signal.hAtk.toFixed(1)} gol üretirken ${signal.hDef.toFixed(1)} gol yiyor; ${away} tarafında bu denge ${signal.aAtk.toFixed(1)} / ${signal.aDef.toFixed(1)}.`;
-  const goalText = `2.5 üst trendi %${overLabel}, karşılıklı gol eğilimi %${kgLabel}.`;
-  const conflictNote = signal.conflictText ? ` ${signal.conflictText}` : '';
-  const sampleNote = sample < 6 ? ' Örneklem sınırlı olduğu için yorumlar daha temkinli okunmalı.' : '';
+  const formClose = Math.abs(hFP - aFP) <= 2;
+  const formLeader = hFP > aFP ? home : away;
+  const homeAttackEdge = signal.hAtk - signal.aDef;
+  const awayAttackEdge = signal.aAtk - signal.hDef;
+  const hasHomeVenueEdge = signal.hHomePlayed >= 4 && signal.hHomeWin >= 55;
+  const hasAwayVenueEdge = signal.aAwayPlayed >= 4 && signal.aAwayWin >= 45;
+  const formNote = formClose
+    ? 'Form tarafı net bir üstünlük üretmiyor; bu yüzden maçın yönünü ilk gol ve oyun içi reaksiyonlar belirleyebilir.'
+    : `${formLeader} son formda daha iyi görünse de, bu farkı maç kontrolüne çevirmesi gerekiyor.`;
+  const venueNote = hasHomeVenueEdge && hasAwayVenueEdge
+    ? `${home} iç saha etkisiyle, ${away} ise deplasmanda oyunda kalma becerisiyle denge kuruyor.`
+    : hasHomeVenueEdge
+      ? `${home} için saha avantajı maçın kontrol bölümünde değerli bir destek sağlıyor.`
+      : hasAwayVenueEdge
+        ? `${away} deplasmanda tamamen edilgen kalmayan bir profil çiziyor.`
+        : '';
+  const matchupNote = homeAttackEdge >= 0.45 && awayAttackEdge < 0.25
+    ? `${home} hücum-savunma eşleşmesinde daha rahat alan bulabilecek taraf gibi duruyor.`
+    : awayAttackEdge >= 0.45 && homeAttackEdge < 0.25
+      ? `${away} geçişlerde ve deplasman gol tehdidinde daha dikkat çekici görünüyor.`
+      : homeAttackEdge >= 0.35 && awayAttackEdge >= 0.35
+        ? 'İki tarafın hücum eşleşmesi de rakip savunmalar üzerinde baskı kurabilecek seviyede.'
+        : homeAttackEdge <= -0.2 && awayAttackEdge <= -0.2
+          ? 'Hücum-savunma eşleşmesi iki taraf için de kolay pozisyon vadetmiyor.'
+          : 'Hücum-savunma dengesi tek başına maçı koparacak kadar keskin değil.';
+  const goalContext = overLabel >= 58
+    ? `Gol tarafında 2.5 üst trendi %${overLabel} seviyesinde; bu veri maçın tamamen kapanma ihtimalini azaltıyor.`
+    : overLabel <= 42
+      ? `Gol tarafında 2.5 üst trendi %${overLabel} seviyesinde kalıyor; bu da kontrollü skor ihtimalini güçlendiriyor.`
+      : `Gol verisi orta bölgede; bu yüzden tempo kadar bitiricilik kalitesi de belirleyici olacak.`;
+  const bttsContext = kgLabel >= 58
+    ? 'Karşılıklı gol eğilimi de iki tarafın skor katkısını destekliyor.'
+    : kgLabel <= 45
+      ? 'Karşılıklı gol eğilimi aynı ölçüde güçlü değil; skor tek taraflı da açılabilir.'
+      : '';
+  const conflictNote = signal.conflictText
+    ? ` Çelişki tarafında ise ${signal.conflictText.charAt(0).toLowerCase()}${signal.conflictText.slice(1)}`
+    : '';
+  const sampleNote = sample < 6 ? ' Veri örneklemi sınırlı olduğu için agresif yorumdan kaçınmak gerekiyor.' : '';
   const weatherNote = weatherRisk ? ' Hava koşulu ritmi bozabileceği için risk artıyor.' : '';
 
   if (pick.tone === 'goals') {
     const main = pick.label.includes('Karşılıklı')
-      ? `Scout özeti bu maçta iki takımın da gol bulma ihtimalini öne çıkarıyor. ${attackText} ${goalText} Bu tablo, kazanan taraftan çok iki ekibin de skor katkısına odaklanmayı daha mantıklı kılıyor.`
-      : `Scout özeti bu maçta 2.5 üst tarafını daha güçlü görüyor. İki takımın toplam gol üretimi ${totalGoals} seviyesinde ve ${goalText.toLowerCase()} Bu profil düşük skora kapanmayan, dönem dönem açık alan verebilecek bir senaryo oluşturuyor.`;
-    return `${main} ${formText}${venueText ? ` ${venueText}.` : ''}${conflictNote}${sampleNote}${weatherNote}`;
+      ? `Scout özeti bu maçta iki takımın da gol bulma ihtimalini öne çıkarıyor. ${matchupNote} ${bttsContext || goalContext} Bu nedenle kazanan seçmekten çok iki ekibin skor katkısına odaklanmak daha mantıklı.`
+      : `Scout özeti bu maçta gollü maç tarafını daha güçlü görüyor. ${matchupNote} ${goalContext} Taraf avantajı sınırlı kaldığı için analiz, kazanan yerine skor üretimine yaslanıyor.`;
+    return `${main} ${formNote}${venueNote ? ` ${venueNote}` : ''}${conflictNote}${sampleNote}${weatherNote}`;
   }
 
   if (pick.tone === 'draw') {
-    return `Scout özeti bu maçta düşük skor tarafını daha mantıklı görüyor. ${attackText} ${goalText} Hücum üretimi ve tempo verisi maçın kolay açılmayabileceğini, ilk golün oyun planlarını belirgin şekilde değiştirebileceğini gösteriyor. ${formText}${venueText ? ` ${venueText}.` : ''}${conflictNote}${sampleNote}${weatherNote}`;
+    return `Scout özeti bu maçta düşük skor tarafını daha mantıklı görüyor. ${matchupNote} ${goalContext} Oyun kolay açılmazsa ilk gol, duran top veya geçiş anları maçın ana kırılma noktası olabilir. ${formNote}${venueNote ? ` ${venueNote}` : ''}${conflictNote}${sampleNote}${weatherNote}`;
   }
 
   if (pick.tone === 'home') {
     const side = pick.label.includes('galibiyete') ? 'galibiyet' : 'kaybetmeme';
-    return `Scout özeti ${home} tarafını ${side} senaryosunda öne çıkarıyor. ${formText} ${attackText} Ev sahibi tarafının hücum-savunma eşleşmesi ve saha etkisi maç kontrolünü ${home} tarafına yaklaştırıyor.${venueText ? ` ${venueText}.` : ''}${conflictNote}${sampleNote}${weatherNote}`;
+    return `Scout özeti ${home} tarafını ${side} senaryosunda öne çıkarıyor. ${matchupNote} ${formNote} Ev sahibi tarafı oyunu kendi ritmine çekebilirse maç kontrolü daha çok ${home} tarafına yaklaşır.${venueNote ? ` ${venueNote}` : ''}${conflictNote}${sampleNote}${weatherNote}`;
   }
 
   if (pick.tone === 'away') {
     const side = pick.label.includes('galibiyete') ? 'galibiyet' : 'kaybetmeme';
-    return `Scout özeti ${away} tarafını ${side} senaryosunda öne çıkarıyor. ${formText} ${attackText} Deplasman ekibinin gol üretimi ve oyunda kalma verisi, maçın tek taraflı ev sahibi üstünlüğüne dönmesini zorlaştırıyor.${venueText ? ` ${venueText}.` : ''}${conflictNote}${sampleNote}${weatherNote}`;
+    return `Scout özeti ${away} tarafını ${side} senaryosunda öne çıkarıyor. ${matchupNote} ${formNote} Deplasman ekibinin oyunda kalma ve skor tehdidi, maçı tek taraflı ev sahibi üstünlüğü olarak okumayı zorlaştırıyor.${venueNote ? ` ${venueNote}` : ''}${conflictNote}${sampleNote}${weatherNote}`;
   }
 
-  return `Scout özeti bu maçta net bir yöne güçlü kırılım görmüyor. ${attackText} ${goalText} ${formText} ${home} ve ${away} farklı verilerde öne çıktığı için taraf veya gol seçimini zorlamak yerine risk seviyesini yüksek okumak daha doğru.${venueText ? ` ${venueText}.` : ''}${conflictNote}${sampleNote}${weatherNote}`;
+  return `Scout özeti bu maçta net bir yöne güçlü kırılım görmüyor. ${matchupNote} ${goalContext} ${formNote} Bu yüzden taraf veya gol seçimini zorlamak yerine risk seviyesini yüksek okumak daha doğru.${venueNote ? ` ${venueNote}` : ''}${conflictNote}${sampleNote}${weatherNote}`;
 }
 
 export function buildMatchCharacterDetail(
