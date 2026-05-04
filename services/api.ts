@@ -26,13 +26,13 @@ function fetchWithTimeout(url: string, opts?: RequestInit, timeoutMs = FETCH_TIM
   return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timer));
 }
 
-async function readArrayEndpoint<T>(url: string, scope: string): Promise<T[]> {
+async function readArrayEndpoint<T>(url: string, scope: string, options?: { silent?: boolean }): Promise<T[]> {
   try {
     const res = await fetchWithTimeout(url);
     const data = await readApiJson<T[]>(res, []);
     return arrayOrEmpty<T>(data);
   } catch (e) {
-    logApiError(scope, e);
+    if (!options?.silent) logApiError(scope, e);
     return [];
   }
 }
@@ -488,9 +488,9 @@ export async function getMatchContext(matchId: string, isFinished?: boolean): Pr
   return preloadMatchContext(matchId, isFinished);
 }
 
-export async function getH2H(matchId: string, isFinished?: boolean): Promise<FDMatch[]> {
+export async function getH2H(matchId: string, isFinished?: boolean, options?: { silent?: boolean }): Promise<FDMatch[]> {
   const url = isFinished ? `${BASE_URL}/h2h/${matchId}?finished=1` : `${BASE_URL}/h2h/${matchId}`;
-  return readArrayEndpoint<FDMatch>(url, 'getH2H');
+  return readArrayEndpoint<FDMatch>(url, 'getH2H', options);
 }
 
 export async function getTeamForm(teamId: number): Promise<FDMatch[]> {

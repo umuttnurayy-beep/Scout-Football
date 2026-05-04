@@ -230,7 +230,7 @@ export default function MatchDetail() {
       setSecondaryLoading(true);
       try {
         const [h2hR, weatherR, oddsR] = await Promise.allSettled([
-          contextPayload ? Promise.resolve(h2hValue) : getH2H(matchId, finishedParam),
+          contextPayload ? Promise.resolve(h2hValue) : getH2H(matchId, finishedParam, { silent: true }),
           matchContext.city ? getWeather(matchContext.city) : Promise.resolve(null),
           getOdds(matchContext.homeName, matchContext.awayName, leagueApiId),
         ]);
