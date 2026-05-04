@@ -747,6 +747,13 @@ describe('buildMatchAnalysis', () => {
     expect(typeof r.short).toBe('string');
     expect(typeof r.medium).toBe('string');
   });
+
+  it('keeps scout summary aligned with the scout pick direction', () => {
+    const st = makeStats({ total: 10, totalAvgGf: '1.7', totalAvgGa: '1.4', over25Pct: 66, kgVarPct: 62 });
+    const r = buildMatchAnalysis('Home', 'Away', 2021, st, st, 7, 7, 4, false, true);
+    expect(r.scoutPick?.label).toContain('Karşılıklı gol');
+    expect(r.medium).toContain('iki takımın da gol');
+  });
 });
 
 // ──────────────────────────────────────────────

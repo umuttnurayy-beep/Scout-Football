@@ -103,7 +103,7 @@ function HeroCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
           <View style={sc.heroMetricRow}>
             <Text style={sc.heroMetricPrimary}>{expectedLine(metrics)}</Text>
             <Text style={sc.heroMetricDot}>·</Text>
-            <Text style={sc.heroMetricPrimary} numberOfLines={1}>{favoriteText(m, metrics)}</Text>
+            <Text style={sc.heroMetricPrimary} numberOfLines={1}>{cardAnalysis.headline}</Text>
           </View>
           <Text style={sc.heroSummary}>{cardAnalysis.summary}</Text>
         </>
@@ -219,7 +219,7 @@ function TomorrowFeaturedCard({ m, metrics, onPress }: { m: Match; metrics: Metr
         <Text style={[sc.hlTime, { color: c.text }]}>{m.finished && m.score ? m.score : m.time}</Text>
         <Text style={[sc.hlTeam, { color: c.text, textAlign: 'right' }]} numberOfLines={1}>{m.away}</Text>
       </View>
-      <Text style={[sc.hlMetric, { color: c.primary }]}>{metrics.hasData ? `${expectedLine(metrics)} · ${favoriteText(m, metrics)}` : cardAnalysis.summary}</Text>
+      <Text style={[sc.hlMetric, { color: c.primary }]}>{metrics.hasData ? `${expectedLine(metrics)} · ${cardAnalysis.headline}` : cardAnalysis.summary}</Text>
     </TouchableOpacity>
   );
 }
@@ -376,7 +376,7 @@ function HighlightCard({ m, rank, metrics, onPress }: {
       </View>
       {metrics.hasData ? (
         <>
-          <Text style={[sc.hlMetric, { color: c.primary }]}>{expectedLine(metrics)} · {favoriteText(m, metrics)}</Text>
+          <Text style={[sc.hlMetric, { color: c.primary }]}>{expectedLine(metrics)} · {cardAnalysis.headline}</Text>
           <Text style={[sc.hlSummary, { color: c.textSub }]}>{cardAnalysis.summary}</Text>
         </>
       ) : (
@@ -399,6 +399,7 @@ function DaySummaryCard({ summary }: { summary: string }) {
 function MatchRow({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress: () => void }) {
   const { colors: c } = useTheme();
   const hasScore = m.finished && m.score;
+  const cardAnalysis = buildHomeCardAnalysis(m, metrics);
   return (
     <TouchableOpacity style={[sc.matchCard, { backgroundColor: c.surface, borderColor: c.border }]} onPress={onPress} activeOpacity={0.8}>
       <View style={sc.matchTop}>
@@ -420,7 +421,7 @@ function MatchRow({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
       </View>
       {metrics.hasData ? (
         <Text style={[sc.matchMetricLine, { color: c.primary }]}>
-          {expectedLine(metrics)} · {favoriteText(m, metrics)}
+          {expectedLine(metrics)} · {cardAnalysis.headline}
         </Text>
       ) : (
         <Text style={[sc.matchMetricLineMuted, { color: c.textFaint }]}>{metrics.reason}</Text>

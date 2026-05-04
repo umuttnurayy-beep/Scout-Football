@@ -40,6 +40,7 @@ import {
   expectedLine,
   uniqueLeagueIds,
   buildNextPreviewFromHomeData,
+  buildHomeCardAnalysis,
   NO_DATA,
   LEAGUE_WEIGHT,
   type Match,
@@ -309,6 +310,13 @@ describe('computeMetrics', () => {
     const r = computeMetrics(home as any, away as any, standings as any);
     expect(typeof r.summary).toBe('string');
     expect(r.summary.length).toBeGreaterThan(0);
+  });
+
+  test('home card headline uses the same scout pick wording', () => {
+    const r = computeMetrics(home as any, away as any, standings as any);
+    const card = buildHomeCardAnalysis(makeMatch({ home: 'Home', away: 'Away' }), r);
+    expect(card.headline).toMatch(/2\.5|kaybetmez|galibiyete|Karşılıklı|Riskli|Taraf seçimi/);
+    expect(card.summary.length).toBeGreaterThan(20);
   });
 
   test('includes leader, neighbor, and safety-line context from full standings', () => {

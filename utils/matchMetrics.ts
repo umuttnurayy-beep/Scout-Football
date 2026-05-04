@@ -540,6 +540,7 @@ function pickVariant(lines: string[], hash: number) {
 }
 
 function homeCardHeadline(m: Match, metrics: Metrics, pick: ReturnType<typeof buildScoutPick>, hash: number) {
+  if (pick.label) return pick.label;
   const homeName = m.home;
   const awayName = m.away;
   const leader = metrics.favorite === 'home' ? homeName : metrics.favorite === 'away' ? awayName : null;
@@ -587,6 +588,7 @@ function homeCardHeadline(m: Match, metrics: Metrics, pick: ReturnType<typeof bu
 }
 
 function homeCardSummary(m: Match, metrics: Metrics, pick: ReturnType<typeof buildScoutPick>, hash: number) {
+  if (pick.detail) return compactSentence(pick.detail, 120);
   const homeName = m.home;
   const awayName = m.away;
   const goalLevel = metrics.expectedGoals >= 2.9 ? 'gol beklentisi yüksek' : metrics.expectedGoals >= 2.4 ? 'gol beklentisi orta-üst' : 'skor profili kontrollü';

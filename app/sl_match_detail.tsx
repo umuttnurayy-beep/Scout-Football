@@ -26,7 +26,7 @@ import {
   buildMatchCharacterDetail,
   buildReasons,
   buildScoutPick,
-  buildScoutSummary,
+  buildScoutSummaryFromPick,
   getCompareComment,
   getHomeAwayComment,
   getGuven,
@@ -112,19 +112,18 @@ function buildMatchAnalysis(
   }
 
   const guven   = hasFormData ? getGuven(hSt, aSt, h2hCount, weatherRisk) : 'Düşük';
+  const scoutPick = hasFormData ? buildScoutPick(home, away, hSt, aSt, hFP, aFP, h2hCount, weatherRisk) : null;
   const persona = getPersonaEnriched(stil, gol, tempo, risk, hasFormData ? hSt : undefined, hasFormData ? aSt : undefined, hTrend, aTrend);
   const short   = pickFrom(SHORT_BANK[persona]  || SHORT_BANK.dengeli,  hash + 5);
   const bankMedium = pickFrom(MEDIUM_BANK[persona] || MEDIUM_BANK.dengeli, hash + 13);
-  const medium  = hasFormData
-    ? buildScoutSummary(home, away, hSt, aSt, hFP, aFP, h2hCount, weatherRisk, hash + 13, hTrend, aTrend)
+  const medium  = hasFormData && scoutPick
+    ? buildScoutSummaryFromPick(home, away, scoutPick, hSt, aSt, hFP, aFP, weatherRisk)
     : bankMedium;
   const reasons = hasFormData
     ? buildReasons(home, away, hSt, aSt, hFP, aFP, h2hCount, hash + 17, hTrend, aTrend, weatherRisk)
     : ['Veri henüz yüklenmedi; form verileri değerlendirmeye alınamadı.',
        'Lig profili baz alınarak tahmin üretildi.',
        'Sonuçlar genel eğilimi yansıtmakla birlikte maç bazlı doğrulanmadı.'];
-  const scoutPick = hasFormData ? buildScoutPick(home, away, hSt, aSt, hFP, aFP, h2hCount, weatherRisk) : null;
-
   let badgeLabel: string, badgeColor: string, badgeBg: string;
   if (risk === 'Düşük' && guven !== 'Düşük') {
     badgeLabel = '🟢 Favori'; badgeColor = '#1B6B3A'; badgeBg = '#E8F8F0';

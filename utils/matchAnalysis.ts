@@ -576,6 +576,49 @@ export function buildScoutPick(
   };
 }
 
+export function buildScoutSummaryFromPick(
+  home: string,
+  away: string,
+  pick: ScoutPick,
+  hSt: MatchFormStats,
+  aSt: MatchFormStats,
+  hFP: number,
+  aFP: number,
+  weatherRisk: boolean,
+): string {
+  const signal = buildMatchSignalSnapshot(home, away, hSt, aSt, hFP, aFP);
+  const overLabel = Math.round(signal.avgOver);
+  const kgLabel = Math.round(signal.avgKg);
+  const totalGoals = (signal.hAtk + signal.aAtk).toFixed(1);
+  const conflictNote = signal.conflictText
+    ? ` ${signal.conflictText}`
+    : '';
+  const weatherNote = weatherRisk ? ' Hava koşulu ritmi bozabileceği için risk artıyor.' : '';
+
+  if (pick.tone === 'goals') {
+    const main = pick.label.includes('Karşılıklı')
+      ? `Scout özeti bu maçta iki takımın da gol bulma ihtimalini öne çıkarıyor. Karşılıklı gol oranı %${kgLabel}; iki tarafın toplam gol üretimi de ${totalGoals} seviyesinde.`
+      : `Scout özeti bu maçta 2.5 üst tarafını daha güçlü görüyor. Gol trendi %${overLabel}; hücum üretimi düşük skordan çok gollü maç ihtimalini destekliyor.`;
+    return `${main}${conflictNote}${weatherNote}`;
+  }
+
+  if (pick.tone === 'draw') {
+    return `Scout özeti bu maçta düşük skor tarafını daha mantıklı görüyor. Gol trendi %${overLabel}; tempo ve hücum verisi maçın kolay açılmayabileceğini gösteriyor.${conflictNote}${weatherNote}`;
+  }
+
+  if (pick.tone === 'home') {
+    const side = pick.label.includes('galibiyete') ? 'galibiyet' : 'kaybetmeme';
+    return `Scout özeti ${home} tarafını ${side} senaryosunda öne çıkarıyor. Form, iç saha etkisi ve hücum-savunma eşleşmesi ev sahibi tarafına daha yakın duruyor.${conflictNote}${weatherNote}`;
+  }
+
+  if (pick.tone === 'away') {
+    const side = pick.label.includes('galibiyete') ? 'galibiyet' : 'kaybetmeme';
+    return `Scout özeti ${away} tarafını ${side} senaryosunda öne çıkarıyor. Son form ve deplasman gol tehdidi misafir tarafı destekliyor.${conflictNote}${weatherNote}`;
+  }
+
+  return `Scout özeti bu maçta net bir yöne güçlü kırılım görmüyor. ${home} ve ${away} farklı verilerde öne çıktığı için taraf veya gol seçimini zorlamak yerine risk seviyesini yüksek okumak daha doğru.${weatherNote}`;
+}
+
 export function buildMatchCharacterDetail(
   home: string,
   away: string,
@@ -1127,19 +1170,18 @@ export function buildMatchAnalysis(
   }
 
   const guven   = hasFormData ? getGuven(hSt, aSt, h2hCount, weatherRisk) : 'Düşük';
+  const scoutPick = hasFormData ? buildScoutPick(home, away, hSt, aSt, hFP, aFP, h2hCount, weatherRisk) : null;
   const persona = getPersonaEnriched(stil, gol, tempo, risk, hasFormData ? hSt : undefined, hasFormData ? aSt : undefined, hTrend, aTrend);
   const short   = pickFrom(SHORT_BANK[persona]  || SHORT_BANK.dengeli,  hash + 5);
   const bankMedium = pickFrom(MEDIUM_BANK[persona] || MEDIUM_BANK.dengeli, hash + 13);
-  const medium  = hasFormData
-    ? buildScoutSummary(home, away, hSt, aSt, hFP, aFP, h2hCount, weatherRisk, hash + 13, hTrend, aTrend)
+  const medium  = hasFormData && scoutPick
+    ? buildScoutSummaryFromPick(home, away, scoutPick, hSt, aSt, hFP, aFP, weatherRisk)
     : bankMedium;
   const reasons = hasFormData
     ? buildReasons(home, away, hSt, aSt, hFP, aFP, h2hCount, hash + 17, hTrend, aTrend, weatherRisk)
     : ['Veri henüz yüklenmedi; form ve H2H verileri değerlendirmeye alınamadı.',
        'Lig profili baz alınarak tahmin üretildi.',
        'Sonuçlar genel eğilimi yansıtmakla birlikte maç bazlı doğrulanmadı.'];
-  const scoutPick = hasFormData ? buildScoutPick(home, away, hSt, aSt, hFP, aFP, h2hCount, weatherRisk) : null;
-
   let badgeLabel: string, badgeColor: string, badgeBg: string;
   if (risk === 'Düşük' && guven !== 'Düşük') {
     badgeLabel = '🟢 Güçlü sinyal'; badgeColor = '#1B6B3A'; badgeBg = '#E8F8F0';
