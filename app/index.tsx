@@ -12,7 +12,7 @@ import RefreshStatusBar, { REFRESH_STATUS_MESSAGES } from '../components/Refresh
 import { SkeletonMatchCard, SkeletonSectionHeader } from '../components/SkeletonLoader';
 import { useTheme } from '../context/ThemeContext';
 import {
-  H2HRawItem, HomeData, checkBackendHealth, clearLastApiError, getAllSportsH2H, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, Standing,
+  H2HRawItem, HomeData, checkBackendHealth, clearLastApiError, getAllSportsH2H, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, preloadMatchContext, preloadSuperLigMatchContext, Standing,
 } from '../services/api';
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
 import { dataNoticeMessage, matchListEmptyMessage } from '../utils/emptyStates';
@@ -1004,6 +1004,13 @@ export default function HomeScreen() {
       leagueAvg: metrics?.leagueAvg != null ? String(metrics.leagueAvg) : '',
     };
     if (m.leagueApiId === 203) {
+      void preloadSuperLigMatchContext({
+        eventId: String(m.id),
+        homeTeamId: m.homeTeamId,
+        awayTeamId: m.awayTeamId,
+        home: m.home,
+        away: m.away,
+      });
       const slMatchHref: Href = {
         pathname: '/sl_match_detail',
         params: {
@@ -1020,6 +1027,7 @@ export default function HomeScreen() {
       router.push(slMatchHref);
       return;
     }
+    void preloadMatchContext(String(m.id), m.finished);
     router.push({
       pathname: '/match_detail',
       params: {

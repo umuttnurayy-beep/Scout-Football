@@ -91,6 +91,7 @@ function createHomeService(deps) {
     isLiveStatus,
     ttlForMatchDate,
     buildHistory,
+    warmMatchContexts,
     logger = console,
   } = deps;
 
@@ -242,6 +243,45 @@ function createHomeService(deps) {
     return selected.id;
   }
 
+  function pickContextWarmupTargets(matches, superLigMatches, featuredMatchId, limit = 4) {
+    const candidates = visibleFeaturedCandidates(matches, superLigMatches);
+    if (candidates.length === 0) return { footballDataMatches: [], superLigMatches: [] };
+
+    const sorted = [...candidates].sort((a, b) => {
+      const featuredA = featuredMatchId && a.id === Number(featuredMatchId) ? 1 : 0;
+      const featuredB = featuredMatchId && b.id === Number(featuredMatchId) ? 1 : 0;
+      if (featuredA !== featuredB) return featuredB - featuredA;
+      const scoreDiff = scoreFeaturedCandidate(b) - scoreFeaturedCandidate(a);
+      if (scoreDiff !== 0) return scoreDiff;
+      return a.id - b.id;
+    }).slice(0, limit);
+    const targetIds = new Set(sorted.map(match => match.id));
+
+    return {
+      footballDataMatches: (matches || [])
+        .filter(match => targetIds.has(Number(match.id)))
+        .slice(0, limit),
+      superLigMatches: (superLigMatches || [])
+        .filter(match => targetIds.has(Number(match.id)))
+        .slice(0, limit),
+    };
+  }
+
+  function scheduleContextWarmup(date, payload) {
+    if (typeof warmMatchContexts !== 'function' || !payload) return;
+    if (deriveSourceSeverityFromPayload(payload) === 'error') return;
+    const targets = pickContextWarmupTargets(
+      payload.matches || [],
+      payload.superLigMatches || [],
+      payload.featuredMatchId,
+    );
+    if (targets.footballDataMatches.length === 0 && targets.superLigMatches.length === 0) return;
+
+    Promise.resolve()
+      .then(() => warmMatchContexts({ date, ...targets }))
+      .catch(e => logger.error('[home] context warmup failed:', e.message));
+  }
+
   async function buildStandingsMapForLeagueIds(leagueIds) {
     const issues = [];
     const sourceWarnings = [];
@@ -268,7 +308,11 @@ function createHomeService(deps) {
     const cacheKey = homeCacheKey(date);
     const staleKey = homeStaleCacheKey(date);
     const cached = await getCache(cacheKey);
-    if (cached) return { ok: true, data: withDerivedPayloadFields(cached) };
+    if (cached) {
+      const payload = withDerivedPayloadFields(cached);
+      scheduleContextWarmup(date, payload);
+      return { ok: true, data: payload };
+    }
 
     try {
       const result = await dedupe(cacheKey, async () => {
@@ -385,6 +429,8 @@ function createHomeService(deps) {
             nextPreviewSource: normalizeNextPreviewSource(payload.nextPreview?.source),
           });
         }
+
+        scheduleContextWarmup(date, payload);
 
         return { payload, stale: false };
       });

@@ -45,6 +45,7 @@ function createService(overrides = {}) {
     sl: [],
     standings: [],
     slStandings: 0,
+    warmups: [],
   };
   const service = createHomeService({
     dedupe: async (_key, fn) => fn(),
@@ -72,6 +73,9 @@ function createService(overrides = {}) {
     hasMatchTeamNames: match => Boolean(match.homeTeam?.name && match.awayTeam?.name),
     isLiveStatus: status => ['IN_PLAY', 'PAUSED'].includes(String(status || '').toUpperCase()),
     ttlForMatchDate: () => 60000,
+    warmMatchContexts: overrides.warmMatchContexts || (async payload => {
+      calls.warmups.push(payload);
+    }),
     logger: { error: jest.fn() },
   });
   return { service, calls, cache };
@@ -335,6 +339,46 @@ describe('homeService', () => {
 
     expect(res.data.featuredMatchId).toBe(538132);
     expect(cache.store.get('home_featured_v3_2026-05-03')).toBe(538132);
+  });
+
+  test('warms featured and top scout match contexts after fresh home build', async () => {
+    const { service, calls } = createService({
+      fdByDate: {
+        '2026-05-01': [
+          fdMatch(10, 2021, 'Leeds', 'Burnley'),
+          fdMatch(20, 2014, 'Girona', 'Mallorca'),
+          fdMatch(30, 2021, 'Man United', 'Liverpool'),
+        ],
+      },
+      slByDate: {
+        '2026-05-01': [slMatch(20301, 'Galatasaray', 'Fenerbahce')],
+      },
+    });
+
+    const res = await service.buildHome('2026-05-01');
+    await Promise.resolve();
+
+    expect(res.data.featuredMatchId).toBe(30);
+    expect(calls.warmups).toHaveLength(1);
+    expect(calls.warmups[0].date).toBe('2026-05-01');
+    expect(calls.warmups[0].footballDataMatches.map(match => match.id)).toContain(30);
+    expect(
+      calls.warmups[0].footballDataMatches.length + calls.warmups[0].superLigMatches.length
+    ).toBeLessThanOrEqual(4);
+  });
+
+  test('does not warm detail contexts when the home payload has source errors', async () => {
+    const { service, calls } = createService({
+      fdError: true,
+      slByDate: {
+        '2026-05-01': [slMatch(20301, 'Antalyaspor', 'Alanyaspor')],
+      },
+    });
+
+    await service.buildHome('2026-05-01');
+    await Promise.resolve();
+
+    expect(calls.warmups).toEqual([]);
   });
 
   test('does not create a new featured lock from partial upstream data', async () => {

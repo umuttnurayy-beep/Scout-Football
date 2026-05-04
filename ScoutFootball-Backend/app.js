@@ -159,6 +159,86 @@ const { fetchAllSportsH2HMatches } = createAllSportsH2HService({
   upstream,
 });
 
+async function warmFootballDataMatchContext(match) {
+  const matchId = Number(match?.id) || 0;
+  if (!matchId) return;
+  const isFinished = String(match.status || '').toUpperCase() === 'FINISHED';
+  const cacheKey = `match_context_v1_${matchId}_${isFinished ? 'finished' : 'active'}`;
+  if (await getCache(cacheKey)) return;
+
+  const detail = await fdService.fetchMatch(matchId);
+  if (!detail) return;
+
+  const matchFinished = isFinished || String(detail.status || '').toUpperCase() === 'FINISHED';
+  const homeTeamId = detail.homeTeam?.id || match.homeTeam?.id || 0;
+  const awayTeamId = detail.awayTeam?.id || match.awayTeam?.id || 0;
+  const [homeFormR, awayFormR, h2hR] = await Promise.allSettled([
+    homeTeamId ? fdService.fetchTeamMatches(homeTeamId) : Promise.resolve([]),
+    awayTeamId ? fdService.fetchTeamMatches(awayTeamId) : Promise.resolve([]),
+    fdService.fetchH2H(matchId, matchFinished),
+  ]);
+
+  const payload = {
+    match: detail,
+    homeForm: homeFormR.status === 'fulfilled' ? homeFormR.value : [],
+    awayForm: awayFormR.status === 'fulfilled' ? awayFormR.value : [],
+    h2h: h2hR.status === 'fulfilled' ? h2hR.value : [],
+    issues: [
+      ...(homeFormR.status === 'rejected' || awayFormR.status === 'rejected' ? ['form'] : []),
+      ...(h2hR.status === 'rejected' ? ['h2h'] : []),
+    ],
+    generatedAt: new Date().toISOString(),
+  };
+  await setCache(cacheKey, payload, fdService.footballDataMatchCacheTtl(detail));
+}
+
+async function warmSuperLigMatchContext(match) {
+  const eventId = String(match?.id || '');
+  if (!eventId) return;
+  const homeTeamId = Number(match.homeTeamId) || 0;
+  const awayTeamId = Number(match.awayTeamId) || 0;
+  const home = match.home || '';
+  const away = match.away || '';
+  const cacheKey = `superlig_match_context_v3_${eventId}_${homeTeamId}_${awayTeamId}_${home}_${away}`;
+  if (await getCache(cacheKey)) return;
+
+  const event = await slService.fetchMatch(eventId);
+  if (!event) return;
+
+  const resolvedHomeId = homeTeamId || parseInt(event.idHomeTeam) || 0;
+  const resolvedAwayId = awayTeamId || parseInt(event.idAwayTeam) || 0;
+  const resolvedHome = home || event.strHomeTeam || '';
+  const resolvedAway = away || event.strAwayTeam || '';
+  const [homeContextR, awayContextR, h2hR] = await Promise.allSettled([
+    resolvedHomeId ? slService.fetchTeamContext(resolvedHomeId) : Promise.resolve(null),
+    resolvedAwayId ? slService.fetchTeamContext(resolvedAwayId) : Promise.resolve(null),
+    resolvedHome && resolvedAway ? fetchAllSportsH2HMatches(resolvedHome, resolvedAway) : Promise.resolve([]),
+  ]);
+
+  const isFinished = ['FT', 'AET', 'PEN', 'Match Finished'].includes(event.strStatus || '');
+  const matchDate = event.dateEvent || new Date().toISOString().split('T')[0];
+  const payload = {
+    event,
+    homeContext: homeContextR.status === 'fulfilled' ? homeContextR.value : null,
+    awayContext: awayContextR.status === 'fulfilled' ? awayContextR.value : null,
+    h2h: h2hR.status === 'fulfilled' ? h2hR.value : [],
+    issues: [
+      ...(homeContextR.status === 'rejected' || awayContextR.status === 'rejected' ? ['form'] : []),
+      ...(h2hR.status === 'rejected' ? ['h2h'] : []),
+    ],
+    generatedAt: new Date().toISOString(),
+  };
+  await setCache(cacheKey, payload, isFinished ? TTL.historical : ttlForMatchDate(matchDate, isLiveStatus(event.strStatus)));
+}
+
+async function warmHomeMatchContexts({ footballDataMatches = [], superLigMatches = [] }) {
+  const tasks = [
+    ...footballDataMatches.map(match => warmFootballDataMatchContext(match)),
+    ...superLigMatches.map(match => warmSuperLigMatchContext(match)),
+  ].slice(0, 4);
+  await Promise.allSettled(tasks);
+}
+
 const homeService = createHomeService({
   dedupe,
   getCache,
@@ -172,6 +252,7 @@ const homeService = createHomeService({
   isLiveStatus,
   ttlForMatchDate,
   buildHistory,
+  warmMatchContexts: warmHomeMatchContexts,
 });
 
 app.use(createFootballDataRouter({

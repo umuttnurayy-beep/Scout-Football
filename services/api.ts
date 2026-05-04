@@ -445,7 +445,13 @@ export type MatchContextData = {
   generatedAt?: string;
 };
 
-export async function getMatchContext(matchId: string, isFinished?: boolean): Promise<MatchContextData | null> {
+const matchContextRequests = new Map<string, Promise<MatchContextData | null>>();
+
+function matchContextRequestKey(matchId: string, isFinished?: boolean) {
+  return `${matchId}:${isFinished ? 'finished' : 'active'}`;
+}
+
+async function fetchMatchContext(matchId: string, isFinished?: boolean): Promise<MatchContextData | null> {
   try {
     const url = isFinished ? `${BASE_URL}/match/${matchId}/context?finished=1` : `${BASE_URL}/match/${matchId}/context`;
     const res = await fetchWithTimeout(url, undefined, CONTEXT_FETCH_TIMEOUT_MS);
@@ -462,6 +468,24 @@ export async function getMatchContext(matchId: string, isFinished?: boolean): Pr
     logApiError('getMatchContext', e);
     return null;
   }
+}
+
+export function preloadMatchContext(matchId: string, isFinished?: boolean): Promise<MatchContextData | null> {
+  const key = matchContextRequestKey(matchId, isFinished);
+  const existing = matchContextRequests.get(key);
+  if (existing) return existing;
+  const request = fetchMatchContext(matchId, isFinished);
+  matchContextRequests.set(key, request);
+  request.then(value => {
+    if (!value) matchContextRequests.delete(key);
+  }).catch(() => {
+    matchContextRequests.delete(key);
+  });
+  return request;
+}
+
+export async function getMatchContext(matchId: string, isFinished?: boolean): Promise<MatchContextData | null> {
+  return preloadMatchContext(matchId, isFinished);
 }
 
 export async function getH2H(matchId: string, isFinished?: boolean): Promise<FDMatch[]> {
@@ -681,19 +705,27 @@ export type SuperLigMatchContextData = {
   generatedAt?: string;
 };
 
-export async function getSuperLigMatchContext({
-  eventId,
-  homeTeamId,
-  awayTeamId,
-  home,
-  away,
-}: {
+type SuperLigMatchContextParams = {
   eventId: string;
   homeTeamId?: number;
   awayTeamId?: number;
   home?: string;
   away?: string;
-}): Promise<SuperLigMatchContextData | null> {
+};
+
+const superLigMatchContextRequests = new Map<string, Promise<SuperLigMatchContextData | null>>();
+
+function superLigMatchContextRequestKey(params: SuperLigMatchContextParams) {
+  return `${params.eventId}:${params.homeTeamId || 0}:${params.awayTeamId || 0}:${params.home || ''}:${params.away || ''}`;
+}
+
+async function fetchSuperLigMatchContext({
+  eventId,
+  homeTeamId,
+  awayTeamId,
+  home,
+  away,
+}: SuperLigMatchContextParams): Promise<SuperLigMatchContextData | null> {
   try {
     const params = new URLSearchParams();
     if (homeTeamId) params.set('homeTeamId', String(homeTeamId));
@@ -713,4 +745,22 @@ export async function getSuperLigMatchContext({
     logApiError('getSuperLigMatchContext', e);
     return null;
   }
+}
+
+export function preloadSuperLigMatchContext(params: SuperLigMatchContextParams): Promise<SuperLigMatchContextData | null> {
+  const key = superLigMatchContextRequestKey(params);
+  const existing = superLigMatchContextRequests.get(key);
+  if (existing) return existing;
+  const request = fetchSuperLigMatchContext(params);
+  superLigMatchContextRequests.set(key, request);
+  request.then(value => {
+    if (!value) superLigMatchContextRequests.delete(key);
+  }).catch(() => {
+    superLigMatchContextRequests.delete(key);
+  });
+  return request;
+}
+
+export async function getSuperLigMatchContext(params: SuperLigMatchContextParams): Promise<SuperLigMatchContextData | null> {
+  return preloadSuperLigMatchContext(params);
 }
