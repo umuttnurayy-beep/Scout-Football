@@ -1,4 +1,5 @@
 const express = require('express');
+const { deriveH2HFromTeamMatches } = require('../utils/footballDataH2H');
 
 function createFootballDataRouter({
   apiError,
@@ -48,7 +49,7 @@ function createFootballDataRouter({
     if (!FOOTBALL_DATA_KEY) return missingConfig(res, 'FOOTBALL_DATA_KEY', null);
 
     const isFinished = req.query.finished === '1';
-    const cacheKey = `match_context_v1_${matchId}_${isFinished ? 'finished' : 'active'}`;
+    const cacheKey = `match_context_v2_${matchId}_${isFinished ? 'finished' : 'active'}`;
     const cached = await getCache(cacheKey);
     if (cached) return res.json({ ok: true, data: cached });
 
@@ -65,15 +66,28 @@ function createFootballDataRouter({
         fetchFootballDataH2H(matchId, matchFinished),
       ]);
 
+      const homeForm = homeFormR.status === 'fulfilled' ? homeFormR.value : [];
+      const awayForm = awayFormR.status === 'fulfilled' ? awayFormR.value : [];
+      let h2h = h2hR.status === 'fulfilled' ? h2hR.value : [];
+      if (h2h.length === 0 && homeForm.length > 0 && awayForm.length > 0) {
+        h2h = deriveH2HFromTeamMatches({
+          homeForm,
+          awayForm,
+          homeTeam: match.homeTeam,
+          awayTeam: match.awayTeam,
+          currentMatchId: match.id || matchId,
+        });
+      }
+
       const issues = [];
       if (homeFormR.status === 'rejected' || awayFormR.status === 'rejected') issues.push('form');
-      if (h2hR.status === 'rejected') issues.push('h2h');
+      if (h2hR.status === 'rejected' && h2h.length === 0) issues.push('h2h');
 
       const payload = {
         match,
-        homeForm: homeFormR.status === 'fulfilled' ? homeFormR.value : [],
-        awayForm: awayFormR.status === 'fulfilled' ? awayFormR.value : [],
-        h2h: h2hR.status === 'fulfilled' ? h2hR.value : [],
+        homeForm,
+        awayForm,
+        h2h,
         issues,
         generatedAt: new Date().toISOString(),
       };
@@ -103,7 +117,25 @@ function createFootballDataRouter({
     const isFinished = req.query.finished === '1';
     const cacheKey = `h2h_${matchId}`;
     try {
-      return res.json(await fetchFootballDataH2H(matchId, isFinished));
+      const h2h = await fetchFootballDataH2H(matchId, isFinished);
+      if (Array.isArray(h2h) && h2h.length > 0) return res.json(h2h);
+
+      const match = await fetchFootballDataMatch(matchId);
+      if (!match) return res.json([]);
+      const homeTeamId = match.homeTeam?.id || 0;
+      const awayTeamId = match.awayTeam?.id || 0;
+      const [homeFormR, awayFormR] = await Promise.allSettled([
+        homeTeamId ? fetchFootballDataTeamMatches(homeTeamId) : Promise.resolve([]),
+        awayTeamId ? fetchFootballDataTeamMatches(awayTeamId) : Promise.resolve([]),
+      ]);
+      const fallback = deriveH2HFromTeamMatches({
+        homeForm: homeFormR.status === 'fulfilled' ? homeFormR.value : [],
+        awayForm: awayFormR.status === 'fulfilled' ? awayFormR.value : [],
+        homeTeam: match.homeTeam,
+        awayTeam: match.awayTeam,
+        currentMatchId: match.id || matchId,
+      });
+      return res.json(fallback);
     } catch (e) {
       return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
     }

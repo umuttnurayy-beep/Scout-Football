@@ -34,6 +34,7 @@ const {
   isLiveStatus,
   ttlForMatchDate,
 } = require('./utils/cache');
+const { deriveH2HFromTeamMatches } = require('./utils/footballDataH2H');
 const {
   FOOTBALL_DATA_KEY,
   WEATHER_API_KEY,
@@ -163,7 +164,7 @@ async function warmFootballDataMatchContext(match) {
   const matchId = Number(match?.id) || 0;
   if (!matchId) return;
   const isFinished = String(match.status || '').toUpperCase() === 'FINISHED';
-  const cacheKey = `match_context_v1_${matchId}_${isFinished ? 'finished' : 'active'}`;
+  const cacheKey = `match_context_v2_${matchId}_${isFinished ? 'finished' : 'active'}`;
   if (await getCache(cacheKey)) return;
 
   const detail = await fdService.fetchMatch(matchId);
@@ -177,15 +178,27 @@ async function warmFootballDataMatchContext(match) {
     awayTeamId ? fdService.fetchTeamMatches(awayTeamId) : Promise.resolve([]),
     fdService.fetchH2H(matchId, matchFinished),
   ]);
+  const homeForm = homeFormR.status === 'fulfilled' ? homeFormR.value : [];
+  const awayForm = awayFormR.status === 'fulfilled' ? awayFormR.value : [];
+  let h2h = h2hR.status === 'fulfilled' ? h2hR.value : [];
+  if (h2h.length === 0 && homeForm.length > 0 && awayForm.length > 0) {
+    h2h = deriveH2HFromTeamMatches({
+      homeForm,
+      awayForm,
+      homeTeam: detail.homeTeam || match.homeTeam,
+      awayTeam: detail.awayTeam || match.awayTeam,
+      currentMatchId: matchId,
+    });
+  }
 
   const payload = {
     match: detail,
-    homeForm: homeFormR.status === 'fulfilled' ? homeFormR.value : [],
-    awayForm: awayFormR.status === 'fulfilled' ? awayFormR.value : [],
-    h2h: h2hR.status === 'fulfilled' ? h2hR.value : [],
+    homeForm,
+    awayForm,
+    h2h,
     issues: [
       ...(homeFormR.status === 'rejected' || awayFormR.status === 'rejected' ? ['form'] : []),
-      ...(h2hR.status === 'rejected' ? ['h2h'] : []),
+      ...(h2hR.status === 'rejected' && h2h.length === 0 ? ['h2h'] : []),
     ],
     generatedAt: new Date().toISOString(),
   };

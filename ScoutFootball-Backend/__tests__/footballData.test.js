@@ -47,7 +47,7 @@ function createApp(overrides = {}) {
     },
     fetchFootballDataTeamMatches: async teamId => {
       calls.teamMatches.push(teamId);
-      return [{ id: teamId * 100 }];
+      return overrides.teamMatchesById?.[teamId] ?? [{ id: teamId * 100 }];
     },
     fetchStandingsForLeague: async leagueId => {
       calls.standings.push(leagueId);
@@ -105,6 +105,53 @@ describe('footballData router', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.issues).toEqual(['h2h']);
     expect(res.body.data.h2h).toEqual([]);
+  });
+
+  test('GET /match/:matchId/context derives H2H from team forms when direct H2H is empty', async () => {
+    const firstLeg = {
+      id: 456,
+      utcDate: '2026-04-29T19:00:00Z',
+      status: 'FINISHED',
+      homeTeam: { id: 20, name: 'Away FC' },
+      awayTeam: { id: 10, name: 'Home FC' },
+      score: { fullTime: { home: 1, away: 1 } },
+    };
+    const { app } = createApp({
+      h2h: [],
+      teamMatchesById: {
+        10: [{ id: 1000 }, firstLeg],
+        20: [firstLeg, { id: 2000 }],
+      },
+    });
+
+    const res = await request(app).get('/match/123/context');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.h2h).toEqual([firstLeg]);
+    expect(res.body.data.issues).toEqual([]);
+  });
+
+  test('GET /h2h/:matchId falls back to team-form intersections when direct H2H is empty', async () => {
+    const firstLeg = {
+      id: 456,
+      utcDate: '2026-04-29T19:00:00Z',
+      status: 'FINISHED',
+      homeTeam: { id: 20, name: 'Away FC' },
+      awayTeam: { id: 10, name: 'Home FC' },
+      score: { fullTime: { home: 1, away: 1 } },
+    };
+    const { app } = createApp({
+      h2h: [],
+      teamMatchesById: {
+        10: [firstLeg],
+        20: [firstLeg],
+      },
+    });
+
+    const res = await request(app).get('/h2h/123');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([firstLeg]);
   });
 
   test('GET /standings/:leagueId validates missing football-data config', async () => {
