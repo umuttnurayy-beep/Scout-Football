@@ -228,11 +228,12 @@ export default function TeamStatsScreen() {
     setLoadingForm(true);
     setFormLoadError(false);
     try {
-      const matches = await getTeamForm(teamId);
+      const matches = await getTeamForm(teamId, { silent: true });
       setRecentForm(parseForm(matches, teamId, false));
       setSeasonStats(calcSeasonStats(matches, teamId));
     } catch {
-      setFormLoadError(true);
+      setRecentForm([]);
+      setSeasonStats(null);
     }
     setLoadingForm(false);
   }

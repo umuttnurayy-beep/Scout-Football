@@ -493,8 +493,8 @@ export async function getH2H(matchId: string, isFinished?: boolean, options?: { 
   return readArrayEndpoint<FDMatch>(url, 'getH2H', options);
 }
 
-export async function getTeamForm(teamId: number): Promise<FDMatch[]> {
-  return readArrayEndpoint<FDMatch>(`${BASE_URL}/team/${teamId}/matches`, 'getTeamForm');
+export async function getTeamForm(teamId: number, options?: { silent?: boolean }): Promise<FDMatch[]> {
+  return readArrayEndpoint<FDMatch>(`${BASE_URL}/team/${teamId}/matches`, 'getTeamForm', options);
 }
 
 export async function getWeather(city: string): Promise<WeatherData | null> {
