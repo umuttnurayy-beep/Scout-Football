@@ -526,14 +526,34 @@ export default function HomeScreen() {
     return () => { cancelled = true; };
   }, [activeFilter, matches]);
 
+  async function readHomeDataCache(dateStr: string): Promise<HomeData | null> {
+    try {
+      const rawHome = await AsyncStorage.getItem(`${HOME_DATA_CACHE_KEY}:${dateStr}`);
+      if (!rawHome) return null;
+      const cachedHome = JSON.parse(rawHome) as HomeData;
+      if (!Array.isArray(cachedHome.matches) || !Array.isArray(cachedHome.superLigMatches)) return null;
+      return cachedHome;
+    } catch {
+      return null;
+    }
+  }
+
   async function loadMatches(date: Date, silent = false) {
     const requestId = ++loadSeq.current;
+    const dateStr = formatDateParam(date);
+    let showedCachedHome = false;
     if (!silent) {
       if (loading) setLoading(true);
       else setRefreshing(true);
+
+      const cachedHome = await readHomeDataCache(dateStr);
+      if (cachedHome && requestId === loadSeq.current) {
+        applyHomeData(dateStr, cachedHome, { notice: null });
+        setLoading(false);
+        showedCachedHome = true;
+      }
     }
     try {
-      const dateStr = formatDateParam(date);
       clearLastApiError();
       const homeData = await getHomeData(dateStr);
       if (homeData) {
@@ -550,18 +570,20 @@ export default function HomeScreen() {
 
       const homeRequestError = getLastApiError();
       if (homeRequestError) setBackendOffline(true);
+      if (showedCachedHome) {
+        setHomeDataNotice(null);
+        setHomeDataWarningText(null);
+        return;
+      }
       setBackendFeaturedMatchId(null);
       setHomeDataNotice('error');
       setHomeDataWarningText(null);
-      try {
-        const rawHome = await AsyncStorage.getItem(`${HOME_DATA_CACHE_KEY}:${dateStr}`);
-        if (rawHome) {
-          const cachedHome = JSON.parse(rawHome);
-          if (requestId !== loadSeq.current) return;
-          applyHomeData(dateStr, cachedHome, { notice: null });
-          return;
-        }
-      } catch {}
+      const cachedHome = await readHomeDataCache(dateStr);
+      if (cachedHome) {
+        if (requestId !== loadSeq.current) return;
+        applyHomeData(dateStr, cachedHome, { notice: null });
+        return;
+      }
 
       if (!__DEV__) {
         setStandingsMap({});

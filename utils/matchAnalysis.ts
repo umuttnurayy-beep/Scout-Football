@@ -480,8 +480,8 @@ export function buildScoutPick(
       };
     }
     return {
-      label: 'Net bahis değeri yok',
-      detail: 'Maç önü verisi taraf, gol veya düşük skor için yeterince ayrışmıyor. Bu profil zorlamaya açık değil.',
+      label: 'Riskli maç profili',
+      detail: 'Taraf, gol ve düşük skor sinyalleri birbirinden yeterince ayrışmıyor. Bu eşleşmede en doğru okuma temkinli kalmak.',
       tone: 'caution',
     };
   }
@@ -570,8 +570,8 @@ export function buildScoutPick(
   }
 
   return {
-    label: 'Net bahis değeri yok',
-    detail: 'Maç önü sinyalleri taraf, gol veya düşük skor için yeterince ayrışmıyor. Bu profil zorlamaya açık değil.',
+    label: 'Riskli maç profili',
+    detail: 'Maç önü sinyalleri taraf, gol veya düşük skor için net bir yöne kopmuyor. Bu tabloda seçimi zorlamak yerine riski öne almak daha sağlıklı.',
     tone: 'draw',
   };
 }
