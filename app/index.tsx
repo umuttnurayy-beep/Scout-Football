@@ -965,10 +965,12 @@ export default function HomeScreen() {
         });
       }
 
-      items.push({ key: 'h-upcoming', type: 'section-header', title: 'GÜNÜN KALAN MAÇLARI', sub: 'Scout skoruna göre sıralandı' });
-      upcoming.forEach(m => {
-        items.push({ key: `up-${m.id}`, type: 'match', m, metrics: metricsMap.get(m.id) ?? NO_DATA });
-      });
+      if (upcoming.length > 0) {
+        items.push({ key: 'h-upcoming', type: 'section-header', title: 'GÜNÜN KALAN MAÇLARI', sub: 'Scout skoruna göre sıralandı' });
+        upcoming.forEach(m => {
+          items.push({ key: `up-${m.id}`, type: 'match', m, metrics: metricsMap.get(m.id) ?? NO_DATA });
+        });
+      }
     } else {
       if (sortedMatches.length === 0) {
         items.push({ key: 'empty', type: activeFilter === 'Scout' ? 'empty-scout' : 'empty', filter: activeFilter });
