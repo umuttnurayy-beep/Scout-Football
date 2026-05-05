@@ -577,17 +577,17 @@ export type FDTeamData = {
   squad?: FDSquadPlayer[];
 };
 
-export async function getTopScorers(leagueId: number): Promise<FDScorer[]> {
-  return readArrayEndpoint<FDScorer>(`${BASE_URL}/scorers/${leagueId}`, 'getTopScorers');
+export async function getTopScorers(leagueId: number, options?: { silent?: boolean }): Promise<FDScorer[]> {
+  return readArrayEndpoint<FDScorer>(`${BASE_URL}/scorers/${leagueId}`, 'getTopScorers', options);
 }
 
-export async function getFdTeamData(teamId: number): Promise<FDTeamData | null> {
+export async function getFdTeamData(teamId: number, options?: { silent?: boolean }): Promise<FDTeamData | null> {
   try {
     const res = await fetchWithTimeout(`${BASE_URL}/team/${teamId}`);
     const data = await readApiJson<FDTeamData | null>(res, null);
     return data || null;
   } catch (e) {
-    logApiError('getFdTeamData', e);
+    if (!options?.silent) logApiError('getFdTeamData', e);
     return null;
   }
 }

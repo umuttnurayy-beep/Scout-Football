@@ -244,8 +244,8 @@ export default function TeamStatsScreen() {
     setPlayersLoadError(false);
     try {
       const [teamData, scorers] = await Promise.all([
-        getFdTeamData(teamId),
-        getTopScorers(fdId),
+        getFdTeamData(teamId, { silent: true }),
+        getTopScorers(fdId, { silent: true }),
       ]);
       if (teamData?.squad) setFdSquad(teamData.squad);
       const teamScorers = scorers.filter((s) =>
