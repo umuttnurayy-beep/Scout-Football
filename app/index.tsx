@@ -50,6 +50,7 @@ const DAYS   = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 const MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 
 const NEXT_MATCH_LOOKAHEAD_DAYS = 7;
+const FOCUS_REFRESH_MIN_INTERVAL_MS = 60 * 1000;
 const PENDING_METRICS: Metrics = {
   ...NO_DATA,
   reason: 'Analiz hazırlanıyor...',
@@ -469,6 +470,14 @@ export default function HomeScreen() {
   const initialFocusDone  = useRef(false);
   const loadSeq           = useRef(0);
   const lastGoodVisibleByDate = useRef<Record<string, Match[]>>({});
+  const latestMatchesRef = useRef<Match[]>([]);
+  const latestMatchesDateStrRef = useRef<string | null>(null);
+  const latestStandingsMapRef = useRef<Record<number, Standing[]>>({});
+  const lastHomeLoadAtByDate = useRef<Record<string, number>>({});
+
+  useEffect(() => { latestMatchesRef.current = matches; }, [matches]);
+  useEffect(() => { latestMatchesDateStrRef.current = matchesDateStr; }, [matchesDateStr]);
+  useEffect(() => { latestStandingsMapRef.current = standingsMap; }, [standingsMap]);
 
   useEffect(() => {
     AsyncStorage.getItem(FEATURED_MATCH_CACHE_KEY)
@@ -513,7 +522,13 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!initialFocusDone.current) initialFocusDone.current = true;
-      else loadMatches(selectedDate, true);
+      else {
+        const dateKey = formatDateParam(selectedDate);
+        const lastLoadAt = lastHomeLoadAtByDate.current[dateKey] || 0;
+        if (Date.now() - lastLoadAt > FOCUS_REFRESH_MIN_INTERVAL_MS) {
+          loadMatches(selectedDate, true);
+        }
+      }
       // loadMatches uses current screen state; focus refresh is keyed by selectedDate.
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedDate])
@@ -625,7 +640,9 @@ export default function HomeScreen() {
   ) {
     const homeStandings = homeData.standings || {};
     const payloadVisible = buildVisibleMatches(homeData.matches || [], homeData.superLigMatches || []);
-    const preservedVisible = lastGoodVisibleByDate.current[dateStr] || (matchesDateStr === dateStr ? matches : []);
+    const currentMatches = latestMatchesDateStrRef.current === dateStr ? latestMatchesRef.current : [];
+    const currentStandingsMap = latestStandingsMapRef.current;
+    const preservedVisible = lastGoodVisibleByDate.current[dateStr] || currentMatches;
     const hasPreservedMainMatches = preservedVisible.some(m => m.leagueApiId !== 203);
     const mainSourceMissing = (
       (homeData.sourceSeverity === 'warning' || homeData.sourceSeverity === 'error') ||
@@ -640,13 +657,17 @@ export default function HomeScreen() {
       ]
       : payloadVisible;
     const nextStandingsMap = mainSourceMissing
-      ? mergeStandingsMaps(standingsMap, homeStandings)
+      ? mergeStandingsMaps(currentStandingsMap, homeStandings)
       : hasUsableStandingsMap(homeStandings)
         ? homeStandings
-        : standingsMap;
+        : currentStandingsMap;
     setStandingsMap(nextStandingsMap);
+    latestStandingsMapRef.current = nextStandingsMap;
     setMatches(visible);
+    latestMatchesRef.current = visible;
     setMatchesDateStr(dateStr);
+    latestMatchesDateStrRef.current = dateStr;
+    lastHomeLoadAtByDate.current[dateStr] = Date.now();
     setBackendFeaturedMatchId(homeData.featuredMatchId ?? null);
     setHomeDataNotice(options.notice);
     setHomeDataWarningText(null);
@@ -796,7 +817,7 @@ export default function HomeScreen() {
     if (requestId !== loadSeq.current) return;
 
     const visible = buildVisibleMatches(data, slData);
-    await applyVisibleMatchesForFallback(visible, date, dateStr, requestId, standingsMap);
+    await applyVisibleMatchesForFallback(visible, date, dateStr, requestId, latestStandingsMapRef.current);
     if (requestId !== loadSeq.current) return;
     applyFallbackNoticeFromApiState();
   }

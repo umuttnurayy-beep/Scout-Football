@@ -450,7 +450,7 @@ export function buildScoutPick(
   if (signal.conflict && sideGap < 14) {
     if (goalSignal >= 3) {
       return {
-        label: bothScoreSignal ? 'Karşılıklı gol beklenir' : '2.5 üst daha yakın',
+        label: bothScoreSignal ? 'Karşılıklı gol beklenir' : '2.5 üst ihtimali önde',
         detail: bothScoreSignal
           ? `Taraf avantajı net değil; iki takımın gol üretimi ve KG Var trendi daha okunur sinyal veriyor.`
           : `Kazanan taraf ayrışmıyor; buna karşılık hücum ve 2.5 üst verisi gollü maç ihtimalini destekliyor.`,
@@ -548,7 +548,7 @@ export function buildScoutPick(
 
   if (goalSignal >= 4 && sideGap < 16) {
     return {
-      label: '2.5 üst daha yakın',
+      label: '2.5 üst ihtimali önde',
       detail: `Taraf farkı belirgin değil; toplam hücum üretimi (${attackTotal.toFixed(1)}) ve 2.5 üst trendi (%${overLabel}) düşük skor yerine gollü maç senaryosunu destekliyor.`,
       cardComment: `Gol üretimi ve 2.5 üst trendi gollü maç tarafını destekliyor.`,
       tone: 'goals',
@@ -575,7 +575,7 @@ export function buildScoutPick(
 
   if (goalSignal >= 3 && sideGap < 14) {
     return {
-      label: '2.5 üst daha yakın',
+      label: '2.5 üst ihtimali önde',
       detail: `Taraf farkı sınırlı, buna karşılık hücum üretimi ve gol trendi skorlu maç ihtimalini daha güçlü gösteriyor.`,
       cardComment: `Taraf farkı sınırlı; gol verisi 2.5 üst tarafına yaklaştırıyor.`,
       tone: 'goals',
