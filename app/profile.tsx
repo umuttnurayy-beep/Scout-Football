@@ -7,6 +7,7 @@ import {
   Switch, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { Standing, getSuperLigStandings, getSuperLigTeamForm, getStandings, getTeamForm } from '../services/api';
+import { isStanding } from '../services/apiNormalizers';
 import EmptyStateCard from '../components/EmptyStateCard';
 import {
   DEFAULT_PREFS, NotifPrefs, cancelAllNotifications,
@@ -16,6 +17,7 @@ import BottomTabBar from '../components/BottomTabBar';
 import { useTheme } from '../context/ThemeContext';
 import { FavTeam, RecentItem, parseFavTeam, parseFavTeamList, parseRecentItems } from '../utils/profileStorage';
 import { parseForm, transliterate } from '../utils/teamStats';
+import { isArrayOf, readTimedCache, writeTimedCache } from '../utils/timedCache';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,6 +39,8 @@ type TeamStatsRouteTeam = {
   leagueFlag: string;
   apiId: number;
 };
+
+type PickerTeam = { name: string; teamId: number };
 
 type TeamStatsRouteParams = {
   teamName: string;
@@ -80,6 +84,13 @@ function buildTeamStatsParams(team: TeamStatsRouteTeam, stats?: TeamSummaryStats
   };
 }
 
+function standingsToPickerTeams(rows: Standing[]): PickerTeam[] {
+  return rows
+    .filter(row => row.team)
+    .map(row => ({ name: row.team, teamId: row.teamId || 0 }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STORAGE = {
@@ -89,6 +100,12 @@ const STORAGE = {
   WATCHLIST: 'scout_watchlist',
   RECENT: 'scout_recent',
 };
+
+const TEAM_PICKER_TTL = 60 * 60 * 1000;
+
+function teamPickerCacheKey(apiId: number) {
+  return `profile_team_picker_standings_v1_${apiId}`;
+}
 
 const AVATAR_COLORS = [
   '#185FA5', '#A32D2D', '#27500A', '#E6A817',
@@ -258,6 +275,8 @@ export default function ProfileScreen() {
   const [teamPickerVisible, setTeamPickerVisible] = useState(false);
   const [teamPickerMode, setTeamPickerMode] = useState<'fav' | 'watchlist'>('fav');
   const [teamSearch, setTeamSearch] = useState('');
+  const [pickerTeamsByLeague, setPickerTeamsByLeague] = useState<Record<number, PickerTeam[]>>({});
+  const [loadingTeamPicker, setLoadingTeamPicker] = useState(false);
   const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
 
   useFocusEffect(
@@ -444,6 +463,39 @@ export default function ProfileScreen() {
     }
   }
 
+  async function loadTeamPickerTeams(force = false) {
+    setLoadingTeamPicker(true);
+    const next: Record<number, PickerTeam[]> = {};
+
+    await Promise.all(LEAGUES_TEAMS.map(async (league) => {
+      const cacheKey = teamPickerCacheKey(league.apiId);
+      const cached = force
+        ? null
+        : await readTimedCache(cacheKey, TEAM_PICKER_TTL, isArrayOf(isStanding));
+      if (cached && cached.length > 0) {
+        next[league.apiId] = standingsToPickerTeams(cached);
+      }
+      try {
+        const standings = league.apiId === 203
+          ? await getSuperLigStandings()
+          : await getStandings(league.apiId, { silent: Boolean(cached?.length) });
+        if (standings.length > 0) {
+          next[league.apiId] = standingsToPickerTeams(standings);
+          writeTimedCache(cacheKey, standings);
+        }
+      } catch {}
+    }));
+
+    setPickerTeamsByLeague(next);
+    setLoadingTeamPicker(false);
+  }
+
+  function openTeamPicker(mode: 'fav' | 'watchlist') {
+    setTeamPickerMode(mode);
+    setTeamPickerVisible(true);
+    void loadTeamPickerTeams();
+  }
+
   async function removeFavTeam() {
     setFavTeam(null);
     setFavForm([]);
@@ -507,11 +559,11 @@ export default function ProfileScreen() {
   const filteredLeagues = useMemo(() =>
     LEAGUES_TEAMS.map(lg => ({
       ...lg,
-      teams: lg.teams.filter(t =>
-        !teamSearch || t.name.toLowerCase().includes(teamSearch.toLowerCase())
+      teams: (pickerTeamsByLeague[lg.apiId]?.length ? pickerTeamsByLeague[lg.apiId] : lg.teams).filter(t =>
+        !teamSearch || transliterate(t.name).toLowerCase().includes(transliterate(teamSearch).toLowerCase())
       ),
     })).filter(lg => lg.teams.length > 0),
-  [teamSearch]);
+  [pickerTeamsByLeague, teamSearch]);
 
   const avatarColor = useMemo(() => AVATAR_COLORS[avatarIdx] || '#185FA5', [avatarIdx]);
   const avatarLabel = useMemo(() => scoutName ? scoutName.trim().slice(0, 2).toUpperCase() : '?', [scoutName]);
@@ -565,6 +617,9 @@ export default function ProfileScreen() {
             />
           </View>
           <ScrollView keyboardShouldPersistTaps="handled">
+            {loadingTeamPicker && Object.keys(pickerTeamsByLeague).length === 0 && (
+              <Text style={[styles.pickerLoadingText, { color: c.textMuted }]}>Takımlar yükleniyor...</Text>
+            )}
             {filteredLeagues.map(lg => (
               <View key={lg.leagueName}>
                 <View style={[styles.pickerLeagueHeader, { backgroundColor: c.surfaceAlt, borderBottomColor: c.border }]}>
@@ -755,7 +810,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         ) : (
           <TouchableOpacity style={[styles.addTeamBtn, { borderColor: c.primary }]}
-            onPress={() => { setTeamPickerMode('fav'); setTeamPickerVisible(true); }}>
+            onPress={() => openTeamPicker('fav')}>
             <Text style={[styles.addTeamBtnIcon, { color: c.primary }]}>+</Text>
             <Text style={[styles.addTeamBtnText, { color: c.primary }]}>Favori takımını seç</Text>
           </TouchableOpacity>
@@ -764,7 +819,7 @@ export default function ProfileScreen() {
         {/* ── Takip Listesi ── */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionLabel, { color: c.textMuted }]}>TAKİP LİSTESİ</Text>
-          <TouchableOpacity onPress={() => { setTeamPickerMode('watchlist'); setTeamPickerVisible(true); }}>
+          <TouchableOpacity onPress={() => openTeamPicker('watchlist')}>
             <Text style={[styles.sectionAction, { color: c.primary }]}>+ Ekle</Text>
           </TouchableOpacity>
         </View>
@@ -1080,6 +1135,7 @@ const styles = StyleSheet.create({
   pickerTeamDot: { width: 10, height: 10, borderRadius: 5 },
   pickerTeamName: { flex: 1, fontSize: 15 },
   pickerArrow: { fontSize: 18 },
+  pickerLoadingText: { paddingHorizontal: 14, paddingVertical: 12, fontSize: 13, textAlign: 'center' },
   pickerBottomSpacer: { height: 40 },
 
   // Avatar picker modal
