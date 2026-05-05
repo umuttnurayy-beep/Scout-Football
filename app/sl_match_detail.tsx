@@ -9,7 +9,6 @@ import { DetailDataNotice, DetailInsightBox, DetailSectionTitle, DetailStatusBan
 import CompareRow from '../components/CompareRow';
 import EmptyStateCard from '../components/EmptyStateCard';
 import RadarChart from '../components/RadarChart';
-import { SkeletonMatchDetail } from '../components/SkeletonLoader';
 import scoutStyles from '../utils/scoutStyles';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -557,7 +556,7 @@ export default function SLMatchDetail() {
   const awayFormPts = hasRealFormData ? calcFormPointsSL(awayForm,  awayTeamId) : 0;
   const usingStandingsFallback = homeStandingStats !== null || awayStandingStats !== null;
   const { hasFormIssue, hasH2HIssue, hasWeatherIssue } = detailIssueFlags(dataIssues);
-  const formDataPending = secondaryLoading && !hasFormData && !hasFormIssue;
+  const formDataPending = (loading || secondaryLoading) && !hasFormData && !hasFormIssue;
   const formNoticeMessage = (kind: 'performance' | 'comparison' | 'homeAway' | 'prediction' | 'character') => {
     if (!formDataPending) return detailDataMessage(kind, hasFormIssue ? 'sourceError' : 'empty');
     switch (kind) {
@@ -594,13 +593,7 @@ export default function SLMatchDetail() {
     homeAbovePts, homeBelowPts, awayAbovePts, awayBelowPts, safetyPts,
   });
 
-  if (loading) return (
-    <View style={[styles.loaderContainer, { backgroundColor: c.bg }]}>
-      <SkeletonMatchDetail />
-    </View>
-  );
-
-  if (!event) return (
+  if (!loading && !event) return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
       <View style={[styles.topbar, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
         <TouchableOpacity onPress={() => router.back()}><Text style={[styles.backBtn, { color: c.primary }]}>‹ Geri</Text></TouchableOpacity>
