@@ -1,55 +1,32 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { UnknownOutputParams } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Image, RefreshControl, ScrollView, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
 import EmptyStateCard from '../components/EmptyStateCard';
-import { SkeletonPlayerList, SkeletonStatBlock } from '../components/SkeletonLoader';
+import { SkeletonStatBlock } from '../components/SkeletonLoader';
 import {
-  AllSportsTeamStats, FDScorer, FDSquadPlayer,
-  SLFormMatch, SLPlayer, SLScorer,
-  getAllSportsTeamStats, getFdTeamData, getTeamForm, getTopScorers,
-  getSuperLigTeamForm, getSuperLigPlayers, getSuperLigScorers,
+  AllSportsTeamStats, FDMatch,
+  SLFormMatch,
+  getAllSportsTeamStats, getTeamForm,
+  getSuperLigTeamForm,
 } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
 import { DISPLAY_FOOTBALL_SEASON } from '../constants/seasons';
 import { formDataEmptyMessage } from '../utils/emptyStates';
 import scoutStyles from '../utils/scoutStyles';
-import { SeasonStats, calcSLSeasonStats, calcSeasonStats, getTeamProfile, parseForm, teamsMatch, transliterate } from '../utils/teamStats';
+import { SeasonStats, calcSLSeasonStats, calcSeasonStats, getTeamProfile, parseForm } from '../utils/teamStats';
 import { isArrayOf, readTimedCache, writeTimedCache } from '../utils/timedCache';
-
-const AF_POSITION_MAP: Record<string, string> = {
-  G: 'Kaleci', D: 'Defans', M: 'Orta saha', F: 'Forvet',
-};
-const AF_POSITION_ORDER = ['G', 'D', 'M', 'F'];
-const POSITION_TO_CODE: Record<string, string> = {
-  'Goalkeeper': 'G',
-  'Defender': 'D', 'Defence': 'D',
-  'Midfielder': 'M', 'Midfield': 'M',
-  'Attacker': 'F', 'Offence': 'F', 'Forward': 'F',
-};
-
-function positionCode(position?: string | null): string {
-  return POSITION_TO_CODE[position || ''] || 'M';
-}
-
-function groupPlayersByPosition<T extends { position?: string | null }>(players: T[]) {
-  return AF_POSITION_ORDER.reduce((acc, pos) => {
-    const rows = players.filter(p => positionCode(p.position) === pos);
-    if (rows.length > 0) acc[pos] = rows;
-    return acc;
-  }, {} as Record<string, T[]>);
-}
-
-function playerNameKey(name?: string | null) {
-  return transliterate(name || '').toLowerCase().trim();
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function isFdMatch(value: unknown): value is FDMatch {
+  return isRecord(value) && typeof value.id === 'number';
 }
 
 function isSlFormMatch(value: unknown): value is SLFormMatch {
@@ -58,16 +35,6 @@ function isSlFormMatch(value: unknown): value is SLFormMatch {
     (typeof value.awayTeamId === 'number' || value.awayTeamId == null) &&
     (typeof value.homeScore === 'number' || value.homeScore == null) &&
     (typeof value.awayScore === 'number' || value.awayScore == null);
-}
-
-function isSlPlayer(value: unknown): value is SLPlayer {
-  if (!isRecord(value)) return false;
-  return typeof value.name === 'string';
-}
-
-function isSlScorer(value: unknown): value is SLScorer {
-  if (!isRecord(value)) return false;
-  return typeof value.name === 'string' && typeof value.goals === 'number' && typeof value.team === 'string';
 }
 
 function finiteNumber(value: unknown): number | null {
@@ -89,23 +56,11 @@ function normalizeAllSportsStats(value: AllSportsTeamStats | null): AllSportsTea
   };
 }
 
-const LIGHT_RANK_COLORS = [
-  { bg: '#FAEEDA', color: '#633806' },
-  { bg: '#D3D1C7', color: '#2C2C2A' },
-  { bg: '#F5C4B3', color: '#712B13' },
-];
 
-const DARK_RANK_COLORS = [
-  { bg: '#3A2C12', color: '#F2D28A' },
-  { bg: '#2B3036', color: '#C9D1D9' },
-  { bg: '#3A2018', color: '#F0A98A' },
-];
+// ─── Team form frontend cache ───────────────────────────────────────────────────────
 
-// ─── SL frontend cache ───────────────────────────────────────────────────────
-
+const FD_FORM_TTL    = 30 * 60 * 1000;       // 30 dakika
 const SL_FORM_TTL    = 30 * 60 * 1000;       // 30 dakika
-const SL_PLAYERS_TTL =  6 * 60 * 60 * 1000;  // 6 saat
-const SL_SCORERS_TTL =  1 * 60 * 60 * 1000;  // 1 saat
 
 function routeString(params: UnknownOutputParams, key: string, fallback = ''): string {
   const value = params[key];
@@ -135,7 +90,6 @@ export default function TeamStatsScreen() {
   const leagueName = routeString(params, 'leagueName');
   const leagueFlag = routeString(params, 'leagueFlag');
   const apiId      = routeInt(params, 'apiId');
-  const fdId       = routeInt(params, 'fdId');
   const played     = routeInt(params, 'played');
   const win        = routeInt(params, 'win');
   const draw       = routeInt(params, 'draw');
@@ -144,20 +98,11 @@ export default function TeamStatsScreen() {
   const ga         = routeInt(params, 'ga');
   const pts        = routeInt(params, 'pts');
 
-  const [activeTab, setActiveTab] = useState<'takim' | 'oyuncular'>('takim');
-
   // Form + gerçek sezon istatistikleri
   const [recentForm,  setRecentForm]  = useState<string[]>([]);
   const [seasonStats, setSeasonStats] = useState<SeasonStats | null>(null);
   const [loadingForm, setLoadingForm] = useState(false);
   const [formLoadError, setFormLoadError] = useState(false);
-
-  // Kadro + golcüler (football-data.org, güncel sezon)
-  const [fdSquad,      setFdSquad]      = useState<FDSquadPlayer[]>([]);
-  const [fdScorers,    setFdScorers]    = useState<FDScorer[]>([]);
-  const [loadingPlayers, setLoadingPlayers] = useState(false);
-  const [playersLoadError, setPlayersLoadError] = useState(false);
-  const [showFullSquad, setShowFullSquad]   = useState(false);
 
   // AllSports (korner + possession)
   const [allSportsStats, setAllSportsStats] = useState<AllSportsTeamStats | null>(null);
@@ -166,15 +111,10 @@ export default function TeamStatsScreen() {
   // Süper Lig specific
   const [slForm, setSlForm]           = useState<string[]>([]);
   const [slSeasonStats, setSlSeasonStats] = useState<SeasonStats | null>(null);
-  const [slPlayers, setSlPlayers]     = useState<SLPlayer[]>([]);
-  const [slTeamScorers, setSlTeamScorers] = useState<SLScorer[]>([]);
 
   const averaj = gf - ga;
   const winPct = played > 0 ? Math.round((win / played) * 100) : 0;
   const initials = teamName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
-  const rankColors = isDark ? DARK_RANK_COLORS : LIGHT_RANK_COLORS;
-  const assistColor = isDark ? '#E3B341' : '#E65100';
-  const assistBg = isDark ? '#2A1F00' : '#FFF3E0';
 
   const isSportsDbLeague = apiId === 203;
   const displayForm = isSportsDbLeague ? slForm : recentForm;
@@ -183,7 +123,6 @@ export default function TeamStatsScreen() {
 
   useEffect(() => {
     loadForm();
-    loadPlayers();
     loadAllSports();
     if (isSportsDbLeague) loadSLData();
     if (teamId) recordRecentlyViewed();
@@ -197,13 +136,10 @@ export default function TeamStatsScreen() {
     setSeasonStats(null);
     setSlForm([]);
     setSlSeasonStats(null);
-    setFdSquad([]);
-    setFdScorers([]);
     setAllSportsStats(null);
     try {
       await Promise.allSettled([
-        loadForm(),
-        loadPlayers(),
+        loadForm(true),
         loadAllSports(),
         isSportsDbLeague ? loadSLData(true) : Promise.resolve(),
       ]);
@@ -223,39 +159,38 @@ export default function TeamStatsScreen() {
     } catch {}
   }
 
-  async function loadForm() {
+  function applyFdFormMatches(matches: FDMatch[]) {
+    setRecentForm(parseForm(matches, teamId, false));
+    setSeasonStats(calcSeasonStats(matches, teamId));
+  }
+
+  async function loadForm(force = false) {
     if (!teamId || isSportsDbLeague) return;
     setLoadingForm(true);
     setFormLoadError(false);
+    const formKey = `ts_fd_form_v1_${teamId}`;
+    const cached = force ? null : await readTimedCache(formKey, FD_FORM_TTL, isArrayOf(isFdMatch));
+    if (cached && cached.length > 0) {
+      applyFdFormMatches(cached);
+      setLoadingForm(false);
+    }
     try {
       const matches = await getTeamForm(teamId, { silent: true });
-      setRecentForm(parseForm(matches, teamId, false));
-      setSeasonStats(calcSeasonStats(matches, teamId));
+      if (matches.length > 0) {
+        applyFdFormMatches(matches);
+        writeTimedCache(formKey, matches);
+      } else if (!cached) {
+        setRecentForm([]);
+        setSeasonStats(null);
+      }
     } catch {
-      setRecentForm([]);
-      setSeasonStats(null);
+      if (!cached) {
+        setRecentForm([]);
+        setSeasonStats(null);
+        setFormLoadError(true);
+      }
     }
     setLoadingForm(false);
-  }
-
-  async function loadPlayers() {
-    if (!teamId || !fdId || isSportsDbLeague) return;
-    setLoadingPlayers(true);
-    setPlayersLoadError(false);
-    try {
-      const [teamData, scorers] = await Promise.all([
-        getFdTeamData(teamId, { silent: true }),
-        getTopScorers(fdId, { silent: true }),
-      ]);
-      if (teamData?.squad) setFdSquad(teamData.squad);
-      const teamScorers = scorers.filter((s) =>
-        s.team?.id === teamId || teamsMatch(s.team?.name || '', teamName)
-      );
-      setFdScorers(teamScorers);
-    } catch {
-      setPlayersLoadError(true);
-    }
-    setLoadingPlayers(false);
   }
 
   async function loadAllSports() {
@@ -270,36 +205,17 @@ export default function TeamStatsScreen() {
   async function loadSLData(force = false) {
     if (!teamId) return;
     setLoadingForm(true);
-    setLoadingPlayers(true);
 
     const formKey    = `ts_sl_form_v1_${teamId}`;
-    const playersKey = `ts_sl_players_v1_${teamId}`;
-    const scorersKey = 'ts_sl_scorers_v1';
 
     try {
-      const [cachedForm, cachedPlayers, cachedScorers] = force
-        ? [null, null, null]
-        : await Promise.all([
-            readTimedCache(formKey, SL_FORM_TTL, isArrayOf(isSlFormMatch)),
-            readTimedCache(playersKey, SL_PLAYERS_TTL, isArrayOf(isSlPlayer)),
-            readTimedCache(scorersKey, SL_SCORERS_TTL, isArrayOf(isSlScorer)),
-          ]);
+      const cachedForm = force
+        ? null
+        : await readTimedCache(formKey, SL_FORM_TTL, isArrayOf(isSlFormMatch));
 
-      const [formMatches, players, allScorers] = await Promise.all([
-        cachedForm
-          ? Promise.resolve(cachedForm)
-          : getSuperLigTeamForm(teamId).then(d => { writeTimedCache(formKey, d); return d; }),
-        apiId !== 203
-          ? Promise.resolve<SLPlayer[]>([])
-          : cachedPlayers
-            ? Promise.resolve(cachedPlayers)
-            : getSuperLigPlayers(teamId).then(d => { writeTimedCache(playersKey, d); return d; }),
-        apiId !== 203
-          ? Promise.resolve<SLScorer[]>([])
-          : cachedScorers
-            ? Promise.resolve(cachedScorers)
-            : getSuperLigScorers().then(d => { writeTimedCache(scorersKey, d); return d; }),
-      ]);
+      const formMatches = cachedForm
+        ? cachedForm
+        : await getSuperLigTeamForm(teamId).then(d => { writeTimedCache(formKey, d); return d; });
 
       // Form hesapla
       const form = formMatches
@@ -313,63 +229,11 @@ export default function TeamStatsScreen() {
         });
       setSlForm(form);
       setSlSeasonStats(calcSLSeasonStats(formMatches, teamId));
-
-      // Oyuncu listesi
-      setSlPlayers(players);
-
-      // Takıma özgü gol krallığı filtresi — diakriti eşleştirme
-      if (apiId === 203) {
-        const normalTeamName = transliterate(teamName);
-        const teamScorers = allScorers.filter((s) =>
-          transliterate(s.team || '').includes(normalTeamName) ||
-          normalTeamName.includes(transliterate(s.team || ''))
-        );
-        setSlTeamScorers(teamScorers);
-      } else {
-        setSlTeamScorers([]);
-      }
     } catch {
       setFormLoadError(true);
-      setPlayersLoadError(true);
     }
     setLoadingForm(false);
-    setLoadingPlayers(false);
   }
-
-  const topScorers = useMemo(() =>
-    [...fdScorers].sort((a, b) => (b.goals || 0) - (a.goals || 0)).slice(0, 5),
-    [fdScorers],
-  );
-
-  const topAssists = useMemo(() =>
-    [...fdScorers].filter(s => (s.assists || 0) > 0).sort((a, b) => (b.assists || 0) - (a.assists || 0)).slice(0, 5),
-    [fdScorers],
-  );
-
-  const groupedSquad = useMemo(() => groupPlayersByPosition(fdSquad), [fdSquad]);
-  const groupedSlPlayers = useMemo(() => groupPlayersByPosition(slPlayers), [slPlayers]);
-
-  const slScorerByName = useMemo(
-    () => new Map(slTeamScorers.map(s => [playerNameKey(s.name), s])),
-    [slTeamScorers],
-  );
-
-  const fdScorerByPlayerId = useMemo(() => {
-    const map = new Map<number, FDScorer>();
-    fdScorers.forEach(s => {
-      if (s.player?.id != null) map.set(s.player.id, s);
-    });
-    return map;
-  }, [fdScorers]);
-
-  const fdScorerByName = useMemo(() => {
-    const map = new Map<string, FDScorer>();
-    fdScorers.forEach(s => {
-      const key = playerNameKey(s.player?.name);
-      if (key) map.set(key, s);
-    });
-    return map;
-  }, [fdScorers]);
   const avgCorners = finiteNumber(allSportsStats?.avgCorners);
   const avgOppCorners = finiteNumber(allSportsStats?.avgOppCorners);
   const avgPossession = finiteNumber(allSportsStats?.avgPossession);
@@ -403,28 +267,7 @@ export default function TeamStatsScreen() {
             <Text style={[styles.teamSub, { color: c.textMuted }]}>{leagueFlag} {leagueName} · {DISPLAY_FOOTBALL_SEASON}</Text>
           </View>
         </View>
-
-        <View style={[styles.toggleRow, { backgroundColor: c.surfaceAlt }]}>
-          <TouchableOpacity
-            style={[styles.toggleBtn, activeTab === 'takim' && [styles.toggleBtnActive, { backgroundColor: c.surface, borderColor: c.border }]]}
-            onPress={() => setActiveTab('takim')}
-          >
-            <Text style={[styles.toggleBtnText, { color: c.textMuted }, activeTab === 'takim' && { color: c.text }]}>
-              Takım İstatistikleri
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleBtn, activeTab === 'oyuncular' && [styles.toggleBtnActive, { backgroundColor: c.surface, borderColor: c.border }]]}
-            onPress={() => setActiveTab('oyuncular')}
-          >
-            <Text style={[styles.toggleBtnText, { color: c.textMuted }, activeTab === 'oyuncular' && { color: c.text }]}>
-              Oyuncular
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {activeTab === 'takim' && (
-          <>
+        <>
             {/* TAKIM PROFİLİ */}
             {played > 0 && (() => {
               const avgGf = gf / played;
@@ -659,267 +502,7 @@ export default function TeamStatsScreen() {
                 </View>
               </>
             )}
-
-          </>
-        )}
-
-        {activeTab === 'oyuncular' && apiId === 203 && (
-          loadingPlayers ? (
-            <SkeletonPlayerList />
-          ) : playersLoadError ? (
-            <EmptyStateCard
-              compact
-              icon="👥"
-              title="Oyuncu verisi alınamadı"
-              onRetry={loadSLData}
-            />
-          ) : !showFullSquad ? (
-            <>
-              {slTeamScorers.length > 0 ? (
-                <>
-                  <View style={styles.catLabel}>
-                    <Text style={[styles.catLabelText, { color: c.textMuted }]}>EN FAZLA GOL (Bu Sezon)</Text>
-                    <TouchableOpacity onPress={() => setShowFullSquad(true)}>
-                      <Text style={[styles.catLabelLink, { color: c.primary }]}>Kadroyu gör ›</Text>
-                    </TouchableOpacity>
-                  </View>
-                  {slTeamScorers.slice(0, 5).map((s, i: number) => (
-                    <View key={i}>
-                      <View style={[styles.topPlayer, { borderBottomColor: c.border }, i === Math.min(slTeamScorers.length, 5) - 1 && { borderBottomWidth: 0 }]}>
-                        <View style={[styles.rankBadge, { backgroundColor: rankColors[i]?.bg || c.primaryLight }]}>
-                          <Text style={[styles.rankText, { color: rankColors[i]?.color || c.primaryDark }]}>{i + 1}</Text>
-                        </View>
-                        <View style={[styles.playerPhotoPlaceholder, { backgroundColor: c.primaryLight }]} />
-                        <View style={styles.topPlayerInfo}>
-                          <Text style={[styles.topPlayerName, { color: c.text }]}>{s.name}</Text>
-                        </View>
-                        <Text style={[styles.topPlayerVal, { color: c.primary }]}>{s.goals}</Text>
-                      </View>
-                      <View style={styles.barRow}>
-                        <View style={[styles.barBg, { backgroundColor: c.borderLight }]}>
-                          <View style={[styles.barFill, { width: `${(s.goals / (slTeamScorers[0]?.goals || 1)) * 100}%`, backgroundColor: c.primary }]} />
-                        </View>
-                      </View>
-                    </View>
-                  ))}
-                  <TouchableOpacity style={[styles.seeAllBtn, { borderTopColor: c.border }]} onPress={() => setShowFullSquad(true)}>
-                    <Text style={[styles.seeAllText, { color: c.primary }]}>Tüm kadroyu gör ›</Text>
-                  </TouchableOpacity>
-                </>
-              ) : (
-                <>
-                  {slPlayers.length > 0 ? (
-                    <>
-                      <EmptyStateCard compact icon="⚽" title="Süper Lig gol istatistiği kaynağı şu an sınırlı." />
-                      <View style={styles.catLabel}>
-                        <Text style={[styles.catLabelText, { color: c.textMuted }]}>MEVCUT KADRO</Text>
-                      </View>
-                      {AF_POSITION_ORDER.map(pos => {
-                        const players = groupedSlPlayers[pos];
-                        if (!players) return null;
-                        return (
-                          <View key={pos}>
-                            <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>{AF_POSITION_MAP[pos]}</Text>
-                            {players.map((p, i: number) => (
-                              <View key={i} style={[styles.playerItem, { borderBottomColor: c.border }]}>
-                                <View style={[styles.playerPhotoSmall, { backgroundColor: c.primaryLight }]} />
-                                <View style={styles.playerInfo}>
-                                  <Text style={[styles.playerName, { color: c.text }]}>{p.name}</Text>
-                                  <Text style={[styles.playerNat, { color: c.textMuted }]}>{p.nationality}</Text>
-                                </View>
-                              </View>
-                            ))}
-                          </View>
-                        );
-                      })}
-                    </>
-                  ) : (
-                    <>
-                      <EmptyStateCard compact icon="⚽" title="Bu sezon gol istatistiği bulunamadı." />
-                      <TouchableOpacity style={[styles.seeAllBtn, { borderTopColor: c.border }]} onPress={() => setShowFullSquad(true)}>
-                        <Text style={[styles.seeAllText, { color: c.primary }]}>Kadroyu gör ›</Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
-                </>
-              )}
-            </>
-          ) : (
-            <>
-              <TouchableOpacity style={[styles.backToStats, { borderBottomColor: c.border }]} onPress={() => setShowFullSquad(false)}>
-                <Text style={[styles.backToStatsText, { color: c.primary }]}>‹ İstatistiklere dön</Text>
-              </TouchableOpacity>
-              {slPlayers.length === 0 ? (
-                <EmptyStateCard compact icon="👥" title="Kadro verisi bulunamadı." />
-              ) : (
-                AF_POSITION_ORDER.map(pos => {
-                  const players = groupedSlPlayers[pos];
-                  if (!players) return null;
-                  return (
-                    <View key={pos}>
-                      <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>{AF_POSITION_MAP[pos]}</Text>
-                      {players.map((p, i: number) => {
-                        const scorer = slScorerByName.get(playerNameKey(p.name));
-                        return (
-                          <View key={i} style={[styles.playerItem, { borderBottomColor: c.border }]}>
-                            <View style={[styles.playerPhotoSmall, { backgroundColor: c.primaryLight }]} />
-                            <View style={styles.playerInfo}>
-                              <Text style={[styles.playerName, { color: c.text }]}>{p.name}</Text>
-                              <Text style={[styles.playerNat, { color: c.textMuted }]}>{p.nationality}</Text>
-                            </View>
-                            {scorer && scorer.goals > 0 && (
-                              <View style={styles.playerStatBadges}>
-                                <View style={[styles.goalBadge, { backgroundColor: c.primaryLight }]}>
-                                  <Text style={[styles.goalBadgeText, { color: c.primaryDark }]}>⚽ {scorer.goals}</Text>
-                                </View>
-                              </View>
-                            )}
-                          </View>
-                        );
-                      })}
-                    </View>
-                  );
-                })
-              )}
-            </>
-          )
-        )}
-
-        {activeTab === 'oyuncular' && apiId !== 203 && (
-          loadingPlayers ? (
-            <SkeletonPlayerList />
-          ) : playersLoadError ? (
-            <EmptyStateCard
-              compact
-              icon="👥"
-              title="Oyuncu verisi alınamadı"
-              onRetry={loadPlayers}
-            />
-          ) : !showFullSquad ? (
-            <>
-              {topScorers.length > 0 ? (
-                <>
-                  <View style={styles.catLabel}>
-                    <Text style={[styles.catLabelText, { color: c.textMuted }]}>EN FAZLA GOL (Bu Sezon)</Text>
-                    <TouchableOpacity onPress={() => setShowFullSquad(true)}>
-                      <Text style={[styles.catLabelLink, { color: c.primary }]}>Kadroyu gör ›</Text>
-                    </TouchableOpacity>
-                  </View>
-                  {topScorers.map((p, i: number) => (
-                    <View key={p.player?.id || i}>
-                      <View style={[styles.topPlayer, { borderBottomColor: c.border }, i === topScorers.length - 1 && { borderBottomWidth: 0 }]}>
-                        <View style={[styles.rankBadge, { backgroundColor: rankColors[i]?.bg || c.primaryLight }]}>
-                          <Text style={[styles.rankText, { color: rankColors[i]?.color || c.primaryDark }]}>{i + 1}</Text>
-                        </View>
-                        <View style={[styles.playerPhotoPlaceholder, { backgroundColor: c.primaryLight }]} />
-                        <View style={styles.topPlayerInfo}>
-                          <Text style={[styles.topPlayerName, { color: c.text }]}>{p.player?.name}</Text>
-                          <Text style={[styles.topPlayerPos, { color: c.textMuted }]}>{p.playedMatches} maç</Text>
-                        </View>
-                        <Text style={[styles.topPlayerVal, { color: c.primary }]}>{p.goals}</Text>
-                      </View>
-                      <View style={styles.barRow}>
-                        <View style={[styles.barBg, { backgroundColor: c.borderLight }]}>
-                          <View style={[styles.barFill, {
-                            width: `${(p.goals / (topScorers[0]?.goals || 1)) * 100}%`,
-                            backgroundColor: c.primary,
-                          }]} />
-                        </View>
-                      </View>
-                    </View>
-                  ))}
-                  {topAssists.length > 0 && (
-                    <>
-                      <View style={[styles.catLabel, { marginTop: 8, borderTopWidth: 0.5, borderTopColor: c.border, paddingTop: 12 }]}>
-                        <Text style={[styles.catLabelText, { color: c.textMuted }]}>EN FAZLA ASİST (Bu Sezon)</Text>
-                      </View>
-                      {topAssists.map((p, i: number) => (
-                        <View key={p.player?.id || i}>
-                          <View style={[styles.topPlayer, { borderBottomColor: c.border }, i === topAssists.length - 1 && { borderBottomWidth: 0 }]}>
-                            <View style={[styles.rankBadge, { backgroundColor: rankColors[i]?.bg || c.primaryLight }]}>
-                              <Text style={[styles.rankText, { color: rankColors[i]?.color || c.primaryDark }]}>{i + 1}</Text>
-                            </View>
-                            <View style={[styles.playerPhotoPlaceholder, { backgroundColor: c.primaryLight }]} />
-                            <View style={styles.topPlayerInfo}>
-                              <Text style={[styles.topPlayerName, { color: c.text }]}>{p.player?.name}</Text>
-                              <Text style={[styles.topPlayerPos, { color: c.textMuted }]}>{p.playedMatches} maç</Text>
-                            </View>
-                            <Text style={[styles.topPlayerVal, { color: assistColor }]}>{p.assists}</Text>
-                          </View>
-                          <View style={styles.barRow}>
-                            <View style={[styles.barBg, { backgroundColor: c.borderLight }]}>
-                              <View style={[styles.barFill, {
-                                width: `${((p.assists ?? 0) / (topAssists[0]?.assists || 1)) * 100}%`,
-                                backgroundColor: assistColor,
-                              }]} />
-                            </View>
-                          </View>
-                        </View>
-                      ))}
-                    </>
-                  )}
-                  <TouchableOpacity style={[styles.seeAllBtn, { borderTopColor: c.border }]} onPress={() => setShowFullSquad(true)}>
-                    <Text style={[styles.seeAllText, { color: c.primary }]}>Tüm kadroyu gör ›</Text>
-                  </TouchableOpacity>
-                </>
-              ) : (
-                <>
-                  <EmptyStateCard compact icon="⚽" title="Bu takım için lig golcü listesinde veri bulunamadı." />
-                  <TouchableOpacity style={[styles.seeAllBtn, { borderTopColor: c.border }]} onPress={() => setShowFullSquad(true)}>
-                    <Text style={[styles.seeAllText, { color: c.primary }]}>Kadroyu gör ›</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-            </>
-          ) : (
-            <>
-              <TouchableOpacity style={[styles.backToStats, { borderBottomColor: c.border }]} onPress={() => setShowFullSquad(false)}>
-                <Text style={[styles.backToStatsText, { color: c.primary }]}>‹ İstatistiklere dön</Text>
-              </TouchableOpacity>
-              {fdSquad.length === 0 ? (
-                <EmptyStateCard compact icon="👥" title="Kadro verisi bulunamadı." />
-              ) : (
-                AF_POSITION_ORDER.map(pos => {
-                  const players = groupedSquad[pos];
-                  if (!players) return null;
-                  return (
-                    <View key={pos}>
-                      <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>{AF_POSITION_MAP[pos]}</Text>
-                      {players.map((p, i: number) => {
-                        const scorer = fdScorerByPlayerId.get(p.id) ??
-                          fdScorerByName.get(playerNameKey(p.name)) ??
-                          fdScorers.find((s) => teamsMatch(s.player?.name || '', p.name));
-                        return (
-                          <View key={i} style={[styles.playerItem, { borderBottomColor: c.border }]}>
-                            <View style={[styles.playerPhotoSmall, { backgroundColor: c.primaryLight }]} />
-                            <View style={styles.playerInfo}>
-                              <Text style={[styles.playerName, { color: c.text }]}>{p.name}</Text>
-                              <Text style={[styles.playerNat, { color: c.textMuted }]}>{p.nationality}</Text>
-                            </View>
-                            {scorer && (
-                              <View style={styles.playerStatBadges}>
-                                {scorer.goals > 0 && (
-                                  <View style={[styles.goalBadge, { backgroundColor: c.primaryLight }]}>
-                                    <Text style={[styles.goalBadgeText, { color: c.primaryDark }]}>⚽ {scorer.goals}</Text>
-                                  </View>
-                                )}
-                                {(scorer.assists ?? 0) > 0 && (
-                                  <View style={[styles.assistBadge, { backgroundColor: assistBg }]}>
-                                    <Text style={[styles.assistBadgeText, { color: assistColor }]}>🅰️ {scorer.assists}</Text>
-                                  </View>
-                                )}
-                              </View>
-                            )}
-                          </View>
-                        );
-                      })}
-                    </View>
-                  );
-                })
-              )}
-            </>
-          )
-        )}
+        </>
 
         <View style={{ height: 30 }} />
       </ScrollView>
@@ -940,10 +523,6 @@ const styles = StyleSheet.create({
   teamLogoText:        { fontSize: 16, fontWeight: '500' },
   teamTitle:           { fontSize: 16, fontWeight: '500' },
   teamSub:             { fontSize: 12, marginTop: 2 },
-  toggleRow:           { flexDirection: 'row', margin: 14, borderRadius: 8, padding: 3 },
-  toggleBtn:           { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },
-  toggleBtnActive:     { borderWidth: 0.5 },
-  toggleBtnText:       { fontSize: 13 },
   statGrid:            { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 10, gap: 8, marginBottom: 4 },
   statBox:             { width: '30%', flexGrow: 1, borderRadius: 10, padding: 12, borderWidth: 0.5 },
   statVal:             { fontSize: 22, fontWeight: '500' },
@@ -1000,36 +579,8 @@ const styles = StyleSheet.create({
   formM:               {},
   formBadgeText:       { fontSize: 13, fontWeight: '600', color: '#fff' },
   formNote:            { fontSize: 11, marginLeft: 6 },
-  catLabel:            { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4 },
-  catLabelText:        { fontSize: 11, fontWeight: '500', letterSpacing: 0.5 },
-  catLabelLink:        { fontSize: 11 },
-  topPlayer:           { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5, gap: 10 },
-  rankBadge:           { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  rankText:            { fontSize: 11, fontWeight: '500' },
-  playerPhotoPlaceholder: { width: 32, height: 32, borderRadius: 16 },
-  topPlayerInfo:       { flex: 1 },
-  topPlayerName:       { fontSize: 13, fontWeight: '500' },
-  topPlayerPos:        { fontSize: 11, marginTop: 1 },
-  topPlayerVal:        { fontSize: 16, fontWeight: '500' },
-  barRow:              { paddingHorizontal: 14, paddingBottom: 4 },
-  barBg:               { height: 4, borderRadius: 2, overflow: 'hidden' },
-  barFill:             { height: '100%', borderRadius: 2 },
-  seeAllBtn:           { borderTopWidth: 0.5, paddingVertical: 12, alignItems: 'center' },
-  seeAllText:          { fontSize: 13 },
-  backToStats:         { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5 },
-  backToStatsText:     { fontSize: 13 },
   noDataBox:           { margin: 20, padding: 20, borderRadius: 10, alignItems: 'center' },
   noDataText:          { fontSize: 13, textAlign: 'center' },
-  playerItem:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5, gap: 10 },
-  playerPhotoSmall:    { width: 36, height: 36, borderRadius: 18 },
-  playerInfo:          { flex: 1 },
-  playerName:          { fontSize: 13, fontWeight: '500' },
-  playerNat:           { fontSize: 11, marginTop: 2 },
-  playerStatBadges:    { flexDirection: 'row', gap: 4 },
-  goalBadge:           { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  goalBadgeText:       { fontSize: 11 },
-  assistBadge:         { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  assistBadgeText:     { fontSize: 11 },
   profileCard:         { marginHorizontal: 14, marginBottom: 6, padding: 14, borderRadius: 12, borderLeftWidth: 3, borderWidth: 0.5 },
   profileTop:          { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
   profileEmoji:        { fontSize: 26, marginTop: 2 },
@@ -1040,3 +591,4 @@ const styles = StyleSheet.create({
   profileStatVal:      { fontSize: 16, fontWeight: '600' },
   profileStatLbl:      { fontSize: 10, marginTop: 2 },
 });
+
