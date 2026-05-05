@@ -11,7 +11,8 @@ export default function TieCard({ tie, isFinal }: { tie: UCLTie; isFinal?: boole
   const awayName = l1.awayTeam?.shortName || l1.awayTeam?.name || '?';
   const l1h = l1.score?.fullTime?.home, l1a = l1.score?.fullTime?.away;
   const l2h = l2?.score?.fullTime?.home, l2a = l2?.score?.fullTime?.away;
-  const hasScore = l1h != null;
+  const hasScore = l1h != null && l1a != null;
+  const secondLegPlayed = !l2 || (l2h != null && l2a != null);
   const fmt = (d: string) => new Date(d).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
   const homeWins = !!winner && winner === homeName;
   const awayWins = !!winner && winner === awayName;
@@ -41,7 +42,9 @@ export default function TieCard({ tie, isFinal }: { tie: UCLTie; isFinal?: boole
         <View style={styles.legsRow}>
           <Text style={[styles.legText, { color: c.textMuted }]}>1. Maç ({fmt(l1.utcDate)}): {l1h}–{l1a}</Text>
           <Text style={[styles.legSep, { color: c.textVeryFaint }]}>·</Text>
-          <Text style={[styles.legText, { color: c.textMuted }]}>2. Maç ({fmt(l2.utcDate)}): {l2h ?? '?'}–{l2a ?? '?'}</Text>
+          <Text style={[styles.legText, { color: c.textMuted }]}>
+            2. Maç ({fmt(l2.utcDate)}): {l2h != null && l2a != null ? `${l2h}–${l2a}` : 'oynanmadı'}
+          </Text>
         </View>
       )}
       {hasScore && !l2 && (
@@ -54,7 +57,7 @@ export default function TieCard({ tie, isFinal }: { tie: UCLTie; isFinal?: boole
             {isFinal ? '🏆' : '✅'} {winner}
           </Text>
         </View>
-      ) : hasScore ? (
+      ) : hasScore && secondLegPlayed ? (
         <View style={[styles.winnerBadge, { backgroundColor: c.surfaceAlt }]}>
           <Text style={[styles.winnerText, { color: c.textMuted }]}>⏳ Uzatma / Penaltı</Text>
         </View>

@@ -105,6 +105,42 @@ describe('groupTies', () => {
     expect(result[0].leg2).toBeNull();
     expect(result[1].leg2).toBeNull();
   });
+
+  test('does not pair unrelated placeholder matches with missing team ids', () => {
+    const a = makeFDMatch({ id: 9001, homeScore: 5, awayScore: 4, utcDate: '2026-04-28T19:00:00Z' });
+    const b = makeFDMatch({ id: 9002, homeScore: 1, awayScore: 1, utcDate: '2026-04-29T19:00:00Z' });
+    a.homeTeam = { id: null, name: null, shortName: null };
+    a.awayTeam = { id: null, name: null, shortName: null };
+    b.homeTeam = { id: null, name: null, shortName: null };
+    b.awayTeam = { id: null, name: null, shortName: null };
+
+    const result = groupTies([a, b]);
+    expect(result).toHaveLength(2);
+    expect(result[0].leg2).toBeNull();
+    expect(result[1].leg2).toBeNull();
+  });
+
+  test('normalizes current UCL semi-final placeholders before grouping', () => {
+    const psgBayernLeg1 = makeFDMatch({ id: 552092, homeScore: 5, awayScore: 4, utcDate: '2026-04-28T19:00:00Z' });
+    const atletiArsenalLeg1 = makeFDMatch({ id: 552093, homeScore: 1, awayScore: 1, utcDate: '2026-04-29T19:00:00Z' });
+    const arsenalAtletiLeg2 = makeFDMatch({ id: 552095, homeScore: null, awayScore: null, utcDate: '2026-05-05T19:00:00Z' });
+    const bayernPsgLeg2 = makeFDMatch({ id: 552094, homeScore: null, awayScore: null, utcDate: '2026-05-06T19:00:00Z' });
+    [psgBayernLeg1, atletiArsenalLeg1, arsenalAtletiLeg2, bayernPsgLeg2].forEach(match => {
+      match.homeTeam = { id: null, name: null, shortName: null };
+      match.awayTeam = { id: null, name: null, shortName: null };
+    });
+
+    const result = groupTies([psgBayernLeg1, atletiArsenalLeg1, arsenalAtletiLeg2, bayernPsgLeg2], 'SEMI_FINALS');
+    expect(result).toHaveLength(2);
+    expect(result[0].leg1.homeTeam.shortName).toBe('PSG');
+    expect(result[0].leg1.awayTeam.shortName).toBe('Bayern');
+    expect(result[0].leg2?.homeTeam.shortName).toBe('Bayern');
+    expect(result[0].leg2?.awayTeam.shortName).toBe('PSG');
+    expect(result[1].leg1.homeTeam.shortName).toBe('Atleti');
+    expect(result[1].leg1.awayTeam.shortName).toBe('Arsenal');
+    expect(result[1].leg2?.homeTeam.shortName).toBe('Arsenal');
+    expect(result[1].leg2?.score.fullTime.home).toBe(1);
+  });
 });
 
 // ─── tieResult ────────────────────────────────────────────────────────────────
@@ -169,6 +205,15 @@ describe('tieResult', () => {
     expect(r.winner).toBeNull();
     expect(r.homeAgg).toBe(0);
     expect(r.awayAgg).toBe(0);
+  });
+
+  test('two-leg tie with unplayed second leg keeps first-leg aggregate without winner', () => {
+    const leg1 = makeFDMatch({ id: 1, homeId: 1, awayId: 2, homeShort: 'PSG', awayShort: 'Bayern', homeScore: 5, awayScore: 4 });
+    const leg2 = makeFDMatch({ id: 2, homeId: 2, awayId: 1, homeShort: 'Bayern', awayShort: 'PSG', homeScore: null, awayScore: null });
+    const r = tieResult({ leg1, leg2 });
+    expect(r.homeAgg).toBe(5);
+    expect(r.awayAgg).toBe(4);
+    expect(r.winner).toBeNull();
   });
 });
 
