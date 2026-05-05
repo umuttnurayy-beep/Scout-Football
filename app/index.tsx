@@ -50,7 +50,7 @@ const DAYS   = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 const MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 
 const NEXT_MATCH_LOOKAHEAD_DAYS = 7;
-const FOCUS_REFRESH_MIN_INTERVAL_MS = 60 * 1000;
+const FOCUS_REFRESH_MIN_INTERVAL_MS = 10 * 60 * 1000;
 const DETAIL_CONTEXT_PREFETCH_LIMIT = 12;
 const DETAIL_CONTEXT_PREFETCH_BATCH_SIZE = 3;
 const PENDING_METRICS: Metrics = {
@@ -659,11 +659,7 @@ export default function HomeScreen() {
         ...payloadVisible.filter(m => m.leagueApiId === 203),
       ]
       : payloadVisible;
-    const nextStandingsMap = mainSourceMissing
-      ? mergeStandingsMaps(currentStandingsMap, homeStandings)
-      : hasUsableStandingsMap(homeStandings)
-        ? homeStandings
-        : currentStandingsMap;
+    const nextStandingsMap = mergeStandingsMaps(currentStandingsMap, homeStandings);
     setStandingsMap(nextStandingsMap);
     latestStandingsMapRef.current = nextStandingsMap;
     setMatches(visible);
@@ -682,7 +678,10 @@ export default function HomeScreen() {
 
     if (options.persist && !mainSourceMissing) {
       persistStandingsCache(dateStr, nextStandingsMap);
-      AsyncStorage.setItem(`${HOME_DATA_CACHE_KEY}:${dateStr}`, JSON.stringify(homeData)).catch(() => {});
+      AsyncStorage.setItem(`${HOME_DATA_CACHE_KEY}:${dateStr}`, JSON.stringify({
+        ...homeData,
+        standings: nextStandingsMap,
+      })).catch(() => {});
     }
   }
 
