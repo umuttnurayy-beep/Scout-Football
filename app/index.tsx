@@ -50,6 +50,11 @@ const DAYS   = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 const MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 
 const NEXT_MATCH_LOOKAHEAD_DAYS = 7;
+const PENDING_METRICS: Metrics = {
+  ...NO_DATA,
+  reason: 'Analiz hazırlanıyor...',
+  summary: 'Analiz hazırlanıyor...',
+};
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -69,6 +74,14 @@ function formatDateParam(date: Date) {
 }
 
 function isToday(date: Date) { return date.toDateString() === new Date().toDateString(); }
+
+function metricsForMatch(m: Match, standingsMap: Record<number, Standing[]>): Metrics {
+  const rows = standingsMap[m.leagueApiId];
+  if (!rows?.length) return PENDING_METRICS;
+  const home = findStanding(rows, m.home, m.homeTeamId);
+  const away = findStanding(rows, m.away, m.awayTeamId);
+  return computeMetrics(home, away, rows, m.leagueApiId);
+}
 
 // ─── components ──────────────────────────────────────────────────────────────
 
@@ -872,10 +885,7 @@ export default function HomeScreen() {
   const metricsMap = useMemo(() => {
     const map = new Map<number, Metrics>();
     for (const m of matches) {
-      const rows = standingsMap[m.leagueApiId];
-      const home = findStanding(rows, m.home, m.homeTeamId);
-      const away = findStanding(rows, m.away, m.awayTeamId);
-      map.set(m.id, computeMetrics(home, away, rows, m.leagueApiId));
+      map.set(m.id, metricsForMatch(m, standingsMap));
     }
     return map;
   }, [matches, standingsMap]);
