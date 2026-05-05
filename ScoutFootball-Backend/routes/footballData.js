@@ -19,6 +19,12 @@ function createFootballDataRouter({
 }) {
   const router = express.Router();
   const { FOOTBALL_DATA_BASE, FOOTBALL_DATA_KEY } = config;
+  const hasCompleteContextForm = payload =>
+    Array.isArray(payload?.homeForm) &&
+    Array.isArray(payload?.awayForm) &&
+    payload.homeForm.length > 0 &&
+    payload.awayForm.length > 0 &&
+    !payload?.issues?.includes('form');
 
   router.get('/standings/:leagueId', async (req, res) => {
     const { leagueId } = req.params;
@@ -51,7 +57,7 @@ function createFootballDataRouter({
     const isFinished = req.query.finished === '1';
     const cacheKey = `match_context_v2_${matchId}_${isFinished ? 'finished' : 'active'}`;
     const cached = await getCache(cacheKey);
-    if (cached) return res.json({ ok: true, data: cached });
+    if (cached && hasCompleteContextForm(cached)) return res.json({ ok: true, data: cached });
 
     try {
       const match = await fetchFootballDataMatch(matchId);
@@ -92,7 +98,10 @@ function createFootballDataRouter({
         generatedAt: new Date().toISOString(),
       };
 
-      await setCache(cacheKey, payload, footballDataMatchCacheTtl(match));
+      const contextTtl = hasCompleteContextForm(payload)
+        ? footballDataMatchCacheTtl(match)
+        : Math.min(60 * 1000, footballDataMatchCacheTtl(match));
+      await setCache(cacheKey, payload, contextTtl);
       return res.json({ ok: true, data: payload });
     } catch (e) {
       console.error('/match/:matchId/context hata:', e.message);

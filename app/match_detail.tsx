@@ -110,6 +110,8 @@ export default function MatchDetail() {
   const [staleNotice, setStaleNotice] = useState(false);
   const [secondaryLoading, setSecondaryLoading] = useState(false);
   const [dataIssues, setDataIssues] = useState<Set<DetailDataIssue>>(new Set());
+  const [formDataMatchId, setFormDataMatchId] = useState<string | null>(null);
+  const [contextLoadDone, setContextLoadDone] = useState(false);
   const [refreshCount, setRefreshCount] = useState(0);
   const retry = () => setRefreshCount(n => n + 1);
 
@@ -159,7 +161,7 @@ export default function MatchDetail() {
     isFromLive,
   }), [away, awayTeamId, finishedParam, home, homeTeamId, isFromLive, league, leagueApiId, matchId, scoreParam, utcDate]);
 
-  useEffect(()=>{ setMatchData(null);setH2hData([]);setWeatherData(null);setOddsData(null);setHomeForm([]);setAwayForm([]);setStaleNotice(false);setSecondaryLoading(false);setDataIssues(new Set()); },[matchId, refreshCount]);
+  useEffect(()=>{ setMatchData(null);setH2hData([]);setWeatherData(null);setOddsData(null);setHomeForm([]);setAwayForm([]);setFormDataMatchId(null);setContextLoadDone(false);setStaleNotice(false);setSecondaryLoading(false);setDataIssues(new Set()); },[matchId, refreshCount]);
 
   useEffect(() => {
     let cancelled = false;
@@ -181,6 +183,8 @@ export default function MatchDetail() {
     let cancelled = false;
     async function load(){
       setLoading(true);
+      setContextLoadDone(false);
+      setFormDataMatchId(null);
       if (routeFallbackMatch) {
         setMatchData(routeFallbackMatch);
         setLoading(false);
@@ -204,8 +208,8 @@ export default function MatchDetail() {
       if (!contextPayload) {
         recordContextFallback('match', 'missing_context_payload', matchId);
         const [hFormR,aFormR] = await Promise.allSettled([
-          getTeamForm(matchContext.homeTeamId),
-          getTeamForm(matchContext.awayTeamId),
+          getTeamForm(matchContext.homeTeamId, { silent: true }),
+          getTeamForm(matchContext.awayTeamId, { silent: true }),
         ]);
         if (cancelled) return;
         homeFormValue = fulfilledOr(hFormR, []);
@@ -216,6 +220,8 @@ export default function MatchDetail() {
       setMatchData(stats);
       setHomeForm(homeFormValue);
       setAwayForm(awayFormValue);
+      setFormDataMatchId(matchId);
+      setContextLoadDone(true);
       if (contextPayload) setH2hData(h2hValue);
       setStaleNotice(hasStaleDetailData([stats, homeFormValue, awayFormValue], isStaleApiData));
       setDataIssues(buildDetailDataIssues({
@@ -296,13 +302,16 @@ export default function MatchDetail() {
   const hasScore = displayHome !== null;
   const refName  = matchData?.referees?.[0]?.name || '';
 
-  const homeStats  = calcFormStats(homeForm, formTeamIds.home);
-  const awayStats  = calcFormStats(awayForm,  formTeamIds.away);
-  const homeFormPts= calcFormPoints(homeForm, formTeamIds.home);
-  const awayFormPts= calcFormPoints(awayForm,  formTeamIds.away);
-  const hasFormData= homeStats.total>0 && awayStats.total>0;
+  const formsBelongToMatch = formDataMatchId === matchId;
+  const currentHomeForm = formsBelongToMatch ? homeForm : [];
+  const currentAwayForm = formsBelongToMatch ? awayForm : [];
+  const homeStats  = calcFormStats(currentHomeForm, formTeamIds.home);
+  const awayStats  = calcFormStats(currentAwayForm,  formTeamIds.away);
+  const homeFormPts= calcFormPoints(currentHomeForm, formTeamIds.home);
+  const awayFormPts= calcFormPoints(currentAwayForm,  formTeamIds.away);
+  const hasFormData= formsBelongToMatch && homeStats.total>0 && awayStats.total>0;
   const { hasFormIssue, hasH2HIssue, hasWeatherIssue, hasOddsIssue } = detailIssueFlags(dataIssues);
-  const formDataPending = secondaryLoading && !hasFormData && !hasFormIssue;
+  const formDataPending = (!contextLoadDone || secondaryLoading || !formsBelongToMatch) && !hasFormData && !hasFormIssue;
   const formNoticeMessage = (kind: 'performance' | 'comparison' | 'form' | 'homeAway' | 'prediction' | 'character') => {
     if (!formDataPending) return detailDataMessage(kind, hasFormIssue ? 'sourceError' : 'empty');
     switch (kind) {
@@ -317,8 +326,8 @@ export default function MatchDetail() {
   };
 
   const weatherRisk= isWeatherRisk(weatherData);
-  const homeTrend  = hasFormData ? getFormTrend(homeForm, formTeamIds.home) : null;
-  const awayTrend  = hasFormData ? getFormTrend(awayForm, formTeamIds.away) : null;
+  const homeTrend  = hasFormData ? getFormTrend(currentHomeForm, formTeamIds.home) : null;
+  const awayTrend  = hasFormData ? getFormTrend(currentAwayForm, formTeamIds.away) : null;
   const analysis   = buildMatchAnalysis(displayHomeName,displayAwayName,leagueApiId,homeStats,awayStats,homeFormPts,awayFormPts,h2hData.length,weatherRisk,hasFormData,homeTrend,awayTrend,leagueAvgParam);
 
   const { homeRadar, awayRadar, radarLabels, homeLeadsRadar: hLeadsRadar } =
@@ -684,8 +693,8 @@ export default function MatchDetail() {
         <DetailSectionTitle style={scStyles.sectionLabel}>SON FORM  (İ = İç Saha · D = Deplasman)</DetailSectionTitle>
         {hasFormData ? (
           <>
-            <FormHeatRow matches={homeForm} teamId={formTeamIds.home} label={displayHomeName}/>
-            <FormHeatRow matches={awayForm} teamId={formTeamIds.away}  label={displayAwayName}/>
+            <FormHeatRow matches={currentHomeForm} teamId={formTeamIds.home} label={displayHomeName}/>
+            <FormHeatRow matches={currentAwayForm} teamId={formTeamIds.away}  label={displayAwayName}/>
             {/* Form Trend */}
             {(homeTrend || awayTrend) && (() => {
               const trendIcon = (d: 'up'|'down'|'stable') => d==='up'?'▲':d==='down'?'▼':'—';

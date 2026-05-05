@@ -131,6 +131,27 @@ describe('footballData router', () => {
     expect(res.body.data.issues).toEqual([]);
   });
 
+  test('GET /match/:matchId/context revalidates cached partial form payloads', async () => {
+    const { app, cache, calls } = createApp();
+    cache.set('match_context_v2_123_active', {
+      match: { id: 123 },
+      homeForm: [],
+      awayForm: [{ id: 2000 }],
+      h2h: [],
+      issues: ['form'],
+      generatedAt: '2026-05-01T00:00:00.000Z',
+    });
+
+    const res = await request(app).get('/match/123/context');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.homeForm).toEqual([{ id: 1000 }]);
+    expect(res.body.data.awayForm).toEqual([{ id: 2000 }]);
+    expect(res.body.data.issues).toEqual([]);
+    expect(calls.match).toEqual(['123']);
+    expect(calls.teamMatches).toEqual([10, 20]);
+  });
+
   test('GET /h2h/:matchId falls back to team-form intersections when direct H2H is empty', async () => {
     const firstLeg = {
       id: 456,

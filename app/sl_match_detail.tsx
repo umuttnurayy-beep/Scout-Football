@@ -403,6 +403,8 @@ export default function SLMatchDetail() {
   const [staleNotice, setStaleNotice] = useState(false);
   const [secondaryLoading, setSecondaryLoading] = useState(false);
   const [dataIssues, setDataIssues] = useState<Set<DetailDataIssue>>(new Set());
+  const [contextDataEventId, setContextDataEventId] = useState<string | null>(null);
+  const [contextLoadDone, setContextLoadDone] = useState(false);
   const [refreshCount, setRefreshCount] = useState(0);
   const retry = () => setRefreshCount(n => n + 1);
 
@@ -416,6 +418,8 @@ export default function SLMatchDetail() {
     setAwayContext(null);
     setHomeForm([]);
     setAwayForm([]);
+    setContextDataEventId(null);
+    setContextLoadDone(false);
     setWeatherData(null);
     setH2HMatches([]);
     setStaleNotice(false);
@@ -442,6 +446,8 @@ export default function SLMatchDetail() {
     let cancelled = false;
     async function load() {
       setLoading(true);
+      setContextDataEventId(null);
+      setContextLoadDone(false);
       const contextPayload = await getSuperLigMatchContext({ eventId, homeTeamId, awayTeamId, home, away });
       const contextIssues = new Set(contextPayload?.issues || []);
       const [evR, hcR, acR] = contextPayload
@@ -467,6 +473,8 @@ export default function SLMatchDetail() {
       setAwayContext(nextAwayContext);
       setHomeForm(nextHomeContext?.recentMatches || []);
       setAwayForm(nextAwayContext?.recentMatches || []);
+      setContextDataEventId(eventId);
+      setContextLoadDone(true);
       if (contextPayload) setH2HMatches(nextH2H);
       setStaleNotice(hasStaleDetailData([
         evR.status === 'fulfilled' ? evR.value : null,
@@ -541,22 +549,27 @@ export default function SLMatchDetail() {
   const h2hData = h2hMatches;
 
   // Form stats — falls back to season standings when match-by-match form is too thin
-  const homeFormCalc = calcFormStatsSL(homeForm, homeTeamId);
-  const awayFormCalc = calcFormStatsSL(awayForm, awayTeamId);
-  const homeStandingStats = homeContext?.isLimited
-    ? statsFromStanding(homeContext.standingsStats) : null;
-  const awayStandingStats = awayContext?.isLimited
-    ? statsFromStanding(awayContext.standingsStats) : null;
+  const contextBelongsToEvent = contextDataEventId === eventId;
+  const currentHomeForm = contextBelongsToEvent ? homeForm : [];
+  const currentAwayForm = contextBelongsToEvent ? awayForm : [];
+  const currentHomeContext = contextBelongsToEvent ? homeContext : null;
+  const currentAwayContext = contextBelongsToEvent ? awayContext : null;
+  const homeFormCalc = calcFormStatsSL(currentHomeForm, homeTeamId);
+  const awayFormCalc = calcFormStatsSL(currentAwayForm, awayTeamId);
+  const homeStandingStats = currentHomeContext?.isLimited
+    ? statsFromStanding(currentHomeContext.standingsStats) : null;
+  const awayStandingStats = currentAwayContext?.isLimited
+    ? statsFromStanding(currentAwayContext.standingsStats) : null;
   const homeStats   = homeStandingStats || homeFormCalc;
   const awayStats   = awayStandingStats || awayFormCalc;
-  const hasFormData = homeStats.total > 0 && awayStats.total > 0;
+  const hasFormData = contextBelongsToEvent && homeStats.total > 0 && awayStats.total > 0;
   const hasAnyRealFormData = homeFormCalc.total > 0 || awayFormCalc.total > 0;
   const hasRealFormData = homeFormCalc.total >= 5 && awayFormCalc.total >= 5;
-  const homeFormPts = hasRealFormData ? calcFormPointsSL(homeForm, homeTeamId) : 0;
-  const awayFormPts = hasRealFormData ? calcFormPointsSL(awayForm,  awayTeamId) : 0;
+  const homeFormPts = hasRealFormData ? calcFormPointsSL(currentHomeForm, homeTeamId) : 0;
+  const awayFormPts = hasRealFormData ? calcFormPointsSL(currentAwayForm,  awayTeamId) : 0;
   const usingStandingsFallback = homeStandingStats !== null || awayStandingStats !== null;
   const { hasFormIssue, hasH2HIssue, hasWeatherIssue } = detailIssueFlags(dataIssues);
-  const formDataPending = (loading || secondaryLoading) && !hasFormData && !hasFormIssue;
+  const formDataPending = (loading || secondaryLoading || !contextLoadDone || !contextBelongsToEvent) && !hasFormData && !hasFormIssue;
   const formNoticeMessage = (kind: 'performance' | 'comparison' | 'homeAway' | 'prediction' | 'character') => {
     if (!formDataPending) return detailDataMessage(kind, hasFormIssue ? 'sourceError' : 'empty');
     switch (kind) {
@@ -570,8 +583,8 @@ export default function SLMatchDetail() {
   };
 
   const weatherRisk = isWeatherRisk(weatherData);
-  const homeTrend   = hasRealFormData ? getFormTrendSL(homeForm, homeTeamId) : null;
-  const awayTrend   = hasRealFormData ? getFormTrendSL(awayForm, awayTeamId) : null;
+  const homeTrend   = hasRealFormData ? getFormTrendSL(currentHomeForm, homeTeamId) : null;
+  const awayTrend   = hasRealFormData ? getFormTrendSL(currentAwayForm, awayTeamId) : null;
   const analysis    = buildMatchAnalysis(home, away, homeStats, awayStats, homeFormPts, awayFormPts, h2hData.length, weatherRisk, hasFormData, homeTrend, awayTrend);
 
   const { homeRadar, awayRadar, radarLabels, homeLeadsRadar: hLeadsRadar } =
@@ -819,8 +832,8 @@ export default function SLMatchDetail() {
             {hasRealFormData && (
               <>
                 <DetailSectionTitle style={scStyles.sectionLabel}>SON FORM  (İ = İç Saha · D = Deplasman)</DetailSectionTitle>
-                <FormHeatRowSL matches={homeForm} teamId={homeTeamId} label={home}/>
-                <FormHeatRowSL matches={awayForm} teamId={awayTeamId}  label={away}/>
+                <FormHeatRowSL matches={currentHomeForm} teamId={homeTeamId} label={home}/>
+                <FormHeatRowSL matches={currentAwayForm} teamId={awayTeamId}  label={away}/>
               </>
             )}
             {(homeTrend || awayTrend) && (() => {
