@@ -24,7 +24,7 @@ import {
   findStanding, hasUsableStandingsMap, levelFromExpectedGoals,
   NO_DATA,
   readH2HMatch,
-  scoutScore, selectPreviewMatch, trendBarPercent,
+  scoutScore, selectPreviewMatch, singleMatchScoutText, trendBarPercent,
   uniqueLeagueIds,
 } from '../utils/matchMetrics';
 
@@ -165,9 +165,7 @@ function SingleInsightCard({ m, metrics }: { m: Match; metrics: Metrics }) {
         <Ionicons name="sparkles-outline" size={17} color={c.primary} />
         <Text style={[sc.singleTitle, { color: c.primary }]}>SCOUT NE DİYOR?</Text>
       </View>
-      <Text style={[sc.singleText, { color: c.text }]}>
-        {contextAnalysis?.medium || 'Scout özeti hazırlanıyor...'}
-      </Text>
+      <Text style={[sc.singleText, { color: c.text }]}>{singleMatchScoutText(m, metrics)}</Text>
       {contextAnalysis && (
         <View style={sc.singleMetrics}>
           <MiniMetric icon="flash-outline" label="Tempo" value={contextAnalysis.tempo} tone="hot" />
