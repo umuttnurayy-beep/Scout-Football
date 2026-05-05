@@ -51,6 +51,8 @@ const MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl',
 
 const NEXT_MATCH_LOOKAHEAD_DAYS = 7;
 const FOCUS_REFRESH_MIN_INTERVAL_MS = 60 * 1000;
+const DETAIL_CONTEXT_PREFETCH_LIMIT = 12;
+const DETAIL_CONTEXT_PREFETCH_BATCH_SIZE = 3;
 const PENDING_METRICS: Metrics = {
   ...NO_DATA,
   reason: 'Analiz hazırlanıyor...',
@@ -474,6 +476,7 @@ export default function HomeScreen() {
   const latestMatchesDateStrRef = useRef<string | null>(null);
   const latestStandingsMapRef = useRef<Record<number, Standing[]>>({});
   const lastHomeLoadAtByDate = useRef<Record<string, number>>({});
+  const warmedDetailContextsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => { latestMatchesRef.current = matches; }, [matches]);
   useEffect(() => { latestMatchesDateStrRef.current = matchesDateStr; }, [matchesDateStr]);
@@ -983,6 +986,39 @@ export default function HomeScreen() {
     }),
     [filteredMatches, metricsMap]
   );
+
+  useEffect(() => {
+    if (!matchesReadyForSelectedDate || sortedMatches.length === 0) return;
+    const requestId = loadSeq.current;
+    let cancelled = false;
+    const candidates = sortedMatches.slice(0, DETAIL_CONTEXT_PREFETCH_LIMIT);
+
+    async function warmDetailContexts() {
+      for (let i = 0; i < candidates.length; i += DETAIL_CONTEXT_PREFETCH_BATCH_SIZE) {
+        if (cancelled || requestId !== loadSeq.current) return;
+        const batch = candidates.slice(i, i + DETAIL_CONTEXT_PREFETCH_BATCH_SIZE);
+        await Promise.allSettled(batch.map(m => {
+          const key = `${selectedDateKey}:${m.leagueApiId}:${m.id}:${m.finished ? 'finished' : 'active'}`;
+          if (warmedDetailContextsRef.current.has(key)) return Promise.resolve(null);
+          warmedDetailContextsRef.current.add(key);
+          if (m.leagueApiId === 203) {
+            return preloadSuperLigMatchContext({
+              eventId: String(m.id),
+              homeTeamId: m.homeTeamId,
+              awayTeamId: m.awayTeamId,
+              home: m.home,
+              away: m.away,
+              silent: true,
+            });
+          }
+          return preloadMatchContext(String(m.id), m.finished, { silent: true });
+        }));
+      }
+    }
+
+    void warmDetailContexts();
+    return () => { cancelled = true; };
+  }, [matchesReadyForSelectedDate, selectedDateKey, sortedMatches]);
 
   const featuredMatches = useMemo(() => {
     if (activeFilter !== 'Scout' || sortedMatches.length === 0) return sortedMatches;

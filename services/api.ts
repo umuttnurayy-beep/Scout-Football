@@ -711,6 +711,7 @@ type SuperLigMatchContextParams = {
   awayTeamId?: number;
   home?: string;
   away?: string;
+  silent?: boolean;
 };
 
 const superLigMatchContextRequests = new Map<string, Promise<SuperLigMatchContextData | null>>();
@@ -725,6 +726,7 @@ async function fetchSuperLigMatchContext({
   awayTeamId,
   home,
   away,
+  silent,
 }: SuperLigMatchContextParams): Promise<SuperLigMatchContextData | null> {
   try {
     const params = new URLSearchParams();
@@ -742,7 +744,7 @@ async function fetchSuperLigMatchContext({
       issues: arrayOrEmpty<string>(data.issues),
     };
   } catch (e) {
-    logApiError('getSuperLigMatchContext', e);
+    if (!silent) logApiError('getSuperLigMatchContext', e);
     return null;
   }
 }
