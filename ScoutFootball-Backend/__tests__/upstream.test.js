@@ -62,4 +62,36 @@ describe('upstream request client', () => {
       },
     });
   });
+
+  test('retries transient upstream failures once by default', async () => {
+    const fetchImpl = jest.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 502,
+        json: async () => ({ message: 'temporary' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true }),
+      });
+    const client = createUpstreamJsonClient({ fetchImpl });
+
+    await expect(client.fetchJson('https://example.com/flaky', { retryDelayMs: 0 }, 'flaky'))
+      .resolves.toEqual({ ok: true });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  test('does not retry non-transient upstream errors', async () => {
+    const fetchImpl = jest.fn(async () => ({
+      ok: false,
+      status: 404,
+      json: async () => ({ message: 'not found' }),
+    }));
+    const client = createUpstreamJsonClient({ fetchImpl });
+
+    await expect(client.fetchJson('https://example.com/missing', { retryDelayMs: 0 }, 'missing'))
+      .rejects.toThrow('missing returned HTTP 404');
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
 });

@@ -708,10 +708,39 @@ export default function TeamStatsScreen() {
                 </>
               ) : (
                 <>
-                  <EmptyStateCard compact icon="⚽" title="Bu sezon gol istatistiği bulunamadı." />
-                  <TouchableOpacity style={[styles.seeAllBtn, { borderTopColor: c.border }]} onPress={() => setShowFullSquad(true)}>
-                    <Text style={[styles.seeAllText, { color: c.primary }]}>Kadroyu gör ›</Text>
-                  </TouchableOpacity>
+                  {slPlayers.length > 0 ? (
+                    <>
+                      <EmptyStateCard compact icon="⚽" title="Süper Lig gol istatistiği kaynağı şu an sınırlı." />
+                      <View style={styles.catLabel}>
+                        <Text style={[styles.catLabelText, { color: c.textMuted }]}>MEVCUT KADRO</Text>
+                      </View>
+                      {AF_POSITION_ORDER.map(pos => {
+                        const players = groupedSlPlayers[pos];
+                        if (!players) return null;
+                        return (
+                          <View key={pos}>
+                            <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>{AF_POSITION_MAP[pos]}</Text>
+                            {players.map((p, i: number) => (
+                              <View key={i} style={[styles.playerItem, { borderBottomColor: c.border }]}>
+                                <View style={[styles.playerPhotoSmall, { backgroundColor: c.primaryLight }]} />
+                                <View style={styles.playerInfo}>
+                                  <Text style={[styles.playerName, { color: c.text }]}>{p.name}</Text>
+                                  <Text style={[styles.playerNat, { color: c.textMuted }]}>{p.nationality}</Text>
+                                </View>
+                              </View>
+                            ))}
+                          </View>
+                        );
+                      })}
+                    </>
+                  ) : (
+                    <>
+                      <EmptyStateCard compact icon="⚽" title="Bu sezon gol istatistiği bulunamadı." />
+                      <TouchableOpacity style={[styles.seeAllBtn, { borderTopColor: c.border }]} onPress={() => setShowFullSquad(true)}>
+                        <Text style={[styles.seeAllText, { color: c.primary }]}>Kadroyu gör ›</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
                 </>
               )}
             </>
@@ -835,7 +864,7 @@ export default function TeamStatsScreen() {
                 </>
               ) : (
                 <>
-                  <EmptyStateCard compact icon="⚽" title="Bu sezon gol istatistiği bulunamadı." />
+                  <EmptyStateCard compact icon="⚽" title="Bu takım için lig golcü listesinde veri bulunamadı." />
                   <TouchableOpacity style={[styles.seeAllBtn, { borderTopColor: c.border }]} onPress={() => setShowFullSquad(true)}>
                     <Text style={[styles.seeAllText, { color: c.primary }]}>Kadroyu gör ›</Text>
                   </TouchableOpacity>

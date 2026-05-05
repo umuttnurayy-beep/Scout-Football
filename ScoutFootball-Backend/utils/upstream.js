@@ -9,13 +9,28 @@ async function readJsonResponse(response, label) {
   try {
     data = await response.json();
   } catch (error) {
-    throw new Error(`${label} returned non-JSON response (${response.status})`);
+    const err = new Error(`${label} returned non-JSON response (${response.status})`);
+    err.status = response.status;
+    throw err;
   }
   if (!response.ok) {
     const detail = data?.message || data?.error || JSON.stringify(data).slice(0, 180);
-    throw new Error(`${label} returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`);
+    const err = new Error(`${label} returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`);
+    err.status = response.status;
+    throw err;
   }
   return data;
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function shouldRetry(error) {
+  if (!error) return false;
+  if (error.status === 429) return true;
+  if (typeof error.status === 'number') return error.status >= 500;
+  return true;
 }
 
 function createUpstreamJsonClient({ fetchImpl }) {
@@ -43,10 +58,27 @@ function createUpstreamJsonClient({ fetchImpl }) {
 
     stats.startedCount += 1;
     ensureLabelStats(label).started += 1;
+    const attempts = Math.max(1, options.retryAttempts || 2);
+    const retryDelayMs = Math.max(0, options.retryDelayMs || 250);
+    const requestOptions = { ...options };
+    delete requestOptions.retryAttempts;
+    delete requestOptions.retryDelayMs;
 
     const promise = Promise.resolve()
-      .then(() => fetchImpl(url, options))
-      .then(response => readJsonResponse(response, label))
+      .then(async () => {
+        let lastError;
+        for (let attempt = 1; attempt <= attempts; attempt += 1) {
+          try {
+            const response = await fetchImpl(url, requestOptions);
+            return await readJsonResponse(response, label);
+          } catch (error) {
+            lastError = error;
+            if (attempt >= attempts || !shouldRetry(error)) throw error;
+            await sleep(retryDelayMs * attempt);
+          }
+        }
+        throw lastError;
+      })
       .finally(() => inFlight.delete(key));
 
     inFlight.set(key, promise);
