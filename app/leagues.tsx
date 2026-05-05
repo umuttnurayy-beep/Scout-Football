@@ -8,8 +8,10 @@ import TieCard from '../components/TieCard';
 import { useTheme } from '../context/ThemeContext';
 import { CURRENT_FOOTBALL_SEASON, DISPLAY_FOOTBALL_SEASON } from '../constants/seasons';
 import { UCLKnockouts, getStandings, getSuperLigStandings, getUclKnockouts } from '../services/api';
+import { isStanding } from '../services/apiNormalizers';
 import { leagueDataEmptyMessage } from '../utils/emptyStates';
 import scoutStyles from '../utils/scoutStyles';
+import { isArrayOf, readTimedCache, writeTimedCache } from '../utils/timedCache';
 import {
   LeagueStanding,
   computeLeagueStats, getTagColor, getTeamLabel, getTeamPersonality, groupTies,
@@ -29,6 +31,12 @@ const configuredLeagues = leagues.map(league => ({
   ...league,
   season: DISPLAY_FOOTBALL_SEASON,
 }));
+
+const LEAGUE_STANDINGS_TTL = 60 * 60 * 1000;
+
+function standingsCacheKey(apiId: number) {
+  return `league_standings_v1_${apiId}`;
+}
 
 const UCL_STAGES = [
   { key: 'KNOCKOUT_ROUND_PLAY_OFF', label: 'Play-off'     },
@@ -198,14 +206,28 @@ export default function LeaguesScreen() {
   async function loadStandings(apiId: number, showLoader = true) {
     if (showLoader) setLoading(true);
     setLoadError(false);
+    const cacheKey = standingsCacheKey(apiId);
+    const cached = await readTimedCache(cacheKey, LEAGUE_STANDINGS_TTL, isArrayOf(isStanding));
+    if (cached && cached.length > 0) {
+      setStandings(cached);
+      if (showLoader) setLoading(false);
+    }
     try {
       const data = apiId === 203
         ? await getSuperLigStandings()
-        : await getStandings(apiId);
-      setStandings(data && data.length > 0 ? data : []);
+        : await getStandings(apiId, { silent: Boolean(cached?.length) });
+      if (data && data.length > 0) {
+        setStandings(data);
+        writeTimedCache(cacheKey, data);
+      } else if (!cached?.length) {
+        setStandings([]);
+        setLoadError(true);
+      }
     } catch {
-      setStandings([]);
-      setLoadError(true);
+      if (!cached?.length) {
+        setStandings([]);
+        setLoadError(true);
+      }
     } finally {
       if (showLoader) setLoading(false);
     }

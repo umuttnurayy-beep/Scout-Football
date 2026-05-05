@@ -3,7 +3,15 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { Standing, getSuperLigStandings, getStandings } from '../services/api';
+import { isStanding } from '../services/apiNormalizers';
 import { teamDataEmptyMessage } from '../utils/emptyStates';
+import { isArrayOf, readTimedCache, writeTimedCache } from '../utils/timedCache';
+
+const TEAM_LIST_STANDINGS_TTL = 60 * 60 * 1000;
+
+function teamListCacheKey(apiId: number) {
+  return `team_list_standings_v1_${apiId}`;
+}
 
 export default function TeamDetailScreen() {
   const router = useRouter();
@@ -35,14 +43,25 @@ export default function TeamDetailScreen() {
 
   async function loadTeams(showLoader = true) {
     if (showLoader) setLoading(true);
+    const cacheKey = teamListCacheKey(apiId);
+    const cached = await readTimedCache(cacheKey, TEAM_LIST_STANDINGS_TTL, isArrayOf(isStanding));
+    if (cached && cached.length > 0) {
+      setTeams(cached);
+      if (showLoader) setLoading(false);
+    }
     try {
       const data = apiId === 203
         ? await getSuperLigStandings()
-        : await getStandings(apiId);
-      setTeams(data || []);
+        : await getStandings(apiId, { silent: Boolean(cached?.length) });
+      if (data && data.length > 0) {
+        setTeams(data);
+        writeTimedCache(cacheKey, data);
+      } else if (!cached?.length) {
+        setTeams([]);
+      }
     } catch (e) {
       console.error('loadTeams hata:', e);
-      setTeams([]);
+      if (!cached?.length) setTeams([]);
     } finally {
       if (showLoader) setLoading(false);
     }

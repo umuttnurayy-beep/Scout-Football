@@ -381,7 +381,7 @@ export async function checkBackendHealth(): Promise<boolean> {
   }
 }
 
-export async function getStandings(leagueId: number): Promise<Standing[]> {
+export async function getStandings(leagueId: number, options?: { silent?: boolean }): Promise<Standing[]> {
   try {
     const fdId = LEAGUE_MAP[leagueId];
     if (!fdId) return [];
@@ -389,7 +389,7 @@ export async function getStandings(leagueId: number): Promise<Standing[]> {
     const data = await readApiJson<Standing[]>(res, []);
     return standingsOrEmpty(data);
   } catch (e) {
-    logApiError('getStandings', e);
+    if (!options?.silent) logApiError('getStandings', e);
     return [];
   }
 }

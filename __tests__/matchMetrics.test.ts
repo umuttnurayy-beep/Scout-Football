@@ -41,6 +41,8 @@ import {
   uniqueLeagueIds,
   buildNextPreviewFromHomeData,
   buildHomeCardAnalysis,
+  buildMetricsScoutAnalysis,
+  displayTeamName,
   NO_DATA,
   LEAGUE_WEIGHT,
   type Match,
@@ -317,6 +319,20 @@ describe('computeMetrics', () => {
     const card = buildHomeCardAnalysis(makeMatch({ home: 'Home', away: 'Away' }), r);
     expect(card.headline).toMatch(/2\.5|kaybetmez|galibiyete|Karşılıklı|Riskli|Taraf seçimi/);
     expect(card.summary.length).toBeGreaterThan(20);
+  });
+
+  test('single insight levels use the detail scout analysis engine', () => {
+    const r = computeMetrics(home as any, away as any, standings as any);
+    const levels = buildMetricsScoutAnalysis(makeMatch({ home: 'Home', away: 'Away' }), r);
+    expect(['Düşük', 'Orta', 'Yüksek']).toContain(levels.gol);
+    expect(['Düşük', 'Orta', 'Yüksek']).toContain(levels.tempo);
+    expect(['Düşük', 'Orta', 'Yüksek']).toContain(levels.risk);
+  });
+
+  test('normalizes Atletico display name to Atleti', () => {
+    expect(displayTeamName('Atletico')).toBe('Atleti');
+    expect(displayTeamName('Atletico Madrid')).toBe('Atleti');
+    expect(displayTeamName('Arsenal')).toBe('Arsenal');
   });
 
   test('includes leader, neighbor, and safety-line context from full standings', () => {

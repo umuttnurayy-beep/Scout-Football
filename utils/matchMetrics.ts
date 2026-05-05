@@ -1,5 +1,5 @@
 import { FDMatch, H2HRawItem, HomeData, SLMatch, Standing, getCityForTeam } from '../services/api';
-import { buildScoutPick, strHash, type MatchFormStats } from './matchAnalysis';
+import { buildMatchAnalysis, buildScoutPick, strHash, type MatchFormStats } from './matchAnalysis';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -39,7 +39,7 @@ export const MARQUEE_MATCHUPS: { leagueApiId: number; teams: [string, string]; b
 ];
 
 export const MAJOR_TEAMS = [
-  'Real Madrid', 'Barcelona', 'Atletico Madrid',
+  'Real Madrid', 'Barcelona', 'Atletico Madrid', 'Atleti',
   'Bayern', 'Borussia Dortmund', 'Dortmund',
   'Paris Saint-Germain', 'PSG',
   'Arsenal', 'Liverpool', 'Manchester City', 'Man City', 'Manchester United', 'Man United', 'Man Utd', 'Chelsea', 'Tottenham',
@@ -180,6 +180,14 @@ const TEAM_ALIASES: Record<string, string> = {
   'newcastle':           'newcastle united',
   'atletico madrid':     'atletico madrid',
 };
+
+export function displayTeamName(name: string): string {
+  const normalized = normalizeTeam(name);
+  if (normalized === 'atletico' || normalized === 'atletico madrid' || normalized === 'club atletico de madrid') {
+    return 'Atleti';
+  }
+  return name;
+}
 
 export function findStanding(standings: Standing[] | undefined, teamName: string, teamId: number): Standing | null {
   if (!standings || standings.length === 0) return null;
@@ -437,8 +445,8 @@ export function mapMatch(m: FDMatch): Match {
     id:          m.id,
     leagueApiId: m.competition?.id || 0,
     league:      LEAGUE_NAMES[m.competition?.id ?? 0] || m.competition?.name || 'Diğer',
-    home:        m.homeTeam?.shortName || m.homeTeam?.name || '',
-    away:        m.awayTeam?.shortName || m.awayTeam?.name || '',
+    home:        displayTeamName(m.homeTeam?.shortName || m.homeTeam?.name || ''),
+    away:        displayTeamName(m.awayTeam?.shortName || m.awayTeam?.name || ''),
     time:        formatTime(m.utcDate),
     score:       finished && fh !== null && fh !== undefined ? `${fh} - ${fa}` : null,
     finished,
@@ -675,6 +683,50 @@ function standingsStatsFromMetrics(metrics: Metrics, side: 'home' | 'away'): Mat
     homePlayed: side === 'home' ? played || 0 : 0,
     awayPlayed: side === 'away' ? played || 0 : 0,
   };
+}
+
+export function buildMetricsScoutAnalysis(m: Match, metrics: Metrics) {
+  if (!metrics.hasData) {
+    return {
+      gol: levelFromExpectedGoals(metrics.expectedGoals),
+      tempo: levelFromExpectedGoals(metrics.tempo),
+      risk: riskFromMetrics(metrics),
+    };
+  }
+
+  const hasSignalInputs =
+    metrics.homeAvgGf !== undefined &&
+    metrics.homeAvgGa !== undefined &&
+    metrics.awayAvgGf !== undefined &&
+    metrics.awayAvgGa !== undefined;
+
+  if (!hasSignalInputs) {
+    return {
+      gol: levelFromExpectedGoals(metrics.expectedGoals),
+      tempo: levelFromExpectedGoals(metrics.tempo),
+      risk: riskFromMetrics(metrics),
+    };
+  }
+
+  const homeStats = standingsStatsFromMetrics(metrics, 'home');
+  const awayStats = standingsStatsFromMetrics(metrics, 'away');
+  const homeFormPts = clamp(Math.round(metrics.homePpg * 5), 0, 15);
+  const awayFormPts = clamp(Math.round(metrics.awayPpg * 5), 0, 15);
+  return buildMatchAnalysis(
+    m.home,
+    m.away,
+    m.leagueApiId,
+    homeStats,
+    awayStats,
+    homeFormPts,
+    awayFormPts,
+    0,
+    false,
+    true,
+    null,
+    null,
+    metrics.leagueAvg,
+  );
 }
 
 export function buildHomeCardAnalysis(m: Match, metrics: Metrics): { headline: string; summary: string } {

@@ -20,10 +20,10 @@ import {
   FeaturedMatchCache, ListItem, Match, Metrics,
   STANDINGS_LEAGUES,
   buildDaySummary, buildHomeCardAnalysis, buildNextPreviewFromHomeData, buildVisibleMatches,
-  computeMetrics, confidenceText, expectedLine, favoriteText,
+  buildMetricsScoutAnalysis, computeMetrics, confidenceText, expectedLine, favoriteText,
   findStanding, hasUsableStandingsMap, levelFromExpectedGoals,
   NO_DATA,
-  readH2HMatch, riskFromMetrics,
+  readH2HMatch,
   scoutScore, selectPreviewMatch, singleMatchScoutText, trendBarPercent,
   uniqueLeagueIds,
 } from '../utils/matchMetrics';
@@ -144,6 +144,7 @@ function MiniMetric({ icon, label, value, tone }: { icon: keyof typeof Ionicons.
 
 function SingleInsightCard({ m, metrics }: { m: Match; metrics: Metrics }) {
   const { colors: c } = useTheme();
+  const scoutLevels = buildMetricsScoutAnalysis(m, metrics);
   return (
     <View style={[sc.singlePanel, { backgroundColor: c.surface, borderColor: c.cardBorder }]}>
       <View style={sc.singleTitleRow}>
@@ -152,9 +153,9 @@ function SingleInsightCard({ m, metrics }: { m: Match; metrics: Metrics }) {
       </View>
       <Text style={[sc.singleText, { color: c.text }]}>{singleMatchScoutText(m, metrics)}</Text>
       <View style={sc.singleMetrics}>
-        <MiniMetric icon="flash-outline" label="Tempo" value={levelFromExpectedGoals(metrics.tempo)} tone="hot" />
-        <MiniMetric icon="stats-chart-outline" label="Gol Bek." value={levelFromExpectedGoals(metrics.expectedGoals)} tone="hot" />
-        <MiniMetric icon="shield-outline" label="Risk" value={riskFromMetrics(metrics)} tone="warn" />
+        <MiniMetric icon="flash-outline" label="Tempo" value={scoutLevels.tempo} tone="hot" />
+        <MiniMetric icon="stats-chart-outline" label="Gol Bek." value={scoutLevels.gol} tone="hot" />
+        <MiniMetric icon="shield-outline" label="Risk" value={scoutLevels.risk} tone="warn" />
       </View>
     </View>
   );
