@@ -1,5 +1,13 @@
-import { FDMatch, H2HRawItem, HomeData, SLMatch, Standing, getCityForTeam } from '../services/api';
-import { buildMatchAnalysis, buildScoutPick, strHash, type MatchFormStats } from './matchAnalysis';
+import { FDMatch, H2HRawItem, HomeData, MatchContextData, SLMatch, Standing, getCityForTeam } from '../services/api';
+import {
+  buildMatchAnalysis,
+  buildScoutPick,
+  calcFormPoints,
+  calcFormStats,
+  getFormTrend,
+  strHash,
+  type MatchFormStats,
+} from './matchAnalysis';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -726,6 +734,35 @@ export function buildMetricsScoutAnalysis(m: Match, metrics: Metrics) {
     null,
     null,
     metrics.leagueAvg,
+  );
+}
+
+export function buildMatchContextScoutAnalysis(m: Match, context: MatchContextData | null, leagueAvg = 1.5) {
+  if (!context || !Array.isArray(context.homeForm) || !Array.isArray(context.awayForm)) return null;
+  const homeId = context.match?.homeTeam?.id || m.homeTeamId;
+  const awayId = context.match?.awayTeam?.id || m.awayTeamId;
+  if (!homeId || !awayId) return null;
+
+  const homeStats = calcFormStats(context.homeForm, homeId);
+  const awayStats = calcFormStats(context.awayForm, awayId);
+  if (homeStats.total <= 0 || awayStats.total <= 0) return null;
+
+  const homeName = displayTeamName(context.match?.homeTeam?.shortName || context.match?.homeTeam?.name || m.home);
+  const awayName = displayTeamName(context.match?.awayTeam?.shortName || context.match?.awayTeam?.name || m.away);
+  return buildMatchAnalysis(
+    homeName,
+    awayName,
+    m.leagueApiId,
+    homeStats,
+    awayStats,
+    calcFormPoints(context.homeForm, homeId),
+    calcFormPoints(context.awayForm, awayId),
+    context.h2h?.length || 0,
+    false,
+    true,
+    getFormTrend(context.homeForm, homeId),
+    getFormTrend(context.awayForm, awayId),
+    leagueAvg,
   );
 }
 

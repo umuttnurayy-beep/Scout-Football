@@ -20,11 +20,11 @@ import {
   FeaturedMatchCache, ListItem, Match, Metrics,
   STANDINGS_LEAGUES,
   buildDaySummary, buildHomeCardAnalysis, buildNextPreviewFromHomeData, buildVisibleMatches,
-  buildMetricsScoutAnalysis, computeMetrics, confidenceText, expectedLine, favoriteText,
+  buildMatchContextScoutAnalysis, computeMetrics, confidenceText, expectedLine, favoriteText,
   findStanding, hasUsableStandingsMap, levelFromExpectedGoals,
   NO_DATA,
   readH2HMatch,
-  scoutScore, selectPreviewMatch, singleMatchScoutText, trendBarPercent,
+  scoutScore, selectPreviewMatch, trendBarPercent,
   uniqueLeagueIds,
 } from '../utils/matchMetrics';
 
@@ -144,19 +144,37 @@ function MiniMetric({ icon, label, value, tone }: { icon: keyof typeof Ionicons.
 
 function SingleInsightCard({ m, metrics }: { m: Match; metrics: Metrics }) {
   const { colors: c } = useTheme();
-  const scoutLevels = buildMetricsScoutAnalysis(m, metrics);
+  const [contextAnalysis, setContextAnalysis] = useState<ReturnType<typeof buildMatchContextScoutAnalysis>>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setContextAnalysis(null);
+    preloadMatchContext(String(m.id), m.finished, { silent: true })
+      .then(context => {
+        if (!alive) return;
+        setContextAnalysis(buildMatchContextScoutAnalysis(m, context, metrics.leagueAvg));
+      })
+      .catch(() => {
+        if (alive) setContextAnalysis(null);
+      });
+    return () => { alive = false; };
+  }, [m.id, m.finished, m.homeTeamId, m.awayTeamId, metrics.leagueAvg]);
   return (
     <View style={[sc.singlePanel, { backgroundColor: c.surface, borderColor: c.cardBorder }]}>
       <View style={sc.singleTitleRow}>
         <Ionicons name="sparkles-outline" size={17} color={c.primary} />
         <Text style={[sc.singleTitle, { color: c.primary }]}>SCOUT NE DİYOR?</Text>
       </View>
-      <Text style={[sc.singleText, { color: c.text }]}>{singleMatchScoutText(m, metrics)}</Text>
-      <View style={sc.singleMetrics}>
-        <MiniMetric icon="flash-outline" label="Tempo" value={scoutLevels.tempo} tone="hot" />
-        <MiniMetric icon="stats-chart-outline" label="Gol Bek." value={scoutLevels.gol} tone="hot" />
-        <MiniMetric icon="shield-outline" label="Risk" value={scoutLevels.risk} tone="warn" />
-      </View>
+      <Text style={[sc.singleText, { color: c.text }]}>
+        {contextAnalysis?.medium || 'Scout özeti hazırlanıyor...'}
+      </Text>
+      {contextAnalysis && (
+        <View style={sc.singleMetrics}>
+          <MiniMetric icon="flash-outline" label="Tempo" value={contextAnalysis.tempo} tone="hot" />
+          <MiniMetric icon="stats-chart-outline" label="Gol Bek." value={contextAnalysis.gol} tone="hot" />
+          <MiniMetric icon="shield-outline" label="Risk" value={contextAnalysis.risk} tone="warn" />
+        </View>
+      )}
     </View>
   );
 }

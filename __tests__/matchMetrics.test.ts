@@ -42,6 +42,7 @@ import {
   buildNextPreviewFromHomeData,
   buildHomeCardAnalysis,
   buildMetricsScoutAnalysis,
+  buildMatchContextScoutAnalysis,
   displayTeamName,
   NO_DATA,
   LEAGUE_WEIGHT,
@@ -327,6 +328,34 @@ describe('computeMetrics', () => {
     expect(['Düşük', 'Orta', 'Yüksek']).toContain(levels.gol);
     expect(['Düşük', 'Orta', 'Yüksek']).toContain(levels.tempo);
     expect(['Düşük', 'Orta', 'Yüksek']).toContain(levels.risk);
+  });
+
+  test('builds home insight from match context form data when available', () => {
+    const m = makeMatch({ home: 'Arsenal', away: 'Atletico Madrid', homeTeamId: 1, awayTeamId: 2, leagueApiId: 2001 });
+    const context = {
+      match: {
+        id: 10,
+        utcDate: '2026-05-05T19:00:00Z',
+        status: 'SCHEDULED',
+        homeTeam: { id: 1, name: 'Arsenal', shortName: 'Arsenal' },
+        awayTeam: { id: 2, name: 'Atletico Madrid', shortName: 'Atletico Madrid' },
+        score: { fullTime: { home: null, away: null } },
+        competition: { id: 2001, name: 'UCL' },
+      },
+      homeForm: [
+        { homeTeam: { id: 1, name: 'Arsenal' }, awayTeam: { id: 99, name: 'A' }, score: { fullTime: { home: 2, away: 0 } }, status: 'FINISHED' },
+        { homeTeam: { id: 98, name: 'B' }, awayTeam: { id: 1, name: 'Arsenal' }, score: { fullTime: { home: 1, away: 1 } }, status: 'FINISHED' },
+      ],
+      awayForm: [
+        { homeTeam: { id: 2, name: 'Atleti' }, awayTeam: { id: 97, name: 'C' }, score: { fullTime: { home: 1, away: 1 } }, status: 'FINISHED' },
+        { homeTeam: { id: 96, name: 'D' }, awayTeam: { id: 2, name: 'Atleti' }, score: { fullTime: { home: 0, away: 1 } }, status: 'FINISHED' },
+      ],
+      h2h: [],
+    };
+    const analysis = buildMatchContextScoutAnalysis(m, context as any, 1.5);
+    expect(analysis).not.toBeNull();
+    expect(analysis?.medium).toBeTruthy();
+    expect(['Düşük', 'Orta', 'Yüksek']).toContain(analysis?.gol);
   });
 
   test('normalizes Atletico display name to Atleti', () => {
