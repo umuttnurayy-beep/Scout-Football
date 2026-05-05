@@ -311,7 +311,7 @@ export default function MatchDetail() {
   const awayFormPts= calcFormPoints(currentAwayForm,  formTeamIds.away);
   const hasFormData= formsBelongToMatch && homeStats.total>0 && awayStats.total>0;
   const { hasFormIssue, hasH2HIssue, hasWeatherIssue, hasOddsIssue } = detailIssueFlags(dataIssues);
-  const formDataPending = (!contextLoadDone || secondaryLoading || !formsBelongToMatch) && !hasFormData && !hasFormIssue;
+  const formDataPending = (!contextLoadDone || secondaryLoading || !formsBelongToMatch) && !hasFormIssue;
   const formNoticeMessage = (kind: 'performance' | 'comparison' | 'form' | 'homeAway' | 'prediction' | 'character') => {
     if (!formDataPending) return detailDataMessage(kind, hasFormIssue ? 'sourceError' : 'empty');
     switch (kind) {
@@ -329,6 +329,7 @@ export default function MatchDetail() {
   const homeTrend  = hasFormData ? getFormTrend(currentHomeForm, formTeamIds.home) : null;
   const awayTrend  = hasFormData ? getFormTrend(currentAwayForm, formTeamIds.away) : null;
   const analysis   = buildMatchAnalysis(displayHomeName,displayAwayName,leagueApiId,homeStats,awayStats,homeFormPts,awayFormPts,h2hData.length,weatherRisk,hasFormData,homeTrend,awayTrend,leagueAvgParam);
+  const scoutAnalysisReady = hasFormData && !secondaryLoading;
 
   const { homeRadar, awayRadar, radarLabels, homeLeadsRadar: hLeadsRadar } =
     buildDetailRadar(homeStats, awayStats, homeFormPts, awayFormPts);
@@ -461,7 +462,7 @@ export default function MatchDetail() {
         </View>
         <View style={styles.heroBadgeRow}>
           <View style={[styles.badgeLiga,{backgroundColor:c.primaryLight}]}><Text style={[styles.badgeLigaText,{color:c.primaryDark}]}>{league}</Text></View>
-          <View style={[styles.confidenceBadge,{backgroundColor:
+          {scoutAnalysisReady && <View style={[styles.confidenceBadge,{backgroundColor:
             analysis.badgeLabel.includes('Güçlü')
               ? (isDark ? '#0D2010' : '#E8F8F0')
               : analysis.badgeLabel.includes('Risk')
@@ -469,7 +470,7 @@ export default function MatchDetail() {
                 : (isDark ? '#2A1F00' : '#FFF8E1')
           }]}>
             <Text style={[styles.confidenceBadgeText,{color:analysis.badgeColor}]}>{analysis.badgeLabel}</Text>
-          </View>
+          </View>}
         </View>
       </View>
 
@@ -486,7 +487,7 @@ export default function MatchDetail() {
       <View style={[scStyles.card,{backgroundColor:isDark?'#1A1228':'#f4f0ff',borderBottomColor:isDark?'#2D2040':'#ddd6ff'}]}>
         <View style={scStyles.headerRow}>
           <Text style={[scStyles.headerLabel,{color:isDark?'#C19BFF':'#5b2d8e'}]}>🧠 SCOUT ÖZETİ</Text>
-          {hasFormData ? <View style={[scStyles.guvenPill,{backgroundColor:
+          {scoutAnalysisReady ? <View style={[scStyles.guvenPill,{backgroundColor:
             analysis.guven==='Yüksek' ? (isDark?'#0D2010':'#E8F8F0') :
             analysis.guven==='Düşük'  ? (isDark?'#2C0A0A':'#FDE8E8') :
             (isDark?'#2A1F00':'#FFF8E1')}]}>
@@ -500,7 +501,7 @@ export default function MatchDetail() {
           </View> : null}
         </View>
 
-        {hasFormData ? <>
+        {scoutAnalysisReady ? <>
         <View style={scStyles.metricsRow}>
           {(['stil','gol','tempo','risk'] as const).map(key=>{
             const val = analysis[key] as string;

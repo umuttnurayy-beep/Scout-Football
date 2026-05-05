@@ -569,7 +569,7 @@ export default function SLMatchDetail() {
   const awayFormPts = hasRealFormData ? calcFormPointsSL(currentAwayForm,  awayTeamId) : 0;
   const usingStandingsFallback = homeStandingStats !== null || awayStandingStats !== null;
   const { hasFormIssue, hasH2HIssue, hasWeatherIssue } = detailIssueFlags(dataIssues);
-  const formDataPending = (loading || secondaryLoading || !contextLoadDone || !contextBelongsToEvent) && !hasFormData && !hasFormIssue;
+  const formDataPending = (loading || secondaryLoading || !contextLoadDone || !contextBelongsToEvent) && !hasFormIssue;
   const formNoticeMessage = (kind: 'performance' | 'comparison' | 'homeAway' | 'prediction' | 'character') => {
     if (!formDataPending) return detailDataMessage(kind, hasFormIssue ? 'sourceError' : 'empty');
     switch (kind) {
@@ -586,6 +586,7 @@ export default function SLMatchDetail() {
   const homeTrend   = hasRealFormData ? getFormTrendSL(currentHomeForm, homeTeamId) : null;
   const awayTrend   = hasRealFormData ? getFormTrendSL(currentAwayForm, awayTeamId) : null;
   const analysis    = buildMatchAnalysis(home, away, homeStats, awayStats, homeFormPts, awayFormPts, h2hData.length, weatherRisk, hasFormData, homeTrend, awayTrend);
+  const scoutAnalysisReady = hasFormData && !secondaryLoading;
 
   const { homeRadar, awayRadar, radarLabels, homeLeadsRadar: hLeadsRadar } =
     buildDetailRadar(homeStats, awayStats, homeFormPts, awayFormPts);
@@ -672,9 +673,9 @@ export default function SLMatchDetail() {
         </View>
         <View style={styles.heroBadgeRow}>
           <View style={[styles.badgeLiga, { backgroundColor: c.primaryLight }]}><Text style={[styles.badgeLigaText, { color: c.primaryDark }]}>{leagueName}{round?` · ${round}`:''}</Text></View>
-          <View style={[styles.confidenceBadge,{backgroundColor:analysis.badgeBg}]}>
+          {scoutAnalysisReady && <View style={[styles.confidenceBadge,{backgroundColor:analysis.badgeBg}]}>
             <Text style={[styles.confidenceBadgeText,{color:analysis.badgeColor}]}>{analysis.badgeLabel}</Text>
-          </View>
+          </View>}
         </View>
         {venue&&<Text style={[styles.venueText, { color: c.textMuted }]}>🏟️ {venue}</Text>}
       </View>
@@ -706,7 +707,7 @@ export default function SLMatchDetail() {
       <View style={[scStyles.card, { backgroundColor: scoutCardBg, borderBottomColor: scoutBorderCol }]}>
         <View style={scStyles.headerRow}>
           <Text style={[scStyles.headerLabel, { color: scoutPurple }]}>🧠 SCOUT ÖZETİ</Text>
-          {hasFormData ? <View style={[scStyles.guvenPill,
+          {scoutAnalysisReady ? <View style={[scStyles.guvenPill,
             analysis.guven==='Yüksek'?{backgroundColor: isDark ? '#0D2010' : '#E8F8F0'}:
             analysis.guven==='Düşük'?{backgroundColor: isDark ? '#2C0A0A' : '#FDE8E8'}:{backgroundColor: isDark ? '#2A1F00' : '#FFF8E1'}]}>
             <Text style={[scStyles.guvenText,
@@ -718,7 +719,7 @@ export default function SLMatchDetail() {
             </TouchableOpacity>
           </View> : null}
         </View>
-        {hasFormData ? <>
+        {scoutAnalysisReady ? <>
         <View style={scStyles.metricsRow}>
           {(['stil','gol','tempo','risk'] as const).map(key=>{
             const val = analysis[key] as string;
