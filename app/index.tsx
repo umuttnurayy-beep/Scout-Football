@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { type Href, useFocusEffect, useRouter } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, AppState, FlatList, Image, RefreshControl, ScrollView, StatusBar, StyleSheet,
@@ -53,6 +54,8 @@ const NEXT_MATCH_LOOKAHEAD_DAYS = 7;
 const FOCUS_REFRESH_MIN_INTERVAL_MS = 10 * 60 * 1000;
 const DETAIL_CONTEXT_PREFETCH_LIMIT = 12;
 const DETAIL_CONTEXT_PREFETCH_BATCH_SIZE = 3;
+const LAUNCH_SPLASH_MIN_MS = 900;
+const LAUNCH_SPLASH_MAX_MS = 3500;
 const PENDING_METRICS: Metrics = {
   ...NO_DATA,
   reason: 'Analiz hazırlanıyor...',
@@ -494,10 +497,33 @@ export default function HomeScreen() {
   const latestStandingsMapRef = useRef<Record<number, Standing[]>>({});
   const lastHomeLoadAtByDate = useRef<Record<string, number>>({});
   const warmedDetailContextsRef = useRef<Set<string>>(new Set());
+  const launchSplashStartedAt = useRef(Date.now());
+  const launchSplashHiddenRef = useRef(false);
 
   useEffect(() => { latestMatchesRef.current = matches; }, [matches]);
   useEffect(() => { latestMatchesDateStrRef.current = matchesDateStr; }, [matchesDateStr]);
   useEffect(() => { latestStandingsMapRef.current = standingsMap; }, [standingsMap]);
+
+  const hideLaunchSplash = useCallback(() => {
+    if (launchSplashHiddenRef.current) return;
+    launchSplashHiddenRef.current = true;
+    const elapsed = Date.now() - launchSplashStartedAt.current;
+    const delay = Math.max(0, LAUNCH_SPLASH_MIN_MS - elapsed);
+    setTimeout(() => {
+      SplashScreen.hideAsync().catch(() => {});
+    }, delay);
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(hideLaunchSplash, LAUNCH_SPLASH_MAX_MS);
+    return () => clearTimeout(timer);
+  }, [hideLaunchSplash]);
+
+  useEffect(() => {
+    if (!loading && featuredCacheLoaded && matchesReadyForSelectedDate) {
+      hideLaunchSplash();
+    }
+  }, [featuredCacheLoaded, hideLaunchSplash, loading, matchesReadyForSelectedDate]);
 
   useEffect(() => {
     AsyncStorage.getItem(FEATURED_MATCH_CACHE_KEY)

@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Image, ScrollView, StyleSheet, Text,
   TouchableOpacity, View,
@@ -147,6 +147,16 @@ export default function MatchDetail() {
   const matchDate = utcDate ? new Date(utcDate).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'}) : '';
   const matchTime = utcDate ? new Date(utcDate).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}) : '';
   const secondaryCacheKey = `${DETAIL_SECONDARY_CACHE_PREFIX}_${matchId || 'unknown'}`;
+
+  const readDetailCache = useCallback(async () => {
+    try {
+      const raw = await AsyncStorage.getItem(secondaryCacheKey);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }, [secondaryCacheKey]);
+
   const routeFallbackMatch = useMemo(() => buildRouteFallbackMatch({
     matchId,
     home,
@@ -166,18 +176,19 @@ export default function MatchDetail() {
   useEffect(() => {
     let cancelled = false;
     async function loadCachedSecondaryData() {
-      try {
-        const raw = await AsyncStorage.getItem(secondaryCacheKey);
-        if (!raw || cancelled) return;
-        const cached = JSON.parse(raw);
-        if (Array.isArray(cached.h2h)) setH2hData(cached.h2h);
-        if (cached.weather) setWeatherData(cached.weather);
-        if (cached.odds) setOddsData(cached.odds);
-      } catch {}
+      const cached = await readDetailCache();
+      if (!cached || cancelled) return;
+      if (cached.match && !routeFallbackMatch) setMatchData(cached.match);
+      if (Array.isArray(cached.homeForm)) setHomeForm(cached.homeForm);
+      if (Array.isArray(cached.awayForm)) setAwayForm(cached.awayForm);
+      if (Array.isArray(cached.homeForm) || Array.isArray(cached.awayForm)) setFormDataMatchId(matchId);
+      if (Array.isArray(cached.h2h)) setH2hData(cached.h2h);
+      if (cached.weather) setWeatherData(cached.weather);
+      if (cached.odds) setOddsData(cached.odds);
     }
     if (matchId) loadCachedSecondaryData();
     return () => { cancelled = true; };
-  }, [matchId, secondaryCacheKey]);
+  }, [matchId, readDetailCache, routeFallbackMatch]);
 
   useEffect(()=>{
     let cancelled = false;
@@ -190,6 +201,7 @@ export default function MatchDetail() {
         setLoading(false);
         setSecondaryLoading(true);
       }
+      const cached = await readDetailCache();
       const contextPayload = await getMatchContext(matchId, finishedParam, { silent: Boolean(routeFallbackMatch) });
       const stats = contextPayload?.match || routeFallbackMatch || await getMatchStats(matchId);
       if (cancelled) return;
@@ -217,6 +229,10 @@ export default function MatchDetail() {
         formRejected = hFormR.status === 'rejected' || aFormR.status === 'rejected';
       }
 
+      if (homeFormValue.length === 0 && Array.isArray(cached?.homeForm)) homeFormValue = cached.homeForm;
+      if (awayFormValue.length === 0 && Array.isArray(cached?.awayForm)) awayFormValue = cached.awayForm;
+      if (h2hValue.length === 0 && Array.isArray(cached?.h2h)) h2hValue = cached.h2h;
+
       setMatchData(stats);
       setHomeForm(homeFormValue);
       setAwayForm(awayFormValue);
@@ -231,6 +247,14 @@ export default function MatchDetail() {
         weatherRejected: false,
         oddsRejected: false,
       }));
+      AsyncStorage.setItem(secondaryCacheKey, JSON.stringify({
+        ...(cached || {}),
+        match: stats,
+        homeForm: homeFormValue,
+        awayForm: awayFormValue,
+        h2h: h2hValue,
+        storedAt: new Date().toISOString(),
+      })).catch(() => {});
       setLoading(false);
 
       setSecondaryLoading(true);
@@ -249,12 +273,12 @@ export default function MatchDetail() {
       if (oddsValue) setOddsData(oddsValue);
       AsyncStorage.getItem(secondaryCacheKey)
         .then(raw => {
-          const cached = raw ? JSON.parse(raw) : {};
+          const cachedDetail = raw ? JSON.parse(raw) : {};
           return AsyncStorage.setItem(secondaryCacheKey, JSON.stringify({
-            ...cached,
+            ...cachedDetail,
             h2h: h2hValue,
-            weather: weatherValue || cached.weather || null,
-            odds: oddsValue || cached.odds || null,
+            weather: weatherValue || cachedDetail.weather || null,
+            odds: oddsValue || cachedDetail.odds || null,
             storedAt: new Date().toISOString(),
           }));
         })

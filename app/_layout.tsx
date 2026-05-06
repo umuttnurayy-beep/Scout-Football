@@ -1,5 +1,8 @@
 import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import { ThemeProvider } from "../context/ThemeContext";
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   return (

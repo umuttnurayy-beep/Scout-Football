@@ -145,12 +145,28 @@ function createFootballDataService({
     return dedupe(cacheKey, async () => {
       const fresh = await getCache(cacheKey);
       if (fresh) return fresh;
-      const data = await upstream.fetchJson(
+
+      async function readTeamMatches(url, scope) {
+        const data = await upstream.fetchJson(
+          url,
+          { headers: { 'X-Auth-Token': footballDataKey } },
+          scope,
+        );
+        return Array.isArray(data.matches) ? data.matches : [];
+      }
+
+      let matches = await readTeamMatches(
         `${footballDataBase}/teams/${teamId}/matches?status=FINISHED&limit=50&season=${currentSeason}`,
-        { headers: { 'X-Auth-Token': footballDataKey } },
         'football-data team matches',
       );
-      const matches = Array.isArray(data.matches) && data.matches.length > 0 ? data.matches : [];
+
+      if (matches.length === 0) {
+        matches = await readTeamMatches(
+          `${footballDataBase}/teams/${teamId}/matches?status=FINISHED&limit=50`,
+          'football-data team matches fallback',
+        );
+      }
+
       if (matches.length > 0) await setCache(cacheKey, matches, TTL.teamStats);
       return matches;
     });
