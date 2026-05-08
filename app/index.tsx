@@ -33,7 +33,7 @@ import {
 
 const STANDINGS_CACHE_KEY = 'scout_standings_cache_v5';
 const FEATURED_MATCH_CACHE_KEY = 'scout_featured_match_cache_v3';
-const HOME_DATA_CACHE_KEY = 'scout_home_data_cache_v1';
+const HOME_DATA_CACHE_KEY = 'scout_home_data_cache_v2';
 const STANDINGS_TTL = 60 * 60 * 1000; // 1 saat — aynı gün içinde de bayat puan tablosunu yenile
 type HomeDataNotice = 'stale' | 'cache' | 'warning' | 'error';
 

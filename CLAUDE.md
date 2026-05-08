@@ -323,7 +323,7 @@ Backend entrypoint `server.js`, Express uygulama kurulumu ve route wiring ise `a
 ### `app/index.tsx` — Ana Ekran
 - Tarih seridi (±3 gün), lig filtreleri + **"Scout"** varsayılan filtresi.
 - Ana veri akışı `getHomeData(dateStr)` üzerinden gelir. Backend payload'i maçlar, Süper Lig maçları, standings, `featuredMatchId`, `nextPreview` ve `sourceWarnings` alanlarını birlikte taşır.
-- `loadMatches(date, silent)` cache-first çalışır: önce `scout_home_data_cache_v1:{date}` okunur ve ekrana basılır, sonra taze `/home` verisi arka planda yenilenir. Kullanıcıya cache uyarısı gösterilmez.
+- `loadMatches(date, silent)` cache-first çalışır: önce `scout_home_data_cache_v2:{date}` okunur ve ekrana basılır, sonra taze `/home` verisi arka planda yenilenir. Kullanıcıya cache uyarısı gösterilmez.
 - `applyHomeData()` Süper Lig + ana ligleri birleştirir, kısmi upstream sorunlarında son iyi görünen veriyi korumaya çalışır.
 - `hydratePartialHomeData()` ana maç kaynağı geçici eksikse aynı tarihin cache'inden eksik ana maçları tamamlar.
 - Ana ekrandan detaya geçişte `preloadMatchContext(id, finished, { silent: true })` çalışır. Bu sadece hız içindir; başarısız olursa toast basılmaz. Süper Lig maçları için `preloadSuperLigMatchContext(params)` kullanılır.
@@ -558,7 +558,7 @@ Cache'lenmiş boş veri sorunu yaşanırsa cache key'ine `_v2`, `_v3` gibi sür�
 Mevcut sürümler:
 - `scout_standings_cache_v5` (AsyncStorage — frontend index.tsx)
 - `scout_featured_match_cache_v3` (AsyncStorage — featured maç tarih bazlı cache)
-- `scout_home_data_cache_v1:{date}` (AsyncStorage — ana ekran cache-first veri)
+- `scout_home_data_cache_v2:{date}` (AsyncStorage — ana ekran cache-first veri)
 - `scout_notif_prefs_v2` (AsyncStorage — bildirim tercihleri)
 - `match_detail_secondary_v1_{matchId}` ve `sl_match_detail_secondary_v1_{matchId}` (detay sayfası ikincil H2H/weather/odds cache)
 - `af_topscorers_v2_{leagueId}_{season}`
