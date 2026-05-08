@@ -243,7 +243,7 @@ function createHomeService(deps) {
     return selected.id;
   }
 
-  function pickContextWarmupTargets(matches, superLigMatches, featuredMatchId, limit = 4) {
+  function pickContextWarmupTargets(matches, superLigMatches, featuredMatchId, limit = 6) {
     const candidates = visibleFeaturedCandidates(matches, superLigMatches);
     if (candidates.length === 0) return { footballDataMatches: [], superLigMatches: [] };
 

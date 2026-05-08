@@ -18,7 +18,8 @@
 - Radar grafikte sağ/sol yatay etiketler kırpılmayacak şekilde anchor'lanır; çapraz etiketler kendi eksen noktasında ortalı kalmalıdır (`components/RadarChart.tsx`).
 - **Push notification altyapısı kuruldu** (`services/notifications.ts`): `NotifPrefs` (daily/favTeam/featured), `scheduleNotifications`, `registerPushToken`, `cancelAllNotifications` fonksiyonları aktif. Profile'daki toggle artık sadece flag değil, gerçek bildirim zamanlıyor.
 - **Tema sistemi aktif** (`context/ThemeContext.tsx`): Light / Dark / System modu. System modunda saat 07:00–20:00 arası açık, dışarısı koyu tema. Her bileşen `useTheme()` hook'u ile tema renklerine erişir.
-- UCL 2026 yarı final takımları `leagueAnalysis.ts` içinde hard-coded (`KNOWN_UCL_2026_SEMI_FINAL_TEAMS`): PSG-Bayern ve Atleti-Arsenal çiftleri. Yeni sezon gelince bu sabit kaldırılmalı.
+- UCL bracket `groupTies()` tamamen dinamik: hardcoded takım/maç ID'si yok. API verisi doğru gelirse bracket otomatik çalışır; takımlar henüz belirlenmemişse her maç ayrı "TBD" turu olarak gösterilir.
+- **Backend context warming aktif** (`app.js` → `warmHomeMatchContexts`): `/home` yanıtı dönerken featured maç öncelikli olmak üzere en fazla **6 maç** context'i paralel olarak arka planda MongoDB cache'e ısıtılır (`scheduleContextWarmup` fire-and-forget). Splash ekran görünürken bu ısıtma çalışır; kullanıcı detay sayfasına açtığında cache genellikle hazır olur.
 
 
 ## Build ve Submit Notları
@@ -595,7 +596,7 @@ FINAL                    → Final
 - `*PLAY_OFF*` veya `*PLAYOFF*` içeren her string → `KNOCKOUT_ROUND_PLAY_OFF`
 - Blacklist yaklaşımı: `NON_KNOCKOUT_STAGES` dışındaki her stage knockout kabul edilir (whitelist yerine blacklist — yeni sezon key değişikliklerine karşı dayanıklı)
 
-**UCL 2026 yarı final hard-code:** `KNOWN_UCL_2026_SEMI_FINAL_TEAMS` (`leagueAnalysis.ts`) — API'den eksik gelen takım isimlerini tamamlar. Yeni sezon için bu sabiti kaldır veya güncelle.
+**UCL bracket:** Tamamen dinamik — hardcoded maç/takım ID'si yok. API doğru veri döndürdüğünde otomatik çalışır; eksik bilgi geldiğinde TBD gösterilir.
 
 ---
 
@@ -608,7 +609,7 @@ FINAL                    → Final
 | Serie A / Ligue 1 / UCL standings — ESPN'den, takım satırlarında `teamId = 0` | ESPN ID'leri football-data.org ile örtüşmez. Ancak `/matches` endpoint'i doğrudan FD'den geldiği için bu liglerin maç objelerinde gerçek FD team ID'leri bulunur — `match_detail` üzerinden form + kadro çalışır. Yalnızca `leagues` → `team_stats` yolunda (standings tabanlı) form yüklenmez. Ana ekrandaki metrik motoru name-fallback ile standings satırını yine de bulur. |
 | API-Football kapalı | `RAPID_API_KEY` ayarlanmamış. `/af/` endpoint'leri boş döner. Önceki sezon takım detayları (kart, kale sıfır vb.) görünmez. |
 | UCL puan tablosu — lig fazı bitti | Nisan 2026 itibarıyla UCL lig fazı bitti; puan tablosu son durumu gösterir, güncellenmez. Artık UCL için bracket görünümü daha anlamlı. |
-| UCL 2026 yarı final hard-code | `leagueAnalysis.ts` içinde belirli maç ID'leri için takım isimleri hard-coded. Yeni sezon gelince bu sabit güncellenmelidir. |
+| UCL puan tablosu — lig fazı bitti | Nisan 2026 itibarıyla UCL lig fazı bitti; puan tablosu son durumu gösterir. Bracket görünümü API'den dinamik gelir, hardcode yok. |
 
 ---
 
@@ -635,7 +636,6 @@ Test: Expo Go uygulamasıyla QR kod taranır.
 
 ## Gelecekte Yapılabilecekler
 
-- Ana ekrandaki günün maçı + ilk scout maçları için detay context cache'i backend tarafında daha proaktif ısıtılabilir; bu, detay sayfasına girince verilerin hazır gelme oranını artırır.
 - Ana ekranda context hazırsa kart analizini de direkt detay context verisiyle beslemek, ana kart ve detay arasındaki veri derinliği farkını daha da azaltır.
 - Oyuncu detay sayfası (profil + istatistikler) — kadro satırlarından tıklanabilir hale getir
 - Google Play yayını (build + store listing)

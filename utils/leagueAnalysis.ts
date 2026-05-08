@@ -35,27 +35,6 @@ export const cp = (key: string, isDark: boolean): CP => isDark ? SC[key].d : SC[
 
 // ─── UCL bracket helpers ──────────────────────────────────────────────────────
 
-const KNOWN_UCL_2026_SEMI_FINAL_TEAMS: Record<number, Partial<FDMatch>> = {
-  552092: {
-    homeTeam: { id: 524, name: 'Paris Saint-Germain FC', shortName: 'PSG' },
-    awayTeam: { id: 5, name: 'FC Bayern Munchen', shortName: 'Bayern' },
-  } as Partial<FDMatch>,
-  552094: {
-    homeTeam: { id: 5, name: 'FC Bayern Munchen', shortName: 'Bayern' },
-    awayTeam: { id: 524, name: 'Paris Saint-Germain FC', shortName: 'PSG' },
-  } as Partial<FDMatch>,
-  552093: {
-    homeTeam: { id: 78, name: 'Club Atletico de Madrid', shortName: 'Atleti' },
-    awayTeam: { id: 57, name: 'Arsenal FC', shortName: 'Arsenal' },
-  } as Partial<FDMatch>,
-  552095: {
-    status: 'FINISHED',
-    homeTeam: { id: 57, name: 'Arsenal FC', shortName: 'Arsenal' },
-    awayTeam: { id: 78, name: 'Club Atletico de Madrid', shortName: 'Atleti' },
-    score: { fullTime: { home: 1, away: 0 } },
-  } as Partial<FDMatch>,
-};
-
 function hasRealTeamId(team: FDMatch['homeTeam'] | null | undefined): boolean {
   return typeof team?.id === 'number' && Number.isFinite(team.id) && team.id > 0;
 }
@@ -82,39 +61,21 @@ function isReversedPair(a: FDMatch, b: FDMatch): boolean {
   return Boolean(aHome && aAway && bHome && bAway && aHome === bAway && aAway === bHome);
 }
 
-function normalizeUclKnockoutMatches(matches: FDMatch[], stage?: UCLStageKey): FDMatch[] {
-  if (stage !== 'SEMI_FINALS') return matches;
-
-  return matches.map(match => {
-    const override = KNOWN_UCL_2026_SEMI_FINAL_TEAMS[match.id];
-    if (!override) return match;
-
-    return {
-      ...match,
-      ...override,
-      homeTeam: hasRealTeamId(match.homeTeam) ? match.homeTeam : override.homeTeam ?? match.homeTeam,
-      awayTeam: hasRealTeamId(match.awayTeam) ? match.awayTeam : override.awayTeam ?? match.awayTeam,
-      score: override.score ?? match.score,
-    };
-  });
-}
-
-export function groupTies(matches: FDMatch[], stage?: UCLStageKey): UCLTie[] {
-  const normalizedMatches = normalizeUclKnockoutMatches(matches, stage);
+export function groupTies(matches: FDMatch[]): UCLTie[] {
   const ties: UCLTie[] = [];
   const used = new Set<number>();
-  for (let i = 0; i < normalizedMatches.length; i++) {
+  for (let i = 0; i < matches.length; i++) {
     if (used.has(i)) continue;
-    const m = normalizedMatches[i];
-    const ret = normalizedMatches.findIndex((_n, j) =>
-      !used.has(j) && j !== i && isReversedPair(m, normalizedMatches[j])
+    const m = matches[i];
+    const ret = matches.findIndex((_n, j) =>
+      !used.has(j) && j !== i && isReversedPair(m, matches[j])
     );
     if (ret === -1) {
       ties.push({ leg1: m, leg2: null });
     } else {
       used.add(ret);
-      const [first, second] = new Date(m.utcDate) <= new Date(normalizedMatches[ret].utcDate)
-        ? [m, normalizedMatches[ret]] : [normalizedMatches[ret], m];
+      const [first, second] = new Date(m.utcDate) <= new Date(matches[ret].utcDate)
+        ? [m, matches[ret]] : [matches[ret], m];
       ties.push({ leg1: first, leg2: second });
     }
     used.add(i);

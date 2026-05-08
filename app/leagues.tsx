@@ -253,7 +253,7 @@ export default function LeaguesScreen() {
   const showUclBracket = useCallback(() => setUclView('bracket'), []);
 
   const groupedTies = useMemo(
-    () => knockouts ? groupTies(knockouts[activeStage] || [], activeStage) : [],
+    () => knockouts ? groupTies(knockouts[activeStage] || []) : [],
     [knockouts, activeStage],
   );
 

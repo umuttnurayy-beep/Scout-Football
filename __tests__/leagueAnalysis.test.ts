@@ -120,26 +120,21 @@ describe('groupTies', () => {
     expect(result[1].leg2).toBeNull();
   });
 
-  test('normalizes current UCL semi-final placeholders before grouping', () => {
-    const psgBayernLeg1 = makeFDMatch({ id: 552092, homeScore: 5, awayScore: 4, utcDate: '2026-04-28T19:00:00Z' });
-    const atletiArsenalLeg1 = makeFDMatch({ id: 552093, homeScore: 1, awayScore: 1, utcDate: '2026-04-29T19:00:00Z' });
-    const arsenalAtletiLeg2 = makeFDMatch({ id: 552095, homeScore: null, awayScore: null, utcDate: '2026-05-05T19:00:00Z' });
-    const bayernPsgLeg2 = makeFDMatch({ id: 552094, homeScore: null, awayScore: null, utcDate: '2026-05-06T19:00:00Z' });
-    [psgBayernLeg1, atletiArsenalLeg1, arsenalAtletiLeg2, bayernPsgLeg2].forEach(match => {
+  test('shows TBD placeholders as individual ties when team info is missing', () => {
+    // When football-data.org returns matches without team info (before draw),
+    // each match appears as a solo tie — honest TBD behavior, no hardcoded override.
+    const m1 = makeFDMatch({ id: 9901, utcDate: '2027-04-28T19:00:00Z' });
+    const m2 = makeFDMatch({ id: 9902, utcDate: '2027-04-29T19:00:00Z' });
+    const m3 = makeFDMatch({ id: 9903, utcDate: '2027-05-05T19:00:00Z' });
+    const m4 = makeFDMatch({ id: 9904, utcDate: '2027-05-06T19:00:00Z' });
+    [m1, m2, m3, m4].forEach(match => {
       match.homeTeam = { id: null, name: null, shortName: null };
       match.awayTeam = { id: null, name: null, shortName: null };
     });
 
-    const result = groupTies([psgBayernLeg1, atletiArsenalLeg1, arsenalAtletiLeg2, bayernPsgLeg2], 'SEMI_FINALS');
-    expect(result).toHaveLength(2);
-    expect(result[0].leg1.homeTeam.shortName).toBe('PSG');
-    expect(result[0].leg1.awayTeam.shortName).toBe('Bayern');
-    expect(result[0].leg2?.homeTeam.shortName).toBe('Bayern');
-    expect(result[0].leg2?.awayTeam.shortName).toBe('PSG');
-    expect(result[1].leg1.homeTeam.shortName).toBe('Atleti');
-    expect(result[1].leg1.awayTeam.shortName).toBe('Arsenal');
-    expect(result[1].leg2?.homeTeam.shortName).toBe('Arsenal');
-    expect(result[1].leg2?.score.fullTime.home).toBe(1);
+    const result = groupTies([m1, m2, m3, m4]);
+    expect(result).toHaveLength(4);
+    result.forEach(tie => expect(tie.leg2).toBeNull());
   });
 });
 

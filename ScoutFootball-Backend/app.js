@@ -248,7 +248,7 @@ async function warmHomeMatchContexts({ footballDataMatches = [], superLigMatches
   const tasks = [
     ...footballDataMatches.map(match => warmFootballDataMatchContext(match)),
     ...superLigMatches.map(match => warmSuperLigMatchContext(match)),
-  ].slice(0, 4);
+  ].slice(0, 6);
   await Promise.allSettled(tasks);
 }
 
@@ -321,6 +321,7 @@ app.use(createSuperLigRouter({
     SPORTSDB_BASE,
   },
   fetchAllSportsH2HMatches,
+  fetchSuperLigAllTeams: slService.fetchAllSuperLigTeams,
   fetchSuperLigMatch: slService.fetchMatch,
   fetchSuperLigMatchesForDate: slService.fetchMatchesForDate,
   fetchSuperLigStandingsCached: slService.fetchStandings,

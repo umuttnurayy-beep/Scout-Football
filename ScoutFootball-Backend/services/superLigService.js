@@ -184,6 +184,8 @@ function normalizeForMap(v) {
     .replace(/[^a-z0-9]/g, '');
 }
 
+const ALL_TEAMS_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 gün
+
 function createSuperLigService({
   upstream,
   getCache,
@@ -382,6 +384,29 @@ function createSuperLigService({
     return events.map(event => mapEspnSuperLigEvent(event, date));
   }
 
+  async function fetchAllSuperLigTeams() {
+    const cacheKey = 'superlig_all_teams_v1';
+    const cached = await getCache(cacheKey);
+    if (cached) return cached;
+
+    return dedupe(cacheKey, async () => {
+      const fresh = await getCache(cacheKey);
+      if (fresh) return fresh;
+      const data = await upstream.fetchJson(
+        `${sportsDbBase}/lookup_all_teams.php?id=${slLeagueId}`,
+        {},
+        'sportsdb superlig all teams',
+      );
+      const teams = (data?.teams || []).map(t => ({
+        name: t.strTeam,
+        teamId: parseInt(t.idTeam) || 0,
+      })).filter(t => t.name && t.teamId > 0);
+      if (teams.length === 0) return [];
+      await setCache(cacheKey, teams, ALL_TEAMS_TTL_MS);
+      return teams;
+    });
+  }
+
   async function fetchStandings() {
     const cacheKey = 'superlig_standings_v3';
     const cached = await getCache(cacheKey);
@@ -402,7 +427,7 @@ function createSuperLigService({
         return {
           pos:    Math.round(stats.rank    || 0),
           team:   espnName,
-          teamId: SL_ESPN_TO_SPORTSDB[espnName] || 0,
+          teamId: sportsDbTeamIdForName(espnName),
           played: Math.round(stats.gamesPlayed || 0),
           win:    Math.round(stats.wins    || 0),
           draw:   Math.round(stats.ties    || 0),
@@ -412,6 +437,22 @@ function createSuperLigService({
           pts:    Math.round(stats.points  || 0),
         };
       }).sort((a, b) => a.pos - b.pos);
+
+      // Hardcoded map'te bulunamayan takımlar için TheSportsDB listesinden ID tamamla
+      const missing = result.filter(r => r.teamId === 0);
+      if (missing.length > 0) {
+        try {
+          const allTeams = await fetchAllSuperLigTeams();
+          if (allTeams.length > 0) {
+            for (const row of missing) {
+              const normalized = normalizeForMap(row.team);
+              const match = allTeams.find(t => normalizeForMap(t.name) === normalized);
+              if (match) row.teamId = match.teamId;
+            }
+          }
+        } catch (_) { /* critical değil, ID'siz devam et */ }
+      }
+
       await setCache(cacheKey, result, TTL.standings);
       return result;
     });
@@ -579,6 +620,7 @@ function createSuperLigService({
   return {
     fetchSeasonEvents,
     fetchStandings,
+    fetchAllSuperLigTeams,
     fetchMatchesForDate,
     fetchTeamFormMatches,
     fetchTeamContext,

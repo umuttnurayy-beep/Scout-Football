@@ -5,6 +5,7 @@ function createSuperLigRouter({
   apiStaleOrError,
   config,
   fetchAllSportsH2HMatches,
+  fetchSuperLigAllTeams,
   fetchSuperLigMatch,
   fetchSuperLigMatchesForDate,
   fetchSuperLigStandingsCached,
@@ -26,6 +27,16 @@ function createSuperLigRouter({
       return res.json(await fetchSuperLigStandingsCached());
     } catch (e) {
       console.error('/superlig/standings hata:', e.message);
+      return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
+    }
+  });
+
+  router.get('/superlig/all-teams', async (req, res) => {
+    const cacheKey = 'superlig_all_teams_v1';
+    try {
+      return res.json(await fetchSuperLigAllTeams());
+    } catch (e) {
+      console.error('/superlig/all-teams hata:', e.message);
       return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
     }
   });

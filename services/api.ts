@@ -647,6 +647,17 @@ export async function getSuperLigStandings(): Promise<Standing[]> {
   }
 }
 
+export async function getSuperLigAllTeams(): Promise<{ name: string; teamId: number }[]> {
+  try {
+    const res = await fetchWithTimeout(`${BASE_URL}/superlig/all-teams`);
+    const data = await readApiJson<{ name: string; teamId: number }[]>(res, []);
+    return Array.isArray(data) ? data.filter(t => t.name && t.teamId > 0) : [];
+  } catch (e) {
+    logApiError('getSuperLigAllTeams', e);
+    return [];
+  }
+}
+
 export async function getSuperLigMatches(date?: string): Promise<SLMatch[]> {
   const url = date ? `${BASE_URL}/superlig/matches?date=${date}` : `${BASE_URL}/superlig/matches`;
   return readArrayEndpoint<SLMatch>(url, 'getSuperLigMatches');
