@@ -1,5 +1,5 @@
 const HOME_SUPPORTED_LEAGUES = [2021, 2014, 2002, 2019, 2015, 2001];
-const HOME_CACHE_VERSION = 'v4';
+const HOME_CACHE_VERSION = 'v5';
 const HOME_FEATURED_VERSION = 'v3';
 const HOME_LOOKAHEAD_DAYS = 7;
 const HOME_FEATURED_TTL = 365 * 24 * 60 * 60 * 1000;
@@ -409,8 +409,11 @@ function createHomeService(deps) {
 
         const hasLive = supportedMatches.some(m => isLiveStatus(m.status)) ||
           superLigMatches.some(m => isLiveStatus(m.status));
-        await setCache(cacheKey, payload, ttlForMatchDate(date, hasLive));
-        if (visibleMatchCountFromPayload(supportedMatches, superLigMatches) > 0) {
+        const hasVisibleMatches = visibleMatchCountFromPayload(supportedMatches, superLigMatches) > 0;
+        if (upstreamErrors.length === 0 || hasVisibleMatches) {
+          await setCache(cacheKey, payload, ttlForMatchDate(date, hasLive));
+        }
+        if (hasVisibleMatches) {
           await setCache(staleKey, payload, HOME_STALE_TTL);
         }
 
