@@ -999,6 +999,14 @@ export default function ProfileScreen() {
 
           <View style={[styles.settingsDivider, { backgroundColor: c.borderLight }]} />
 
+          <TouchableOpacity style={styles.settingsRow}
+            onPress={() => Linking.openURL('https://tiktok.com/@scoutfootballapp')}>
+            <Text style={[styles.settingsLabel, { color: c.text }]}>TikTok</Text>
+            <Text style={[styles.settingsValue, { color: c.primary }]}>@scoutfootballapp ›</Text>
+          </TouchableOpacity>
+
+          <View style={[styles.settingsDivider, { backgroundColor: c.borderLight }]} />
+
           <View style={styles.settingsRow}>
             <Text style={[styles.settingsLabel, { color: c.text }]}>Versiyon</Text>
             <Text style={[styles.settingsValue, { color: c.primary }]}>{Constants.expoConfig?.version ?? '1.0.0'}</Text>
