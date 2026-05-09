@@ -460,7 +460,7 @@ function createSuperLigService({
 
   async function fetchMatchesForDate(date) {
     const d = date || new Date().toISOString().split('T')[0];
-    const cacheKey = `superlig_matches_v3_${d}`;
+    const cacheKey = `superlig_matches_v4_${d}`;
     const cached = await getCache(cacheKey);
     if (cached) return cached;
 
@@ -468,62 +468,46 @@ function createSuperLigService({
       const fresh = await getCache(cacheKey);
       if (fresh) return fresh;
 
-      // TheSportsDB free tier limits eventsday.php to ~3 results.
-      // Fetch season events (7-day cache) to get TheSportsDB event IDs for all matches.
-      // ESPN scoreboard is the unlimited source for daily match list.
-      const [dayData, seasonEvents, espnMatches] = await Promise.allSettled([
-        upstream.fetchJson(
-          `${sportsDbBase}/eventsday.php?d=${d}&l=${slLeagueId}`,
+      // Step 1: TheSportsDB day events — free tier returns ~3 results but gives us the round number
+      const dayData = await upstream.fetchJson(
+        `${sportsDbBase}/eventsday.php?d=${d}&l=${slLeagueId}`,
+        {},
+        'sportsdb superlig matches',
+      ).catch(() => ({ events: [] }));
+      const dayEvents = dayData.events || [];
+
+      // Step 2: Use round number from day events to fetch ALL matches for that round.
+      // eventsround.php has no per-day limit on the free tier.
+      let roundEvents = [];
+      const round = dayEvents[0]?.intRound || dayEvents[0]?.strRound || null;
+      if (round) {
+        const roundData = await upstream.fetchJson(
+          `${sportsDbBase}/eventsround.php?id=${slLeagueId}&r=${round}&s=${currentSportsDbSeason}`,
           {},
-          'sportsdb superlig matches',
-        ),
-        fetchSeasonEvents(),
-        fetchEspnMatches(d),
-      ]);
-
-      const dayEvents = dayData.status === 'fulfilled' ? (dayData.value.events || []) : [];
-      const allSeasonEvents = seasonEvents.status === 'fulfilled' ? seasonEvents.value : [];
-      const espnResult = espnMatches.status === 'fulfilled' ? espnMatches.value : [];
-
-      // Season events filtered for today — used for TheSportsDB event ID lookup
-      const seasonForDate = allSeasonEvents.filter(
-        e => e.dateEvent === d || e.dateEventLocal === d,
-      );
-
-      // Build a lookup: normalized home+away → TheSportsDB raw event
-      const sdbByTeams = new Map();
-      for (const e of [...dayEvents, ...seasonForDate]) {
-        const key = `${normalizeForMap(e.strHomeTeam || '')}|${normalizeForMap(e.strAwayTeam || '')}`;
-        if (!sdbByTeams.has(key)) sdbByTeams.set(key, e);
+          'sportsdb superlig round events',
+        ).catch(() => ({ events: [] }));
+        roundEvents = (roundData.events || []).filter(
+          e => e.dateEvent === d || e.dateEventLocal === d,
+        );
       }
 
-      // Prefer the largest TheSportsDB set first
-      const sdbEvents = seasonForDate.length > dayEvents.length ? seasonForDate : dayEvents;
+      // Prefer round events (all matches with TheSportsDB IDs); fall back to day events
+      const sdbEvents = roundEvents.length > dayEvents.length ? roundEvents : dayEvents;
 
-      // If ESPN has more matches, it is the authoritative list for the day
-      const useEspn = espnResult.length > sdbEvents.length;
-
-      let result;
-      if (useEspn) {
-        // Build from ESPN; replace with TheSportsDB version when event ID is available
-        result = espnResult.map(em => {
-          const key = `${normalizeForMap(em.home)}|${normalizeForMap(em.away)}`;
-          const sdb = sdbByTeams.get(key);
-          return sdb ? mapSportsDbEvent(sdb) : em;
-        });
-      } else {
-        result = sdbEvents.map(mapSportsDbEvent);
-      }
-
-      if (result.length === 0) {
-        // Last-resort: TheSportsDB day events as-is
-        result = dayEvents.map(mapSportsDbEvent);
-      }
-
-      if (result.length > 0) {
+      if (sdbEvents.length > 0) {
+        const result = sdbEvents.map(mapSportsDbEvent);
         await setCache(cacheKey, result, ttlForMatchDate(d, result.some(m => isLiveStatus(m.status))));
+        return result;
       }
-      return result;
+
+      // Step 3: ESPN fallback — all matches but IDs won't work for detail pages
+      const espnResult = await fetchEspnMatches(d).catch(() => []);
+      if (espnResult.length > 0) {
+        await setCache(cacheKey, espnResult, ttlForMatchDate(d, espnResult.some(m => isLiveStatus(m.status))));
+        return espnResult;
+      }
+
+      return [];
     });
   }
 
