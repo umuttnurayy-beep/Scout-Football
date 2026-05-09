@@ -129,15 +129,6 @@ export async function registerPushToken(
 
 // ── Time helpers ──────────────────────────────────────────────────────────────
 
-// Günlük bildirim saatine kadar saniye — geçtiyse null döner
-function secondsUntilDailyNotification(): number | null {
-  const now = new Date();
-  const target = new Date();
-  target.setHours(DAILY_NOTIFICATION_HOUR, 0, 0, 0);
-  const diff = Math.floor((target.getTime() - now.getTime()) / 1000);
-  return diff > 30 ? diff : null;
-}
-
 // Maçtan minutesBefore dk önceye kadar saniye — geçtiyse veya bugün değilse null döner
 function secondsUntilReminder(timeStr: string, minutesBefore: number, matchDate?: string): number | null {
   const now = new Date();
@@ -181,29 +172,30 @@ export async function scheduleNotifications(
     }
   }
 
-  const baseSeconds = secondsUntilDailyNotification();
-
-  // 1. Günlük analiz — saat 12:00 (henüz geçmediyse)
-  if (prefs.daily && baseSeconds !== null) {
+  // 1. Günlük analiz — saat 12:00, her gün tekrar eden
+  if (prefs.daily) {
     let body = `Bugün ${data.matchCount} maç var.`;
     if (data.scoutPick) {
       body = `${data.matchCount} maç · ${data.scoutPick.home} - ${data.scoutPick.away} öne çıkıyor`;
     }
+    await Notifications.cancelScheduledNotificationAsync(DAILY_ID);
     await Notifications.scheduleNotificationAsync({
       identifier: DAILY_ID,
       content: { title: 'Bugünün analizleri hazır ⚽', body, sound: false },
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds: baseSeconds,
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: DAILY_NOTIFICATION_HOUR,
+        minute: 0,
       },
     });
-  } else if (!prefs.daily) {
+  } else {
     await Notifications.cancelScheduledNotificationAsync(DAILY_ID);
   }
 
-  // 2. Öne çıkan maç — saat 12:00, yalnızca daily kapalıysa ayrı gönderilir
-  if (prefs.featured && !prefs.daily && data.scoutPick && baseSeconds !== null) {
+  // 2. Öne çıkan maç — saat 12:00, yalnızca daily kapalıysa ayrı gönderilir, her gün tekrar eden
+  if (prefs.featured && !prefs.daily && data.scoutPick) {
     const { home, away } = data.scoutPick;
+    await Notifications.cancelScheduledNotificationAsync(FEATURED_ID);
     await Notifications.scheduleNotificationAsync({
       identifier: FEATURED_ID,
       content: {
@@ -212,8 +204,9 @@ export async function scheduleNotifications(
         sound: false,
       },
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds: baseSeconds + 3,
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: DAILY_NOTIFICATION_HOUR,
+        minute: 0,
       },
     });
   } else if (!prefs.featured) {
