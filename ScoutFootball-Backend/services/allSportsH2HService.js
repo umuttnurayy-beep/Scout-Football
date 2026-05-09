@@ -20,9 +20,7 @@ const ALLSPORTS_TEAM_ALIASES = {
   fatihkaragumruk: ['Fatih Karagumruk', 'Fatih Karagümrük', 'Karagumruk', 'Karagümrük'],
   karagumruk: ['Fatih Karagumruk', 'Fatih Karagümrük', 'Karagumruk', 'Karagümrük'],
   kocaelispor: ['Kocaelispor', 'Kocaeli'],
-  genclerbirligi: ['Genclerbirligi', 'Gençlerbirliği', 'Ankaragucu', 'Ankara Genclerbirligi'],
-  bodrumfk: ['Bodrum FK', 'Bodrumspor', 'Bodrum'],
-  corumfk: ['Corum FK', 'Corum', 'Çorum FK', 'Çorum'],
+  genclerbirligi: ['Genclerbirligi', 'Gençlerbirliği'],
 };
 
 function normalizeTeamLookupName(value) {

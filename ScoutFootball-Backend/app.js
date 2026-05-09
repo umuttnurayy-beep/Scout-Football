@@ -212,7 +212,7 @@ async function warmSuperLigMatchContext(match) {
   const awayTeamId = Number(match.awayTeamId) || 0;
   const home = match.home || '';
   const away = match.away || '';
-  const cacheKey = `superlig_match_context_v3_${eventId}_${homeTeamId}_${awayTeamId}_${home}_${away}`;
+  const cacheKey = `superlig_match_context_v4_${eventId}_${homeTeamId}_${awayTeamId}_${home}_${away}`;
   if (await getCache(cacheKey)) return;
 
   const event = await slService.fetchMatch(eventId);
