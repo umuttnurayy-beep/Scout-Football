@@ -212,7 +212,7 @@ async function warmSuperLigMatchContext(match) {
   const awayTeamId = Number(match.awayTeamId) || 0;
   const home = match.home || '';
   const away = match.away || '';
-  const cacheKey = `superlig_match_context_v5_${eventId}_${homeTeamId}_${awayTeamId}_${home}_${away}`;
+  const cacheKey = `superlig_match_context_v6_${eventId}_${homeTeamId}_${awayTeamId}_${home}_${away}`;
   if (await getCache(cacheKey)) return;
 
   const event = await slService.fetchMatch(eventId);
@@ -220,28 +220,14 @@ async function warmSuperLigMatchContext(match) {
 
   const resolvedHomeId = homeTeamId || parseInt(event.idHomeTeam) || 0;
   const resolvedAwayId = awayTeamId || parseInt(event.idAwayTeam) || 0;
-  const resolvedHome = home || event.strHomeTeam || '';
-  const resolvedAway = away || event.strAwayTeam || '';
-  const [homeContextR, awayContextR, h2hR] = await Promise.allSettled([
+
+  // AllSports H2H burada çağrılmıyor — aynı anda 6 maç için paralel çağrı
+  // yapılınca rate limit yeniyor. H2H, kullanıcı detay sayfasını açtığında
+  // tek seferlik ve rate-limit-safe şekilde çekilir.
+  await Promise.allSettled([
     resolvedHomeId ? slService.fetchTeamContext(resolvedHomeId) : Promise.resolve(null),
     resolvedAwayId ? slService.fetchTeamContext(resolvedAwayId) : Promise.resolve(null),
-    resolvedHome && resolvedAway ? fetchAllSportsH2HMatches(resolvedHome, resolvedAway) : Promise.resolve([]),
   ]);
-
-  const isFinished = ['FT', 'AET', 'PEN', 'Match Finished'].includes(event.strStatus || '');
-  const matchDate = event.dateEvent || new Date().toISOString().split('T')[0];
-  const payload = {
-    event,
-    homeContext: homeContextR.status === 'fulfilled' ? homeContextR.value : null,
-    awayContext: awayContextR.status === 'fulfilled' ? awayContextR.value : null,
-    h2h: h2hR.status === 'fulfilled' ? h2hR.value : [],
-    issues: [
-      ...(homeContextR.status === 'rejected' || awayContextR.status === 'rejected' ? ['form'] : []),
-      ...(h2hR.status === 'rejected' ? ['h2h'] : []),
-    ],
-    generatedAt: new Date().toISOString(),
-  };
-  await setCache(cacheKey, payload, isFinished ? TTL.historical : ttlForMatchDate(matchDate, isLiveStatus(event.strStatus)));
 }
 
 async function warmHomeMatchContexts({ footballDataMatches = [], superLigMatches = [] }) {
