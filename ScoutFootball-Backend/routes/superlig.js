@@ -155,7 +155,7 @@ function createSuperLigRouter({
     const awayTeamId = parseInt(req.query.awayTeamId);
     const home = String(req.query.home || '');
     const away = String(req.query.away || '');
-    const cacheKey = `superlig_match_context_v4_${eventId}_${homeTeamId || 0}_${awayTeamId || 0}_${home}_${away}`;
+    const cacheKey = `superlig_match_context_v5_${eventId}_${homeTeamId || 0}_${awayTeamId || 0}_${home}_${away}`;
     const cached = await getCache(cacheKey);
     if (cached) return res.json({ ok: true, data: cached });
 
@@ -180,16 +180,21 @@ function createSuperLigRouter({
 
       const isFinished = ['FT', 'AET', 'PEN', 'Match Finished'].includes(event.strStatus || '');
       const matchDate = event.dateEvent || new Date().toISOString().split('T')[0];
+      const h2hResult = h2hR.status === 'fulfilled' ? h2hR.value : [];
       const payload = {
         event,
         homeContext: homeContextR.status === 'fulfilled' ? homeContextR.value : null,
         awayContext: awayContextR.status === 'fulfilled' ? awayContextR.value : null,
-        h2h: h2hR.status === 'fulfilled' ? h2hR.value : [],
+        h2h: h2hResult,
         issues,
         generatedAt: new Date().toISOString(),
       };
 
-      await setCache(cacheKey, payload, isFinished ? TTL.historical : ttlForMatchDate(matchDate, isLiveStatus(event.strStatus)));
+      // H2H boş gelirse kısa TTL — AllSports rate limit geçince yeniden denensin
+      const contextTtl = isFinished
+        ? (h2hResult.length > 0 ? TTL.historical : TTL.h2h)
+        : ttlForMatchDate(matchDate, isLiveStatus(event.strStatus));
+      await setCache(cacheKey, payload, contextTtl);
       return res.json({ ok: true, data: payload });
     } catch (e) {
       console.error('/superlig/match/:eventId/context hata:', e.message);
