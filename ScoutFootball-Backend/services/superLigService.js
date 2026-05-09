@@ -460,7 +460,7 @@ function createSuperLigService({
 
   async function fetchMatchesForDate(date) {
     const d = date || new Date().toISOString().split('T')[0];
-    const cacheKey = `superlig_matches_v2_${d}`;
+    const cacheKey = `superlig_matches_v3_${d}`;
     const cached = await getCache(cacheKey);
     if (cached) return cached;
 
@@ -468,20 +468,58 @@ function createSuperLigService({
       const fresh = await getCache(cacheKey);
       if (fresh) return fresh;
 
-      const data = await upstream.fetchJson(
-        `${sportsDbBase}/eventsday.php?d=${d}&l=${slLeagueId}`,
-        {},
-        'sportsdb superlig matches',
+      // TheSportsDB free tier limits eventsday.php to ~3 results.
+      // Fetch season events (7-day cache) to get TheSportsDB event IDs for all matches.
+      // ESPN scoreboard is the unlimited source for daily match list.
+      const [dayData, seasonEvents, espnMatches] = await Promise.allSettled([
+        upstream.fetchJson(
+          `${sportsDbBase}/eventsday.php?d=${d}&l=${slLeagueId}`,
+          {},
+          'sportsdb superlig matches',
+        ),
+        fetchSeasonEvents(),
+        fetchEspnMatches(d),
+      ]);
+
+      const dayEvents = dayData.status === 'fulfilled' ? (dayData.value.events || []) : [];
+      const allSeasonEvents = seasonEvents.status === 'fulfilled' ? seasonEvents.value : [];
+      const espnResult = espnMatches.status === 'fulfilled' ? espnMatches.value : [];
+
+      // Season events filtered for today — used for TheSportsDB event ID lookup
+      const seasonForDate = allSeasonEvents.filter(
+        e => e.dateEvent === d || e.dateEventLocal === d,
       );
-      let events = data.events || [];
-      if (events.length === 0) {
-        const seasonEvents = await fetchSeasonEvents();
-        events = seasonEvents.filter(e => e.dateEvent === d || e.dateEventLocal === d);
+
+      // Build a lookup: normalized home+away → TheSportsDB raw event
+      const sdbByTeams = new Map();
+      for (const e of [...dayEvents, ...seasonForDate]) {
+        const key = `${normalizeForMap(e.strHomeTeam || '')}|${normalizeForMap(e.strAwayTeam || '')}`;
+        if (!sdbByTeams.has(key)) sdbByTeams.set(key, e);
       }
-      let result = events.map(mapSportsDbEvent);
+
+      // Prefer the largest TheSportsDB set first
+      const sdbEvents = seasonForDate.length > dayEvents.length ? seasonForDate : dayEvents;
+
+      // If ESPN has more matches, it is the authoritative list for the day
+      const useEspn = espnResult.length > sdbEvents.length;
+
+      let result;
+      if (useEspn) {
+        // Build from ESPN; replace with TheSportsDB version when event ID is available
+        result = espnResult.map(em => {
+          const key = `${normalizeForMap(em.home)}|${normalizeForMap(em.away)}`;
+          const sdb = sdbByTeams.get(key);
+          return sdb ? mapSportsDbEvent(sdb) : em;
+        });
+      } else {
+        result = sdbEvents.map(mapSportsDbEvent);
+      }
+
       if (result.length === 0) {
-        result = await fetchEspnMatches(d);
+        // Last-resort: TheSportsDB day events as-is
+        result = dayEvents.map(mapSportsDbEvent);
       }
+
       if (result.length > 0) {
         await setCache(cacheKey, result, ttlForMatchDate(d, result.some(m => isLiveStatus(m.status))));
       }
