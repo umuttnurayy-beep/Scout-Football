@@ -34,7 +34,18 @@ function normalizeTeamLookupName(value) {
 }
 
 function allSportsTeamQueries(name) {
-  const aliases = ALLSPORTS_TEAM_ALIASES[normalizeTeamLookupName(name)] || [];
+  const normalized = normalizeTeamLookupName(name);
+  // TheSportsDB adds suffixes like "JK", "SK", "AS", "FK" — strip them and retry alias lookup
+  const withoutSuffix = normalized.replace(/(jk|sk|as|fk|fc|sc)$/, '');
+  const aliasKeys = [normalized];
+  if (withoutSuffix !== normalized) aliasKeys.push(withoutSuffix);
+
+  const aliases = [];
+  for (const key of aliasKeys) {
+    for (const alias of (ALLSPORTS_TEAM_ALIASES[key] || [])) {
+      aliases.push(alias);
+    }
+  }
   return [...new Set([name, ...aliases].filter(Boolean))];
 }
 
@@ -59,7 +70,7 @@ function createAllSportsH2HService({
 
   async function fetchAllSportsH2HMatches(home, away) {
     if (!allSportsKey) throw new Error('ALLSPORTS_KEY missing');
-    const cacheKey = `allsports_h2h_v2_${home}_${away}`;
+    const cacheKey = `allsports_h2h_v3_${home}_${away}`;
     const cached = await getCache(cacheKey);
     if (cached) return cached;
 

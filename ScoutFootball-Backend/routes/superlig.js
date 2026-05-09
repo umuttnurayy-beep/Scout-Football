@@ -155,7 +155,7 @@ function createSuperLigRouter({
     const awayTeamId = parseInt(req.query.awayTeamId);
     const home = String(req.query.home || '');
     const away = String(req.query.away || '');
-    const cacheKey = `superlig_match_context_v6_${eventId}_${homeTeamId || 0}_${awayTeamId || 0}_${home}_${away}`;
+    const cacheKey = `superlig_match_context_v7_${eventId}_${homeTeamId || 0}_${awayTeamId || 0}_${home}_${away}`;
     const cached = await getCache(cacheKey);
     if (cached) return res.json({ ok: true, data: cached });
 
