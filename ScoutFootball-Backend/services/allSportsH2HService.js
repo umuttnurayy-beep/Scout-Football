@@ -1,16 +1,28 @@
 const ALLSPORTS_TEAM_ALIASES = {
-  besiktas: ['Besiktas', 'Besiktas JK'],
+  besiktas: ['Besiktas', 'Besiktas JK', 'Beşiktaş'],
   fenerbahce: ['Fenerbahce', 'Fenerbahce SK', 'Fenerbahçe'],
   galatasaray: ['Galatasaray', 'Galatasaray SK'],
   trabzonspor: ['Trabzonspor', 'Trabzonspor AS'],
   gaziantep: ['Gaziantep FK', 'Gaziantep'],
   gaziantepfk: ['Gaziantep FK', 'Gaziantep'],
-  caykurrizespor: ['Rizespor', 'Caykur Rizespor', 'Rize'],
-  rizespor: ['Rizespor', 'Caykur Rizespor', 'Rize'],
+  caykurrizespor: ['Rizespor', 'Caykur Rizespor', 'Çaykur Rizespor', 'Rize'],
+  rizespor: ['Rizespor', 'Caykur Rizespor', 'Çaykur Rizespor', 'Rize'],
   konyaspor: ['Konyaspor', 'Konyaspor Kulubu'],
-  basaksehir: ['Istanbul Basaksehir', 'Basaksehir'],
-  istanbulbasaksehir: ['Istanbul Basaksehir', 'Basaksehir'],
+  basaksehir: ['Istanbul Basaksehir', 'Basaksehir', 'İstanbul Başakşehir'],
+  istanbulbasaksehir: ['Istanbul Basaksehir', 'Basaksehir', 'İstanbul Başakşehir'],
   goztepe: ['Goztepe', 'Göztepe'],
+  samsunspor: ['Samsunspor', 'Samsun Spor', 'Samsun'],
+  alanyaspor: ['Alanyaspor', 'Aytemiz Alanyaspor'],
+  antalyaspor: ['Antalyaspor', 'Fraport TAV Antalyaspor'],
+  kayserispor: ['Kayserispor'],
+  kasimpasa: ['Kasimpasa', 'Kasımpaşa', 'Kasimpaşa'],
+  eyupspor: ['Eyupspor', 'Eyüpspor'],
+  fatihkaragumruk: ['Fatih Karagumruk', 'Fatih Karagümrük', 'Karagumruk', 'Karagümrük'],
+  karagumruk: ['Fatih Karagumruk', 'Fatih Karagümrük', 'Karagumruk', 'Karagümrük'],
+  kocaelispor: ['Kocaelispor', 'Kocaeli'],
+  genclerbirligi: ['Genclerbirligi', 'Gençlerbirliği', 'Ankaragucu', 'Ankara Genclerbirligi'],
+  bodrumfk: ['Bodrum FK', 'Bodrumspor', 'Bodrum'],
+  corumfk: ['Corum FK', 'Corum', 'Çorum FK', 'Çorum'],
 };
 
 function normalizeTeamLookupName(value) {
@@ -49,7 +61,7 @@ function createAllSportsH2HService({
 
   async function fetchAllSportsH2HMatches(home, away) {
     if (!allSportsKey) throw new Error('ALLSPORTS_KEY missing');
-    const cacheKey = `allsports_h2h_v1_${home}_${away}`;
+    const cacheKey = `allsports_h2h_v2_${home}_${away}`;
     const cached = await getCache(cacheKey);
     if (cached) return cached;
 
@@ -81,7 +93,11 @@ function createAllSportsH2HService({
         .sort((a, b) => new Date(b.date) - new Date(a.date))
         .slice(0, 10);
 
-      if (matches.length > 0) await setCache(cacheKey, matches, TTL.historical);
+      if (matches.length > 0) {
+        await setCache(cacheKey, matches, TTL.historical);
+      } else {
+        await setCache(cacheKey, [], TTL.weather);
+      }
       return matches;
     });
   }
