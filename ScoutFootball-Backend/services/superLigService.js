@@ -500,7 +500,29 @@ function createSuperLigService({
         return result;
       }
 
-      // Step 3: ESPN fallback — all matches but IDs won't work for detail pages
+      // Step 3: Geçmiş tarih için eventspastleague.php — tüm sezon biten maçları, gerçek TheSportsDB ID'leri
+      const today = new Date().toISOString().split('T')[0];
+      if (d < today) {
+        const pastCacheKey = `superlig_past_season_v1_${currentSportsDbSeason}`;
+        let pastEvents = await getCache(pastCacheKey);
+        if (!pastEvents) {
+          const pastData = await upstream.fetchJson(
+            `${sportsDbBase}/eventspastleague.php?l=${slLeagueId}&s=${currentSportsDbSeason}`,
+            {},
+            'sportsdb superlig past season events',
+          ).catch(() => ({ events: [] }));
+          pastEvents = pastData.events || [];
+          if (pastEvents.length > 0) await setCache(pastCacheKey, pastEvents, TTL.pastMatches);
+        }
+        const dayPastEvents = (pastEvents || []).filter(e => e.dateEvent === d);
+        if (dayPastEvents.length > 0) {
+          const result = dayPastEvents.map(mapSportsDbEvent);
+          await setCache(cacheKey, result, TTL.pastMatches);
+          return result;
+        }
+      }
+
+      // Step 4: ESPN fallback — all matches but IDs won't work for detail pages
       const espnResult = await fetchEspnMatches(d).catch(() => []);
       if (espnResult.length > 0) {
         await setCache(cacheKey, espnResult, ttlForMatchDate(d, espnResult.some(m => isLiveStatus(m.status))));
