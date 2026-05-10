@@ -44,7 +44,7 @@ function createSuperLigRouter({
   router.get('/superlig/matches', async (req, res) => {
     const { date } = req.query;
     const d = date || new Date().toISOString().split('T')[0];
-    const cacheKey = `superlig_matches_v5_${d}`;
+    const cacheKey = `superlig_matches_v4_${d}`;
     try {
       return res.json(await fetchSuperLigMatchesForDate(date));
     } catch (e) {
