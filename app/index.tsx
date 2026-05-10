@@ -17,6 +17,7 @@ import {
 } from '../services/api';
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
 import { dataNoticeMessage, matchListEmptyMessage } from '../utils/emptyStates';
+import { teamsMatch } from '../utils/teamStats';
 import {
   FeaturedMatchCache, ListItem, Match, Metrics,
   LEAGUE_NAMES, STANDINGS_LEAGUES,
@@ -360,10 +361,8 @@ function EmptyScoutState({
 
   const favStanding = useMemo(() => {
     if (!favTeamName) return null;
-    const norm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, '');
-    const favNorm = norm(favTeamName);
     for (const rows of Object.values(standingsMap)) {
-      const found = rows.find(r => norm(r.team) === favNorm || norm(r.team).includes(favNorm) || favNorm.includes(norm(r.team)));
+      const found = rows.find(r => teamsMatch(r.team, favTeamName));
       if (found) return found;
     }
     return null;
