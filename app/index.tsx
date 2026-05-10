@@ -499,6 +499,7 @@ export default function HomeScreen() {
   const warmedDetailContextsRef = useRef<Set<string>>(new Set());
   const launchSplashStartedAt = useRef(Date.now());
   const launchSplashHiddenRef = useRef(false);
+  const wasOnTodayBeforeBackground = useRef(true);
 
   useEffect(() => { latestMatchesRef.current = matches; }, [matches]);
   useEffect(() => { latestMatchesDateStrRef.current = matchesDateStr; }, [matchesDateStr]);
@@ -553,13 +554,17 @@ export default function HomeScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
-  // Uygulama arka plandan öne geldiğinde tarih değiştiyse yeni güne geç
+  // Arka plana geçerken "today'deydim mi" not al; öne gelince sadece öyleyse bugüne geç
   useEffect(() => {
     const sub = AppState.addEventListener('change', state => {
-      if (state !== 'active') return;
-      const today = new Date();
-      if (selectedDate.toDateString() !== today.toDateString()) {
-        setSelectedDate(today);
+      if (state === 'background') {
+        wasOnTodayBeforeBackground.current = isToday(selectedDate);
+      }
+      if (state === 'active') {
+        const today = new Date();
+        if (wasOnTodayBeforeBackground.current && selectedDate.toDateString() !== today.toDateString()) {
+          setSelectedDate(today);
+        }
       }
     });
     return () => sub.remove();
