@@ -78,7 +78,7 @@ function createFootballDataService({
 
   async function fetchMatchesForDate(date) {
     if (!footballDataKey) return [];
-    const cacheKey = `matches_v2_${date || 'today'}`;
+    const cacheKey = `matches_v3_${date || 'today'}`;
     const cached = await getCache(cacheKey);
     if (cached) return cached;
 
