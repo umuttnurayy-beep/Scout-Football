@@ -19,7 +19,7 @@ import { loadNotifPrefs, scheduleNotifications } from '../services/notifications
 import { dataNoticeMessage, matchListEmptyMessage } from '../utils/emptyStates';
 import {
   FeaturedMatchCache, ListItem, Match, Metrics,
-  STANDINGS_LEAGUES,
+  LEAGUE_NAMES, STANDINGS_LEAGUES,
   buildDaySummary, buildHomeCardAnalysis, buildNextPreviewFromHomeData, buildVisibleMatches,
   buildMatchContextScoutAnalysis, computeMetrics, confidenceText, expectedLine, favoriteText,
   findStanding, hasUsableStandingsMap, levelFromExpectedGoals,
@@ -49,6 +49,10 @@ const LIG_FILTERS = [
 
 const DAYS   = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 const MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+
+const LEAGUE_FLAG: Record<number, string> = {
+  2021: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 2014: '🇪🇸', 2002: '🇩🇪', 2019: '🇮🇹', 2015: '🇫🇷', 2001: '🌍', 203: '🇹🇷',
+};
 
 const NEXT_MATCH_LOOKAHEAD_DAYS = 7;
 const FOCUS_REFRESH_MIN_INTERVAL_MS = 10 * 60 * 1000;
@@ -332,6 +336,7 @@ function EmptyScoutState({
   onOpenLeagues,
   onOpenStats,
   onOpenMatch,
+  standingsMap = {},
 }: {
   selectedDate: Date;
   preview: { m: Match; metrics: Metrics } | null;
@@ -340,9 +345,74 @@ function EmptyScoutState({
   onOpenLeagues: () => void;
   onOpenStats: () => void;
   onOpenMatch: () => void;
+  standingsMap?: Record<number, Standing[]>;
 }) {
   const { colors: c } = useTheme();
   const dateText = `${selectedDate.getDate()} ${MONTHS[selectedDate.getMonth()]}`;
+  const [favTeamName, setFavTeamName] = useState<string | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem('scout_fav_team').then(raw => {
+      if (!raw) return;
+      try { setFavTeamName(JSON.parse(raw)?.name || null); } catch {}
+    }).catch(() => {});
+  }, []);
+
+  const favStanding = useMemo(() => {
+    if (!favTeamName) return null;
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, '');
+    const favNorm = norm(favTeamName);
+    for (const rows of Object.values(standingsMap)) {
+      const found = rows.find(r => norm(r.team) === favNorm || norm(r.team).includes(favNorm) || favNorm.includes(norm(r.team)));
+      if (found) return found;
+    }
+    return null;
+  }, [favTeamName, standingsMap]);
+
+  const leaders = useMemo(() => {
+    const leagueOrder = [2021, 2014, 2002, 2019, 2015, 203];
+    return leagueOrder.flatMap(id => {
+      const rows = standingsMap[id];
+      if (!rows || rows.length === 0) return [];
+      const leader = rows.find(r => r.pos === 1) || rows[0];
+      return [{ leagueId: id, leader }];
+    });
+  }, [standingsMap]);
+
+  const trends = useMemo(() => {
+    const results: { label: string; value: string; icon: string }[] = [];
+    let bestGoalLeague = '';
+    let bestGoalAvg = 0;
+    let tightestLeague = '';
+    let tightestGap = Infinity;
+
+    for (const [idStr, rows] of Object.entries(standingsMap)) {
+      const id = Number(idStr);
+      if (!rows || rows.length < 2) continue;
+      const totalGf = rows.reduce((s, r) => s + r.gf, 0);
+      const totalPlayed = rows.reduce((s, r) => s + r.played, 0);
+      const goalsPerGame = totalPlayed > 0 ? totalGf / (totalPlayed / 2) : 0;
+      if (goalsPerGame > bestGoalAvg) {
+        bestGoalAvg = goalsPerGame;
+        bestGoalLeague = LEAGUE_NAMES[id] || '';
+      }
+      const sorted = [...rows].sort((a, b) => b.pts - a.pts);
+      const gap = sorted[0].pts - sorted[1].pts;
+      if (gap < tightestGap) {
+        tightestGap = gap;
+        tightestLeague = LEAGUE_NAMES[id] || '';
+      }
+    }
+
+    if (bestGoalLeague) {
+      results.push({ label: 'En golcü lig', value: `${bestGoalLeague} · ${bestGoalAvg.toFixed(1)} gol/maç`, icon: 'football-outline' });
+    }
+    if (tightestLeague && tightestGap < 10) {
+      results.push({ label: 'Kıyasıya yarış', value: `${tightestLeague} · fark ${tightestGap} puan`, icon: 'flame-outline' });
+    }
+    return results;
+  }, [standingsMap]);
+
   return (
     <View style={sc.emptyScoutWrap}>
       <View style={sc.emptyHero}>
@@ -359,6 +429,61 @@ function EmptyScoutState({
           </TouchableOpacity>
         </View>
       </View>
+
+      {favStanding && (
+        <>
+          <View style={sc.sectionHeader}>
+            <Text style={[sc.sectionTitle, { color: c.textMuted }]}>FAVORİ TAKIM</Text>
+          </View>
+          <View style={[sc.emptyFavCard, { backgroundColor: c.surface, borderColor: c.cardBorder }]}>
+            <View style={sc.emptyFavLeft}>
+              <Text style={[sc.emptyFavName, { color: c.text }]} numberOfLines={1}>{favTeamName}</Text>
+              <Text style={[sc.emptyFavSub, { color: c.textSub }]}>{favStanding.win}G {favStanding.draw}B {favStanding.loss}M · {favStanding.played} maç</Text>
+            </View>
+            <View style={sc.emptyFavRight}>
+              <Text style={[sc.emptyFavPos, { color: c.textFaint }]}>{favStanding.pos}. sıra</Text>
+              <Text style={[sc.emptyFavPts, { color: c.primary }]}>{favStanding.pts} puan</Text>
+            </View>
+          </View>
+        </>
+      )}
+
+      {leaders.length > 0 && (
+        <>
+          <View style={sc.sectionHeader}>
+            <Text style={[sc.sectionTitle, { color: c.textMuted }]}>LİG LİDERLERİ</Text>
+          </View>
+          <View style={[sc.emptyLeadersCard, { backgroundColor: c.surface, borderColor: c.cardBorder }]}>
+            {leaders.map(({ leagueId, leader }) => (
+              <View key={leagueId} style={[sc.emptyLeaderRow, { borderBottomColor: c.border }]}>
+                <Text style={sc.emptyLeaderFlag}>{LEAGUE_FLAG[leagueId] || '🌍'}</Text>
+                <Text style={[sc.emptyLeaderLeague, { color: c.textSub }]} numberOfLines={1}>{LEAGUE_NAMES[leagueId]}</Text>
+                <Text style={[sc.emptyLeaderTeam, { color: c.text }]} numberOfLines={1}>{leader.team}</Text>
+                <Text style={[sc.emptyLeaderPts, { color: c.primary }]}>{leader.pts}p</Text>
+              </View>
+            ))}
+          </View>
+        </>
+      )}
+
+      {trends.length > 0 && (
+        <>
+          <View style={sc.sectionHeader}>
+            <Text style={[sc.sectionTitle, { color: c.textMuted }]}>LİG GÖRÜNÜMÜ</Text>
+          </View>
+          <View style={sc.emptyTrendCol}>
+            {trends.map((t, i) => (
+              <View key={i} style={[sc.emptyTrendPill, { backgroundColor: c.surface, borderColor: c.cardBorder }]}>
+                <Ionicons name={t.icon as any} size={18} color={c.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[sc.emptyTrendLabel, { color: c.textFaint }]}>{t.label}</Text>
+                  <Text style={[sc.emptyTrendValue, { color: c.text }]}>{t.value}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </>
+      )}
 
       <View style={sc.sectionHeader}>
         <Text style={[sc.sectionTitle, { color: c.textMuted }]}>KEŞFET & ANALİZ ET</Text>
@@ -1310,6 +1435,7 @@ export default function HomeScreen() {
             onOpenLeagues={openLeagues}
             onOpenStats={openStats}
             onOpenMatch={openNextPreviewMatch}
+            standingsMap={standingsMap}
           />
         );
       case 'empty':
@@ -1526,6 +1652,26 @@ const sc = StyleSheet.create({
   emptyActionBody:{ fontSize: 13, lineHeight: 18 },
   emptyNote:      { marginHorizontal: 14, marginBottom: 10, borderRadius: 12, borderWidth: 1, padding: 14 },
   emptyNoteText:  { fontSize: 13, lineHeight: 19, marginTop: 9 },
+
+  emptyFavCard:   { marginHorizontal: 14, marginBottom: 10, borderRadius: 12, borderWidth: 1, padding: 14, flexDirection: 'row', alignItems: 'center' },
+  emptyFavLeft:   { flex: 1, minWidth: 0 },
+  emptyFavName:   { fontSize: 15, fontWeight: '800' },
+  emptyFavSub:    { fontSize: 12, marginTop: 3 },
+  emptyFavRight:  { alignItems: 'flex-end', marginLeft: 12 },
+  emptyFavPos:    { fontSize: 12, fontWeight: '600' },
+  emptyFavPts:    { fontSize: 18, fontWeight: '800', marginTop: 2 },
+
+  emptyLeadersCard:  { marginHorizontal: 14, marginBottom: 10, borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
+  emptyLeaderRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, gap: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  emptyLeaderFlag:   { fontSize: 17, width: 24, textAlign: 'center' },
+  emptyLeaderLeague: { fontSize: 11, width: 74, fontWeight: '600' },
+  emptyLeaderTeam:   { flex: 1, fontSize: 13, fontWeight: '700' },
+  emptyLeaderPts:    { fontSize: 13, fontWeight: '800' },
+
+  emptyTrendCol:  { marginHorizontal: 14, marginBottom: 10, gap: 8 },
+  emptyTrendPill: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 10, borderWidth: 1, padding: 12 },
+  emptyTrendLabel:{ fontSize: 11, fontWeight: '600', letterSpacing: 0.3 },
+  emptyTrendValue:{ fontSize: 13, fontWeight: '700', marginTop: 2 },
 
   hlCard:        { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, padding: 14, borderWidth: 1, borderLeftWidth: 3 },
   hlTop:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
