@@ -40,6 +40,7 @@ const scoutStyles = StyleSheet.create({
   nedenBtnText:   { fontSize:11, color:'#5b2d8e', fontWeight:'600' },
   nedenBox:       { marginTop:8, paddingTop:8, borderTopWidth:0.5, borderTopColor:'#ddd6ff' },
   nedenBullet:    { fontSize:12, color:'#444', lineHeight:19, marginBottom:3 },
+
 });
 
 export default scoutStyles;

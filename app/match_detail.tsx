@@ -42,6 +42,7 @@ import {
   strHash,
 } from '../utils/matchAnalysis';
 import { SCOUT_HELP, ScoutHelpKey } from '../utils/scoutHelpText';
+import { isPickSaved, savePick } from '../utils/pickHistory';
 
 const DETAIL_SECONDARY_CACHE_PREFIX = 'match_detail_secondary_v1';
 const NEON = '#00E676';
@@ -114,6 +115,7 @@ export default function MatchDetail() {
   const [contextLoadDone, setContextLoadDone] = useState(false);
   const [refreshCount, setRefreshCount] = useState(0);
   const retry = () => setRefreshCount(n => n + 1);
+  const [pickSaved, setPickSaved] = useState(false);
 
   const p = (k: string) => Array.isArray(params[k]) ? (params[k] as string[])[0] : ((params[k] as string) || '');
   const home        = p('home');
@@ -171,7 +173,12 @@ export default function MatchDetail() {
     isFromLive,
   }), [away, awayTeamId, finishedParam, home, homeTeamId, isFromLive, league, leagueApiId, matchId, scoreParam, utcDate]);
 
-  useEffect(()=>{ setMatchData(null);setH2hData([]);setWeatherData(null);setOddsData(null);setHomeForm([]);setAwayForm([]);setFormDataMatchId(null);setContextLoadDone(false);setStaleNotice(false);setSecondaryLoading(false);setDataIssues(new Set()); },[matchId, refreshCount]);
+  useEffect(()=>{ setMatchData(null);setH2hData([]);setWeatherData(null);setOddsData(null);setHomeForm([]);setAwayForm([]);setFormDataMatchId(null);setContextLoadDone(false);setStaleNotice(false);setSecondaryLoading(false);setDataIssues(new Set());setPickSaved(false); },[matchId, refreshCount]);
+
+  useEffect(() => {
+    if (!matchId) return;
+    isPickSaved(matchId).then(setPickSaved);
+  }, [matchId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -354,6 +361,24 @@ export default function MatchDetail() {
   const awayTrend  = hasFormData ? getFormTrend(currentAwayForm, formTeamIds.away) : null;
   const analysis   = buildMatchAnalysis(displayHomeName,displayAwayName,leagueApiId,homeStats,awayStats,homeFormPts,awayFormPts,h2hData.length,weatherRisk,hasFormData,homeTrend,awayTrend,leagueAvgParam);
   const scoutAnalysisReady = hasFormData && !secondaryLoading;
+
+  // Auto-save pick for upcoming/live matches (no user action needed)
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if (isFinished || !analysis.scoutPick || analysis.scoutPick.tone === 'caution' || !matchId) return;
+    const dateStr = utcDate ? utcDate.split('T')[0] : new Date().toISOString().split('T')[0];
+    savePick({
+      id: matchId,
+      date: dateStr,
+      homeTeam: home,
+      awayTeam: away,
+      pickLabel: analysis.scoutPick.label,
+      pickTone: analysis.scoutPick.tone,
+      isSuperLig: false,
+      savedAt: new Date().toISOString(),
+    }).then(saved => { if (saved) setPickSaved(true); });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analysis.scoutPick]);
 
   const { homeRadar, awayRadar, radarLabels, homeLeadsRadar: hLeadsRadar } =
     buildDetailRadar(homeStats, awayStats, homeFormPts, awayFormPts);
@@ -564,7 +589,10 @@ export default function MatchDetail() {
             (isDark ? '#C19BFF' : '#5b2d8e');
           return (
             <View style={[scStyles.pickBox,{backgroundColor:isDark?'rgba(255,255,255,0.04)':'rgba(255,255,255,0.72)',borderColor:pickColor}]}>
-              <Text style={[scStyles.pickKicker,{color:pickColor}]}>SCOUT PICK</Text>
+              <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+                <Text style={[scStyles.pickKicker,{color:pickColor}]}>SCOUT PICK</Text>
+                {pickSaved && <Text style={{fontSize:11,color:c.textFaint}}>📋 Haftaya eklendi</Text>}
+              </View>
               <Text style={[scStyles.pickLabel,{color:c.text}]}>{analysis.scoutPick.label}</Text>
               <Text style={[scStyles.pickDetail,{color:c.textSub}]}>{analysis.scoutPick.detail}</Text>
             </View>

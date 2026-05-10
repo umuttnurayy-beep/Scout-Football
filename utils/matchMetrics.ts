@@ -115,7 +115,12 @@ export type Metrics = {
 
 export type ListItem = {
   key: string;
-  type: 'notice' | 'section-header' | 'hero' | 'highlight' | 'day-summary' | 'match' | 'single-insight' | 'single-trends' | 'single-h2h' | 'tomorrow-featured' | 'empty' | 'empty-scout';
+  type: 'notice' | 'section-header' | 'hero' | 'highlight' | 'day-summary' | 'match' | 'single-insight' | 'single-trends' | 'single-h2h' | 'tomorrow-featured' | 'empty' | 'empty-scout' | 'weekly-card';
+  weeklyCorrect?: number;
+  weeklyTotal?: number;
+  weeklyPct?: number;
+  weeklyLabel?: string;
+  weeklyAllTotal?: number;
   m?: Match;
   metrics?: Metrics;
   h2h?: H2HRawItem[];
@@ -764,6 +769,19 @@ export function buildMatchContextScoutAnalysis(m: Match, context: MatchContextDa
     getFormTrend(context.awayForm, awayId),
     leagueAvg,
   );
+}
+
+export function getPickFromMetrics(m: Match, metrics: Metrics): ReturnType<typeof buildScoutPick> | null {
+  if (!metrics.hasData) return null;
+  const hasSignalInputs =
+    metrics.homeAvgGf !== undefined && metrics.homeAvgGa !== undefined &&
+    metrics.awayAvgGf !== undefined && metrics.awayAvgGa !== undefined;
+  if (!hasSignalInputs) return null;
+  const homeStats = standingsStatsFromMetrics(metrics, 'home');
+  const awayStats = standingsStatsFromMetrics(metrics, 'away');
+  const homeFormPts = clamp(Math.round(metrics.homePpg * 5), 0, 15);
+  const awayFormPts = clamp(Math.round(metrics.awayPpg * 5), 0, 15);
+  return buildScoutPick(m.home, m.away, homeStats, awayStats, homeFormPts, awayFormPts, 0, false);
 }
 
 export function buildHomeCardAnalysis(m: Match, metrics: Metrics): { headline: string; summary: string } {

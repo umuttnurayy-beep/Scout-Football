@@ -16,6 +16,7 @@ import {
   H2HRawItem, HomeData, checkBackendHealth, clearLastApiError, getAllSportsH2H, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, preloadMatchContext, preloadSuperLigMatchContext, Standing,
 } from '../services/api';
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
+import { filterPicksForWeek, getCurrentWeekRange, loadPickHistory, pickAccuracy, savePick } from '../utils/pickHistory';
 import { dataNoticeMessage, matchListEmptyMessage } from '../utils/emptyStates';
 import { teamsMatch } from '../utils/teamStats';
 import {
@@ -23,7 +24,7 @@ import {
   LEAGUE_NAMES, STANDINGS_LEAGUES,
   buildDaySummary, buildHomeCardAnalysis, buildNextPreviewFromHomeData, buildVisibleMatches,
   buildMatchContextScoutAnalysis, computeMetrics, confidenceText, expectedLine, favoriteText,
-  findStanding, hasUsableStandingsMap, levelFromExpectedGoals,
+  findStanding, getPickFromMetrics, hasUsableStandingsMap, levelFromExpectedGoals,
   NO_DATA,
   readH2HMatch,
   scoutScore, selectPreviewMatch, singleMatchScoutText, trendBarPercent,
@@ -586,6 +587,7 @@ export default function HomeScreen() {
   const latestStandingsMapRef = useRef<Record<number, Standing[]>>({});
   const lastHomeLoadAtByDate = useRef<Record<string, number>>({});
   const warmedDetailContextsRef = useRef<Set<string>>(new Set());
+  const [weeklyAcc, setWeeklyAcc] = useState<{ correct: number; total: number; pct: number; allTotal: number; label: string } | null>(null);
   const launchSplashStartedAt = useRef(Date.now());
   const launchSplashHiddenRef = useRef(false);
   const wasOnTodayBeforeBackground = useRef(true);
@@ -672,6 +674,23 @@ export default function HomeScreen() {
       // loadMatches uses current screen state; focus refresh is keyed by selectedDate.
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedDate])
+  );
+
+  // Load weekly pick accuracy for Scout mode card
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        const range = getCurrentWeekRange();
+        const picks = await loadPickHistory();
+        const weekPicks = filterPicksForWeek(picks, range.start, range.end);
+        if (weekPicks.length > 0) {
+          const acc = pickAccuracy(weekPicks);
+          setWeeklyAcc({ ...acc, allTotal: weekPicks.length, label: range.label });
+        } else {
+          setWeeklyAcc(null);
+        }
+      })();
+    }, [])
   );
 
   useEffect(() => {
@@ -1107,6 +1126,42 @@ export default function HomeScreen() {
     })();
   }, [matches, metricsMap, selectedDate, backendFeaturedMatchId]);
 
+  // Ana ekrandan bu haftaki pick'leri otomatik kaydet — maç detayına girmeye gerek yok
+  useEffect(() => {
+    if (!matchesDateStr || matches.length === 0 || metricsMap.size === 0) return;
+    const range = getCurrentWeekRange();
+    if (matchesDateStr < range.start || matchesDateStr > range.end) return;
+    (async () => {
+      let anyNew = false;
+      for (const m of matches) {
+        if (m.finished) continue;
+        const metrics = metricsMap.get(m.id);
+        if (!metrics) continue;
+        const pick = getPickFromMetrics(m, metrics);
+        if (!pick || pick.tone === 'caution') continue;
+        const saved = await savePick({
+          id: String(m.id),
+          date: matchesDateStr,
+          homeTeam: m.home,
+          awayTeam: m.away,
+          pickLabel: pick.label,
+          pickTone: pick.tone,
+          isSuperLig: m.leagueApiId === 203,
+          savedAt: new Date().toISOString(),
+        });
+        if (saved) anyNew = true;
+      }
+      if (anyNew) {
+        const updatedPicks = await loadPickHistory();
+        const weekPicks = filterPicksForWeek(updatedPicks, range.start, range.end);
+        if (weekPicks.length > 0) {
+          const acc = pickAccuracy(weekPicks);
+          setWeeklyAcc({ ...acc, allTotal: weekPicks.length, label: range.label });
+        }
+      }
+    })();
+  }, [matches, matchesDateStr, metricsMap]);
+
   const filteredMatches = useMemo(() => {
     if (!matchesReadyForSelectedDate) return [];
     if (activeFilter === 'Scout') return matches;
@@ -1218,6 +1273,17 @@ export default function HomeScreen() {
 
       items.push({ key: 'day-summary', type: 'day-summary', summary });
 
+      // Show weekly card always in Scout mode (placeholder if no picks yet)
+      items.push({
+        key: 'weekly-card',
+        type: 'weekly-card',
+        weeklyCorrect: weeklyAcc?.correct ?? 0,
+        weeklyTotal: weeklyAcc?.total ?? 0,
+        weeklyPct: weeklyAcc?.pct ?? 0,
+        weeklyLabel: weeklyAcc?.label ?? getCurrentWeekRange().label,
+        weeklyAllTotal: weeklyAcc?.allTotal ?? 0,
+      });
+
       if (finished.length > 0) {
         items.push({ key: 'h-finished', type: 'section-header', title: 'TAMAMLANAN MAÇLAR' });
         finished.forEach(m => {
@@ -1246,7 +1312,7 @@ export default function HomeScreen() {
     }
 
     return items;
-  }, [featuredMatches, sortedMatches, metricsMap, activeFilter, selectedDate, nextDayPreview, singleH2H, homeDataNotice, homeDataWarningText]);
+  }, [featuredMatches, sortedMatches, metricsMap, activeFilter, selectedDate, nextDayPreview, singleH2H, homeDataNotice, homeDataWarningText, weeklyAcc]);
 
   const goToMatch = useCallback((m: Match, metrics?: Metrics) => {
     const metricParams = {
@@ -1327,6 +1393,10 @@ export default function HomeScreen() {
     router.push('/stats');
   }, [router]);
 
+  const openWeeklyPerformance = useCallback(() => {
+    router.push('/scout_performance' as Parameters<typeof router.push>[0]);
+  }, [router]);
+
   const openNextPreviewMatch = useCallback(() => {
     if (nextDayPreview) goToMatch(nextDayPreview.m, nextDayPreview.metrics);
   }, [goToMatch, nextDayPreview]);
@@ -1402,6 +1472,53 @@ export default function HomeScreen() {
             standingsMap={standingsMap}
           />
         );
+      case 'weekly-card': {
+        const { weeklyCorrect = 0, weeklyTotal = 0, weeklyPct = 0, weeklyLabel = '', weeklyAllTotal = 0 } = item;
+        const pending = weeklyAllTotal - weeklyTotal;
+        const hasResolved = weeklyTotal > 0;
+        const isEmpty = weeklyAllTotal === 0;
+        const barColor = weeklyPct >= 60 ? c.win : weeklyPct >= 40 ? '#B7791F' : c.loss;
+        return (
+          <TouchableOpacity onPress={openWeeklyPerformance} activeOpacity={0.85}>
+            <View style={[sc.weeklyCard, { backgroundColor: c.surface }]}>
+              <View style={sc.weeklyCardTop}>
+                <Text style={[sc.weeklyCardTitle, { color: c.textMuted }]}>🏆 BU HAFTANIN SKORU</Text>
+                <Text style={[sc.weeklyCardChevron, { color: c.textFaint }]}>›</Text>
+              </View>
+              {isEmpty ? (
+                <Text style={[sc.weeklyCardSub, { color: c.textFaint }]}>
+                  {weeklyLabel} · Bu haftaki maçlar yüklendikçe otomatik eklenir
+                </Text>
+              ) : hasResolved ? (
+                <>
+                  <View style={sc.weeklyCardRow}>
+                    <Text style={[sc.weeklyCardScore, { color: c.text }]}>
+                      {weeklyCorrect}<Text style={{ color: c.textMuted }}>/{weeklyTotal}</Text>
+                    </Text>
+                    <Text style={[sc.weeklyCardPct, { color: barColor }]}>%{weeklyPct}</Text>
+                  </View>
+                  <View style={[sc.weeklyBarBg, { backgroundColor: c.borderLight }]}>
+                    <View style={[sc.weeklyBarFill, { width: `${weeklyPct}%`, backgroundColor: barColor }]} />
+                  </View>
+                  <Text style={[sc.weeklyCardSub, { color: c.textFaint }]}>
+                    {weeklyLabel}{pending > 0 ? ` · ${pending} bekliyor` : ''} · Tümünü Gör
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <View style={sc.weeklyCardRow}>
+                    <Text style={[sc.weeklyCardScore, { color: c.text }]}>{weeklyAllTotal}</Text>
+                    <Text style={[sc.weeklyCardPct, { color: c.textMuted }]}>tahmin</Text>
+                  </View>
+                  <Text style={[sc.weeklyCardSub, { color: c.textFaint }]}>
+                    {weeklyLabel} · Maçlar bekleniyor · Tümünü Gör
+                  </Text>
+                </>
+              )}
+            </View>
+          </TouchableOpacity>
+        );
+      }
       case 'empty':
         return (
           <EmptyStateCard
@@ -1413,7 +1530,7 @@ export default function HomeScreen() {
       default:
         return null;
     }
-  }, [c.textFaint, c.textMuted, goToMatch, goToNextPreviewDate, nextDayPreview, openLeagues, openNextPreviewMatch, openStats, refreshSelectedDate, selectedDate, standingsMap]);
+  }, [c.textFaint, c.textMuted, c.text, c.surface, c.win, c.loss, c.borderLight, goToMatch, goToNextPreviewDate, nextDayPreview, openLeagues, openNextPreviewMatch, openStats, openWeeklyPerformance, refreshSelectedDate, selectedDate, standingsMap]);
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
@@ -1660,4 +1777,16 @@ const sc = StyleSheet.create({
   matchSep:      { paddingHorizontal: 8, fontSize: 14 },
   matchMetricLine:      { fontSize: 12, marginTop: 4 },
   matchMetricLineMuted: { fontSize: 11, marginTop: 4, fontStyle: 'italic' },
+
+  // Weekly performance card
+  weeklyCard:      { marginHorizontal:14, marginBottom:10, borderRadius:14, padding:14 },
+  weeklyCardTop:   { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:8 },
+  weeklyCardTitle: { fontSize:11, fontWeight:'700', letterSpacing:0.5 },
+  weeklyCardChevron:{ fontSize:20, fontWeight:'300' },
+  weeklyCardRow:   { flexDirection:'row', alignItems:'baseline', justifyContent:'space-between', marginBottom:8 },
+  weeklyCardScore: { fontSize:28, fontWeight:'800' },
+  weeklyCardPct:   { fontSize:24, fontWeight:'800' },
+  weeklyBarBg:     { height:6, borderRadius:3, overflow:'hidden', marginBottom:8 },
+  weeklyBarFill:   { height:6, borderRadius:3 },
+  weeklyCardSub:   { fontSize:11 },
 });

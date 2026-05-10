@@ -6,7 +6,8 @@ import {
   Alert, Image, Linking, Modal, RefreshControl, ScrollView, StyleSheet,
   Switch, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
-import { Standing, getSuperLigStandings, getSuperLigTeamForm, getStandings, getTeamForm } from '../services/api';
+import { Standing, getSuperLigMatch, getSuperLigStandings, getSuperLigTeamForm, getMatchStats, getStandings, getTeamForm } from '../services/api';
+import { SavedPick, clearPickHistory, loadPickHistory, pickAccuracy, resolvePickResults } from '../utils/pickHistory';
 import { isStanding } from '../services/apiNormalizers';
 import EmptyStateCard from '../components/EmptyStateCard';
 import {
@@ -242,7 +243,7 @@ function timeAgo(ts: number): string {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { colors: c, mode, setMode } = useTheme();
+  const { colors: c, mode, setMode, isDark } = useTheme();
 
   const [scoutName, setScoutName] = useState('');
   const [editingName, setEditingName] = useState(false);
@@ -278,6 +279,39 @@ export default function ProfileScreen() {
   const [pickerTeamsByLeague, setPickerTeamsByLeague] = useState<Record<number, PickerTeam[]>>({});
   const [loadingTeamPicker, setLoadingTeamPicker] = useState(false);
   const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
+  const [picks, setPicks] = useState<SavedPick[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        const history = await loadPickHistory();
+        if (!cancelled) setPicks(history);
+        await resolvePickResults(async (pick) => {
+          try {
+            if (pick.isSuperLig) {
+              const event = await getSuperLigMatch(pick.id);
+              if (!event) return null;
+              const finished = ['FT', 'AET', 'PEN', 'Match Finished'].includes(event.strStatus || '');
+              if (!finished) return null;
+              const h = Number(event.intHomeScore);
+              const a = Number(event.intAwayScore);
+              return Number.isFinite(h) && Number.isFinite(a) ? { home: h, away: a } : null;
+            } else {
+              const data = await getMatchStats(pick.id);
+              if (!data || data.status !== 'FINISHED') return null;
+              const h = data.score?.fullTime?.home;
+              const a = data.score?.fullTime?.away;
+              return typeof h === 'number' && typeof a === 'number' ? { home: h, away: a } : null;
+            }
+          } catch { return null; }
+        });
+        const updated = await loadPickHistory();
+        if (!cancelled) setPicks(updated);
+      })();
+      return () => { cancelled = true; };
+    }, [])
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -896,6 +930,73 @@ export default function ProfileScreen() {
           </>
         )}
 
+        {/* ── Scout Performansı ── */}
+        {picks.length > 0 && (() => {
+          const acc = pickAccuracy(picks);
+          const displayPicks = picks.slice(0, 10);
+          return (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SCOUT PERFORMANSI</Text>
+                <TouchableOpacity onPress={async () => { await clearPickHistory(); setPicks([]); }}>
+                  <Text style={[styles.sectionAction, { color: c.primary }]}>Temizle</Text>
+                </TouchableOpacity>
+              </View>
+              {acc.total > 0 && (
+                <View style={[styles.pickAccCard, { backgroundColor: c.surface }]}>
+                  <View style={styles.pickAccTop}>
+                    <Text style={[styles.pickAccScore, { color: c.text }]}>
+                      {acc.correct}<Text style={[styles.pickAccTotal, { color: c.textMuted }]}>/{acc.total}</Text>
+                    </Text>
+                    <Text style={[styles.pickAccLabel, { color: c.textSub }]}>isabetli tahmin</Text>
+                    <Text style={[styles.pickAccPct, { color: acc.pct >= 60 ? c.win : acc.pct >= 40 ? (isDark ? '#E3B341' : '#B7791F') : c.loss }]}>
+                      %{acc.pct}
+                    </Text>
+                  </View>
+                  <View style={[styles.pickAccBarBg, { backgroundColor: c.borderLight }]}>
+                    <View style={[styles.pickAccBarFill, {
+                      width: `${acc.pct}%`,
+                      backgroundColor: acc.pct >= 60 ? c.win : acc.pct >= 40 ? (isDark ? '#E3B341' : '#B7791F') : c.loss,
+                    }]} />
+                  </View>
+                </View>
+              )}
+              {displayPicks.map((pick) => {
+                const hasResult = pick.result !== undefined;
+                const correct = pick.result?.correct;
+                const icon = hasResult ? (correct ? '✓' : '✗') : '⏳';
+                const iconColor = hasResult ? (correct ? c.win : c.loss) : c.textFaint;
+                const dateLabel = pick.date
+                  ? new Date(pick.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })
+                  : '';
+                const scoreLabel = hasResult
+                  ? ` · ${pick.result!.homeScore}-${pick.result!.awayScore}`
+                  : '';
+                return (
+                  <View key={pick.id} style={[styles.pickRow, { backgroundColor: c.surface, borderBottomColor: c.borderLight }]}>
+                    <View style={[styles.pickIconWrap, { borderColor: iconColor }]}>
+                      <Text style={[styles.pickIcon, { color: iconColor }]}>{icon}</Text>
+                    </View>
+                    <View style={styles.pickRowContent}>
+                      <Text style={[styles.pickTeams, { color: c.text }]} numberOfLines={1}>
+                        {pick.homeTeam} – {pick.awayTeam}
+                      </Text>
+                      <Text style={[styles.pickMeta, { color: c.textFaint }]} numberOfLines={1}>
+                        {pick.pickLabel}{scoreLabel} · {dateLabel}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+              {picks.length > 10 && (
+                <Text style={[styles.pickMoreHint, { color: c.textFaint }]}>
+                  +{picks.length - 10} daha eski tahmin
+                </Text>
+              )}
+            </>
+          );
+        })()}
+
         {/* ── Ayarlar ── */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionLabel, { color: c.textMuted }]}>AYARLAR</Text>
@@ -1156,4 +1257,21 @@ const styles = StyleSheet.create({
   avatarCheck: { fontSize: 20, color: '#fff', fontWeight: '700' },
   avatarModalCancel: { paddingVertical: 10 },
   avatarModalCancelText: { fontSize: 15 },
+
+  // Scout Performansı
+  pickAccCard: { marginHorizontal: 14, marginBottom: 10, borderRadius: 12, padding: 14 },
+  pickAccTop: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: 10 },
+  pickAccScore: { fontSize: 26, fontWeight: '800' },
+  pickAccTotal: { fontSize: 18, fontWeight: '600' },
+  pickAccLabel: { fontSize: 13, flex: 1 },
+  pickAccPct: { fontSize: 20, fontWeight: '800' },
+  pickAccBarBg: { height: 6, borderRadius: 3, overflow: 'hidden' },
+  pickAccBarFill: { height: 6, borderRadius: 3 },
+  pickRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5 },
+  pickIconWrap: { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  pickIcon: { fontSize: 13, fontWeight: '700' },
+  pickRowContent: { flex: 1 },
+  pickTeams: { fontSize: 13, fontWeight: '600' },
+  pickMeta: { fontSize: 11, marginTop: 2 },
+  pickMoreHint: { textAlign: 'center', fontSize: 12, paddingVertical: 8 },
 });

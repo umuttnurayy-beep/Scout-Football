@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Image, ScrollView, StyleSheet, Text,
   TouchableOpacity, View,
@@ -43,6 +43,7 @@ import {
 } from '../utils/matchAnalysis';
 import { MEDIUM_BANK, SHORT_BANK } from '../utils/matchTextBanks';
 import { SCOUT_HELP, ScoutHelpKey } from '../utils/scoutHelpText';
+import { isPickSaved, savePick } from '../utils/pickHistory';
 
 const SL_DETAIL_SECONDARY_CACHE_PREFIX = 'sl_match_detail_secondary_v1';
 
@@ -407,6 +408,7 @@ export default function SLMatchDetail() {
   const [contextLoadDone, setContextLoadDone] = useState(false);
   const [refreshCount, setRefreshCount] = useState(0);
   const retry = () => setRefreshCount(n => n + 1);
+  const [pickSaved, setPickSaved] = useState(false);
 
   const city = getCityForTeam(home);
   const isSuperLig = true;
@@ -532,6 +534,12 @@ export default function SLMatchDetail() {
   const awayScore  = event?.intAwayScore ?? null;
   const isFinished = ['FT', 'AET', 'PEN', 'Match Finished'].includes(event?.strStatus || '');
   const isLive     = event?.strStatus === 'In Progress' || event?.strStatus === 'HT';
+
+  useEffect(() => {
+    if (!eventId) return;
+    isPickSaved(eventId).then(setPickSaved);
+  }, [eventId]);
+
   const hasScore   = homeScore !== null && awayScore !== null;
   const [routeHomeScore, routeAwayScore] = scoreParam ? scoreParam.split(/\s*[-:]\s*/) : [];
   const hasRouteScore = finishedParam && routeHomeScore !== undefined && routeAwayScore !== undefined;
@@ -587,6 +595,23 @@ export default function SLMatchDetail() {
   const awayTrend   = hasRealFormData ? getFormTrendSL(currentAwayForm, awayTeamId) : null;
   const analysis    = buildMatchAnalysis(home, away, homeStats, awayStats, homeFormPts, awayFormPts, h2hData.length, weatherRisk, hasFormData, homeTrend, awayTrend);
   const scoutAnalysisReady = hasFormData && !secondaryLoading;
+
+  // Auto-save pick for upcoming/live matches
+  useEffect(() => {
+    if (isFinished || !analysis.scoutPick || analysis.scoutPick.tone === 'caution' || !eventId) return;
+    const dateStr = event?.dateEvent || new Date().toISOString().split('T')[0];
+    savePick({
+      id: eventId,
+      date: dateStr,
+      homeTeam: home,
+      awayTeam: away,
+      pickLabel: analysis.scoutPick.label,
+      pickTone: analysis.scoutPick.tone,
+      isSuperLig: true,
+      savedAt: new Date().toISOString(),
+    }).then(saved => { if (saved) setPickSaved(true); });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analysis.scoutPick]);
 
   const { homeRadar, awayRadar, radarLabels, homeLeadsRadar: hLeadsRadar } =
     buildDetailRadar(homeStats, awayStats, homeFormPts, awayFormPts);
@@ -756,7 +781,10 @@ export default function SLMatchDetail() {
             scoutPurple;
           return (
             <View style={[scStyles.pickBox,{backgroundColor:isDark?'rgba(255,255,255,0.04)':'rgba(255,255,255,0.72)',borderColor:pickColor}]}>
-              <Text style={[scStyles.pickKicker,{color:pickColor}]}>SCOUT PICK</Text>
+              <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+                <Text style={[scStyles.pickKicker,{color:pickColor}]}>SCOUT PICK</Text>
+                {pickSaved && <Text style={{fontSize:11,color:c.textFaint}}>📋 Haftaya eklendi</Text>}
+              </View>
               <Text style={[scStyles.pickLabel,{color:c.text}]}>{analysis.scoutPick.label}</Text>
               <Text style={[scStyles.pickDetail,{color:c.textSub}]}>{analysis.scoutPick.detail}</Text>
             </View>
