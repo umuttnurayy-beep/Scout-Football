@@ -461,12 +461,43 @@ function createSuperLigService({
   async function fetchMatchesForDate(date) {
     const d = date || new Date().toISOString().split('T')[0];
     const cacheKey = `superlig_matches_v4_${d}`;
+    const today = new Date().toISOString().split('T')[0];
+    const isPastDate = d < today;
+
     const cached = await getCache(cacheKey);
-    if (cached) return cached;
+    if (cached) {
+      // Geçmiş tarihte null score'lu maç varsa cache stale — eventspastleague ile yenile
+      const hasUnfinishedInPast = isPastDate && cached.some(m => m.homeScore === null);
+      if (!hasUnfinishedInPast) return cached;
+    }
 
     return dedupe(cacheKey, async () => {
       const fresh = await getCache(cacheKey);
-      if (fresh) return fresh;
+      if (fresh) {
+        const hasUnfinishedInPast = isPastDate && fresh.some(m => m.homeScore === null);
+        if (!hasUnfinishedInPast) return fresh;
+      }
+
+      // Geçmiş tarihler için önce eventspastleague.php'yi dene — tüm biten maçları içerir
+      if (isPastDate) {
+        const pastCacheKey = `superlig_past_season_v1_${currentSportsDbSeason}`;
+        let pastEvents = await getCache(pastCacheKey);
+        if (!pastEvents) {
+          const pastData = await upstream.fetchJson(
+            `${sportsDbBase}/eventspastleague.php?l=${slLeagueId}&s=${currentSportsDbSeason}`,
+            {},
+            'sportsdb superlig past season events',
+          ).catch(() => ({ events: [] }));
+          pastEvents = pastData.events || [];
+          if (pastEvents.length > 0) await setCache(pastCacheKey, pastEvents, TTL.pastMatches);
+        }
+        const dayPastEvents = (pastEvents || []).filter(e => e.dateEvent === d);
+        if (dayPastEvents.length > 0) {
+          const result = dayPastEvents.map(mapSportsDbEvent);
+          await setCache(cacheKey, result, TTL.pastMatches);
+          return result;
+        }
+      }
 
       // Step 1: TheSportsDB day events — free tier returns ~3 results but gives us the round number
       const dayData = await upstream.fetchJson(
@@ -500,29 +531,7 @@ function createSuperLigService({
         return result;
       }
 
-      // Step 3: Geçmiş tarih için eventspastleague.php — tüm sezon biten maçları, gerçek TheSportsDB ID'leri
-      const today = new Date().toISOString().split('T')[0];
-      if (d < today) {
-        const pastCacheKey = `superlig_past_season_v1_${currentSportsDbSeason}`;
-        let pastEvents = await getCache(pastCacheKey);
-        if (!pastEvents) {
-          const pastData = await upstream.fetchJson(
-            `${sportsDbBase}/eventspastleague.php?l=${slLeagueId}&s=${currentSportsDbSeason}`,
-            {},
-            'sportsdb superlig past season events',
-          ).catch(() => ({ events: [] }));
-          pastEvents = pastData.events || [];
-          if (pastEvents.length > 0) await setCache(pastCacheKey, pastEvents, TTL.pastMatches);
-        }
-        const dayPastEvents = (pastEvents || []).filter(e => e.dateEvent === d);
-        if (dayPastEvents.length > 0) {
-          const result = dayPastEvents.map(mapSportsDbEvent);
-          await setCache(cacheKey, result, TTL.pastMatches);
-          return result;
-        }
-      }
-
-      // Step 4: ESPN fallback — all matches but IDs won't work for detail pages
+      // Step 3: ESPN fallback — all matches but IDs won't work for detail pages
       const espnResult = await fetchEspnMatches(d).catch(() => []);
       if (espnResult.length > 0) {
         await setCache(cacheKey, espnResult, ttlForMatchDate(d, espnResult.some(m => isLiveStatus(m.status))));

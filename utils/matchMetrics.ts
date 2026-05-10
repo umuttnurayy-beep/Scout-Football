@@ -428,7 +428,7 @@ export function scoutScore(m: Match, metrics: Metrics): number {
 
 export function mapSLMatch(m: SLMatch): Match {
   const hasScore   = m.homeScore !== null && m.homeScore !== undefined;
-  const isFinished = m.status === 'Match Finished' || hasScore;
+  const isFinished = ['Match Finished', 'FT', 'AET', 'PEN'].includes(m.status || '') || hasScore;
   const utcDate = sportsDbUtcDate(m.date, m.time);
   return {
     id:          parseInt(String(m.id)) || strHash(m.home + m.away + m.date),

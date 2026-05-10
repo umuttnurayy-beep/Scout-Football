@@ -134,7 +134,7 @@ function createHomeService(deps) {
       .map(match => ({
         id: Number(match.id) || 0,
         leagueId: 203,
-        finished: match.status === 'Match Finished' || match.homeScore !== null && match.homeScore !== undefined,
+        finished: ['Match Finished', 'FT', 'AET', 'PEN'].includes(match.status || '') || (match.homeScore !== null && match.homeScore !== undefined),
         minutes: minutesFromSportsDbTime(match.time),
         home: match.home,
         away: match.away,
