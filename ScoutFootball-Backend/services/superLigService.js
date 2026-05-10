@@ -458,15 +458,39 @@ function createSuperLigService({
     });
   }
 
+  // ESPN'den alınan score'ları takım adına göre SportsDB sonuçlarına uygula
+  function enrichScoresFromEspn(sdbResults, espnResults) {
+    if (!espnResults || espnResults.length === 0) return sdbResults;
+    function norm(s) { return (s || '').toLowerCase().replace(/[^a-z]/g, ''); }
+    const espnMap = new Map();
+    for (const e of espnResults) {
+      espnMap.set(`${norm(e.home)}|${norm(e.away)}`, e);
+      espnMap.set(`${norm(e.away)}|${norm(e.home)}`, e);
+    }
+    return sdbResults.map(m => {
+      if (m.homeScore !== null) return m;
+      const key = `${norm(m.home)}|${norm(m.away)}`;
+      const espn = espnMap.get(key);
+      if (!espn || espn.homeScore === null) return m;
+      const swapped = norm(m.home) === norm(espn.away);
+      return {
+        ...m,
+        homeScore: swapped ? espn.awayScore : espn.homeScore,
+        awayScore: swapped ? espn.homeScore : espn.awayScore,
+        status: espn.status || m.status,
+      };
+    });
+  }
+
   async function fetchMatchesForDate(date) {
     const d = date || new Date().toISOString().split('T')[0];
-    const cacheKey = `superlig_matches_v4_${d}`;
+    const cacheKey = `superlig_matches_v5_${d}`;
     const today = new Date().toISOString().split('T')[0];
     const isPastDate = d < today;
 
     const cached = await getCache(cacheKey);
     if (cached) {
-      // Geçmiş tarihte null score'lu maç varsa cache stale — eventspastleague ile yenile
+      // Geçmiş tarihte null score'lu maç varsa cache stale — yenile
       const hasUnfinishedInPast = isPastDate && cached.some(m => m.homeScore === null);
       if (!hasUnfinishedInPast) return cached;
     }
@@ -478,9 +502,9 @@ function createSuperLigService({
         if (!hasUnfinishedInPast) return fresh;
       }
 
-      // Geçmiş tarihler için önce eventspastleague.php'yi dene — tüm biten maçları içerir
+      // Geçmiş tarihler: eventspastleague.php önce dene (v2 key — eski stale cache temizlendi)
       if (isPastDate) {
-        const pastCacheKey = `superlig_past_season_v1_${currentSportsDbSeason}`;
+        const pastCacheKey = `superlig_past_season_v2_${currentSportsDbSeason}`;
         let pastEvents = await getCache(pastCacheKey);
         if (!pastEvents) {
           const pastData = await upstream.fetchJson(
@@ -493,9 +517,17 @@ function createSuperLigService({
         }
         const dayPastEvents = (pastEvents || []).filter(e => e.dateEvent === d);
         if (dayPastEvents.length > 0) {
-          const result = dayPastEvents.map(mapSportsDbEvent);
-          await setCache(cacheKey, result, TTL.pastMatches);
-          return result;
+          const sdbResult = dayPastEvents.map(mapSportsDbEvent);
+          // null score varsa ESPN ile zenginleştir
+          const needsEnrich = sdbResult.some(m => m.homeScore === null);
+          if (needsEnrich) {
+            const espnData = await fetchEspnMatches(d).catch(() => []);
+            const enriched = enrichScoresFromEspn(sdbResult, espnData);
+            await setCache(cacheKey, enriched, TTL.pastMatches);
+            return enriched;
+          }
+          await setCache(cacheKey, sdbResult, TTL.pastMatches);
+          return sdbResult;
         }
       }
 
@@ -526,7 +558,12 @@ function createSuperLigService({
       const sdbEvents = roundEvents.length > dayEvents.length ? roundEvents : dayEvents;
 
       if (sdbEvents.length > 0) {
-        const result = sdbEvents.map(mapSportsDbEvent);
+        let result = sdbEvents.map(mapSportsDbEvent);
+        // Geçmiş tarihte score null kalırsa ESPN ile zenginleştir
+        if (isPastDate && result.some(m => m.homeScore === null)) {
+          const espnData = await fetchEspnMatches(d).catch(() => []);
+          result = enrichScoresFromEspn(result, espnData);
+        }
         await setCache(cacheKey, result, ttlForMatchDate(d, result.some(m => isLiveStatus(m.status))));
         return result;
       }
