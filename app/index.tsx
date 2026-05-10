@@ -379,38 +379,16 @@ function EmptyScoutState({
     });
   }, [standingsMap]);
 
-  const trends = useMemo(() => {
-    const results: { label: string; value: string; icon: string }[] = [];
-    let bestGoalLeague = '';
-    let bestGoalAvg = 0;
-    let tightestLeague = '';
-    let tightestGap = Infinity;
-
+  const leagueGoalsPerGame = useMemo(() => {
+    const map: Record<number, number> = {};
     for (const [idStr, rows] of Object.entries(standingsMap)) {
       const id = Number(idStr);
       if (!rows || rows.length < 2) continue;
       const totalGf = rows.reduce((s, r) => s + r.gf, 0);
       const totalPlayed = rows.reduce((s, r) => s + r.played, 0);
-      const goalsPerGame = totalPlayed > 0 ? totalGf / (totalPlayed / 2) : 0;
-      if (goalsPerGame > bestGoalAvg) {
-        bestGoalAvg = goalsPerGame;
-        bestGoalLeague = LEAGUE_NAMES[id] || '';
-      }
-      const sorted = [...rows].sort((a, b) => b.pts - a.pts);
-      const gap = sorted[0].pts - sorted[1].pts;
-      if (gap < tightestGap) {
-        tightestGap = gap;
-        tightestLeague = LEAGUE_NAMES[id] || '';
-      }
+      if (totalPlayed > 0) map[id] = totalGf / (totalPlayed / 2);
     }
-
-    if (bestGoalLeague) {
-      results.push({ label: 'En golcü lig', value: `${bestGoalLeague} · ${bestGoalAvg.toFixed(1)} gol/maç`, icon: 'football-outline' });
-    }
-    if (tightestLeague && tightestGap < 10) {
-      results.push({ label: 'Kıyasıya yarış', value: `${tightestLeague} · fark ${tightestGap} puan`, icon: 'flame-outline' });
-    }
-    return results;
+    return map;
   }, [standingsMap]);
 
   return (
@@ -454,33 +432,20 @@ function EmptyScoutState({
             <Text style={[sc.sectionTitle, { color: c.textMuted }]}>LİG LİDERLERİ</Text>
           </View>
           <View style={[sc.emptyLeadersCard, { backgroundColor: c.surface, borderColor: c.cardBorder }]}>
-            {leaders.map(({ leagueId, leader }) => (
-              <View key={leagueId} style={[sc.emptyLeaderRow, { borderBottomColor: c.border }]}>
-                <Text style={sc.emptyLeaderFlag}>{LEAGUE_FLAG[leagueId] || '🌍'}</Text>
-                <Text style={[sc.emptyLeaderLeague, { color: c.textSub }]} numberOfLines={1}>{LEAGUE_NAMES[leagueId]}</Text>
-                <Text style={[sc.emptyLeaderTeam, { color: c.text }]} numberOfLines={1}>{leader.team}</Text>
-                <Text style={[sc.emptyLeaderPts, { color: c.primary }]}>{leader.pts}p</Text>
-              </View>
-            ))}
-          </View>
-        </>
-      )}
-
-      {trends.length > 0 && (
-        <>
-          <View style={sc.sectionHeader}>
-            <Text style={[sc.sectionTitle, { color: c.textMuted }]}>LİG GÖRÜNÜMÜ</Text>
-          </View>
-          <View style={sc.emptyTrendCol}>
-            {trends.map((t, i) => (
-              <View key={i} style={[sc.emptyTrendPill, { backgroundColor: c.surface, borderColor: c.cardBorder }]}>
-                <Ionicons name={t.icon as any} size={18} color={c.primary} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[sc.emptyTrendLabel, { color: c.textFaint }]}>{t.label}</Text>
-                  <Text style={[sc.emptyTrendValue, { color: c.text }]}>{t.value}</Text>
+            {leaders.map(({ leagueId, leader }) => {
+              const gpg = leagueGoalsPerGame[leagueId];
+              return (
+                <View key={leagueId} style={[sc.emptyLeaderRow, { borderBottomColor: c.border }]}>
+                  <Text style={sc.emptyLeaderFlag}>{LEAGUE_FLAG[leagueId] || '🌍'}</Text>
+                  <View style={sc.emptyLeaderMid}>
+                    <Text style={[sc.emptyLeaderLeague, { color: c.textSub }]} numberOfLines={1}>{LEAGUE_NAMES[leagueId]}</Text>
+                    {gpg != null && <Text style={[sc.emptyLeaderGpg, { color: c.textFaint }]}>{gpg.toFixed(1)} gol/maç</Text>}
+                  </View>
+                  <Text style={[sc.emptyLeaderTeam, { color: c.text }]} numberOfLines={1}>{leader.team}</Text>
+                  <Text style={[sc.emptyLeaderPts, { color: c.primary }]}>{leader.pts}p</Text>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         </>
       )}
@@ -1449,7 +1414,7 @@ export default function HomeScreen() {
       default:
         return null;
     }
-  }, [c.textFaint, c.textMuted, goToMatch, goToNextPreviewDate, nextDayPreview, openLeagues, openNextPreviewMatch, openStats, refreshSelectedDate, selectedDate]);
+  }, [c.textFaint, c.textMuted, goToMatch, goToNextPreviewDate, nextDayPreview, openLeagues, openNextPreviewMatch, openStats, refreshSelectedDate, selectedDate, standingsMap]);
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
@@ -1664,14 +1629,11 @@ const sc = StyleSheet.create({
   emptyLeadersCard:  { marginHorizontal: 14, marginBottom: 10, borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
   emptyLeaderRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, gap: 8, borderBottomWidth: StyleSheet.hairlineWidth },
   emptyLeaderFlag:   { fontSize: 17, width: 24, textAlign: 'center' },
-  emptyLeaderLeague: { fontSize: 11, width: 74, fontWeight: '600' },
+  emptyLeaderMid:    { width: 80 },
+  emptyLeaderLeague: { fontSize: 11, fontWeight: '600' },
+  emptyLeaderGpg:    { fontSize: 10, marginTop: 1 },
   emptyLeaderTeam:   { flex: 1, fontSize: 13, fontWeight: '700' },
   emptyLeaderPts:    { fontSize: 13, fontWeight: '800' },
-
-  emptyTrendCol:  { marginHorizontal: 14, marginBottom: 10, gap: 8 },
-  emptyTrendPill: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 10, borderWidth: 1, padding: 12 },
-  emptyTrendLabel:{ fontSize: 11, fontWeight: '600', letterSpacing: 0.3 },
-  emptyTrendValue:{ fontSize: 13, fontWeight: '700', marginTop: 2 },
 
   hlCard:        { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, padding: 14, borderWidth: 1, borderLeftWidth: 3 },
   hlTop:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
