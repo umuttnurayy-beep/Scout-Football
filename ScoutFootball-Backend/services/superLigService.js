@@ -237,7 +237,7 @@ function createSuperLigService({
       const to   = `${yearEnd}-07-01`;
       const data = await upstream.fetchJson(
         `${allSportsBase}?met=Fixtures&leagueId=${ALLSPORTS_SL_LEAGUE_ID}&from=${from}&to=${to}&APIkey=${allSportsKey}`,
-        {},
+        { timeoutMs: 5000 },
         'allsports superlig season fixtures',
       );
       const finished = (data.result || [])
@@ -327,7 +327,7 @@ function createSuperLigService({
     if (!teamKey) {
       const teamData = await upstream.fetchJson(
         `${allSportsBase}?met=Teams&APIkey=${allSportsKey}&teamName=${encodeURIComponent(teamName)}`,
-        {},
+        { timeoutMs: 5000 },
         'allsports team lookup',
       );
       const team = (teamData.result || [])[0];
@@ -341,7 +341,7 @@ function createSuperLigService({
 
     const fixtureData = await upstream.fetchJson(
       `${allSportsBase}?met=Fixtures&APIkey=${allSportsKey}&teamId=${teamKey}&from=${from}&to=${to}`,
-      {},
+      { timeoutMs: 5000 },
       'allsports team season fixtures',
     );
 

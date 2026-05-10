@@ -61,7 +61,7 @@ function createAllSportsH2HService({
   async function findAllSportsTeam(name) {
     const queries = allSportsTeamQueries(name);
     for (const query of queries) {
-      const data = await upstream.fetchJson(`${allSportsBase}?met=Teams&APIkey=${allSportsKey}&teamName=${encodeURIComponent(query)}`, {}, 'allsports team search');
+      const data = await upstream.fetchJson(`${allSportsBase}?met=Teams&APIkey=${allSportsKey}&teamName=${encodeURIComponent(query)}`, { timeoutMs: 5000 }, 'allsports team search');
       const team = (data.result || [])[0];
       if (team) return team;
     }
@@ -83,7 +83,7 @@ function createAllSportsH2HService({
       ]);
       if (!homeTeam || !awayTeam) return [];
 
-      const h2hData = await upstream.fetchJson(`${allSportsBase}?met=H2H&APIkey=${allSportsKey}&firstTeamId=${homeTeam.team_key}&secondTeamId=${awayTeam.team_key}`, {}, 'allsports h2h');
+      const h2hData = await upstream.fetchJson(`${allSportsBase}?met=H2H&APIkey=${allSportsKey}&firstTeamId=${homeTeam.team_key}&secondTeamId=${awayTeam.team_key}`, { timeoutMs: 5000 }, 'allsports h2h');
 
       const matches = (h2hData.result?.H2H || [])
         .filter(m => m.event_status === 'Finished' && m.event_final_result)

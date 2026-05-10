@@ -26,8 +26,11 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+const UPSTREAM_DEFAULT_TIMEOUT_MS = 8000;
+
 function shouldRetry(error) {
   if (!error) return false;
+  if (error.name === 'AbortError') return false;
   if (error.status === 429) return true;
   if (typeof error.status === 'number') return error.status >= 500;
   return true;
@@ -60,21 +63,27 @@ function createUpstreamJsonClient({ fetchImpl }) {
     ensureLabelStats(label).started += 1;
     const attempts = Math.max(1, options.retryAttempts || 2);
     const retryDelayMs = Math.max(0, options.retryDelayMs || 250);
+    const timeoutMs = typeof options.timeoutMs === 'number' ? options.timeoutMs : UPSTREAM_DEFAULT_TIMEOUT_MS;
     const requestOptions = { ...options };
     delete requestOptions.retryAttempts;
     delete requestOptions.retryDelayMs;
+    delete requestOptions.timeoutMs;
 
     const promise = Promise.resolve()
       .then(async () => {
         let lastError;
         for (let attempt = 1; attempt <= attempts; attempt += 1) {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), timeoutMs);
           try {
-            const response = await fetchImpl(url, requestOptions);
+            const response = await fetchImpl(url, { ...requestOptions, signal: controller.signal });
             return await readJsonResponse(response, label);
           } catch (error) {
             lastError = error;
             if (attempt >= attempts || !shouldRetry(error)) throw error;
             await sleep(retryDelayMs * attempt);
+          } finally {
+            clearTimeout(timer);
           }
         }
         throw lastError;
