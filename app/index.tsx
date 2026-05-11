@@ -16,7 +16,7 @@ import {
   H2HRawItem, HomeData, checkBackendHealth, clearLastApiError, getAllSportsH2H, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, preloadMatchContext, preloadSuperLigMatchContext, Standing,
 } from '../services/api';
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
-import { filterPicksForWeek, getCurrentWeekRange, getWeekRange, loadPickHistory, pickAccuracy, savePick } from '../utils/pickHistory';
+import { filterPicksForWeek, getCurrentWeekRange, loadPickHistory, pickAccuracy, savePick } from '../utils/pickHistory';
 import { dataNoticeMessage, matchListEmptyMessage } from '../utils/emptyStates';
 import { teamsMatch } from '../utils/teamStats';
 import {
@@ -680,7 +680,7 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       (async () => {
-        const range = getWeekRange(0); // son tamamlanmış Pzt-Paz haftası
+        const range = getCurrentWeekRange(); // devam eden bu hafta
         const picks = await loadPickHistory();
         const weekPicks = filterPicksForWeek(picks, range.start, range.end);
         if (weekPicks.length > 0) {
@@ -1280,7 +1280,7 @@ export default function HomeScreen() {
         weeklyCorrect: weeklyAcc?.correct ?? 0,
         weeklyTotal: weeklyAcc?.total ?? 0,
         weeklyPct: weeklyAcc?.pct ?? 0,
-        weeklyLabel: weeklyAcc?.label ?? getWeekRange(0).label,
+        weeklyLabel: weeklyAcc?.label ?? getCurrentWeekRange().label,
         weeklyAllTotal: weeklyAcc?.allTotal ?? 0,
       });
 
