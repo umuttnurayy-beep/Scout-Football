@@ -63,6 +63,20 @@ export async function savePick(pick: SavedPick): Promise<boolean> {
   }
 }
 
+const STALE_LABELS = ['Riskli maç profili', 'Taraf seçimi riskli'];
+
+export async function removeStalePicks(): Promise<void> {
+  try {
+    const existing = await loadPickHistory();
+    const cleaned = existing.filter(
+      p => p.pickTone !== 'caution' && !STALE_LABELS.includes(p.pickLabel),
+    );
+    if (cleaned.length !== existing.length) {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+    }
+  } catch {}
+}
+
 export async function updatePickIfUnresolved(
   id: string,
   pickLabel: string,

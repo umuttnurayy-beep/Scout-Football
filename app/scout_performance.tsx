@@ -8,7 +8,7 @@ import { useTheme } from '../context/ThemeContext';
 import { getSuperLigMatch, getMatchStats } from '../services/api';
 import {
   SavedPick, clearPickHistory, filterPicksForWeek, groupPicksByDay,
-  getWeekRange, loadPickHistory, pickAccuracy, resolvePickResults,
+  getWeekRange, loadPickHistory, pickAccuracy, resolvePickResults, removeStalePicks,
 } from '../utils/pickHistory';
 
 const DAY_NAMES = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
@@ -71,6 +71,7 @@ export default function ScoutPerformanceScreen() {
     useCallback(() => {
       let cancelled = false;
       (async () => {
+        await removeStalePicks();
         const history = await loadPickHistory();
         if (!cancelled) setAllPicks(history);
 
