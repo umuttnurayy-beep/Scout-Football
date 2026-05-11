@@ -103,7 +103,8 @@ export default function ScoutPerformanceScreen() {
     }, [])
   );
 
-  const weekPicks = filterPicksForWeek(allPicks, week.start, week.end);
+  const weekPicks = filterPicksForWeek(allPicks, week.start, week.end)
+    .filter(p => p.pickTone !== 'caution');
   const acc = pickAccuracy(weekPicks);
   const grouped = groupPicksByDay(weekPicks);
 

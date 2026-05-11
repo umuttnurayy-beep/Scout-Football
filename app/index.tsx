@@ -682,7 +682,8 @@ export default function HomeScreen() {
       (async () => {
         const range = getCurrentWeekRange(); // devam eden bu hafta
         const picks = await loadPickHistory();
-        const weekPicks = filterPicksForWeek(picks, range.start, range.end);
+        const weekPicks = filterPicksForWeek(picks, range.start, range.end)
+          .filter(p => p.pickTone !== 'caution');
         if (weekPicks.length > 0) {
           const acc = pickAccuracy(weekPicks);
           setWeeklyAcc({ ...acc, allTotal: weekPicks.length, label: range.label });
