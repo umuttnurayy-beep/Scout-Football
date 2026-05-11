@@ -1129,13 +1129,12 @@ export default function HomeScreen() {
 
   // Ana ekrandan bu haftaki pick'leri otomatik kaydet — maç detayına girmeye gerek yok
   useEffect(() => {
-    if (!matchesDateStr || matches.length === 0 || metricsMap.size === 0) return;
+    if (!matchesDateStr || matches.length === 0 || !hasUsableStandingsMap(standingsMap)) return;
     const range = getCurrentWeekRange();
     if (matchesDateStr < range.start || matchesDateStr > range.end) return;
     (async () => {
       let anyNew = false;
       for (const m of matches) {
-        if (m.finished) continue;
         const metrics = metricsMap.get(m.id);
         if (!metrics) continue;
         const pick = getPickFromMetrics(m, metrics);
@@ -1161,7 +1160,7 @@ export default function HomeScreen() {
         }
       }
     })();
-  }, [matches, matchesDateStr, metricsMap]);
+  }, [matches, matchesDateStr, metricsMap, standingsMap]);
 
   const filteredMatches = useMemo(() => {
     if (!matchesReadyForSelectedDate) return [];
