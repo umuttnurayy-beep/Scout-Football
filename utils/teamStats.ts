@@ -163,6 +163,59 @@ export function calcSLSeasonStats(matches: SLFormMatch[], teamId: number): Seaso
   };
 }
 
+// ─── SL form stats (shared with sl_match_detail + scout_performance) ─────────
+
+export function calcFormStatsSL(matches: SLFormMatch[], teamId: number) {
+  let homeWin=0,homeDraw=0,homeLoss=0,homeGf=0,homeGa=0,homePlayed=0;
+  let awayWin=0,awayDraw=0,awayLoss=0,awayGf=0,awayGa=0,awayPlayed=0;
+  let over25=0,kgVar=0,total=0;
+  matches.forEach((m) => {
+    const fh = m.homeScore, fa = m.awayScore;
+    if (fh == null || fa == null) return;
+    total++;
+    const isHome = m.homeTeamId === teamId;
+    const gf = isHome ? fh : fa, ga = isHome ? fa : fh;
+    if (fh + fa > 2.5) over25++;
+    if (fh > 0 && fa > 0) kgVar++;
+    if (isHome) {
+      homePlayed++; homeGf += gf; homeGa += ga;
+      if (gf > ga) homeWin++; else if (gf === ga) homeDraw++; else homeLoss++;
+    } else {
+      awayPlayed++; awayGf += gf; awayGa += ga;
+      if (gf > ga) awayWin++; else if (gf === ga) awayDraw++; else awayLoss++;
+    }
+  });
+  return {
+    total, homePlayed, awayPlayed,
+    homeWin, homeDraw, homeLoss, homeGf, homeGa,
+    awayWin, awayDraw, awayLoss, awayGf, awayGa,
+    homeWinPct: homePlayed>0?Math.round((homeWin/homePlayed)*100):0,
+    homeAvgGf:  homePlayed>0?(homeGf/homePlayed).toFixed(1):'0',
+    homeAvgGa:  homePlayed>0?(homeGa/homePlayed).toFixed(1):'0',
+    awayWinPct: awayPlayed>0?Math.round((awayWin/awayPlayed)*100):0,
+    awayAvgGf:  awayPlayed>0?(awayGf/awayPlayed).toFixed(1):'0',
+    awayAvgGa:  awayPlayed>0?(awayGa/awayPlayed).toFixed(1):'0',
+    totalAvgGf: total>0?((homeGf+awayGf)/total).toFixed(1):'0',
+    totalAvgGa: total>0?((homeGa+awayGa)/total).toFixed(1):'0',
+    totalWinPct: total>0?Math.round(((homeWin+awayWin)/total)*100):0,
+    over25Pct:  total>0?Math.round((over25/total)*100):0,
+    kgVarPct:   total>0?Math.round((kgVar/total)*100):0,
+  };
+}
+
+export function calcFormPointsSL(matches: SLFormMatch[], teamId: number): number {
+  return [...matches]
+    .filter((m) => m.homeScore != null)
+    .sort((a, b) => new Date(a.date || a.dateEvent || 0).getTime() - new Date(b.date || b.dateEvent || 0).getTime())
+    .slice(-5)
+    .reduce((pts, m) => {
+      const isHome = m.homeTeamId === teamId;
+      const gf = isHome ? m.homeScore! : m.awayScore!;
+      const ga = isHome ? m.awayScore! : m.homeScore!;
+      return pts + (gf > ga ? 3 : gf === ga ? 1 : 0);
+    }, 0);
+}
+
 // ─── team profile ────────────────────────────────────────────────────────────
 
 export function getTeamProfile(avgGf: number, avgGa: number, winPct: number, isDark: boolean) {

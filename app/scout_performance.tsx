@@ -5,11 +5,13 @@ import {
 } from 'react-native';
 import BottomTabBar from '../components/BottomTabBar';
 import { useTheme } from '../context/ThemeContext';
-import { getSuperLigMatch, getMatchStats } from '../services/api';
+import { getSuperLigMatch, getMatchStats, getMatchContext, getSuperLigMatchContext } from '../services/api';
 import {
   SavedPick, clearPickHistory, filterPicksForWeek, groupPicksByDay,
   getWeekRange, loadPickHistory, pickAccuracy, resolvePickResults, removeStalePicks,
+  updatePickIfUnresolved,
 } from '../utils/pickHistory';
+import { buildMatchContextScoutAnalysis, getPickFromSLContext } from '../utils/matchMetrics';
 
 const DAY_NAMES = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 const MONTHS_SHORT = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
@@ -118,6 +120,34 @@ export default function ScoutPerformanceScreen() {
             }
           } catch { return null; }
         });
+
+        // Refresh pick labels using context data (matches detail page picks)
+        const today = new Date().toISOString().split('T')[0];
+        const refreshCandidates = (await loadPickHistory()).filter(
+          p => !p.result && p.date >= today && p.pickTone !== 'caution',
+        );
+        await Promise.all(refreshCandidates.map(async (pick) => {
+          try {
+            if (pick.isSuperLig) {
+              const ctx = await getSuperLigMatchContext({ eventId: pick.id, silent: true });
+              if (!ctx) return;
+              // Extract teamIds stored in h2h or context; fall back to heuristic
+              const homeTeamId = ctx.homeContext?.teamId ?? 0;
+              const awayTeamId = ctx.awayContext?.teamId ?? 0;
+              if (!homeTeamId || !awayTeamId) return;
+              const pick2 = getPickFromSLContext(homeTeamId, awayTeamId, pick.homeTeam, pick.awayTeam, ctx);
+              if (pick2) await updatePickIfUnresolved(pick.id, pick2.label, pick2.tone);
+            } else {
+              const ctx = await getMatchContext(pick.id, false, { silent: true });
+              if (!ctx) return;
+              const fakeMatch = { home: pick.homeTeam, away: pick.awayTeam, leagueApiId: 0 } as any;
+              const analysis = buildMatchContextScoutAnalysis(fakeMatch, ctx);
+              if (analysis?.scoutPick) {
+                await updatePickIfUnresolved(pick.id, analysis.scoutPick.label, analysis.scoutPick.tone);
+              }
+            }
+          } catch { /* silent */ }
+        }));
 
         const updated = await loadPickHistory();
         if (!cancelled) setAllPicks(updated);

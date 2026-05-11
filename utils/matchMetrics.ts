@@ -1,4 +1,5 @@
-import { FDMatch, H2HRawItem, HomeData, MatchContextData, SLMatch, Standing, getCityForTeam } from '../services/api';
+import { FDMatch, H2HRawItem, HomeData, MatchContextData, SLMatch, Standing, SuperLigMatchContextData, getCityForTeam } from '../services/api';
+import { calcFormStatsSL, calcFormPointsSL } from './teamStats';
 import {
   buildMatchAnalysis,
   buildScoutPick,
@@ -769,6 +770,24 @@ export function buildMatchContextScoutAnalysis(m: Match, context: MatchContextDa
     getFormTrend(context.awayForm, awayId),
     leagueAvg,
   );
+}
+
+export function getPickFromSLContext(
+  homeTeamId: number,
+  awayTeamId: number,
+  home: string,
+  away: string,
+  context: SuperLigMatchContextData,
+): ReturnType<typeof buildScoutPick> | null {
+  const homeForm = context.homeContext?.recentMatches ?? [];
+  const awayForm = context.awayContext?.recentMatches ?? [];
+  if (!homeForm.length || !awayForm.length) return null;
+  const homeStats = calcFormStatsSL(homeForm, homeTeamId);
+  const awayStats = calcFormStatsSL(awayForm, awayTeamId);
+  if (homeStats.total <= 0 || awayStats.total <= 0) return null;
+  const hFP = calcFormPointsSL(homeForm, homeTeamId);
+  const aFP = calcFormPointsSL(awayForm, awayTeamId);
+  return buildScoutPick(home, away, homeStats, awayStats, hFP, aFP, context.h2h?.length ?? 0, false);
 }
 
 export function getPickFromMetrics(m: Match, metrics: Metrics): ReturnType<typeof buildScoutPick> | null {
