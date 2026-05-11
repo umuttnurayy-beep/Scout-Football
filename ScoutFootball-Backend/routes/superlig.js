@@ -5,6 +5,7 @@ function createSuperLigRouter({
   apiStaleOrError,
   config,
   fetchAllSportsH2HMatches,
+  fetchH2HFromSportsDb,
   fetchSuperLigAllTeams,
   fetchSuperLigMatch,
   fetchSuperLigMatchesForDate,
@@ -155,7 +156,7 @@ function createSuperLigRouter({
     const awayTeamId = parseInt(req.query.awayTeamId);
     const home = String(req.query.home || '');
     const away = String(req.query.away || '');
-    const cacheKey = `superlig_match_context_v7_${eventId}_${homeTeamId || 0}_${awayTeamId || 0}_${home}_${away}`;
+    const cacheKey = `superlig_match_context_v8_${eventId}_${homeTeamId || 0}_${awayTeamId || 0}`;
     const cached = await getCache(cacheKey);
     if (cached) return res.json({ ok: true, data: cached });
 
@@ -168,19 +169,38 @@ function createSuperLigRouter({
       const resolvedHome = home || event.strHomeTeam || '';
       const resolvedAway = away || event.strAwayTeam || '';
 
-      const [homeContextR, awayContextR, h2hR] = await Promise.allSettled([
+      const [homeContextR, awayContextR] = await Promise.allSettled([
         resolvedHomeId ? fetchSuperLigTeamContext(resolvedHomeId) : Promise.resolve(null),
         resolvedAwayId ? fetchSuperLigTeamContext(resolvedAwayId) : Promise.resolve(null),
-        resolvedHome && resolvedAway ? fetchAllSportsH2HMatches(resolvedHome, resolvedAway) : Promise.resolve([]),
       ]);
 
       const issues = [];
       if (homeContextR.status === 'rejected' || awayContextR.status === 'rejected') issues.push('form');
-      if (h2hR.status === 'rejected') issues.push('h2h');
+
+      // H2H: önce recentMatches çaprazla (extra API çağrısı yok)
+      const homeCtx = homeContextR.status === 'fulfilled' ? homeContextR.value : null;
+      const homeRecent = homeCtx?.recentMatches || [];
+      let h2hResult = homeRecent
+        .filter(m => m.homeTeamId === resolvedAwayId || m.awayTeamId === resolvedAwayId)
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 10);
+
+      // Fallback: TheSportsDB eventslast (birden fazla sezon)
+      if (h2hResult.length === 0 && resolvedHomeId && resolvedAwayId) {
+        try {
+          h2hResult = await fetchH2HFromSportsDb(resolvedHomeId, resolvedAwayId);
+        } catch (e) { /* ignore */ }
+      }
+
+      // Son çare: AllSports H2H
+      if (h2hResult.length === 0 && resolvedHome && resolvedAway) {
+        try {
+          h2hResult = await fetchAllSportsH2HMatches(resolvedHome, resolvedAway);
+        } catch (e) { issues.push('h2h'); }
+      }
 
       const isFinished = ['FT', 'AET', 'PEN', 'Match Finished'].includes(event.strStatus || '');
       const matchDate = event.dateEvent || new Date().toISOString().split('T')[0];
-      const h2hResult = h2hR.status === 'fulfilled' ? h2hR.value : [];
       const payload = {
         event,
         homeContext: homeContextR.status === 'fulfilled' ? homeContextR.value : null,

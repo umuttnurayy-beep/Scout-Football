@@ -690,6 +690,39 @@ function createSuperLigService({
     });
   }
 
+  async function fetchH2HFromSportsDb(homeTeamId, awayTeamId) {
+    try {
+      const [homeData, awayData] = await Promise.allSettled([
+        upstream.fetchJson(`${sportsDbBase}/eventslast.php?id=${homeTeamId}`, { timeoutMs: 5000 }, 'sportsdb eventslast home'),
+        upstream.fetchJson(`${sportsDbBase}/eventslast.php?id=${awayTeamId}`, { timeoutMs: 5000 }, 'sportsdb eventslast away'),
+      ]);
+      const seen = new Map();
+      const addEvents = (data) => {
+        const events = data?.results || data?.events || [];
+        for (const e of events) {
+          const hId = parseInt(e.idHomeTeam), aId = parseInt(e.idAwayTeam);
+          const isH2H = (hId === homeTeamId && aId === awayTeamId) || (hId === awayTeamId && aId === homeTeamId);
+          if (!isH2H || e.intHomeScore == null || e.intHomeScore === '') continue;
+          seen.set(e.idEvent, {
+            date:       e.dateEvent,
+            home:       e.strHomeTeam,
+            away:       e.strAwayTeam,
+            homeScore:  parseInt(e.intHomeScore),
+            awayScore:  parseInt(e.intAwayScore),
+            homeTeamId: hId,
+            awayTeamId: aId,
+            team1Home:  hId === homeTeamId,
+          });
+        }
+      };
+      if (homeData.status === 'fulfilled') addEvents(homeData.value);
+      if (awayData.status === 'fulfilled') addEvents(awayData.value);
+      return [...seen.values()].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
+    } catch (e) {
+      return [];
+    }
+  }
+
   async function fetchMatch(eventId) {
     const cacheKey = `superlig_match_v1_${eventId}`;
     const cached = await getCache(cacheKey);
@@ -720,6 +753,7 @@ function createSuperLigService({
     fetchTeamFormMatches,
     fetchTeamContext,
     fetchMatch,
+    fetchH2HFromSportsDb,
     SL_ESPN_TO_SPORTSDB,
     sportsDbTeamIdForName,
   };
