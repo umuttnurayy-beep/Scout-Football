@@ -72,7 +72,7 @@ const PENDING_METRICS: Metrics = {
 
 function getDateList() {
   const dates: Date[] = [];
-  for (let i = -3; i <= 3; i++) {
+  for (let i = -3; i <= 7; i++) {
     const d = new Date(); d.setDate(d.getDate() + i); dates.push(d);
   }
   return dates;
