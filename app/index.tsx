@@ -1139,7 +1139,7 @@ export default function HomeScreen() {
         const metrics = metricsMap.get(m.id);
         if (!metrics) continue;
         const pick = getPickFromMetrics(m, metrics);
-        if (!pick || pick.tone === 'caution') continue;
+        if (!pick) continue;
         const saved = await savePick({
           id: String(m.id),
           date: matchesDateStr,

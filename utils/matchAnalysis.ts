@@ -468,21 +468,31 @@ export function buildScoutPick(
         tone: 'draw',
       };
     }
-    return {
-      label: 'Taraf seçimi riskli',
-      detail: `Ev sahibi ve deplasman tarafı farklı alanlarda öne çıkıyor. Net kazanan yerine maçın riskli ve dengeye açık olduğu okunmalı.`,
-      cardComment: `Sinyaller iki tarafa bölünüyor; kazanan seçimi riskli.`,
-      tone: 'caution',
+    return homeEdge >= awayEdge ? {
+      label: `${home} kaybetmez`,
+      detail: `Taraf sinyalleri iki yöne bölünüyor; net kazanan seçimi güç. ${home} iç saha desteğiyle oyunda kalma ihtimali hafif öne çıkıyor.`,
+      cardComment: `Taraf dengeli; ${home} iç saha avantajıyla minimal öne alındı.`,
+      tone: 'home',
+    } : {
+      label: `${away} kaybetmez`,
+      detail: `Taraf sinyalleri iki yöne bölünüyor; net kazanan seçimi güç. ${away} deplasman verisiyle puan alma ihtimali hafif öne çıkıyor.`,
+      cardComment: `Taraf dengeli; ${away} deplasmanı minimal öne alındı.`,
+      tone: 'away',
     };
   }
 
   if (lowConfidence) {
     if (weatherRisk && sample < 5 && goalSignal < 4 && lowGoalSignal < 4) {
-      return {
-        label: 'Riskli maç profili',
-        detail: 'Veri örneklemi sınırlı ve hava koşulu riski var. Taraf ya da gol yönünde güçlü seçim yapmak yerine temkinli kalmak daha doğru.',
-        cardComment: 'Veri ve hava koşulu riski güçlü tahmin yönünü zayıflatıyor.',
-        tone: 'caution',
+      return homeEdge >= awayEdge ? {
+        label: `${home} kaybetmez`,
+        detail: `Veri örneklemi sınırlı ve hava koşulu riski var. Bu koşulda ${home} iç saha desteğiyle oyunda kalma seçimi en dengeli görünen.`,
+        cardComment: `Sınırlı veri + hava riski; ${home} iç saha avantajıyla öne alındı.`,
+        tone: 'home',
+      } : {
+        label: `${away} kaybetmez`,
+        detail: `Veri örneklemi sınırlı ve hava koşulu riski var. Bu koşulda ${away} deplasmanının puan alma ihtimali en dengeli seçenek.`,
+        cardComment: `Sınırlı veri + hava riski; ${away} deplasmanı öne alındı.`,
+        tone: 'away',
       };
     }
     if (goalSignal >= 3) {
@@ -529,11 +539,16 @@ export function buildScoutPick(
         tone: 'goals',
       };
     }
-    return {
-      label: 'Riskli maç profili',
-      detail: 'Veri örneklemi ve sinyaller güçlü bir yöne kopmuyor. Bu eşleşmede agresif seçim yerine risk seviyesini öne almak daha doğru.',
-      cardComment: 'Veri sınırlı; güçlü bir tahmin yönü oluşmuyor.',
-      tone: 'caution',
+    return homeEdge >= awayEdge ? {
+      label: `${home} kaybetmez`,
+      detail: `Veri sinyalleri net yöne kopmuyor. ${home} iç saha desteğiyle oyunda kalma seçimi bu profilde en dengeli görünen.`,
+      cardComment: `Sinyal yok; ${home} iç saha desteğiyle minimal öne alındı.`,
+      tone: 'home',
+    } : {
+      label: `${away} kaybetmez`,
+      detail: `Veri sinyalleri net yöne kopmuyor. ${away} deplasmanının puan alma potansiyeli bu profilde en dengeli seçenek.`,
+      cardComment: `Sinyal yok; ${away} deplasmanı minimal öne alındı.`,
+      tone: 'away',
     };
   }
 
