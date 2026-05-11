@@ -115,7 +115,7 @@ export type Metrics = {
 
 export type ListItem = {
   key: string;
-  type: 'notice' | 'section-header' | 'hero' | 'highlight' | 'day-summary' | 'match' | 'single-insight' | 'single-trends' | 'single-h2h' | 'tomorrow-featured' | 'empty' | 'empty-scout' | 'weekly-card';
+  type: 'notice' | 'section-header' | 'league-header' | 'hero' | 'highlight' | 'day-summary' | 'match' | 'single-insight' | 'single-trends' | 'single-h2h' | 'tomorrow-featured' | 'empty' | 'empty-scout' | 'weekly-card';
   weeklyCorrect?: number;
   weeklyTotal?: number;
   weeklyPct?: number;

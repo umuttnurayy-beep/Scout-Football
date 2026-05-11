@@ -73,7 +73,30 @@ export default function ScoutPerformanceScreen() {
       (async () => {
         await removeStalePicks();
         const history = await loadPickHistory();
-        if (!cancelled) setAllPicks(history);
+        if (!cancelled) {
+          setAllPicks(history);
+          // Geçen hafta boşsa pick'lerin olduğu en yakın haftaya git
+          const lastWeek = getWeekRange(0);
+          const lastWeekPicks = filterPicksForWeek(history, lastWeek.start, lastWeek.end)
+            .filter(p => p.pickTone !== 'caution');
+          if (lastWeekPicks.length === 0) {
+            // Önce bu haftayı (devam eden) kontrol et
+            const currentWeek = getWeekRange(1);
+            const currentWeekPicks = filterPicksForWeek(history, currentWeek.start, currentWeek.end)
+              .filter(p => p.pickTone !== 'caution');
+            if (currentWeekPicks.length > 0) {
+              setWeekOffset(1);
+            } else {
+              // Geriye dönük en fazla 8 hafta kontrol et
+              for (let o = 1; o <= 8; o++) {
+                const w = getWeekRange(-o);
+                const wPicks = filterPicksForWeek(history, w.start, w.end)
+                  .filter(p => p.pickTone !== 'caution');
+                if (wPicks.length > 0) { setWeekOffset(-o); break; }
+              }
+            }
+          }
+        }
 
         setResolving(true);
         await resolvePickResults(async (pick) => {
@@ -107,9 +130,11 @@ export default function ScoutPerformanceScreen() {
   const weekPicks = filterPicksForWeek(allPicks, week.start, week.end)
     .filter(p => p.pickTone !== 'caution');
   const acc = pickAccuracy(weekPicks);
+  const pending = weekPicks.filter(p => !p.result).length;
   const grouped = groupPicksByDay(weekPicks);
 
-  const isLatestWeek = weekOffset === 0; // offset=0 = son tamamlanmış hafta
+  const isLatestWeek = weekOffset >= 1; // offset=1 = bu hafta (devam eden)
+  const isCurrentWeek = weekOffset === 1;
   const barPct = acc.total > 0 ? acc.pct : 0;
   const barColor = barPct >= 60 ? c.win : barPct >= 40 ? (isDark ? '#E3B341' : '#B7791F') : c.loss;
 
@@ -132,10 +157,11 @@ export default function ScoutPerformanceScreen() {
         </TouchableOpacity>
         <View style={styles.weekNavCenter}>
           <Text style={[styles.weekLabel, { color: c.text }]}>{week.label}</Text>
+          {isCurrentWeek && <Text style={[styles.weekBadge, { color: c.primary }]}>Bu Hafta</Text>}
           {weekOffset === 0 && <Text style={[styles.weekBadge, { color: c.primary }]}>Son Hafta</Text>}
         </View>
         <TouchableOpacity
-          onPress={() => setWeekOffset(w => Math.min(0, w + 1))}
+          onPress={() => setWeekOffset(w => Math.min(1, w + 1))}
           style={styles.weekNavBtn}
           disabled={isLatestWeek}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -162,14 +188,32 @@ export default function ScoutPerformanceScreen() {
             <View style={[styles.barBg, { backgroundColor: c.borderLight }]}>
               <View style={[styles.barFill, { width: `${barPct}%`, backgroundColor: barColor }]} />
             </View>
+            {pending > 0 && (
+              <Text style={[styles.resolveHint, { color: c.textFaint }]}>{pending} maç sonucu bekleniyor</Text>
+            )}
             {resolving && (
               <Text style={[styles.resolveHint, { color: c.textFaint }]}>Sonuçlar güncelleniyor…</Text>
             )}
           </View>
+        ) : weekPicks.length > 0 ? (
+          <View style={[styles.accCard, { backgroundColor: c.surface }]}>
+            <View style={styles.accRow}>
+              <View>
+                <Text style={[styles.accBig, { color: c.text }]}>{weekPicks.length}</Text>
+                <Text style={[styles.accSub, { color: c.textSub }]}>pick takipte</Text>
+              </View>
+              <Text style={[styles.accPct, { color: c.textFaint }]}>⏳</Text>
+            </View>
+            <Text style={[styles.resolveHint, { color: c.textFaint, marginTop: 0 }]}>
+              {isCurrentWeek ? 'Maçlar tamamlandıkça sonuçlar burada görünecek' : 'Sonuçlar güncelleniyor…'}
+            </Text>
+          </View>
         ) : (
           <View style={[styles.emptyCard, { backgroundColor: c.surface }]}>
             <Text style={[styles.emptyIcon]}>📋</Text>
-            <Text style={[styles.emptyTitle, { color: c.text }]}>{weekOffset === 0 ? 'Geçen hafta için pick bulunamadı' : 'Bu hafta için pick bulunamadı'}</Text>
+            <Text style={[styles.emptyTitle, { color: c.text }]}>
+              {weekOffset === 0 ? 'Geçen hafta için pick bulunamadı' : 'Bu hafta için pick bulunamadı'}
+            </Text>
             <Text style={[styles.emptySub, { color: c.textSub }]}>
               Ana ekranda o haftanın maçlarını görüntüleyince Scout pick'leri otomatik kaydedilir.
             </Text>

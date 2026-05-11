@@ -35,7 +35,7 @@ import {
 
 const STANDINGS_CACHE_KEY = 'scout_standings_cache_v5';
 const FEATURED_MATCH_CACHE_KEY = 'scout_featured_match_cache_v3';
-const HOME_DATA_CACHE_KEY = 'scout_home_data_cache_v4';
+const HOME_DATA_CACHE_KEY = 'scout_home_data_cache_v5';
 const STANDINGS_TTL = 60 * 60 * 1000; // 1 saat — aynı gün içinde de bayat puan tablosunu yenile
 type HomeDataNotice = 'stale' | 'cache' | 'warning' | 'error';
 
@@ -72,7 +72,7 @@ const PENDING_METRICS: Metrics = {
 
 function getDateList() {
   const dates: Date[] = [];
-  for (let i = -3; i <= 7; i++) {
+  for (let i = -3; i <= 3; i++) {
     const d = new Date(); d.setDate(d.getDate() + i); dates.push(d);
   }
   return dates;
@@ -1292,10 +1292,29 @@ export default function HomeScreen() {
       }
 
       if (upcoming.length > 0) {
-        items.push({ key: 'h-upcoming', type: 'section-header', title: 'GÜNÜN KALAN MAÇLARI', sub: 'Scout skoruna göre sıralandı' });
-        upcoming.forEach(m => {
-          items.push({ key: `up-${m.id}`, type: 'match', m, metrics: metricsMap.get(m.id) ?? NO_DATA });
-        });
+        const LEAGUE_ORDER = [2021, 2014, 2002, 2019, 2015, 2001, 203];
+        const byLeague = new Map<number, typeof upcoming>();
+        for (const m of upcoming) {
+          if (!byLeague.has(m.leagueApiId)) byLeague.set(m.leagueApiId, []);
+          byLeague.get(m.leagueApiId)!.push(m);
+        }
+        const orderedIds = [
+          ...LEAGUE_ORDER.filter(id => byLeague.has(id)),
+          ...[...byLeague.keys()].filter(id => !LEAGUE_ORDER.includes(id)),
+        ];
+        const hasMultipleLeagues = orderedIds.length > 1;
+        items.push({ key: 'h-upcoming', type: 'section-header', title: 'GÜNÜN KALAN MAÇLARI' });
+        for (const leagueId of orderedIds) {
+          const leagueMatches = byLeague.get(leagueId) ?? [];
+          if (hasMultipleLeagues) {
+            const flag = LEAGUE_FLAG[leagueId] ?? '🌍';
+            const name = LEAGUE_NAMES[leagueId] ?? 'Lig';
+            items.push({ key: `h-league-${leagueId}`, type: 'league-header', title: `${flag} ${name}` });
+          }
+          leagueMatches.forEach(m => {
+            items.push({ key: `up-${m.id}`, type: 'match', m, metrics: metricsMap.get(m.id) ?? NO_DATA });
+          });
+        }
       }
     } else {
       if (sortedMatches.length === 0) {
@@ -1419,6 +1438,12 @@ export default function HomeScreen() {
           <View style={sc.sectionHeader}>
             <Text style={[sc.sectionTitle, { color: c.textMuted }]}>{item.title}</Text>
             {item.sub && <Text style={[sc.sectionSub, { color: c.textFaint }]}>{item.sub}</Text>}
+          </View>
+        );
+      case 'league-header':
+        return (
+          <View style={sc.leagueSubHeader}>
+            <Text style={[sc.leagueSubHeaderText, { color: c.textFaint }]}>{item.title}</Text>
           </View>
         );
       case 'hero': {
@@ -1678,6 +1703,8 @@ const sc = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingTop: 16, paddingBottom: 8 },
   sectionTitle:  { fontSize: 11, fontWeight: '700', letterSpacing: 0.6 },
   sectionSub:    { fontSize: 10 },
+  leagueSubHeader: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4 },
+  leagueSubHeaderText: { fontSize: 11, fontWeight: '600', letterSpacing: 0.3 },
 
   heroCard:      { backgroundColor: '#0C447C', borderRadius: 16, padding: 16 },
   heroTop:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
