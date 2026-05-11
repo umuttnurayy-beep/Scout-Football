@@ -43,7 +43,7 @@ import {
 } from '../utils/matchAnalysis';
 import { MEDIUM_BANK, SHORT_BANK } from '../utils/matchTextBanks';
 import { SCOUT_HELP, ScoutHelpKey } from '../utils/scoutHelpText';
-import { isPickSaved, savePick } from '../utils/pickHistory';
+import { isPickSaved, savePick, updatePickIfUnresolved } from '../utils/pickHistory';
 
 const SL_DETAIL_SECONDARY_CACHE_PREFIX = 'sl_match_detail_secondary_v1';
 
@@ -596,11 +596,11 @@ export default function SLMatchDetail() {
   const analysis    = buildMatchAnalysis(home, away, homeStats, awayStats, homeFormPts, awayFormPts, h2hData.length, weatherRisk, hasFormData, homeTrend, awayTrend);
   const scoutAnalysisReady = hasFormData && !secondaryLoading;
 
-  // Auto-save pick for upcoming/live matches
+  // Auto-save pick for upcoming/live matches; update existing with context-based pick
   useEffect(() => {
-    if (isFinished || !analysis.scoutPick || analysis.scoutPick.tone === 'caution' || !eventId) return;
+    if (isFinished || !analysis.scoutPick || !eventId) return;
     const dateStr = event?.dateEvent || new Date().toISOString().split('T')[0];
-    savePick({
+    const pick = {
       id: eventId,
       date: dateStr,
       homeTeam: home,
@@ -609,7 +609,11 @@ export default function SLMatchDetail() {
       pickTone: analysis.scoutPick.tone,
       isSuperLig: true,
       savedAt: new Date().toISOString(),
-    }).then(saved => { if (saved) setPickSaved(true); });
+    };
+    savePick(pick).then(saved => {
+      if (saved) { setPickSaved(true); return; }
+      updatePickIfUnresolved(eventId, analysis.scoutPick!.label, analysis.scoutPick!.tone);
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analysis.scoutPick]);
 

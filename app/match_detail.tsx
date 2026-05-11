@@ -42,7 +42,7 @@ import {
   strHash,
 } from '../utils/matchAnalysis';
 import { SCOUT_HELP, ScoutHelpKey } from '../utils/scoutHelpText';
-import { isPickSaved, savePick } from '../utils/pickHistory';
+import { isPickSaved, savePick, updatePickIfUnresolved } from '../utils/pickHistory';
 
 const DETAIL_SECONDARY_CACHE_PREFIX = 'match_detail_secondary_v1';
 const NEON = '#00E676';
@@ -362,12 +362,12 @@ export default function MatchDetail() {
   const analysis   = buildMatchAnalysis(displayHomeName,displayAwayName,leagueApiId,homeStats,awayStats,homeFormPts,awayFormPts,h2hData.length,weatherRisk,hasFormData,homeTrend,awayTrend,leagueAvgParam);
   const scoutAnalysisReady = hasFormData && !secondaryLoading;
 
-  // Auto-save pick for upcoming/live matches (no user action needed)
+  // Auto-save pick for upcoming/live matches; update existing with context-based pick
   // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
-    if (isFinished || !analysis.scoutPick || analysis.scoutPick.tone === 'caution' || !matchId) return;
+    if (isFinished || !analysis.scoutPick || !matchId) return;
     const dateStr = utcDate ? utcDate.split('T')[0] : new Date().toISOString().split('T')[0];
-    savePick({
+    const pick = {
       id: matchId,
       date: dateStr,
       homeTeam: home,
@@ -376,7 +376,12 @@ export default function MatchDetail() {
       pickTone: analysis.scoutPick.tone,
       isSuperLig: false,
       savedAt: new Date().toISOString(),
-    }).then(saved => { if (saved) setPickSaved(true); });
+    };
+    savePick(pick).then(saved => {
+      if (saved) { setPickSaved(true); return; }
+      // Pick already exists — update with context-based pick (more accurate than home screen pick)
+      updatePickIfUnresolved(matchId, analysis.scoutPick!.label, analysis.scoutPick!.tone);
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analysis.scoutPick]);
 

@@ -63,6 +63,21 @@ export async function savePick(pick: SavedPick): Promise<boolean> {
   }
 }
 
+export async function updatePickIfUnresolved(
+  id: string,
+  pickLabel: string,
+  pickTone: SavedPick['pickTone'],
+): Promise<void> {
+  try {
+    const existing = await loadPickHistory();
+    const idx = existing.findIndex(p => p.id === id);
+    if (idx === -1 || existing[idx].result) return;
+    if (existing[idx].pickLabel === pickLabel && existing[idx].pickTone === pickTone) return;
+    existing[idx] = { ...existing[idx], pickLabel, pickTone };
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
+  } catch {}
+}
+
 export async function resolvePickResults(
   fetchScore: (pick: SavedPick) => Promise<{ home: number; away: number } | null>,
 ): Promise<void> {
