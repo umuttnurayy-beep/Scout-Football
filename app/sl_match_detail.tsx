@@ -599,23 +599,27 @@ export default function SLMatchDetail() {
   // Auto-save pick for upcoming/live matches; update existing with context-based pick
   useEffect(() => {
     if (isFinished || !analysis.scoutPick || !eventId) return;
+    const { label, tone } = analysis.scoutPick;
     const dateStr = event?.dateEvent || new Date().toISOString().split('T')[0];
     const pick = {
       id: eventId,
       date: dateStr,
       homeTeam: home,
       awayTeam: away,
-      pickLabel: analysis.scoutPick.label,
-      pickTone: analysis.scoutPick.tone,
+      pickLabel: label,
+      pickTone: tone,
       isSuperLig: true,
       savedAt: new Date().toISOString(),
     };
     savePick(pick).then(saved => {
       if (saved) { setPickSaved(true); return; }
-      updatePickIfUnresolved(eventId, analysis.scoutPick!.label, analysis.scoutPick!.tone);
+      // Only update stored pick once form data is loaded (accurate pick)
+      if (scoutAnalysisReady) {
+        updatePickIfUnresolved(eventId, label, tone);
+      }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [analysis.scoutPick]);
+  }, [analysis.scoutPick?.label, analysis.scoutPick?.tone, scoutAnalysisReady]);
 
   const { homeRadar, awayRadar, radarLabels, homeLeadsRadar: hLeadsRadar } =
     buildDetailRadar(homeStats, awayStats, homeFormPts, awayFormPts);

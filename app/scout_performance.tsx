@@ -127,8 +127,12 @@ export default function ScoutPerformanceScreen() {
     }, [])
   );
 
+  const maxDateObj = new Date();
+  maxDateObj.setDate(maxDateObj.getDate() + 3);
+  const maxDate = maxDateObj.toISOString().split('T')[0];
+
   const weekPicks = filterPicksForWeek(allPicks, week.start, week.end)
-    .filter(p => p.pickTone !== 'caution');
+    .filter(p => p.pickTone !== 'caution' && p.date <= maxDate);
   const acc = pickAccuracy(weekPicks);
   const pending = weekPicks.filter(p => !p.result).length;
   const grouped = groupPicksByDay(weekPicks);

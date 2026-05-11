@@ -362,28 +362,31 @@ export default function MatchDetail() {
   const analysis   = buildMatchAnalysis(displayHomeName,displayAwayName,leagueApiId,homeStats,awayStats,homeFormPts,awayFormPts,h2hData.length,weatherRisk,hasFormData,homeTrend,awayTrend,leagueAvgParam);
   const scoutAnalysisReady = hasFormData && !secondaryLoading;
 
-  // Auto-save pick for upcoming/live matches; update existing with context-based pick
+  // Auto-save pick for upcoming/live matches; update with form-data pick when ready
   // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     if (isFinished || !analysis.scoutPick || !matchId) return;
+    const { label, tone } = analysis.scoutPick;
     const dateStr = utcDate ? utcDate.split('T')[0] : new Date().toISOString().split('T')[0];
     const pick = {
       id: matchId,
       date: dateStr,
       homeTeam: home,
       awayTeam: away,
-      pickLabel: analysis.scoutPick.label,
-      pickTone: analysis.scoutPick.tone,
+      pickLabel: label,
+      pickTone: tone,
       isSuperLig: false,
       savedAt: new Date().toISOString(),
     };
     savePick(pick).then(saved => {
       if (saved) { setPickSaved(true); return; }
-      // Pick already exists — update with context-based pick (more accurate than home screen pick)
-      updatePickIfUnresolved(matchId, analysis.scoutPick!.label, analysis.scoutPick!.tone);
+      // Only update stored pick once form data is loaded (accurate pick)
+      if (scoutAnalysisReady) {
+        updatePickIfUnresolved(matchId, label, tone);
+      }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [analysis.scoutPick]);
+  }, [analysis.scoutPick?.label, analysis.scoutPick?.tone, scoutAnalysisReady]);
 
   const { homeRadar, awayRadar, radarLabels, homeLeadsRadar: hLeadsRadar } =
     buildDetailRadar(homeStats, awayStats, homeFormPts, awayFormPts);
