@@ -61,7 +61,7 @@ function PickCard({ pick }: { pick: SavedPick }) {
 export default function ScoutPerformanceScreen() {
   const router = useRouter();
   const { colors: c, isDark } = useTheme();
-  const [weekOffset, setWeekOffset] = useState(1);
+  const [weekOffset, setWeekOffset] = useState(0);
   const [allPicks, setAllPicks] = useState<SavedPick[]>([]);
   const [resolving, setResolving] = useState(false);
 
@@ -109,7 +109,7 @@ export default function ScoutPerformanceScreen() {
   const acc = pickAccuracy(weekPicks);
   const grouped = groupPicksByDay(weekPicks);
 
-  const isLatestWeek = weekOffset === 1; // offset=1 = devam eden bu hafta (en ileri görüntülenebilir)
+  const isLatestWeek = weekOffset === 0; // offset=0 = son tamamlanmış hafta
   const barPct = acc.total > 0 ? acc.pct : 0;
   const barColor = barPct >= 60 ? c.win : barPct >= 40 ? (isDark ? '#E3B341' : '#B7791F') : c.loss;
 
@@ -132,11 +132,10 @@ export default function ScoutPerformanceScreen() {
         </TouchableOpacity>
         <View style={styles.weekNavCenter}>
           <Text style={[styles.weekLabel, { color: c.text }]}>{week.label}</Text>
-          {weekOffset === 1 && <Text style={[styles.weekBadge, { color: c.primary }]}>Bu Hafta</Text>}
-          {weekOffset === 0 && <Text style={[styles.weekBadge, { color: c.textSub }]}>Son Hafta</Text>}
+          {weekOffset === 0 && <Text style={[styles.weekBadge, { color: c.primary }]}>Son Hafta</Text>}
         </View>
         <TouchableOpacity
-          onPress={() => setWeekOffset(w => Math.min(1, w + 1))}
+          onPress={() => setWeekOffset(w => Math.min(0, w + 1))}
           style={styles.weekNavBtn}
           disabled={isLatestWeek}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -170,7 +169,7 @@ export default function ScoutPerformanceScreen() {
         ) : (
           <View style={[styles.emptyCard, { backgroundColor: c.surface }]}>
             <Text style={[styles.emptyIcon]}>📋</Text>
-            <Text style={[styles.emptyTitle, { color: c.text }]}>Bu hafta için pick bulunamadı</Text>
+            <Text style={[styles.emptyTitle, { color: c.text }]}>{weekOffset === 0 ? 'Geçen hafta için pick bulunamadı' : 'Bu hafta için pick bulunamadı'}</Text>
             <Text style={[styles.emptySub, { color: c.textSub }]}>
               Ana ekranda o haftanın maçlarını görüntüleyince Scout pick'leri otomatik kaydedilir.
             </Text>
