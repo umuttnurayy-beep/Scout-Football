@@ -442,7 +442,7 @@ export function buildScoutPick(
   const lowGoalSignal = (avgOver <= 38 ? 2 : avgOver <= 44 ? 1 : 0) +
     (attackTotal <= 2.15 ? 2 : attackTotal <= 2.45 ? 1 : 0) +
     (defensiveLoad <= 2.1 ? 1 : 0);
-  const bothScoreSignal = avgKg >= 58 && hAtk >= 1.25 && aAtk >= 1.25;
+  const bothScoreSignal = avgKg >= 55 && hAtk >= 1.2 && aAtk >= 1.2;
   const conflictPhrase = signal.conflict
     ? 'Taraf verileri iki yöne bölündüğü için kazanan seçimi temkin istiyor.'
     : '';
@@ -646,11 +646,16 @@ export function buildScoutPick(
     };
   }
 
-  return {
-    label: 'Riskli maç profili',
-    detail: 'Maç önü sinyalleri taraf, gol veya düşük skor için net bir yöne kopmuyor. Bu tabloda seçimi zorlamak yerine risk seviyesini öne almak daha sağlıklı.',
-    cardComment: 'Taraf ve gol sinyalleri net ayrışmıyor; riskli maç profili.',
-    tone: 'draw',
+  return homeEdge >= awayEdge ? {
+    label: `${home} kaybetmez`,
+    detail: `Veriler net bir yöne kopmuyor. ${home} iç saha desteğiyle oyunda kalma seçimi bu profilde en dengeli görünen.${conflictPhrase ? ` ${conflictPhrase}` : ''}`,
+    cardComment: `Sinyal net değil; ${home} iç saha avantajıyla öne alındı.`,
+    tone: 'home',
+  } : {
+    label: `${away} kaybetmez`,
+    detail: `Veriler net bir yöne kopmuyor. ${away} deplasmanının puan alma potansiyeli bu profilde en dengeli seçenek.${conflictPhrase ? ` ${conflictPhrase}` : ''}`,
+    cardComment: `Sinyal net değil; ${away} deplasmanı öne alındı.`,
+    tone: 'away',
   };
 }
 
