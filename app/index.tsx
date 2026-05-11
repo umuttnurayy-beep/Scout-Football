@@ -1280,7 +1280,7 @@ export default function HomeScreen() {
         weeklyCorrect: weeklyAcc?.correct ?? 0,
         weeklyTotal: weeklyAcc?.total ?? 0,
         weeklyPct: weeklyAcc?.pct ?? 0,
-        weeklyLabel: weeklyAcc?.label ?? getCurrentWeekRange().label,
+        weeklyLabel: weeklyAcc?.label ?? getWeekRange(0).label,
         weeklyAllTotal: weeklyAcc?.allTotal ?? 0,
       });
 
@@ -1479,39 +1479,48 @@ export default function HomeScreen() {
         const isEmpty = weeklyAllTotal === 0;
         const barColor = weeklyPct >= 60 ? c.win : weeklyPct >= 40 ? '#B7791F' : c.loss;
         return (
-          <TouchableOpacity onPress={openWeeklyPerformance} activeOpacity={0.85}>
-            <View style={[sc.weeklyCard, { backgroundColor: c.surface }]}>
+          <TouchableOpacity onPress={openWeeklyPerformance} activeOpacity={0.82}>
+            <View style={[sc.weeklyCard, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
               <View style={sc.weeklyCardTop}>
-                <Text style={[sc.weeklyCardTitle, { color: c.textMuted }]}>🏆 BU HAFTANIN SKORU</Text>
-                <Text style={[sc.weeklyCardChevron, { color: c.textFaint }]}>›</Text>
+                <View style={sc.weeklyCardTitleRow}>
+                  <Text style={sc.weeklyCardEmoji}>🏆</Text>
+                  <Text style={[sc.weeklyCardTitle, { color: c.primary }]}>SCOUT PERFORMANSI</Text>
+                </View>
+                <Text style={[sc.weeklyCardChevron, { color: c.primary }]}>›</Text>
               </View>
               {isEmpty ? (
-                <Text style={[sc.weeklyCardSub, { color: c.textFaint }]}>
-                  {weeklyLabel} · Geçen haftaya ait pick bulunamadı
+                <Text style={[sc.weeklyCardSub, { color: c.textSub }]}>
+                  {weeklyLabel} — geçen hafta pick bulunamadı
                 </Text>
               ) : hasResolved ? (
                 <>
                   <View style={sc.weeklyCardRow}>
-                    <Text style={[sc.weeklyCardScore, { color: c.text }]}>
-                      {weeklyCorrect}<Text style={{ color: c.textMuted }}>/{weeklyTotal}</Text>
-                    </Text>
+                    <View>
+                      <Text style={[sc.weeklyCardScore, { color: c.text }]}>
+                        {weeklyCorrect}<Text style={[sc.weeklyCardOf, { color: c.textMuted }]}>/{weeklyTotal}</Text>
+                      </Text>
+                      <Text style={[sc.weeklyCardSub, { color: c.textSub }]}>isabetli tahmin</Text>
+                    </View>
                     <Text style={[sc.weeklyCardPct, { color: barColor }]}>%{weeklyPct}</Text>
                   </View>
-                  <View style={[sc.weeklyBarBg, { backgroundColor: c.borderLight }]}>
+                  <View style={[sc.weeklyBarBg, { backgroundColor: c.border }]}>
                     <View style={[sc.weeklyBarFill, { width: `${weeklyPct}%`, backgroundColor: barColor }]} />
                   </View>
-                  <Text style={[sc.weeklyCardSub, { color: c.textFaint }]}>
-                    {weeklyLabel}{pending > 0 ? ` · ${pending} bekliyor` : ''} · Tümünü Gör
+                  <Text style={[sc.weeklyCardSub, { color: c.textSub, marginTop: 6 }]}>
+                    {weeklyLabel}{pending > 0 ? ` · ${pending} sonuç bekleniyor` : ''} · Tümünü Gör →
                   </Text>
                 </>
               ) : (
                 <>
                   <View style={sc.weeklyCardRow}>
-                    <Text style={[sc.weeklyCardScore, { color: c.text }]}>{weeklyAllTotal}</Text>
-                    <Text style={[sc.weeklyCardPct, { color: c.textMuted }]}>tahmin</Text>
+                    <View>
+                      <Text style={[sc.weeklyCardScore, { color: c.text }]}>{weeklyAllTotal}</Text>
+                      <Text style={[sc.weeklyCardSub, { color: c.textSub }]}>pick kaydedildi</Text>
+                    </View>
+                    <Text style={[sc.weeklyCardPct, { color: c.textMuted }]}>⏳</Text>
                   </View>
-                  <Text style={[sc.weeklyCardSub, { color: c.textFaint }]}>
-                    {weeklyLabel} · Maçlar bekleniyor · Tümünü Gör
+                  <Text style={[sc.weeklyCardSub, { color: c.textSub, marginTop: 4 }]}>
+                    {weeklyLabel} · Maçlar tamamlandıkça sonuçlar gelir · Tümünü Gör →
                   </Text>
                 </>
               )}
@@ -1779,14 +1788,17 @@ const sc = StyleSheet.create({
   matchMetricLineMuted: { fontSize: 11, marginTop: 4, fontStyle: 'italic' },
 
   // Weekly performance card
-  weeklyCard:      { marginHorizontal:14, marginBottom:10, borderRadius:14, padding:14 },
-  weeklyCardTop:   { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:8 },
-  weeklyCardTitle: { fontSize:11, fontWeight:'700', letterSpacing:0.5 },
-  weeklyCardChevron:{ fontSize:20, fontWeight:'300' },
-  weeklyCardRow:   { flexDirection:'row', alignItems:'baseline', justifyContent:'space-between', marginBottom:8 },
-  weeklyCardScore: { fontSize:28, fontWeight:'800' },
-  weeklyCardPct:   { fontSize:24, fontWeight:'800' },
-  weeklyBarBg:     { height:6, borderRadius:3, overflow:'hidden', marginBottom:8 },
-  weeklyBarFill:   { height:6, borderRadius:3 },
-  weeklyCardSub:   { fontSize:11 },
+  weeklyCard:        { marginHorizontal:14, marginBottom:10, borderRadius:14, padding:14, borderLeftWidth:4 },
+  weeklyCardTop:     { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:10 },
+  weeklyCardTitleRow:{ flexDirection:'row', alignItems:'center', gap:6 },
+  weeklyCardEmoji:   { fontSize:16 },
+  weeklyCardTitle:   { fontSize:11, fontWeight:'800', letterSpacing:0.6 },
+  weeklyCardChevron: { fontSize:22, fontWeight:'300' },
+  weeklyCardRow:     { flexDirection:'row', alignItems:'flex-end', justifyContent:'space-between', marginBottom:10 },
+  weeklyCardScore:   { fontSize:32, fontWeight:'800', lineHeight:36 },
+  weeklyCardOf:      { fontSize:20, fontWeight:'600' },
+  weeklyCardPct:     { fontSize:28, fontWeight:'800' },
+  weeklyBarBg:       { height:7, borderRadius:4, overflow:'hidden' },
+  weeklyBarFill:     { height:7, borderRadius:4 },
+  weeklyCardSub:     { fontSize:11, lineHeight:15 },
 });
