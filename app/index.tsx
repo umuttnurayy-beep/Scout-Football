@@ -16,7 +16,7 @@ import {
   H2HRawItem, HomeData, checkBackendHealth, clearLastApiError, getAllSportsH2H, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, preloadMatchContext, preloadSuperLigMatchContext, Standing,
 } from '../services/api';
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
-import { filterPicksForWeek, getCurrentWeekRange, loadPickHistory, pickAccuracy, savePick } from '../utils/pickHistory';
+import { filterPicksForWeek, getCurrentWeekRange, getWeekRange, loadPickHistory, pickAccuracy, savePick } from '../utils/pickHistory';
 import { dataNoticeMessage, matchListEmptyMessage } from '../utils/emptyStates';
 import { teamsMatch } from '../utils/teamStats';
 import {
@@ -676,11 +676,11 @@ export default function HomeScreen() {
     }, [selectedDate])
   );
 
-  // Load weekly pick accuracy for Scout mode card
+  // Load weekly pick accuracy for Scout mode card — son tamamlanmış hafta
   useFocusEffect(
     useCallback(() => {
       (async () => {
-        const range = getCurrentWeekRange();
+        const range = getWeekRange(0); // son tamamlanmış Pzt-Paz haftası
         const picks = await loadPickHistory();
         const weekPicks = filterPicksForWeek(picks, range.start, range.end);
         if (weekPicks.length > 0) {
@@ -1487,7 +1487,7 @@ export default function HomeScreen() {
               </View>
               {isEmpty ? (
                 <Text style={[sc.weeklyCardSub, { color: c.textFaint }]}>
-                  {weeklyLabel} · Bu haftaki maçlar yüklendikçe otomatik eklenir
+                  {weeklyLabel} · Geçen haftaya ait pick bulunamadı
                 </Text>
               ) : hasResolved ? (
                 <>

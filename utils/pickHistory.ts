@@ -99,9 +99,10 @@ export async function clearPickHistory(): Promise<void> {
   await AsyncStorage.removeItem(STORAGE_KEY);
 }
 
+// Şu an devam eden hafta (Pzt–Paz, bugün dahil) — auto-save kontrolü için
 export function getCurrentWeekRange(): { start: string; end: string; label: string } {
   const now = new Date();
-  const day = now.getDay(); // 0=Sun, 1=Mon...
+  const day = now.getDay(); // 0=Paz, 1=Pzt...
   const diff = day === 0 ? -6 : 1 - day;
   const monday = new Date(now);
   monday.setDate(now.getDate() + diff);
@@ -113,16 +114,20 @@ export function getCurrentWeekRange(): { start: string; end: string; label: stri
   return { start: fmt(monday), end: fmt(sunday), label: `${dayFmt(monday)} – ${dayFmt(sunday)}` };
 }
 
+// Performans ekranı için: offset=0 → son tamamlanmış Pzt-Paz haftası.
+// Haftanın kapanması için Pazartesi gelmiş olması gerekir; Pazar günü bile geçen hafta görünür.
 export function getWeekRange(weekOffset: number): { start: string; end: string; label: string } {
-  const now = new Date();
-  now.setDate(now.getDate() + weekOffset * 7);
-  const day = now.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + diff);
-  monday.setHours(0, 0, 0, 0);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0=Paz, 1=Pzt, ..., 6=Cmt
+  // Bugünden son Pazar'a kaç gün geçti (Pazartesi=1 → 1 gün; Pazar=0 → 7 gün)
+  const daysSinceSunday = dayOfWeek === 0 ? 7 : dayOfWeek;
+  // Son Pazar + offset haftası = hedef haftanın Pazar'ı
+  const anchor = new Date(today);
+  anchor.setDate(today.getDate() - daysSinceSunday + weekOffset * 7);
+  anchor.setHours(0, 0, 0, 0);
+  const sunday = anchor;
+  const monday = new Date(sunday);
+  monday.setDate(sunday.getDate() - 6);
   const fmt = (d: Date) => d.toISOString().split('T')[0];
   const dayFmt = (d: Date) => d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
   return { start: fmt(monday), end: fmt(sunday), label: `${dayFmt(monday)} – ${dayFmt(sunday)}` };

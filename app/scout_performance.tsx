@@ -107,7 +107,7 @@ export default function ScoutPerformanceScreen() {
   const acc = pickAccuracy(weekPicks);
   const grouped = groupPicksByDay(weekPicks);
 
-  const isCurrentWeek = weekOffset === 0;
+  const isLatestWeek = weekOffset === 0; // offset=0 = son tamamlanmış hafta
   const barPct = acc.total > 0 ? acc.pct : 0;
   const barColor = barPct >= 60 ? c.win : barPct >= 40 ? (isDark ? '#E3B341' : '#B7791F') : c.loss;
 
@@ -130,15 +130,15 @@ export default function ScoutPerformanceScreen() {
         </TouchableOpacity>
         <View style={styles.weekNavCenter}>
           <Text style={[styles.weekLabel, { color: c.text }]}>{week.label}</Text>
-          {isCurrentWeek && <Text style={[styles.weekBadge, { color: c.primary }]}>Bu Hafta</Text>}
+          {isLatestWeek && <Text style={[styles.weekBadge, { color: c.primary }]}>Son Hafta</Text>}
         </View>
         <TouchableOpacity
           onPress={() => setWeekOffset(w => Math.min(0, w + 1))}
           style={styles.weekNavBtn}
-          disabled={isCurrentWeek}
+          disabled={isLatestWeek}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Text style={[styles.weekNavArrow, { color: isCurrentWeek ? c.textFaint : c.primary }]}>›</Text>
+          <Text style={[styles.weekNavArrow, { color: isLatestWeek ? c.textFaint : c.primary }]}>›</Text>
         </TouchableOpacity>
       </View>
 
@@ -167,9 +167,9 @@ export default function ScoutPerformanceScreen() {
         ) : (
           <View style={[styles.emptyCard, { backgroundColor: c.surface }]}>
             <Text style={[styles.emptyIcon]}>📋</Text>
-            <Text style={[styles.emptyTitle, { color: c.text }]}>Bu hafta henüz pick yok</Text>
+            <Text style={[styles.emptyTitle, { color: c.text }]}>Bu hafta için pick bulunamadı</Text>
             <Text style={[styles.emptySub, { color: c.textSub }]}>
-              Bir maç detayına girince Scout pick'i otomatik bu haftanın değerlendirmesine eklenir.
+              Ana ekranda o haftanın maçlarını görüntüleyince Scout pick'leri otomatik kaydedilir.
             </Text>
           </View>
         )}
