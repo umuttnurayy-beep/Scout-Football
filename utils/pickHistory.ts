@@ -109,7 +109,12 @@ export function getCurrentWeekRange(): { start: string; end: string; label: stri
   monday.setHours(0, 0, 0, 0);
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
-  const fmt = (d: Date) => d.toISOString().split('T')[0];
+  const fmt = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
   const dayFmt = (d: Date) => d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
   return { start: fmt(monday), end: fmt(sunday), label: `${dayFmt(monday)} – ${dayFmt(sunday)}` };
 }
@@ -128,7 +133,12 @@ export function getWeekRange(weekOffset: number): { start: string; end: string; 
   const sunday = anchor;
   const monday = new Date(sunday);
   monday.setDate(sunday.getDate() - 6);
-  const fmt = (d: Date) => d.toISOString().split('T')[0];
+  const fmt = (d: Date) => {
+    const y = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const dy = String(d.getDate()).padStart(2, '0');
+    return `${y}-${mo}-${dy}`;
+  };
   const dayFmt = (d: Date) => d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
   return { start: fmt(monday), end: fmt(sunday), label: `${dayFmt(monday)} – ${dayFmt(sunday)}` };
 }
