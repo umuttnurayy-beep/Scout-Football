@@ -1513,11 +1513,7 @@ export default function HomeScreen() {
                 </View>
                 <Text style={[sc.weeklyCardChevron, { color: c.primary }]}>›</Text>
               </View>
-              {isEmpty ? (
-                <Text style={[sc.weeklyCardSub, { color: c.textSub }]}>
-                  {weeklyLabel} — geçen hafta pick bulunamadı
-                </Text>
-              ) : hasResolved ? (
+              {hasResolved ? (
                 <>
                   <View style={sc.weeklyCardRow}>
                     <View>
@@ -1537,15 +1533,11 @@ export default function HomeScreen() {
                 </>
               ) : (
                 <>
-                  <View style={sc.weeklyCardRow}>
-                    <View>
-                      <Text style={[sc.weeklyCardScore, { color: c.text }]}>{weeklyAllTotal}</Text>
-                      <Text style={[sc.weeklyCardSub, { color: c.textSub }]}>pick kaydedildi</Text>
-                    </View>
-                    <Text style={[sc.weeklyCardPct, { color: c.textMuted }]}>⏳</Text>
-                  </View>
-                  <Text style={[sc.weeklyCardSub, { color: c.textSub, marginTop: 4 }]}>
-                    {weeklyLabel} · Maçlar tamamlandıkça sonuçlar gelir · Tümünü Gör →
+                  <Text style={[sc.weeklyCardSub, { color: c.text, fontSize: 14, fontWeight: '600', marginBottom: 6 }]}>
+                    Haftalık Scout Performansı yakında
+                  </Text>
+                  <Text style={[sc.weeklyCardSub, { color: c.textSub }]}>
+                    {weeklyLabel} değerlendirmesi · Tümünü Gör →
                   </Text>
                 </>
               )}
