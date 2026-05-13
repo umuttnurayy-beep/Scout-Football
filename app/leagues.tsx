@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import BottomTabBar from '../components/BottomTabBar';
 import EmptyStateCard from '../components/EmptyStateCard';
 import RefreshStatusBar, { REFRESH_STATUS_MESSAGES } from '../components/RefreshStatusBar';
@@ -171,6 +171,8 @@ function getLeagueLegend(apiId: number) {
 
 export default function LeaguesScreen() {
   const { colors: c, isDark } = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
+  const pagerRef = useRef<ScrollView>(null);
   const [activeLeague, setActiveLeague] = useState<League>(configuredLeagues[0]);
   const [subTab, setSubTab]             = useState<SubTab>('genel');
   const [uclView, setUclView]           = useState<'standings' | 'bracket'>('standings');
@@ -183,7 +185,15 @@ export default function LeaguesScreen() {
   const [knockoutsLoading, setKnockoutsLoading] = useState(false);
   const [knockoutsLoadError, setKnockoutsLoadError] = useState(false);
 
+  function goToTab(key: SubTab) {
+    const idx = SUB_TABS.findIndex(t => t.key === key);
+    setSubTab(key);
+    pagerRef.current?.scrollTo({ x: idx * screenWidth, animated: true });
+  }
+
   useEffect(() => {
+    setSubTab('genel');
+    pagerRef.current?.scrollTo({ x: 0, animated: false });
     setUclView('standings');
     setLoadError(false);
     setKnockoutsLoadError(false);
@@ -338,7 +348,7 @@ export default function LeaguesScreen() {
         {SUB_TABS.map(t => (
           <TouchableOpacity key={t.key}
             style={[stStyles.subTab, subTab === t.key && stStyles.subTabActive]}
-            onPress={() => setSubTab(t.key)}>
+            onPress={() => goToTab(t.key)}>
             <Text style={[stStyles.subTabText, { color: c.textMuted }, subTab === t.key && { color: c.primary, fontWeight: '600' }]}>{t.label}</Text>
           </TouchableOpacity>
         ))}
@@ -349,17 +359,32 @@ export default function LeaguesScreen() {
       )}
 
       <ScrollView
+        ref={pagerRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onMomentumScrollEnd={e => {
+          const idx = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
+          const tab = SUB_TABS[idx]?.key;
+          if (tab) setSubTab(tab);
+        }}
         style={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} colors={[c.primary]} />}
       >
+        {/* ===== PAGE 0: GENEL ===== */}
+        <ScrollView
+          style={[styles.page, { width: screenWidth }]}
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} colors={[c.primary]} />}
+        >
         {loading ? (
           <View style={styles.stateFrame}>
             <SkeletonLeagueTable />
           </View>
         ) : (
           <>
-            {/* ===== GENEL ===== */}
-            {subTab === 'genel' && (
+            {true && (
               standings.length === 0 ? (
                 <View style={styles.stateFrame}>
                   <EmptyStateCard
@@ -568,8 +593,18 @@ export default function LeaguesScreen() {
               )
             )}
 
-            {/* ===== PUAN TABLOSU ===== */}
-            {subTab === 'tablo' && (
+          </>
+        )}
+        <View style={styles.bottomSpacer} />
+        </ScrollView>
+
+        {/* ===== PAGE 1: PUAN TABLOSU ===== */}
+        <ScrollView style={[styles.page, { width: screenWidth }]} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+        {loading ? (
+          <View style={styles.stateFrame}><SkeletonLeagueTable /></View>
+        ) : (
+          <>
+            {true && (
               <>
                 {activeLeague.apiId === 2 && (
                   <View style={[styles.uclToggle, { borderColor: c.border }]}>
@@ -674,10 +709,18 @@ export default function LeaguesScreen() {
                 )}
               </>
             )}
+          </>
+        )}
+        <View style={styles.bottomSpacer} />
+        </ScrollView>
 
-            {/* ===== TAKIMLAR ===== */}
-            {subTab === 'takimlar' && (
-              standings.length === 0 ? (
+        {/* ===== PAGE 2: TAKIMLAR ===== */}
+        <ScrollView style={[styles.page, { width: screenWidth }]} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+        {loading ? (
+          <View style={styles.stateFrame}><SkeletonLeagueTable /></View>
+        ) : (
+          <>
+            {standings.length === 0 ? (
                 <View style={styles.stateFrame}>
                   <EmptyStateCard
                     icon="🏟️"
@@ -726,21 +769,26 @@ export default function LeaguesScreen() {
                     );
                   })}
                 </>
-              )
-            )}
+              )}
+          </>
+        )}
+        <View style={styles.bottomSpacer} />
+        </ScrollView>
 
-            {/* ===== TRENDLER ===== */}
-            {subTab === 'trendler' && (
-              standings.length === 0 ? (
-                <View style={styles.stateFrame}>
-                  <EmptyStateCard
-                    icon="📊"
-                    title={loadError ? 'Trend verisi yüklenemedi' : 'Veri bulunamadı'}
-                    subtitle={leagueDataEmptyMessage(activeLeague.name)}
-                    onRetry={retryStandings}
-                  />
-                </View>
-              ) : (
+        {/* ===== PAGE 3: TRENDLER ===== */}
+        <ScrollView style={[styles.page, { width: screenWidth }]} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+        {loading ? (
+          <View style={styles.stateFrame}><SkeletonLeagueTable /></View>
+        ) : standings.length === 0 ? (
+          <View style={styles.stateFrame}>
+            <EmptyStateCard
+              icon="📊"
+              title={loadError ? 'Trend verisi yüklenemedi' : 'Veri bulunamadı'}
+              subtitle={leagueDataEmptyMessage(activeLeague.name)}
+              onRetry={retryStandings}
+            />
+          </View>
+        ) : (
                   <>
                     <View style={[stStyles.trendNote, { backgroundColor: c.primaryLight }]}>
                       <Text style={[stStyles.trendNoteText, { color: c.text }]}>
@@ -867,12 +915,10 @@ export default function LeaguesScreen() {
                       );
                     })}
                   </>
-              )
-            )}
-          </>
         )}
-
         <View style={styles.bottomSpacer} />
+        </ScrollView>
+
       </ScrollView>
 
       <BottomTabBar activeTab="leagues" />
@@ -896,6 +942,7 @@ const styles = StyleSheet.create({
   leaguePillText:      { fontSize: 12 },
   leaguePillTextActive:{ color: '#fff' },
   scroll:              { flex: 1 },
+  page:                { flex: 1 },
   flexOne:             { flex: 1 },
   bottomSpacer:        { height: 30 },
   stateFrame:          { minHeight: 360, justifyContent: 'flex-start' },
