@@ -1079,7 +1079,9 @@ export default function SLMatchDetail() {
             <View style={{flexDirection:'row',gap:10,paddingHorizontal:14,marginBottom:10}}>
               {[{team:home,style:hStyle},{team:away,style:aStyle}].map(({team,style},i)=>(
                 <View key={i} style={[styles.styleBadge, { backgroundColor: c.surface, borderColor:style.color }]}>
-                  <Text style={styles.styleEmoji}>{style.emoji}</Text>
+                  <View style={[styles.styleIconWrap,{backgroundColor:style.color+'22'}]}>
+                    <Ionicons name={style.icon as React.ComponentProps<typeof Ionicons>['name']} size={24} color={style.color} />
+                  </View>
                   <Text style={[styles.styleLabel,{color:style.color}]}>{style.label}</Text>
                   <Text style={[styles.styleTeam, { color: c.textMuted }]} numberOfLines={1}>{team}</Text>
                 </View>
@@ -1195,10 +1197,10 @@ const styles = StyleSheet.create({
   refTagPill:         { flex:1, borderWidth:1, borderRadius:20, paddingVertical:5, alignItems:'center', justifyContent:'center' },
   refTagText:         { fontSize:11, fontWeight:'600' },
   // Style badges
-  styleBadge:         { flex:1, borderWidth:1.5, borderRadius:10, padding:12, alignItems:'center' },
-  styleEmoji:         { fontSize:22, marginBottom:4 },
-  styleLabel:         { fontSize:13, fontWeight:'700', marginBottom:2, textAlign:'center' },
-  styleTeam:          { fontSize:10, textAlign:'center' },
+  styleBadge:         { flex:1, borderWidth:1.5, borderRadius:12, padding:14, alignItems:'center' },
+  styleIconWrap:      { width:52, height:52, borderRadius:26, alignItems:'center', justifyContent:'center', marginBottom:10 },
+  styleLabel:         { fontSize:13, fontWeight:'700', marginBottom:4, textAlign:'center' },
+  styleTeam:          { fontSize:11, textAlign:'center' },
   // Risk
   riskBox:            { marginHorizontal:14, marginBottom:10, borderRadius:10, borderWidth:0.5, overflow:'hidden' },
   riskRow:            { flexDirection:'row', alignItems:'flex-start', padding:12, gap:8 },

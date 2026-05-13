@@ -1303,11 +1303,11 @@ export function buildMatchAnalysis(
        'Sonuçlar genel eğilimi yansıtmakla birlikte maç bazlı doğrulanmadı.'];
   let badgeLabel: string, badgeColor: string, badgeBg: string;
   if (risk === 'Düşük' && guven !== 'Düşük') {
-    badgeLabel = '🟢 Güçlü sinyal'; badgeColor = '#1B6B3A'; badgeBg = '#E8F8F0';
+    badgeLabel = 'Güçlü sinyal'; badgeColor = '#1B6B3A'; badgeBg = '#E8F8F0';
   } else if (risk === 'Yüksek') {
-    badgeLabel = '🔴 Risk yüksek'; badgeColor = '#A32D2D'; badgeBg = '#FDE8E8';
+    badgeLabel = 'Risk yüksek'; badgeColor = '#A32D2D'; badgeBg = '#FDE8E8';
   } else {
-    badgeLabel = '⚖️ Dengeli profil'; badgeColor = '#7A5700'; badgeBg = '#FFF8E1';
+    badgeLabel = 'Dengeli profil'; badgeColor = '#7A5700'; badgeBg = '#FFF8E1';
   }
 
   return { stil, gol, tempo, risk, guven, short, medium, reasons, scoutPick, badgeLabel, badgeColor, badgeBg };
@@ -1375,16 +1375,16 @@ export function getStat(stats: FDFixtureStat[] | undefined, ...keys: string[]): 
   return 0;
 }
 
-export function getTeamStyle(stats: ReturnType<typeof calcFormStats>): { label: string; color: string; emoji: string } {
+export function getTeamStyle(stats: ReturnType<typeof calcFormStats>): { label: string; color: string; icon: string } {
   const atk = parseFloat(stats.totalAvgGf as string);
   const def = parseFloat(stats.totalAvgGa as string);
-  if (atk>=2.0&&def<=1.0) return { label: 'Dominant',      color: '#1565C0', emoji: '👑' };
-  if (atk>=1.8&&def>=1.5) return { label: 'Açık Futbol',   color: '#E65100', emoji: '⚡' };
-  if (atk>=1.7&&def<=1.1) return { label: 'Güçlü Hücum',   color: '#185FA5', emoji: '⚽' };
-  if (atk<=1.0&&def<=0.9) return { label: 'Katı Savunmacı',color: '#1B5E20', emoji: '🛡️' };
-  if (atk<=1.2&&def<=1.1) return { label: 'Savunmacı',     color: '#388E3C', emoji: '🛡️' };
-  if (def>=1.6)            return { label: 'Savunması Açık',color: '#A32D2D', emoji: '🚨' };
-  return                          { label: 'Dengeli',        color: '#555',    emoji: '⚖️' };
+  if (atk>=2.0&&def<=1.0) return { label: 'Dominant',        color: '#1565C0', icon: 'trophy-outline' };
+  if (atk>=1.8&&def>=1.5) return { label: 'Açık Futbol',     color: '#E65100', icon: 'flash-outline' };
+  if (atk>=1.7&&def<=1.1) return { label: 'Güçlü Hücum',     color: '#185FA5', icon: 'arrow-up-circle-outline' };
+  if (atk<=1.0&&def<=0.9) return { label: 'Katı Savunmacı',  color: '#1B5E20', icon: 'shield-checkmark-outline' };
+  if (atk<=1.2&&def<=1.1) return { label: 'Savunmacı',       color: '#388E3C', icon: 'shield-outline' };
+  if (def>=1.6)            return { label: 'Savunması Açık',  color: '#A32D2D', icon: 'alert-circle-outline' };
+  return                          { label: 'Dengeli',          color: '#555',    icon: 'swap-horizontal-outline' };
 }
 
 export function getH2HComment(h2hData: FDMatch[], home: string, away: string): string {
