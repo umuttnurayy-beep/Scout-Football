@@ -5,13 +5,18 @@ import {
 } from 'react-native';
 import BottomTabBar from '../components/BottomTabBar';
 import { useTheme } from '../context/ThemeContext';
-import { getSuperLigMatch, getMatchStats, getMatchContext, getSuperLigMatchContext } from '../services/api';
+import { getSuperLigMatch, getMatchStats } from '../services/api';
 import {
   SavedPick, clearPickHistory, filterPicksForWeek, groupPicksByDay,
   getWeekRange, loadPickHistory, pickAccuracy, resolvePickResults, removeStalePicks,
-  updatePickIfUnresolved,
 } from '../utils/pickHistory';
-import { buildMatchContextScoutAnalysis, getPickFromSLContext } from '../utils/matchMetrics';
+
+// Geçen haftanın sonuçları Pazartesi 09:00'dan itibaren görünür
+function getMaxWeekOffset(): number {
+  const now = new Date();
+  if (now.getDay() === 1 && now.getHours() < 9) return -1;
+  return 0;
+}
 
 const DAY_NAMES = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 const MONTHS_SHORT = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
@@ -63,7 +68,7 @@ function PickCard({ pick }: { pick: SavedPick }) {
 export default function ScoutPerformanceScreen() {
   const router = useRouter();
   const { colors: c, isDark } = useTheme();
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [weekOffset, setWeekOffset] = useState(getMaxWeekOffset);
   const [allPicks, setAllPicks] = useState<SavedPick[]>([]);
   const [resolving, setResolving] = useState(false);
 
@@ -77,25 +82,19 @@ export default function ScoutPerformanceScreen() {
         const history = await loadPickHistory();
         if (!cancelled) {
           setAllPicks(history);
-          // Geçen hafta boşsa pick'lerin olduğu en yakın haftaya git
-          const lastWeek = getWeekRange(0);
-          const lastWeekPicks = filterPicksForWeek(history, lastWeek.start, lastWeek.end)
+          const maxOffset = getMaxWeekOffset();
+          // maxOffset'i aşan offset varsa sıfırla
+          setWeekOffset(prev => Math.min(prev, maxOffset));
+          // Görülebilecek en son hafta boşsa geriye dönük en fazla 8 hafta ara
+          const targetWeek = getWeekRange(maxOffset);
+          const targetPicks = filterPicksForWeek(history, targetWeek.start, targetWeek.end)
             .filter(p => p.pickTone !== 'caution');
-          if (lastWeekPicks.length === 0) {
-            // Önce bu haftayı (devam eden) kontrol et
-            const currentWeek = getWeekRange(1);
-            const currentWeekPicks = filterPicksForWeek(history, currentWeek.start, currentWeek.end)
-              .filter(p => p.pickTone !== 'caution');
-            if (currentWeekPicks.length > 0) {
-              setWeekOffset(1);
-            } else {
-              // Geriye dönük en fazla 8 hafta kontrol et
-              for (let o = 1; o <= 8; o++) {
-                const w = getWeekRange(-o);
-                const wPicks = filterPicksForWeek(history, w.start, w.end)
-                  .filter(p => p.pickTone !== 'caution');
-                if (wPicks.length > 0) { setWeekOffset(-o); break; }
-              }
+          if (targetPicks.length === 0) {
+            for (let o = maxOffset - 1; o >= maxOffset - 8; o--) {
+              const w = getWeekRange(o);
+              const wPicks = filterPicksForWeek(history, w.start, w.end)
+                .filter(p => p.pickTone !== 'caution');
+              if (wPicks.length > 0) { setWeekOffset(o); break; }
             }
           }
         }
@@ -121,34 +120,6 @@ export default function ScoutPerformanceScreen() {
           } catch { return null; }
         });
 
-        // Refresh pick labels using context data (matches detail page picks)
-        const today = new Date().toISOString().split('T')[0];
-        const refreshCandidates = (await loadPickHistory()).filter(
-          p => !p.result && p.date >= today && p.pickTone !== 'caution',
-        );
-        await Promise.all(refreshCandidates.map(async (pick) => {
-          try {
-            if (pick.isSuperLig) {
-              const ctx = await getSuperLigMatchContext({ eventId: pick.id, silent: true });
-              if (!ctx) return;
-              // Extract teamIds stored in h2h or context; fall back to heuristic
-              const homeTeamId = ctx.homeContext?.teamId ?? 0;
-              const awayTeamId = ctx.awayContext?.teamId ?? 0;
-              if (!homeTeamId || !awayTeamId) return;
-              const pick2 = getPickFromSLContext(homeTeamId, awayTeamId, pick.homeTeam, pick.awayTeam, ctx);
-              if (pick2) await updatePickIfUnresolved(pick.id, pick2.label, pick2.tone);
-            } else {
-              const ctx = await getMatchContext(pick.id, false, { silent: true });
-              if (!ctx) return;
-              const fakeMatch = { home: pick.homeTeam, away: pick.awayTeam, leagueApiId: 0 } as any;
-              const analysis = buildMatchContextScoutAnalysis(fakeMatch, ctx);
-              if (analysis?.scoutPick) {
-                await updatePickIfUnresolved(pick.id, analysis.scoutPick.label, analysis.scoutPick.tone);
-              }
-            }
-          } catch { /* silent */ }
-        }));
-
         const updated = await loadPickHistory();
         if (!cancelled) setAllPicks(updated);
         setResolving(false);
@@ -157,18 +128,17 @@ export default function ScoutPerformanceScreen() {
     }, [])
   );
 
-  const maxDateObj = new Date();
-  maxDateObj.setDate(maxDateObj.getDate() + 3);
-  const maxDate = maxDateObj.toISOString().split('T')[0];
+  const maxWeekOffset = getMaxWeekOffset();
+  const isPendingMonday = maxWeekOffset === -1 && weekOffset === -1;
 
   const weekPicks = filterPicksForWeek(allPicks, week.start, week.end)
-    .filter(p => p.pickTone !== 'caution' && p.date <= maxDate);
+    .filter(p => p.pickTone !== 'caution');
   const acc = pickAccuracy(weekPicks);
   const pending = weekPicks.filter(p => !p.result).length;
   const grouped = groupPicksByDay(weekPicks);
 
-  const isLatestWeek = weekOffset >= 1; // offset=1 = bu hafta (devam eden)
-  const isCurrentWeek = weekOffset === 1;
+  const isLatestWeek = weekOffset >= maxWeekOffset;
+  const isDefaultWeek = weekOffset === maxWeekOffset;
   const barPct = acc.total > 0 ? acc.pct : 0;
   const barColor = barPct >= 60 ? c.win : barPct >= 40 ? (isDark ? '#E3B341' : '#B7791F') : c.loss;
 
@@ -191,11 +161,10 @@ export default function ScoutPerformanceScreen() {
         </TouchableOpacity>
         <View style={styles.weekNavCenter}>
           <Text style={[styles.weekLabel, { color: c.text }]}>{week.label}</Text>
-          {isCurrentWeek && <Text style={[styles.weekBadge, { color: c.primary }]}>Bu Hafta</Text>}
-          {weekOffset === 0 && <Text style={[styles.weekBadge, { color: c.primary }]}>Son Hafta</Text>}
+          {isDefaultWeek && <Text style={[styles.weekBadge, { color: c.primary }]}>Geçen Hafta</Text>}
         </View>
         <TouchableOpacity
-          onPress={() => setWeekOffset(w => Math.min(1, w + 1))}
+          onPress={() => setWeekOffset(w => Math.min(maxWeekOffset, w + 1))}
           style={styles.weekNavBtn}
           disabled={isLatestWeek}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -239,18 +208,27 @@ export default function ScoutPerformanceScreen() {
               <Text style={[styles.accPct, { color: c.textFaint }]}>⏳</Text>
             </View>
             <Text style={[styles.resolveHint, { color: c.textFaint, marginTop: 0 }]}>
-              {isCurrentWeek ? 'Maçlar tamamlandıkça sonuçlar burada görünecek' : 'Sonuçlar güncelleniyor…'}
+              Sonuçlar güncelleniyor…
             </Text>
           </View>
         ) : (
           <View style={[styles.emptyCard, { backgroundColor: c.surface }]}>
             <Text style={[styles.emptyIcon]}>📋</Text>
-            <Text style={[styles.emptyTitle, { color: c.text }]}>
-              {weekOffset === 0 ? 'Geçen hafta için pick bulunamadı' : 'Bu hafta için pick bulunamadı'}
-            </Text>
-            <Text style={[styles.emptySub, { color: c.textSub }]}>
-              Ana ekranda o haftanın maçlarını görüntüleyince Scout pick'leri otomatik kaydedilir.
-            </Text>
+            {isPendingMonday ? (
+              <>
+                <Text style={[styles.emptyTitle, { color: c.text }]}>Geçen haftanın sonuçları hazırlanıyor</Text>
+                <Text style={[styles.emptySub, { color: c.textSub }]}>
+                  Bugün saat 09:00'dan itibaren geçen haftanın scout performansı burada görünecek.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.emptyTitle, { color: c.text }]}>Bu hafta için pick bulunamadı</Text>
+                <Text style={[styles.emptySub, { color: c.textSub }]}>
+                  Ana ekranda o haftanın maçlarını görüntüleyince Scout pick'leri otomatik kaydedilir.
+                </Text>
+              </>
+            )}
           </View>
         )}
 
