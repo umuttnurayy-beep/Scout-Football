@@ -156,7 +156,7 @@ function createSuperLigRouter({
     const awayTeamId = parseInt(req.query.awayTeamId);
     const home = String(req.query.home || '');
     const away = String(req.query.away || '');
-    const cacheKey = `superlig_match_context_v8_${eventId}_${homeTeamId || 0}_${awayTeamId || 0}`;
+    const cacheKey = `superlig_match_context_v9_${eventId}_${homeTeamId || 0}_${awayTeamId || 0}`;
     const cached = await getCache(cacheKey);
     if (cached) return res.json({ ok: true, data: cached });
 
@@ -177,19 +177,26 @@ function createSuperLigRouter({
       const issues = [];
       if (homeContextR.status === 'rejected' || awayContextR.status === 'rejected') issues.push('form');
 
-      // H2H: önce recentMatches çaprazla (extra API çağrısı yok)
+      // H2H: TheSportsDB eventslast her iki takım için paralel çekilir (birden fazla sezon)
       const homeCtx = homeContextR.status === 'fulfilled' ? homeContextR.value : null;
-      const homeRecent = homeCtx?.recentMatches || [];
-      let h2hResult = homeRecent
-        .filter(m => m.homeTeamId === resolvedAwayId || m.awayTeamId === resolvedAwayId)
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
-        .slice(0, 10);
-
-      // Fallback: TheSportsDB eventslast (birden fazla sezon)
-      if (h2hResult.length === 0 && resolvedHomeId && resolvedAwayId) {
+      let h2hResult = [];
+      if (resolvedHomeId && resolvedAwayId) {
         try {
           h2hResult = await fetchH2HFromSportsDb(resolvedHomeId, resolvedAwayId);
         } catch (e) { /* ignore */ }
+      }
+
+      // Supplement: recentMatches çaprazla — TheSportsDB'nin kaçırdığı bu sezon maçlarını ekle
+      if (h2hResult.length < 8) {
+        const homeRecent = homeCtx?.recentMatches || [];
+        const fromForm = homeRecent.filter(m =>
+          m.homeTeamId === resolvedAwayId || m.awayTeamId === resolvedAwayId,
+        ).sort((a, b) => new Date(b.date) - new Date(a.date));
+        const seen = new Set(h2hResult.map(m => m.date));
+        for (const m of fromForm) {
+          if (!seen.has(m.date)) { h2hResult.push(m); seen.add(m.date); }
+        }
+        h2hResult = h2hResult.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
       }
 
       // Son çare: AllSports H2H
