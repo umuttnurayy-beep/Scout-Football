@@ -18,6 +18,7 @@ import {
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
 import { filterPicksForWeek, getCurrentWeekRange, getWeekRange, getMaxWeekOffset, getUnlockDateLabel, loadPickHistory, pickAccuracy, savePick } from '../utils/pickHistory';
 import { dataNoticeMessage, matchListEmptyMessage } from '../utils/emptyStates';
+import { cardShadow } from '../utils/scoutStyles';
 import { teamsMatch } from '../utils/teamStats';
 import {
   FeaturedMatchCache, ListItem, Match, Metrics,
@@ -104,7 +105,10 @@ function HeroCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
   return (
     <TouchableOpacity style={sc.heroCard} onPress={onPress} activeOpacity={0.85}>
       <View style={sc.heroTop}>
-        <Text style={sc.heroFireLabel}>🔥 GÜNÜN MAÇI</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+          <Ionicons name="flame" size={13} color="#fff" />
+          <Text style={sc.heroFireLabel}>GÜNÜN MAÇI</Text>
+        </View>
         <Text style={sc.heroLeague}>{m.league}</Text>
       </View>
       <View style={sc.heroTeamRow}>
@@ -143,9 +147,9 @@ function HeroCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
 
 function MiniMetric({ icon, label, value, tone }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string; tone?: 'hot' | 'cool' | 'warn' }) {
   const { colors: c, isDark } = useTheme();
-  const color = tone === 'hot' ? c.primary : tone === 'warn' ? (isDark ? '#E3B341' : '#B7791F') : c.textSub;
+  const color = tone === 'hot' ? c.primary : tone === 'warn' ? c.amber : c.textSub;
   return (
-    <View style={[sc.miniMetric, { borderColor: c.border, backgroundColor: c.surfaceAlt }]}>
+    <View style={[sc.miniMetric, { backgroundColor: c.surfaceAlt }]}>
       <Ionicons name={icon} size={18} color={color} />
       <Text style={[sc.miniMetricLabel, { color: c.textMuted }]}>{label}</Text>
       <Text style={[sc.miniMetricValue, { color }]}>{value}</Text>
@@ -154,7 +158,7 @@ function MiniMetric({ icon, label, value, tone }: { icon: keyof typeof Ionicons.
 }
 
 function SingleInsightCard({ m, metrics }: { m: Match; metrics: Metrics }) {
-  const { colors: c } = useTheme();
+  const { colors: c, isDark } = useTheme();
   const [contextAnalysis, setContextAnalysis] = useState<ReturnType<typeof buildMatchContextScoutAnalysis>>(null);
 
   useEffect(() => {
@@ -171,7 +175,7 @@ function SingleInsightCard({ m, metrics }: { m: Match; metrics: Metrics }) {
     return () => { alive = false; };
   }, [m.id, m.finished, m.homeTeamId, m.awayTeamId, metrics.leagueAvg]);
   return (
-    <View style={[sc.singlePanel, { backgroundColor: c.surface, borderColor: c.cardBorder }]}>
+    <View style={[sc.singlePanel, { backgroundColor: c.surface }, cardShadow(isDark)]}>
       <View style={sc.singleTitleRow}>
         <Ionicons name="sparkles-outline" size={17} color={c.primary} />
         <Text style={[sc.singleTitle, { color: c.primary }]}>SCOUT NE DİYOR?</Text>
@@ -204,12 +208,12 @@ function ProgressRow({ label, value, percent }: { label: string; value: string; 
 }
 
 function SingleTrendsCard({ m, metrics }: { m: Match; metrics: Metrics }) {
-  const { colors: c } = useTheme();
+  const { colors: c, isDark } = useTheme();
   const goalLevel = levelFromExpectedGoals(metrics.expectedGoals);
   const sideValue = metrics.hasData ? favoriteText(m, metrics) : 'Belirsiz';
   const confidence = confidenceText(metrics);
   return (
-    <View style={[sc.trendPanel, { backgroundColor: c.surface, borderColor: c.cardBorder }]}>
+    <View style={[sc.trendPanel, { backgroundColor: c.surface }, cardShadow(isDark)]}>
       <View style={sc.singleTitleRow}>
         <Ionicons name="analytics-outline" size={17} color={c.primary} />
         <Text style={[sc.singleTitle, { color: c.primary }]}>MAÇ TRENDLERİ</Text>
@@ -223,10 +227,10 @@ function SingleTrendsCard({ m, metrics }: { m: Match; metrics: Metrics }) {
 }
 
 function SingleH2HCard({ h2h }: { h2h: H2HRawItem[] }) {
-  const { colors: c } = useTheme();
+  const { colors: c, isDark } = useTheme();
   const rows = h2h.slice(0, 3).map(readH2HMatch);
   return (
-    <View style={[sc.h2hPanel, { backgroundColor: c.surface, borderColor: c.cardBorder }]}>
+    <View style={[sc.h2hPanel, { backgroundColor: c.surface }, cardShadow(isDark)]}>
       <View style={sc.singleTitleRow}>
         <Ionicons name="time-outline" size={17} color={c.primary} />
         <Text style={[sc.singleTitle, { color: c.primary }]}>SON 3 H2H</Text>
@@ -247,14 +251,14 @@ function SingleH2HCard({ h2h }: { h2h: H2HRawItem[] }) {
 }
 
 function TomorrowFeaturedCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress: () => void }) {
-  const { colors: c } = useTheme();
+  const { colors: c, isDark } = useTheme();
   const cardAnalysis = buildHomeCardAnalysis(m, metrics);
   return (
-    <TouchableOpacity style={[sc.tomorrowCard, { backgroundColor: c.surface, borderColor: c.cardBorder }]} onPress={onPress} activeOpacity={0.86}>
+    <TouchableOpacity style={[sc.tomorrowCard, { backgroundColor: c.surface }, cardShadow(isDark)]} onPress={onPress} activeOpacity={0.86}>
       <View style={sc.hlTop}>
         <View style={sc.singleTitleRow}>
-          <Ionicons name="star-outline" size={17} color="#E3B341" />
-          <Text style={[sc.singleTitle, { color: '#E3B341' }]}>YAKLAŞAN ÖNE ÇIKAN</Text>
+          <Ionicons name="star-outline" size={17} color={c.primary} />
+          <Text style={[sc.singleTitle, { color: c.primary }]}>YAKLAŞAN ÖNE ÇIKAN</Text>
         </View>
         <Text style={[sc.hlLeague, { color: c.primary }]}>{m.league}</Text>
       </View>
@@ -281,9 +285,9 @@ function EmptyActionCard({
   accent: string;
   onPress: () => void;
 }) {
-  const { colors: c } = useTheme();
+  const { colors: c, isDark } = useTheme();
   return (
-    <TouchableOpacity style={[sc.emptyAction, { backgroundColor: c.surface, borderColor: c.cardBorder }]} onPress={onPress} activeOpacity={0.86}>
+    <TouchableOpacity style={[sc.emptyAction, { backgroundColor: c.surface }, cardShadow(isDark)]} onPress={onPress} activeOpacity={0.86}>
       <View style={[sc.emptyActionIcon, { borderColor: accent }]}>
         <Ionicons name={icon} size={22} color={accent} />
       </View>
@@ -301,7 +305,7 @@ function DataNoticeCard({ type, message, onRetry }: { type: HomeDataNotice; mess
   const isStale = type === 'stale';
   const isCache = type === 'cache';
   const isWarning = type === 'warning';
-  const accentColor = isStale ? c.primary : isCache ? '#8B949E' : isWarning ? '#E3B341' : '#E16F3D';
+  const accentColor = isStale ? c.primary : isCache ? c.textMuted : isWarning ? c.amber : c.loss;
   const backgroundColor = isDark
     ? isWarning ? '#2A2416' : type === 'error' ? '#2B1F1A' : isCache ? '#1C2128' : '#18202A'
     : isWarning ? '#FFF7E5' : type === 'error' ? '#FFF1EC' : isCache ? '#F1F3F5' : '#F3F7FC';
@@ -351,7 +355,7 @@ function EmptyScoutState({
   onOpenMatch: () => void;
   standingsMap?: Record<number, Standing[]>;
 }) {
-  const { colors: c } = useTheme();
+  const { colors: c, isDark } = useTheme();
   const dateText = `${selectedDate.getDate()} ${MONTHS[selectedDate.getMonth()]}`;
   const [favTeamName, setFavTeamName] = useState<string | null>(null);
 
@@ -415,7 +419,7 @@ function EmptyScoutState({
           <View style={sc.sectionHeader}>
             <Text style={[sc.sectionTitle, { color: c.textMuted }]}>FAVORİ TAKIM</Text>
           </View>
-          <View style={[sc.emptyFavCard, { backgroundColor: c.surface, borderColor: c.cardBorder }]}>
+          <View style={[sc.emptyFavCard, { backgroundColor: c.surface }, cardShadow(isDark)]}>
             <View style={sc.emptyFavLeft}>
               <Text style={[sc.emptyFavName, { color: c.text }]} numberOfLines={1}>{favTeamName}</Text>
               <Text style={[sc.emptyFavSub, { color: c.textSub }]}>{favStanding.win}G {favStanding.draw}B {favStanding.loss}M · {favStanding.played} maç</Text>
@@ -433,7 +437,7 @@ function EmptyScoutState({
           <View style={sc.sectionHeader}>
             <Text style={[sc.sectionTitle, { color: c.textMuted }]}>LİG LİDERLERİ</Text>
           </View>
-          <View style={[sc.emptyLeadersCard, { backgroundColor: c.surface, borderColor: c.cardBorder }]}>
+          <View style={[sc.emptyLeadersCard, { backgroundColor: c.surface }, cardShadow(isDark)]}>
             {leaders.map(({ leagueId, leader }) => {
               const gpg = leagueGoalsPerGame[leagueId];
               return (
@@ -470,10 +474,10 @@ function EmptyScoutState({
         icon="stats-chart-outline"
         title="İSTATİSTİKLERİ KEŞFET"
         text="Gol, form ve takım trendlerini maç olmayan günlerde değerlendirebilirsin."
-        accent="#8B5CF6"
+        accent={c.primary}
         onPress={onOpenStats}
       />
-      <View style={[sc.emptyNote, { backgroundColor: c.surface, borderColor: c.cardBorder }]}>
+      <View style={[sc.emptyNote, { backgroundColor: c.surface }, cardShadow(isDark)]}>
         <View style={sc.singleTitleRow}>
           <Ionicons name="chatbubble-outline" size={18} color={c.primary} />
           <Text style={[sc.singleTitle, { color: c.primary }]}>SCOUT NOTU</Text>
@@ -487,12 +491,12 @@ function EmptyScoutState({
 function HighlightCard({ m, rank, metrics, onPress }: {
   m: Match; rank: number; metrics: Metrics; onPress: () => void;
 }) {
-  const { colors: c } = useTheme();
+  const { colors: c, isDark } = useTheme();
   const cardAnalysis = buildHomeCardAnalysis(m, metrics);
-  const label = rank === 0 ? '⭐ Öne Çıkan' : rank === 1 ? '🎯 İzlenecek' : '📌 Dikkat';
-  const borderColor = rank === 0 ? c.primary : rank === 1 ? '#E6A817' : c.textFaint;
+  const label = rank === 0 ? 'Öne Çıkan' : rank === 1 ? 'İzlenecek' : 'Dikkat';
+  const borderColor = rank === 0 ? c.primary : rank === 1 ? c.textSub : c.textFaint;
   return (
-    <TouchableOpacity style={[sc.hlCard, { backgroundColor: c.surface, borderColor: c.cardBorder, borderLeftColor: borderColor }]} onPress={onPress} activeOpacity={0.85}>
+    <TouchableOpacity style={[sc.hlCard, { backgroundColor: c.surface, borderLeftColor: borderColor }, cardShadow(isDark)]} onPress={onPress} activeOpacity={0.85}>
       <View style={sc.hlTop}>
         <Text style={[sc.hlRank, { color: borderColor }]}>{label}</Text>
         <Text style={[sc.hlLeague, { color: c.textFaint }]}>{m.league}</Text>
@@ -515,21 +519,21 @@ function HighlightCard({ m, rank, metrics, onPress }: {
 }
 
 function DaySummaryCard({ summary }: { summary: string }) {
-  const { colors: c } = useTheme();
+  const { colors: c, isDark } = useTheme();
   return (
-    <View style={[sc.daySummary, { backgroundColor: c.surface, borderColor: c.cardBorder }]}>
-      <Text style={[sc.daySummaryTitle, { color: c.primary }]}>📊 BUGÜN NE BEKLENİYOR?</Text>
+    <View style={[sc.daySummary, { backgroundColor: c.surface }, cardShadow(isDark)]}>
+      <Text style={[sc.daySummaryTitle, { color: c.primary }]}>BUGÜN NE BEKLENİYOR?</Text>
       <Text style={[sc.daySummaryText, { color: c.text }]}>{summary}</Text>
     </View>
   );
 }
 
 function MatchRow({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress: () => void }) {
-  const { colors: c } = useTheme();
+  const { colors: c, isDark } = useTheme();
   const hasScore = m.finished && m.score;
   const cardAnalysis = buildHomeCardAnalysis(m, metrics);
   return (
-    <TouchableOpacity style={[sc.matchCard, { backgroundColor: c.surface, borderColor: c.border }]} onPress={onPress} activeOpacity={0.8}>
+    <TouchableOpacity style={[sc.matchCard, { backgroundColor: c.surface }, cardShadow(isDark)]} onPress={onPress} activeOpacity={0.8}>
       <View style={sc.matchTop}>
         <Text style={[sc.matchLeague, { color: c.primary }]}>{m.league}</Text>
         {hasScore ? (
@@ -1538,7 +1542,7 @@ export default function HomeScreen() {
             <View style={[sc.weeklyCard, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
               <View style={sc.weeklyCardTop}>
                 <View style={sc.weeklyCardTitleRow}>
-                  <Text style={sc.weeklyCardEmoji}>🏆</Text>
+                  <Ionicons name="trophy" size={14} color={c.primary} />
                   <Text style={[sc.weeklyCardTitle, { color: c.primary }]}>SCOUT PERFORMANSI</Text>
                 </View>
                 <Text style={[sc.weeklyCardChevron, { color: c.primary }]}>›</Text>
@@ -1581,7 +1585,7 @@ export default function HomeScreen() {
       case 'empty':
         return (
           <EmptyStateCard
-            icon="📅"
+            icon="calendar-outline"
             title={matchListEmptyMessage(item.filter!)}
             subtitle="Farklı bir tarih veya lig filtresi seçebilirsin."
           />
@@ -1778,17 +1782,17 @@ const sc = StyleSheet.create({
   heroMetricDot:     { fontSize: 13, color: 'rgba(255,255,255,0.5)', paddingHorizontal: 6 },
   heroSummary:       { fontSize: 12, color: 'rgba(255,255,255,0.82)', lineHeight: 17, marginTop: 10 },
 
-  singlePanel:    { marginHorizontal: 14, marginTop: 8, marginBottom: 8, padding: 14, borderRadius: 12, borderWidth: 1 },
+  singlePanel:    { marginHorizontal: 14, marginTop: 8, marginBottom: 8, padding: 14, borderRadius: 12 },
   singlePanelLeft:{ flex: 1, minWidth: 0 },
   singleTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   singleTitle:    { fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
   singleText:     { fontSize: 13, lineHeight: 20, marginTop: 10 },
   singleMetrics:  { flexDirection: 'row', gap: 8, marginTop: 12 },
-  miniMetric:     { flex: 1, minHeight: 58, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 7 },
+  miniMetric:     { flex: 1, minHeight: 58, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 7 },
   miniMetricLabel:{ fontSize: 10, marginTop: 5, textAlign: 'center' },
   miniMetricValue:{ fontSize: 13, fontWeight: '800', marginTop: 4, textAlign: 'center' },
 
-  trendPanel:     { marginHorizontal: 14, marginBottom: 8, padding: 14, borderRadius: 12, borderWidth: 1 },
+  trendPanel:     { marginHorizontal: 14, marginBottom: 8, padding: 14, borderRadius: 12 },
   progressRow:    { marginTop: 12 },
   progressTop:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 },
   progressLabel:  { fontSize: 12 },
@@ -1797,7 +1801,7 @@ const sc = StyleSheet.create({
   progressFill:   { height: 6, borderRadius: 999 },
   trendFoot:      { fontSize: 11, marginTop: 12 },
 
-  h2hPanel:       { marginHorizontal: 14, marginBottom: 8, padding: 14, borderRadius: 12, borderWidth: 1 },
+  h2hPanel:       { marginHorizontal: 14, marginBottom: 8, padding: 14, borderRadius: 12 },
   h2hEmpty:       { fontSize: 12, lineHeight: 18, marginTop: 10 },
   h2hMiniRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 0.5, paddingTop: 10, marginTop: 10, gap: 10 },
   h2hMiniTeams:   { flex: 1, minWidth: 0 },
@@ -1805,7 +1809,7 @@ const sc = StyleSheet.create({
   h2hMiniText:    { fontSize: 12, fontWeight: '600' },
   h2hMiniScore:   { fontSize: 14, fontWeight: '800' },
 
-  tomorrowCard:   { marginHorizontal: 14, marginBottom: 10, padding: 14, borderRadius: 12, borderWidth: 1 },
+  tomorrowCard:   { marginHorizontal: 14, marginBottom: 10, padding: 14, borderRadius: 12 },
 
   emptyScoutWrap: { paddingTop: 34, paddingBottom: 14 },
   emptyHero:      { alignItems: 'center', paddingHorizontal: 24, marginBottom: 20 },
@@ -1819,15 +1823,15 @@ const sc = StyleSheet.create({
   noticeText:        { flex: 1, fontSize: 12, lineHeight: 17 },
   noticeRetryBtn:    { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, minHeight: 28 },
   noticeRetryText:   { fontSize: 12, fontWeight: '600' },
-  emptyAction:    { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, borderWidth: 1, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  emptyAction:    { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
   emptyActionIcon:{ width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   emptyActionText:{ flex: 1, minWidth: 0 },
   emptyActionTitle:{ fontSize: 11, fontWeight: '800', letterSpacing: 0.5, marginBottom: 5 },
   emptyActionBody:{ fontSize: 13, lineHeight: 18 },
-  emptyNote:      { marginHorizontal: 14, marginBottom: 10, borderRadius: 12, borderWidth: 1, padding: 14 },
+  emptyNote:      { marginHorizontal: 14, marginBottom: 10, borderRadius: 12, padding: 14 },
   emptyNoteText:  { fontSize: 13, lineHeight: 19, marginTop: 9 },
 
-  emptyFavCard:   { marginHorizontal: 14, marginBottom: 10, borderRadius: 12, borderWidth: 1, padding: 14, flexDirection: 'row', alignItems: 'center' },
+  emptyFavCard:   { marginHorizontal: 14, marginBottom: 10, borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center' },
   emptyFavLeft:   { flex: 1, minWidth: 0 },
   emptyFavName:   { fontSize: 15, fontWeight: '800' },
   emptyFavSub:    { fontSize: 12, marginTop: 3 },
@@ -1835,7 +1839,7 @@ const sc = StyleSheet.create({
   emptyFavPos:    { fontSize: 12, fontWeight: '600' },
   emptyFavPts:    { fontSize: 18, fontWeight: '800', marginTop: 2 },
 
-  emptyLeadersCard:  { marginHorizontal: 14, marginBottom: 10, borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
+  emptyLeadersCard:  { marginHorizontal: 14, marginBottom: 10, borderRadius: 12, overflow: 'hidden' },
   emptyLeaderRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, gap: 8, borderBottomWidth: StyleSheet.hairlineWidth },
   emptyLeaderFlag:   { fontSize: 17, width: 24, textAlign: 'center' },
   emptyLeaderMid:    { width: 80 },
@@ -1844,7 +1848,7 @@ const sc = StyleSheet.create({
   emptyLeaderTeam:   { flex: 1, fontSize: 13, fontWeight: '700' },
   emptyLeaderPts:    { fontSize: 13, fontWeight: '800' },
 
-  hlCard:        { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, padding: 14, borderWidth: 1, borderLeftWidth: 3 },
+  hlCard:        { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, padding: 14, borderLeftWidth: 3 },
   hlTop:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   hlRank:        { fontSize: 11, fontWeight: '700' },
   hlLeague:      { fontSize: 11 },
@@ -1854,11 +1858,11 @@ const sc = StyleSheet.create({
   hlMetric:      { fontSize: 13, fontWeight: '600', marginBottom: 4 },
   hlSummary:     { fontSize: 12, lineHeight: 17, marginTop: 2 },
 
-  daySummary:      { marginHorizontal: 14, marginTop: 4, marginBottom: 4, padding: 14, borderRadius: 12, borderWidth: 1 },
+  daySummary:      { marginHorizontal: 14, marginTop: 4, marginBottom: 4, padding: 14, borderRadius: 12 },
   daySummaryTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, marginBottom: 6 },
   daySummaryText:  { fontSize: 13, lineHeight: 19 },
 
-  matchCard:     { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, padding: 14, borderWidth: 1, elevation: 1, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
+  matchCard:     { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, padding: 14, elevation: 3, shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: 2 } },
   matchTop:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   matchLeague:   { fontSize: 11, fontWeight: '600' },
   matchTime:     { fontSize: 12, fontWeight: '600' },

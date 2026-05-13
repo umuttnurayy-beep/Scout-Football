@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import BottomTabBar from '../components/BottomTabBar';
@@ -388,7 +389,7 @@ export default function LeaguesScreen() {
               standings.length === 0 ? (
                 <View style={styles.stateFrame}>
                   <EmptyStateCard
-                    icon="📡"
+                    icon="wifi-outline"
                     title={loadError ? 'Lig verisi yüklenemedi' : 'Veri bulunamadı'}
                     subtitle={leagueDataEmptyMessage(activeLeague.name)}
                     onRetry={retryStandings}
@@ -398,7 +399,10 @@ export default function LeaguesScreen() {
                 <>
                   {ligChar && (
                     <View style={[ozStyles.card, { backgroundColor: isDark ? '#0D2F4F' : '#0C447C' }]}>
-                      <Text style={ozStyles.header}>🏟️ LİG ÖZETİ</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                        <Ionicons name="stats-chart" size={14} color="#fff" />
+                        <Text style={[ozStyles.header, { marginBottom: 0 }]}>LİG ÖZETİ</Text>
+                      </View>
                       <View style={ozStyles.pillRow}>
                         <View style={[ozStyles.pill, { backgroundColor: c.primaryLight }]}>
                           <Text style={[ozStyles.pillLabel, { color: c.textMuted }]}>Stil</Text>
@@ -469,7 +473,10 @@ export default function LeaguesScreen() {
                   {leader && (
                     <View style={[stStyles.leaderCard, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
                       <View style={stStyles.leaderTop}>
-                        <Text style={[stStyles.leaderBadge, { color: c.primary }]}>🏆 LİDER</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                          <Ionicons name="trophy" size={12} color={c.primary} />
+                          <Text style={[stStyles.leaderBadge, { color: c.primary }]}>LİDER</Text>
+                        </View>
                         {leaderGap > 0 && <Text style={[stStyles.leaderGap, { color: c.primary }]}>+{leaderGap} puan önde</Text>}
                       </View>
                       <Text style={[stStyles.leaderTeam, { color: c.text }]}>{leader.team}</Text>
@@ -512,14 +519,16 @@ export default function LeaguesScreen() {
 
                   <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>ÖNE ÇIKAN PROFİLLER</Text>
                   {([
-                    mostGoals    ? { icon: '⚽', label: 'En Golcü',        team: mostGoals,    stat: (mostGoals.gf / Math.max(mostGoals.played, 1)).toFixed(1) + ' gol/maç',           insight: 'Over 2.5 eğilimi güçlü; rakip kale her an tehlikede.' }           : null,
-                    bestDef      ? { icon: '🛡️', label: 'En İyi Savunma', team: bestDef,      stat: (bestDef.ga  / Math.max(bestDef.played,   1)).toFixed(1) + ' yenilen/maç',        insight: 'Kale sıfır potansiyeli yüksek; düşük skorlu senaryolar için referans.' }        : null,
-                    mostTempo    ? { icon: '⚡', label: 'En Tempolu',       team: mostTempo,    stat: ((mostTempo.gf + mostTempo.ga) / Math.max(mostTempo.played, 1)).toFixed(1) + ' gol/maç', insight: 'Bu takımın maçları over eğilimi için en güçlü adaylar.' } : null,
-                    bestWinRate  ? { icon: '📈', label: 'En Formda',        team: bestWinRate,  stat: Math.round(bestWinRate.win / Math.max(bestWinRate.played, 1) * 100) + '% galibiyet', insight: 'Tutarlı profil — tahmin edilebilir, güvenilir seçenek.' } : null,
-                    surpriseTeam ? { icon: '🌀', label: 'Sürpriz',          team: surpriseTeam, stat: surpriseTeam.pos + '. sıra · ' + (surpriseTeam.gf / Math.max(surpriseTeam.played, 1)).toFixed(1) + ' gol/maç', insight: 'Sıralama beklenenden üst — dikkatle izlenmeyi hak ediyor.' } : null,
+                    mostGoals    ? { icon: 'football-outline' as const,     label: 'En Golcü',         team: mostGoals,    stat: (mostGoals.gf / Math.max(mostGoals.played, 1)).toFixed(1) + ' gol/maç',           insight: 'Over 2.5 eğilimi güçlü; rakip kale her an tehlikede.' }           : null,
+                    bestDef      ? { icon: 'shield-outline' as const,       label: 'En İyi Savunma',   team: bestDef,      stat: (bestDef.ga  / Math.max(bestDef.played,   1)).toFixed(1) + ' yenilen/maç',        insight: 'Kale sıfır potansiyeli yüksek; düşük skorlu senaryolar için referans.' }        : null,
+                    mostTempo    ? { icon: 'flash-outline' as const,        label: 'En Tempolu',        team: mostTempo,    stat: ((mostTempo.gf + mostTempo.ga) / Math.max(mostTempo.played, 1)).toFixed(1) + ' gol/maç', insight: 'Bu takımın maçları over eğilimi için en güçlü adaylar.' } : null,
+                    bestWinRate  ? { icon: 'trending-up-outline' as const,  label: 'En Formda',         team: bestWinRate,  stat: Math.round(bestWinRate.win / Math.max(bestWinRate.played, 1) * 100) + '% galibiyet', insight: 'Tutarlı profil — tahmin edilebilir, güvenilir seçenek.' } : null,
+                    surpriseTeam ? { icon: 'star-outline' as const,         label: 'Sürpriz',           team: surpriseTeam, stat: surpriseTeam.pos + '. sıra · ' + (surpriseTeam.gf / Math.max(surpriseTeam.played, 1)).toFixed(1) + ' gol/maç', insight: 'Sıralama beklenenden üst — dikkatle izlenmeyi hak ediyor.' } : null,
                   ] as const).filter(Boolean).map((p, i) => p && (
                     <View key={i} style={[stStyles.profileRow, { borderBottomColor: c.borderLight }]}>
-                      <Text style={stStyles.profileIcon}>{p.icon}</Text>
+                      <View style={[stStyles.profileIconWrap, { backgroundColor: c.primaryLight }]}>
+                        <Ionicons name={p.icon} size={16} color={c.primary} />
+                      </View>
                       <View style={styles.flexOne}>
                         <Text style={[stStyles.profileLabel, { color: c.textMuted }]}>{p.label}</Text>
                         <Text style={[stStyles.profileTeam, { color: c.text }]} numberOfLines={1}>{p.team.team}</Text>
@@ -538,7 +547,7 @@ export default function LeaguesScreen() {
                         <Text style={[styles.effSubtitle, { color: c.textFaint }]}>En fazla gol atan takım 100 birim alır, diğerleri ona oranlanır.</Text>
                         {sorted.map((row, i) => {
                           const ratio = row.gf / maxGf;
-                          const color = i === 0 ? c.primary : i < 3 ? '#E6A817' : i < 5 ? '#4CAF50' : c.textVeryFaint;
+                          const color = i === 0 ? c.primary : i < 3 ? c.textSub : i < 5 ? c.textMuted : c.textVeryFaint;
                           return (
                             <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
                               <Text style={[styles.effRank, { color }]}>{i + 1}</Text>
@@ -560,7 +569,10 @@ export default function LeaguesScreen() {
 
                   {ligChar && (
                     <View style={[ozStyles.noynanirCard, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
-                      <Text style={[ozStyles.noynanirHeader, { color: c.primary }]}>🎯 BU LİGDE NE OYNANIR?</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                        <Ionicons name="analytics-outline" size={14} color={c.primary} />
+                        <Text style={[ozStyles.noynanirHeader, { color: c.primary, marginBottom: 0 }]}>BU LİGDE NE OYNANIR?</Text>
+                      </View>
                       {[
                         {
                           ok: avgGoals >= 2.3,
@@ -581,7 +593,7 @@ export default function LeaguesScreen() {
                         { ok: true, text: ligChar.rec },
                       ].map((b, i) => (
                         <View key={i} style={ozStyles.noynanirRow}>
-                          <Text style={[ozStyles.noynanirIcon, { color: b.ok ? '#27AE60' : '#E6A817' }]}>
+                          <Text style={[ozStyles.noynanirIcon, { color: b.ok ? c.win : c.amber }]}>
                             {b.ok ? '✔' : '⚠'}
                           </Text>
                           <Text style={[ozStyles.noynanirText, { color: c.text }]}>{b.text}</Text>
@@ -616,7 +628,7 @@ export default function LeaguesScreen() {
                     <TouchableOpacity
                       style={[styles.uclToggleBtn, uclView === 'bracket' && styles.uclToggleBtnActive]}
                       onPress={showUclBracket}>
-                      <Text style={[styles.uclToggleText, { color: c.textMuted }, uclView === 'bracket' && styles.uclToggleTextActive]}>🏆 Eşleşmeler</Text>
+                      <Text style={[styles.uclToggleText, { color: c.textMuted }, uclView === 'bracket' && styles.uclToggleTextActive]}>Eşleşmeler</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -641,15 +653,15 @@ export default function LeaguesScreen() {
                       </View>
                     ) : knockoutsLoadError ? (
                       <View style={styles.stateFrame}>
-                        <EmptyStateCard icon="📡" title="Eşleşme verisi yüklenemedi" onRetry={retryKnockouts} />
+                        <EmptyStateCard icon="wifi-outline" title="Eşleşme verisi yüklenemedi" onRetry={retryKnockouts} />
                       </View>
                     ) : knockouts == null ? (
                       <View style={styles.stateFrame}>
-                        <EmptyStateCard icon="🏆" title="UCL eşleşme verisi bulunamadı" onRetry={retryKnockouts} />
+                        <EmptyStateCard icon="trophy-outline" title="UCL eşleşme verisi bulunamadı" onRetry={retryKnockouts} />
                       </View>
                     ) : (knockouts[activeStage] || []).length === 0 ? (
                       <View style={styles.stateFrame}>
-                        <EmptyStateCard icon="🏆" title="Bu tura ait veri bulunamadı" onRetry={retryKnockouts} />
+                        <EmptyStateCard icon="trophy-outline" title="Bu tura ait veri bulunamadı" onRetry={retryKnockouts} />
                       </View>
                     ) : (
                       groupedTies.map((tie, i) => (
@@ -663,7 +675,7 @@ export default function LeaguesScreen() {
                   standings.length === 0 ? (
                     <View style={styles.stateFrame}>
                       <EmptyStateCard
-                        icon="📡"
+                        icon="wifi-outline"
                         title={loadError ? 'Puan tablosu yüklenemedi' : 'Veri bulunamadı'}
                         subtitle={leagueDataEmptyMessage(activeLeague.name)}
                         onRetry={retryStandings}
@@ -723,7 +735,7 @@ export default function LeaguesScreen() {
             {standings.length === 0 ? (
                 <View style={styles.stateFrame}>
                   <EmptyStateCard
-                    icon="🏟️"
+                    icon="people-outline"
                     title={loadError ? 'Takım verisi yüklenemedi' : 'Veri bulunamadı'}
                     subtitle={leagueDataEmptyMessage(activeLeague.name)}
                     onRetry={retryStandings}
@@ -782,7 +794,7 @@ export default function LeaguesScreen() {
         ) : standings.length === 0 ? (
           <View style={styles.stateFrame}>
             <EmptyStateCard
-              icon="📊"
+              icon="stats-chart-outline"
               title={loadError ? 'Trend verisi yüklenemedi' : 'Veri bulunamadı'}
               subtitle={leagueDataEmptyMessage(activeLeague.name)}
               onRetry={retryStandings}
@@ -809,7 +821,7 @@ export default function LeaguesScreen() {
                     )}
                     {trendProfiles.attackTop.map((row, i) => {
                       const ratio = row.gfPer / trendProfiles.maxAtk;
-                      const color = i === 0 ? c.primary : i < 3 ? '#E6A817' : i < 5 ? '#4CAF50' : c.textVeryFaint;
+                      const color = i === 0 ? c.primary : i < 3 ? c.textSub : i < 5 ? c.textMuted : c.textVeryFaint;
                       return (
                         <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
                           <Text style={[styles.effRank, { color }]}>{i + 1}</Text>
@@ -838,7 +850,7 @@ export default function LeaguesScreen() {
                     )}
                     {trendProfiles.defTop.map((row, i) => {
                       const ratio = (trendProfiles.maxDef - row.gaPer) / trendProfiles.defRange;
-                      const color = i === 0 ? '#1B5E20' : i < 3 ? '#388E3C' : i < 5 ? '#4CAF50' : c.textVeryFaint;
+                      const color = i === 0 ? c.win : i < 3 ? c.textSub : i < 5 ? c.textMuted : c.textVeryFaint;
                       return (
                         <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
                           <Text style={[styles.effRank, { color }]}>{i + 1}</Text>
@@ -868,7 +880,7 @@ export default function LeaguesScreen() {
                     {trendProfiles.tempoTop.map((row, i) => {
                       const ratio  = row.tempoPer / trendProfiles.maxTempo;
                       const isOver = row.tempoPer >= 2.5;
-                      const color  = i === 0 ? '#E65100' : i < 3 ? '#F4511E' : i < 5 ? '#FF7043' : c.textVeryFaint;
+                      const color  = i === 0 ? c.amber : i < 3 ? c.textSub : i < 5 ? c.textMuted : c.textVeryFaint;
                       return (
                         <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
                           <Text style={[styles.effRank, { color }]}>{i + 1}</Text>
@@ -898,7 +910,7 @@ export default function LeaguesScreen() {
                     )}
                     {trendProfiles.drawTop.map((row, i) => {
                       const ratio = row.drawPer / trendProfiles.maxDraw;
-                      const color = i === 0 ? '#5b2d8e' : i < 3 ? '#7B1FA2' : i < 5 ? '#9C27B0' : c.textVeryFaint;
+                      const color = i === 0 ? c.textSub : i < 3 ? c.textMuted : i < 5 ? c.textVeryFaint : c.textVeryFaint;
                       return (
                         <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
                           <Text style={[styles.effRank, { color }]}>{i + 1}</Text>
@@ -1058,7 +1070,7 @@ const stStyles = StyleSheet.create({
   scoutRecLabel:    { fontSize: 10, fontWeight: '600', letterSpacing: 0.4, marginBottom: 3 },
   scoutRecText:     { fontSize: 12, lineHeight: 17 },
   profileRow:       { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5, gap: 10 },
-  profileIcon:      { fontSize: 20, width: 28, textAlign: 'center', paddingTop: 2 },
+  profileIconWrap:  { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   profileLabel:     { fontSize: 10, fontWeight: '500', marginBottom: 2 },
   profileTeam:      { fontSize: 13, fontWeight: '600' },
   profileInsight:   { fontSize: 10, marginTop: 3, lineHeight: 14, fontStyle: 'italic' },

@@ -3,9 +3,12 @@ import EmptyStateCard from '../components/EmptyStateCard';
 const colors = {
   primary: '#185FA5',
   surface: '#FFFFFF',
+  surfaceAlt: '#F8F8F8',
   border: '#E5E7EB',
   text: '#111827',
   textSub: '#374151',
+  textMuted: '#888888',
+  amber: '#B7791F',
 };
 
 jest.mock('react-native', () => ({
@@ -27,19 +30,19 @@ describe('EmptyStateCard', () => {
   it('renders full empty state with centered stable spacing', () => {
     const retry = jest.fn();
     const card = EmptyStateCard({
-      icon: '📡',
+      icon: 'wifi-outline',
       title: 'Veri yüklenemedi',
       subtitle: 'Lütfen tekrar dene.',
       onRetry: retry,
     });
-    const [icon, title, subtitle, retryButton] = card.props.children;
+    const [iconWrap, title, subtitle, retryButton] = card.props.children;
 
     expect(card.props.style).toMatchObject({
       minHeight: 260,
       alignItems: 'center',
       justifyContent: 'center',
     });
-    expect(icon.props.children).toBe('📡');
+    expect(iconWrap.props.children.props.name).toBe('wifi-outline');
     expect(title.props.children).toBe('Veri yüklenemedi');
     expect(title.props.style[1]).toEqual({ color: colors.text });
     expect(subtitle.props.children).toBe('Lütfen tekrar dene.');
@@ -54,7 +57,7 @@ describe('EmptyStateCard', () => {
     const retry = jest.fn();
     const card = EmptyStateCard({
       compact: true,
-      icon: '⚽',
+      icon: 'football-outline',
       title: 'Gol verisi bulunamadı',
       retryLabel: 'Yeniden Yükle',
       onRetry: retry,
@@ -76,8 +79,8 @@ describe('EmptyStateCard', () => {
   });
 
   it('omits retry controls when no retry handler is provided', () => {
-    const full = EmptyStateCard({ icon: '🏆', title: 'Veri yok' });
-    const compact = EmptyStateCard({ compact: true, icon: '🏆', title: 'Veri yok' });
+    const full = EmptyStateCard({ icon: 'trophy-outline', title: 'Veri yok' });
+    const compact = EmptyStateCard({ compact: true, icon: 'trophy-outline', title: 'Veri yok' });
 
     expect(full.props.children[3]).toBeNull();
     expect(compact.props.children[2]).toBeNull();

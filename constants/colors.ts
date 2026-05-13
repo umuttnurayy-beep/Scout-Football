@@ -28,6 +28,7 @@ export type ThemeColors = {
   win: string;
   draw: string;
   loss: string;
+  amber: string;    // uyarı / orta seviye göstergesi
 };
 
 export const lightColors: ThemeColors = {
@@ -54,6 +55,7 @@ export const lightColors: ThemeColors = {
   win:  '#27AE60',
   draw: '#888888',
   loss: '#C0392B',
+  amber: '#B7791F',
 };
 
 export const darkColors: ThemeColors = {
@@ -80,4 +82,5 @@ export const darkColors: ThemeColors = {
   win:  '#3FB950',
   draw: '#6E7681',
   loss: '#F85149',
+  amber: '#E3B341',
 };

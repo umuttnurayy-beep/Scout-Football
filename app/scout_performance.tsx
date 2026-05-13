@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
@@ -131,7 +132,7 @@ export default function ScoutPerformanceScreen() {
   const grouped = groupPicksByDay(weekPicks);
 
   const barPct = acc.total > 0 ? acc.pct : 0;
-  const barColor = barPct >= 60 ? c.win : barPct >= 40 ? (isDark ? '#E3B341' : '#B7791F') : c.loss;
+  const barColor = barPct >= 60 ? c.win : barPct >= 40 ? c.amber : c.loss;
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
@@ -213,7 +214,7 @@ export default function ScoutPerformanceScreen() {
           </View>
         ) : (
           <View style={[styles.emptyCard, { backgroundColor: c.surface }]}>
-            <Text style={[styles.emptyIcon]}>📋</Text>
+            <Ionicons name="clipboard-outline" size={36} color="#888" style={styles.emptyIcon} />
             <Text style={[styles.emptyTitle, { color: c.text }]}>Bu hafta için pick bulunamadı</Text>
             <Text style={[styles.emptySub, { color: c.textSub }]}>
               Ana ekranda o haftanın maçlarını görüntüleyince Scout pick'leri otomatik kaydedilir.
