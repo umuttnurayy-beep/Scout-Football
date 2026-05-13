@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Href, useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 
 export type ActiveTab = 'matches' | 'leagues' | 'stats' | 'profile';
@@ -18,9 +19,10 @@ const TABS: { key: ActiveTab; label: string; icon: IoniconName; activeIcon: Ioni
 export default function BottomTabBar({ activeTab }: { activeTab: ActiveTab }) {
   const router = useRouter();
   const { colors: c } = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.tabBar, { backgroundColor: c.surface, borderTopColor: c.border }]}>
+    <View style={[styles.tabBar, { backgroundColor: c.surface, borderTopColor: c.border, paddingBottom: Math.max(12, insets.bottom) }]}>
       {TABS.map(tab => {
         const isActive = tab.key === activeTab;
         return (
@@ -45,7 +47,7 @@ export default function BottomTabBar({ activeTab }: { activeTab: ActiveTab }) {
 }
 
 const styles = StyleSheet.create({
-  tabBar:    { flexDirection: 'row', borderTopWidth: 0.5, paddingBottom: 20 },
+  tabBar:    { flexDirection: 'row', borderTopWidth: 0.5 },
   tab:       { flex: 1, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', gap: 3 },
   tabText:   { fontSize: 12 },
   tabActive: { fontWeight: '500' },
