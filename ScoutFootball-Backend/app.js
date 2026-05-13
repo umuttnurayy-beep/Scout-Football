@@ -307,6 +307,7 @@ app.use(createSuperLigRouter({
     SPORTSDB_BASE,
   },
   fetchAllSportsH2HMatches,
+  fetchH2HFromEspn: slService.fetchH2HFromEspn,
   fetchH2HFromSportsDb: slService.fetchH2HFromSportsDb,
   fetchSuperLigAllTeams: slService.fetchAllSuperLigTeams,
   fetchSuperLigMatch: slService.fetchMatch,

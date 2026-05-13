@@ -5,6 +5,7 @@ function createSuperLigRouter({
   apiStaleOrError,
   config,
   fetchAllSportsH2HMatches,
+  fetchH2HFromEspn,
   fetchH2HFromSportsDb,
   fetchSuperLigAllTeams,
   fetchSuperLigMatch,
@@ -156,7 +157,7 @@ function createSuperLigRouter({
     const awayTeamId = parseInt(req.query.awayTeamId);
     const home = String(req.query.home || '');
     const away = String(req.query.away || '');
-    const cacheKey = `superlig_match_context_v9_${eventId}_${homeTeamId || 0}_${awayTeamId || 0}`;
+    const cacheKey = `superlig_match_context_v10_${eventId}_${homeTeamId || 0}_${awayTeamId || 0}`;
     const cached = await getCache(cacheKey);
     if (cached) return res.json({ ok: true, data: cached });
 
@@ -177,29 +178,30 @@ function createSuperLigRouter({
       const issues = [];
       if (homeContextR.status === 'rejected' || awayContextR.status === 'rejected') issues.push('form');
 
-      // H2H: TheSportsDB eventslast her iki takım için paralel çekilir (birden fazla sezon)
+      // H2H: primary — ESPN season schedule (2 sezon, ID tabanlı eşleştirme)
       const homeCtx = homeContextR.status === 'fulfilled' ? homeContextR.value : null;
       let h2hResult = [];
       if (resolvedHomeId && resolvedAwayId) {
         try {
-          h2hResult = await fetchH2HFromSportsDb(resolvedHomeId, resolvedAwayId);
+          h2hResult = await fetchH2HFromEspn(resolvedHomeId, resolvedAwayId);
         } catch (e) { /* ignore */ }
       }
 
-      // Supplement: recentMatches çaprazla — TheSportsDB'nin kaçırdığı bu sezon maçlarını ekle
-      if (h2hResult.length < 8) {
+      // Fallback 1: recentMatches çaprazla (ESPN mapping yoksa bu sezon maçları)
+      if (h2hResult.length === 0) {
         const homeRecent = homeCtx?.recentMatches || [];
-        const fromForm = homeRecent.filter(m =>
-          m.homeTeamId === resolvedAwayId || m.awayTeamId === resolvedAwayId,
-        ).sort((a, b) => new Date(b.date) - new Date(a.date));
-        const seen = new Set(h2hResult.map(m => m.date));
-        for (const m of fromForm) {
-          if (!seen.has(m.date)) { h2hResult.push(m); seen.add(m.date); }
-        }
-        h2hResult = h2hResult.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
+        h2hResult = homeRecent
+          .filter(m => m.homeTeamId === resolvedAwayId || m.awayTeamId === resolvedAwayId)
+          .sort((a, b) => new Date(b.date) - new Date(a.date))
+          .slice(0, 10);
       }
 
-      // Son çare: AllSports H2H
+      // Fallback 2: TheSportsDB eventslast
+      if (h2hResult.length === 0 && resolvedHomeId && resolvedAwayId) {
+        try { h2hResult = await fetchH2HFromSportsDb(resolvedHomeId, resolvedAwayId); } catch (e) { /* ignore */ }
+      }
+
+      // Fallback 3: AllSports
       if (h2hResult.length === 0 && resolvedHome && resolvedAway) {
         try {
           h2hResult = await fetchAllSportsH2HMatches(resolvedHome, resolvedAway);

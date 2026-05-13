@@ -690,6 +690,62 @@ function createSuperLigService({
     });
   }
 
+  async function fetchH2HFromEspn(homeTeamId, awayTeamId) {
+    const homeEspnId = SL_SPORTSDB_TO_ESPN_ID[homeTeamId];
+    const awayEspnId = SL_SPORTSDB_TO_ESPN_ID[awayTeamId];
+    if (!homeEspnId || !awayEspnId) return [];
+
+    const now = new Date();
+    const currentSeasonYear = (now.getMonth() + 1) >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+    const seasons = [currentSeasonYear, currentSeasonYear - 1];
+
+    const seen = new Map();
+    for (const season of seasons) {
+      try {
+        const data = await upstream.fetchJson(
+          `${ESPN_SL_TEAM_BASE}/${homeEspnId}/schedule?season=${season}`,
+          {},
+          `espn sl h2h season ${season}`,
+        );
+        const events = Array.isArray(data.events) ? data.events : [];
+        for (const event of events) {
+          const comp = (event.competitions || [])[0];
+          if (!comp?.status?.type?.completed) continue;
+          const comps = comp.competitors || [];
+          const teamIds = comps.map(c => parseInt(c.team?.id));
+          if (!teamIds.includes(awayEspnId)) continue;
+          const home = comps.find(c => c.homeAway === 'home');
+          const away = comps.find(c => c.homeAway === 'away');
+          if (!home || !away) continue;
+          const getScore = c => {
+            const s = c.score;
+            if (!s) return null;
+            if (typeof s === 'object') return parseInt(s.displayValue ?? s.value ?? 0);
+            return parseInt(s);
+          };
+          const homeScore = getScore(home);
+          const awayScore = getScore(away);
+          if (homeScore === null || awayScore === null || isNaN(homeScore) || isNaN(awayScore)) continue;
+          const dateStr = (event.date || '').split('T')[0];
+          const isHomeTeamHome = parseInt(home.team?.id) === homeEspnId;
+          seen.set(String(event.id || dateStr), {
+            date: dateStr,
+            home: home.team?.displayName || '',
+            away: away.team?.displayName || '',
+            homeScore,
+            awayScore,
+            homeTeamId: isHomeTeamHome ? homeTeamId : awayTeamId,
+            awayTeamId: isHomeTeamHome ? awayTeamId : homeTeamId,
+            team1Home:  isHomeTeamHome,
+          });
+        }
+      } catch (e) {
+        console.error(`[sl h2h] ESPN season ${season} failed:`, e.message);
+      }
+    }
+    return [...seen.values()].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
+  }
+
   async function fetchH2HFromSportsDb(homeTeamId, awayTeamId) {
     try {
       const [homeData, awayData] = await Promise.allSettled([
@@ -753,6 +809,7 @@ function createSuperLigService({
     fetchTeamFormMatches,
     fetchTeamContext,
     fetchMatch,
+    fetchH2HFromEspn,
     fetchH2HFromSportsDb,
     SL_ESPN_TO_SPORTSDB,
     sportsDbTeamIdForName,
