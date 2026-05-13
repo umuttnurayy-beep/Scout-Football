@@ -19,6 +19,7 @@ import BottomTabBar from '../components/BottomTabBar';
 import { useTheme } from '../context/ThemeContext';
 import { FavTeam, RecentItem, parseFavTeam, parseFavTeamList, parseRecentItems } from '../utils/profileStorage';
 import { cardShadow } from '../utils/scoutStyles';
+import { tapLight, tapMedium } from '../services/haptics';
 import { parseForm, transliterate } from '../utils/teamStats';
 import { isArrayOf, readTimedCache, writeTimedCache } from '../utils/timedCache';
 
@@ -486,6 +487,7 @@ export default function ProfileScreen() {
   }
 
   async function selectTeam(leagueFlag: string, leagueName: string, apiId: number, teamName: string, teamId: number) {
+    tapMedium();
     const team: FavTeam = { name: teamName, teamId, apiId, leagueName, leagueFlag };
     setTeamPickerVisible(false);
     setTeamSearch('');
@@ -549,6 +551,7 @@ export default function ProfileScreen() {
   }
 
   async function removeWatchlistItem(teamName: string) {
+    tapLight();
     const updated = watchlist.filter(t => t.name !== teamName);
     setWatchlist(updated);
     await AsyncStorage.setItem(STORAGE.WATCHLIST, JSON.stringify(updated));
@@ -593,6 +596,7 @@ export default function ProfileScreen() {
   }
 
   function goToTeamStats(team: FavTeam) {
+    tapMedium();
     router.push({
       pathname: '/team_stats',
       params: buildTeamStatsParams(team, favSummaryStats),

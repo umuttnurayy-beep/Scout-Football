@@ -19,6 +19,7 @@ import { loadNotifPrefs, scheduleNotifications } from '../services/notifications
 import { filterPicksForWeek, getCurrentWeekRange, getWeekRange, getMaxWeekOffset, getUnlockDateLabel, loadPickHistory, pickAccuracy, savePick } from '../utils/pickHistory';
 import { dataNoticeMessage, matchListEmptyMessage } from '../utils/emptyStates';
 import { cardShadow } from '../utils/scoutStyles';
+import { tapLight, tapMedium } from '../services/haptics';
 import { teamsMatch } from '../utils/teamStats';
 import {
   FeaturedMatchCache, ListItem, Match, Metrics,
@@ -1349,6 +1350,7 @@ export default function HomeScreen() {
   }, [matches, matchesReadyForSelectedDate, metricsMap]);
 
   const goToMatch = useCallback((m: Match, metrics?: Metrics) => {
+    tapMedium();
     const metricParams = {
       homePos: metrics?.homePos != null ? String(metrics.homePos) : '',
       awayPos: metrics?.awayPos != null ? String(metrics.awayPos) : '',
@@ -1436,6 +1438,7 @@ export default function HomeScreen() {
   }, [goToMatch, nextDayPreview]);
 
   const goToFilter = useCallback((label: string) => {
+    tapLight();
     const idx = ALL_FILTERS.indexOf(label);
     setActiveFilter(label);
     if (idx >= 0) pagerRef.current?.scrollTo({ x: idx * screenWidth, animated: true });
@@ -1625,7 +1628,7 @@ export default function HomeScreen() {
           return (
             <TouchableOpacity key={i}
               style={[styles.datePill, { borderColor: c.border }, isSelected && { backgroundColor: c.primary, borderColor: c.primary }]}
-              onPress={() => setSelectedDate(date)}>
+              onPress={() => { tapLight(); setSelectedDate(date); }}>
               <Text style={[styles.dateDayName, { color: c.textMuted }, isSelected && styles.dateDayNameActive]}>
                 {isTodayDate ? 'Bugün' : DAYS[date.getDay()]}
               </Text>

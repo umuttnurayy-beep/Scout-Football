@@ -617,12 +617,27 @@ export default function SLMatchDetail() {
 
       {/* ── Topbar ── */}
       <View style={[styles.topbar, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
-        <TouchableOpacity onPress={()=>router.back()}><Text style={[styles.backBtn, { color: c.primary }]}>‹ Geri</Text></TouchableOpacity>
-        <View style={styles.topbarCenter}>
-          <Image source={require('../assets/images/sf-logo.png')} style={styles.headerLogo} />
-          <View style={{alignItems:'center'}}>
-            <Text style={[styles.topbarTitle, { color: c.text }]} numberOfLines={1}>{home} - {away}</Text>
-            <Text style={[styles.topbarSub, { color: c.textMuted }]}>{leagueName}</Text>
+        <TouchableOpacity onPress={()=>router.back()} style={styles.backBtn} hitSlop={{top:10,bottom:10,left:10,right:10}}>
+          <Ionicons name="chevron-back" size={22} color={c.primary} />
+          <Text style={{color:c.primary,fontSize:15,fontWeight:'500'}}>Geri</Text>
+        </TouchableOpacity>
+        <View style={styles.topbarMatchInfo}>
+          <View style={[styles.topbarTeamBadge, {backgroundColor:c.primaryLight}]}>
+            <Text style={[styles.topbarTeamInit, {color:c.primary}]}>
+              {home.split(' ').map((w:string)=>w[0]).join('').slice(0,2).toUpperCase()}
+            </Text>
+          </View>
+          <View style={styles.topbarVsBlock}>
+            {hasScore
+              ? <Text style={[styles.topbarScore, {color:c.text}]}>{displayHomeScore} : {displayAwayScore}</Text>
+              : <Text style={[styles.topbarVs, {color:c.textMuted}]}>vs</Text>
+            }
+            <Text style={[styles.topbarSub, {color:c.textMuted}]} numberOfLines={1}>{leagueName}</Text>
+          </View>
+          <View style={[styles.topbarTeamBadge, {backgroundColor:c.surfaceAlt}]}>
+            <Text style={[styles.topbarTeamInit, {color:c.textSub}]}>
+              {away.split(' ').map((w:string)=>w[0]).join('').slice(0,2).toUpperCase()}
+            </Text>
           </View>
         </View>
         <View style={{width:60}}/>
@@ -1124,9 +1139,15 @@ const styles = StyleSheet.create({
   topbar:             { flexDirection:'row', alignItems:'center', justifyContent:'space-between', paddingHorizontal:14, paddingTop:52, paddingBottom:12, borderBottomWidth:0.5 },
   backBtn:            { flexDirection:'row', alignItems:'center', gap:2 },
   topbarCenter:       { flex:1, flexDirection:'row', alignItems:'center', justifyContent:'center', gap:6 },
+  topbarMatchInfo:    { flex:1, flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8 },
+  topbarTeamBadge:    { width:36, height:36, borderRadius:10, alignItems:'center', justifyContent:'center' },
+  topbarTeamInit:     { fontSize:12, fontWeight:'700' },
+  topbarVsBlock:      { alignItems:'center', minWidth:50 },
+  topbarScore:        { fontSize:16, fontWeight:'800' },
+  topbarVs:           { fontSize:12, fontWeight:'600' },
   headerLogo:         { width:28, height:28, resizeMode:'contain' },
   topbarTitle:        { fontSize:13, fontWeight:'500', textAlign:'center', maxWidth:200 },
-  topbarSub:          { fontSize:11, textAlign:'center' },
+  topbarSub:          { fontSize:10, textAlign:'center', marginTop:1 },
   hero:               { padding:16, borderBottomWidth:0.5 },
   teamsRow:           { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:10 },
   teamNameLeft:       { fontSize:13, fontWeight:'500', flex:1 },

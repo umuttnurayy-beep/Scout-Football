@@ -12,6 +12,7 @@ import { UCLKnockouts, getStandings, getSuperLigStandings, getUclKnockouts } fro
 import { isStanding } from '../services/apiNormalizers';
 import { leagueDataEmptyMessage } from '../utils/emptyStates';
 import scoutStyles, { cardShadow } from '../utils/scoutStyles';
+import { tapLight } from '../services/haptics';
 import { isArrayOf, readTimedCache, writeTimedCache } from '../utils/timedCache';
 import {
   LeagueStanding,
@@ -187,6 +188,7 @@ export default function LeaguesScreen() {
   const [knockoutsLoadError, setKnockoutsLoadError] = useState(false);
 
   function goToTab(key: SubTab) {
+    tapLight();
     const idx = SUB_TABS.findIndex(t => t.key === key);
     setSubTab(key);
     pagerRef.current?.scrollTo({ x: idx * screenWidth, animated: true });
@@ -325,7 +327,7 @@ export default function LeaguesScreen() {
         {configuredLeagues.map(l => (
           <TouchableOpacity key={l.id}
             style={[styles.leaguePill, { borderColor: c.border }, activeLeague.id === l.id && styles.leaguePillActive]}
-            onPress={() => setActiveLeague(l)}>
+            onPress={() => { tapLight(); setActiveLeague(l); }}>
             <Text style={styles.leagueFlag}>{l.flag}</Text>
             <Text style={[styles.leaguePillText, { color: c.textMuted }, activeLeague.id === l.id && styles.leaguePillTextActive]}>{l.name}</Text>
           </TouchableOpacity>

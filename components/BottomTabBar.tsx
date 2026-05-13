@@ -4,6 +4,7 @@ import React from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
+import { tapLight } from '../services/haptics';
 
 export type ActiveTab = 'matches' | 'leagues' | 'stats' | 'profile';
 
@@ -38,7 +39,7 @@ export default function BottomTabBar({ activeTab }: { activeTab: ActiveTab }) {
             key={tab.key}
             style={styles.tab}
             activeOpacity={0.7}
-            onPress={() => { if (!isActive) router.push(tab.route); }}
+            onPress={() => { if (!isActive) { tapLight(); router.push(tab.route); } }}
           >
             <View style={[styles.iconWrap, isActive && { backgroundColor: c.primaryLight }]}>
               <Ionicons
@@ -50,6 +51,7 @@ export default function BottomTabBar({ activeTab }: { activeTab: ActiveTab }) {
             <Text style={[styles.tabText, { color: isActive ? c.primary : c.textMuted }, isActive && styles.tabActive]}>
               {tab.label}
             </Text>
+            <View style={[styles.activeDot, { backgroundColor: isActive ? c.primary : 'transparent' }]} />
           </TouchableOpacity>
         );
       })}
@@ -64,8 +66,9 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 12,
   },
-  tab:      { flex: 1, paddingTop: 10, paddingBottom: 2, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  iconWrap: { width: 48, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  tabText:  { fontSize: 11, letterSpacing: 0.1 },
+  tab:       { flex: 1, paddingTop: 10, paddingBottom: 4, alignItems: 'center', justifyContent: 'center', gap: 3 },
+  iconWrap:  { width: 52, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  tabText:   { fontSize: 11, letterSpacing: 0.1 },
   tabActive: { fontWeight: '600' },
+  activeDot: { width: 4, height: 4, borderRadius: 2 },
 });
