@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SkeletonTeamList } from '../components/SkeletonLoader';
 import { useTheme } from '../context/ThemeContext';
 import { Standing, getSuperLigStandings, getStandings } from '../services/api';
 import { isStanding } from '../services/apiNormalizers';
@@ -85,7 +86,7 @@ export default function TeamDetailScreen() {
       <Text style={[styles.sectionLabel, { color: c.textMuted }]}>{'TAKIMLAR — A\'DAN Z\'YE'}</Text>
 
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={c.primary} />
+        <SkeletonTeamList />
       ) : teams.length === 0 ? (
         <Text style={[styles.emptyText, { color: c.textMuted }]}>{teamDataEmptyMessage(String(leagueName))}</Text>
       ) : (

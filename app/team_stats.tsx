@@ -2,9 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { UnknownOutputParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  Image, RefreshControl, ScrollView, StyleSheet,
+  Animated, Image, RefreshControl, ScrollView, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
 import EmptyStateCard from '../components/EmptyStateCard';
@@ -79,6 +79,15 @@ function isRecentTeam(value: unknown): value is RecentTeam {
   if (!value || typeof value !== 'object') return false;
   const item = value as Partial<RecentTeam>;
   return typeof item.id === 'number' && typeof item.apiId === 'number';
+}
+
+function AnimatedBar({ pct, color }: { pct: number; color: string }) {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(anim, { toValue: Math.min(100, pct), duration: 600, useNativeDriver: false }).start();
+  }, [pct, anim]);
+  const width = anim.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] });
+  return <Animated.View style={[styles.pbFill, { width, backgroundColor: color }]} />;
 }
 
 export default function TeamStatsScreen() {
@@ -317,9 +326,8 @@ export default function TeamStatsScreen() {
                 <>
                   {displayForm.map((r, i) => (
                     <View key={i} style={[styles.formBadge,
-                      r === 'G' ? { backgroundColor: c.win } : r === 'B' ? { backgroundColor: c.draw } : { backgroundColor: c.loss }]}>
-                      <Text style={styles.formBadgeText}>{r}</Text>
-                    </View>
+                      r === 'G' ? { backgroundColor: c.win } : r === 'B' ? { backgroundColor: c.draw } : { backgroundColor: c.loss }]}
+                    />
                   ))}
                   <Text style={[styles.formNote, { color: c.textMuted }]}>Son {displayForm.length} maç</Text>
                 </>
@@ -409,7 +417,7 @@ export default function TeamStatsScreen() {
                     <View key={row.label} style={styles.pbRow}>
                       <Text style={[styles.pbLabel, { color: c.textSub }]}>{row.label}</Text>
                       <View style={[styles.pbTrack, { backgroundColor: c.border }]}>
-                        <View style={[styles.pbFill, { width: `${Math.min(100, row.value)}%`, backgroundColor: c.primary }]} />
+                        <AnimatedBar pct={row.value} color={c.primary} />
                       </View>
                       <Text style={[styles.pbValue, { color: c.primary }]}>{row.value}%</Text>
                     </View>
@@ -575,11 +583,10 @@ const styles = StyleSheet.create({
   splitSeg:            { height: '100%' },
 
   formRow:             { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingBottom: 16, gap: 6 },
-  formBadge:           { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  formBadge:           { width: 28, height: 28, borderRadius: 14 },
   formG:               {},
   formB:               {},
   formM:               {},
-  formBadgeText:       { fontSize: 13, fontWeight: '600', color: '#fff' },
   formNote:            { fontSize: 11, marginLeft: 6 },
   noDataBox:           { margin: 20, padding: 20, borderRadius: 10, alignItems: 'center' },
   noDataText:          { fontSize: 13, textAlign: 'center' },

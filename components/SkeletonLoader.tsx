@@ -150,6 +150,23 @@ export function SkeletonMatchDetail() {
   );
 }
 
+// ─── team list skeleton (team_detail.tsx için) ───────────────────────────────
+
+export function SkeletonTeamList() {
+  const { colors: c } = useTheme();
+  return (
+    <View style={{ marginTop: 4 }}>
+      {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+        <View key={i} style={[s.teamRow, { borderBottomColor: c.borderLight }]}>
+          <SkeletonBox width={36} height={36} style={{ borderRadius: 8 }} />
+          <SkeletonBox width="50%" height={13} style={{ marginLeft: 10, flex: 1 }} />
+          <SkeletonBox width={28} height={11} style={{ marginLeft: 8 }} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
 // ─── league table skeleton ────────────────────────────────────────────────────
 
 export function SkeletonLeagueTable() {
@@ -241,6 +258,13 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 8,
     borderBottomWidth: 0.5,
+  },
+  teamRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   tableRow: {
     flexDirection: 'row',

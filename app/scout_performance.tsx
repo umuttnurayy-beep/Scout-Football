@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ScrollView, StyleSheet, Text, TouchableOpacity, View,
+  Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
 import BottomTabBar from '../components/BottomTabBar';
 import { useTheme } from '../context/ThemeContext';
@@ -19,6 +19,15 @@ const MONTHS_SHORT = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00');
   return `${DAY_NAMES[d.getDay()]} ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
+}
+
+function AnimatedBar({ pct, color, style }: { pct: number; color: string; style?: object }) {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(anim, { toValue: Math.min(100, pct), duration: 600, useNativeDriver: false }).start();
+  }, [pct, anim]);
+  const width = anim.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] });
+  return <Animated.View style={[style, { width, backgroundColor: color }]} />;
 }
 
 function ToneChip({ tone, label }: { tone: string; label: string }) {
@@ -191,7 +200,7 @@ export default function ScoutPerformanceScreen() {
               <Text style={[styles.accPct, { color: barColor }]}>%{acc.pct}</Text>
             </View>
             <View style={[styles.barBg, { backgroundColor: c.borderLight }]}>
-              <View style={[styles.barFill, { width: `${barPct}%`, backgroundColor: barColor }]} />
+              <AnimatedBar pct={barPct} color={barColor} style={styles.barFill} />
             </View>
             {pending > 0 && (
               <Text style={[styles.resolveHint, { color: c.textFaint }]}>{pending} maç sonucu bekleniyor</Text>

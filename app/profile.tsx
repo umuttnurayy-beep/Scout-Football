@@ -2,9 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert, Image, Linking, Modal, RefreshControl, ScrollView, StyleSheet,
+  Alert, Animated, Image, Linking, Modal, RefreshControl, ScrollView, StyleSheet,
   Switch, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { Standing, getSuperLigMatch, getSuperLigStandings, getSuperLigTeamForm, getMatchStats, getStandings, getTeamForm } from '../services/api';
@@ -230,6 +230,15 @@ function getTeamColors(name: string): { p: string; s: string } {
   return { p: '#185FA5', s: '#0C447C' };
 }
 
+
+function AnimatedBar({ pct, color, style }: { pct: number; color: string; style?: object }) {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(anim, { toValue: Math.min(100, pct), duration: 600, useNativeDriver: false }).start();
+  }, [pct, anim]);
+  const width = anim.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] });
+  return <Animated.View style={[style, { width, backgroundColor: color }]} />;
+}
 
 function timeAgo(ts: number): string {
   const diff = Date.now() - ts;
@@ -632,47 +641,51 @@ export default function ProfileScreen() {
 
   function renderTeamPicker() {
     return (
-      <Modal visible={teamPickerVisible} animationType="slide" onRequestClose={() => { setTeamPickerVisible(false); setTeamSearch(''); }}>
-        <View style={[styles.modalContainer, { backgroundColor: c.surface }]}>
-          <View style={[styles.modalHeader, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
-            <Text style={[styles.modalTitle, { color: c.text }]}>
-              {teamPickerMode === 'fav' ? 'Favori Takım Seç' : 'Takip Listesine Ekle'}
-            </Text>
-            <TouchableOpacity onPress={() => { setTeamPickerVisible(false); setTeamSearch(''); }}>
-              <Text style={[styles.modalClose, { color: c.primary }]}>Kapat</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={[styles.searchBox, { borderBottomColor: c.borderLight }]}>
-            <TextInput
-              style={[styles.searchInput, { backgroundColor: c.surfaceAlt, color: c.text }]}
-              placeholder="Takım ara..."
-              placeholderTextColor={c.textMuted}
-              value={teamSearch}
-              onChangeText={setTeamSearch}
-              autoCorrect={false}
-            />
-          </View>
-          <ScrollView keyboardShouldPersistTaps="handled">
-            {loadingTeamPicker && Object.keys(pickerTeamsByLeague).length === 0 && (
-              <Text style={[styles.pickerLoadingText, { color: c.textMuted }]}>Takımlar yükleniyor...</Text>
-            )}
-            {filteredLeagues.map(lg => (
-              <View key={lg.leagueName}>
-                <View style={[styles.pickerLeagueHeader, { backgroundColor: c.surfaceAlt, borderBottomColor: c.border }]}>
-                  <Text style={[styles.pickerLeagueTitle, { color: c.textMuted }]}>{lg.flag} {lg.leagueName}</Text>
+      <Modal visible={teamPickerVisible} animationType="slide" transparent onRequestClose={() => { setTeamPickerVisible(false); setTeamSearch(''); }}>
+        <View style={styles.bsOverlay}>
+          <TouchableOpacity style={styles.bsDismissArea} activeOpacity={1} onPress={() => { setTeamPickerVisible(false); setTeamSearch(''); }} />
+          <View style={[styles.bsContainer, { backgroundColor: c.surface }]}>
+            <View style={[styles.bsHandle, { backgroundColor: c.border }]} />
+            <View style={[styles.bsHeader, { borderBottomColor: c.border }]}>
+              <Text style={[styles.bsTitle, { color: c.text }]}>
+                {teamPickerMode === 'fav' ? 'Favori Takım Seç' : 'Takip Listesine Ekle'}
+              </Text>
+              <TouchableOpacity onPress={() => { setTeamPickerVisible(false); setTeamSearch(''); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close" size={22} color={c.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <View style={[styles.bsSearch, { borderBottomColor: c.borderLight }]}>
+              <TextInput
+                style={[styles.searchInput, { backgroundColor: c.surfaceAlt, color: c.text }]}
+                placeholder="Takım ara..."
+                placeholderTextColor={c.textMuted}
+                value={teamSearch}
+                onChangeText={setTeamSearch}
+                autoCorrect={false}
+              />
+            </View>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {loadingTeamPicker && Object.keys(pickerTeamsByLeague).length === 0 && (
+                <Text style={[styles.pickerLoadingText, { color: c.textMuted }]}>Takımlar yükleniyor...</Text>
+              )}
+              {filteredLeagues.map(lg => (
+                <View key={lg.leagueName}>
+                  <View style={[styles.pickerLeagueHeader, { backgroundColor: c.surfaceAlt, borderBottomColor: c.border }]}>
+                    <Text style={[styles.pickerLeagueTitle, { color: c.textMuted }]}>{lg.flag} {lg.leagueName}</Text>
+                  </View>
+                  {lg.teams.map(t => (
+                    <TouchableOpacity key={t.name} style={[styles.pickerTeamRow, { borderBottomColor: c.borderLight }]}
+                      onPress={() => selectTeam(lg.flag, lg.leagueName, lg.apiId, t.name, t.teamId)}>
+                      <View style={[styles.pickerTeamDot, { backgroundColor: getTeamColors(t.name).p }]} />
+                      <Text style={[styles.pickerTeamName, { color: c.text }]}>{t.name}</Text>
+                      <Ionicons name="chevron-forward" size={16} color={c.textVeryFaint} />
+                    </TouchableOpacity>
+                  ))}
                 </View>
-                {lg.teams.map(t => (
-                  <TouchableOpacity key={t.name} style={[styles.pickerTeamRow, { borderBottomColor: c.borderLight }]}
-                    onPress={() => selectTeam(lg.flag, lg.leagueName, lg.apiId, t.name, t.teamId)}>
-                    <View style={[styles.pickerTeamDot, { backgroundColor: getTeamColors(t.name).p }]} />
-                    <Text style={[styles.pickerTeamName, { color: c.text }]}>{t.name}</Text>
-                    <Text style={[styles.pickerArrow, { color: c.textVeryFaint }]}>›</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ))}
-            <View style={styles.pickerBottomSpacer} />
-          </ScrollView>
+              ))}
+              <View style={styles.pickerBottomSpacer} />
+            </ScrollView>
+          </View>
         </View>
       </Modal>
     );
@@ -722,6 +735,7 @@ export default function ProfileScreen() {
           <Text style={styles.appName}><Text style={styles.appNameBlue}>Scout</Text>Football</Text>
         </View>
         <Text style={[styles.topbarTitle, { color: c.text }]}>Scout Rozeti</Text>
+        <View style={{ width: 60 }} />
       </View>
 
       <ScrollView
@@ -830,9 +844,8 @@ export default function ProfileScreen() {
                         {favForm.length > 0
                           ? favForm.map((r, i) => (
                             <View key={i} style={[styles.formDot,
-                              r === 'G' ? { backgroundColor: c.win } : r === 'B' ? { backgroundColor: c.draw } : { backgroundColor: c.loss }]}>
-                              <Text style={styles.formDotText}>{r}</Text>
-                            </View>
+                              r === 'G' ? { backgroundColor: c.win } : r === 'B' ? { backgroundColor: c.draw } : { backgroundColor: c.loss }]}
+                            />
                           ))
                           : <Text style={styles.favStatValue}>—</Text>
                         }
@@ -879,9 +892,8 @@ export default function ProfileScreen() {
                       ))
                     : form.map((r, i) => (
                         <View key={i} style={[styles.formDotSm,
-                          r === 'G' ? { backgroundColor: c.win } : r === 'B' ? { backgroundColor: c.draw } : { backgroundColor: c.loss }]}>
-                          <Text style={styles.formDotSmText}>{r}</Text>
-                        </View>
+                          r === 'G' ? { backgroundColor: c.win } : r === 'B' ? { backgroundColor: c.draw } : { backgroundColor: c.loss }]}
+                        />
                       ))
                   }
                 </View>
@@ -956,10 +968,11 @@ export default function ProfileScreen() {
                     </Text>
                   </View>
                   <View style={[styles.pickAccBarBg, { backgroundColor: c.borderLight }]}>
-                    <View style={[styles.pickAccBarFill, {
-                      width: `${acc.pct}%`,
-                      backgroundColor: acc.pct >= 60 ? c.win : acc.pct >= 40 ? (isDark ? '#E3B341' : '#B7791F') : c.loss,
-                    }]} />
+                    <AnimatedBar
+                      pct={acc.pct}
+                      color={acc.pct >= 60 ? c.win : acc.pct >= 40 ? (isDark ? '#E3B341' : '#B7791F') : c.loss}
+                      style={styles.pickAccBarFill}
+                    />
                   </View>
                 </View>
               )}
@@ -1128,8 +1141,8 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  topbar: { flexDirection: 'column', paddingHorizontal: 14, paddingTop: 52, paddingBottom: 12, borderBottomWidth: 0.5 },
-  topbarTitle: { fontSize: 16, fontWeight: '600', textAlign: 'center', marginTop: 6 },
+  topbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingTop: 52, paddingBottom: 12, borderBottomWidth: 0.5 },
+  topbarTitle: { fontSize: 16, fontWeight: '600', textAlign: 'center', flex: 1 },
   headerBrand: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   headerLogo: { width: 42, height: 42, resizeMode: 'contain' },
   appName: { fontSize: 16, fontWeight: '600', color: '#00BAFF' },
@@ -1179,9 +1192,8 @@ const styles = StyleSheet.create({
   favStatValue: { fontSize: 15, fontWeight: '700', color: '#fff', marginBottom: 3 },
   favStatLabel: { fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: '500', textAlign: 'center' },
   favStatDivider: { width: 0.5, height: 36, backgroundColor: 'rgba(255,255,255,0.2)' },
-  formDots: { flexDirection: 'row', gap: 4, minHeight: 20, alignItems: 'center', justifyContent: 'center' },
-  formDot: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  formDotText: { fontSize: 9, fontWeight: '700', color: '#fff' },
+  formDots: { flexDirection: 'row', gap: 5, minHeight: 20, alignItems: 'center', justifyContent: 'center' },
+  formDot: { width: 18, height: 18, borderRadius: 9 },
   // Keep static fallback colors for StyleSheet (overridden in JSX via c.win/draw/loss)
   formWin: { backgroundColor: '#27AE60' },
   formDraw: { backgroundColor: '#888' },
@@ -1194,8 +1206,7 @@ const styles = StyleSheet.create({
   watchlistName: { fontSize: 14, fontWeight: '600' },
   watchlistLeague: { fontSize: 12, marginTop: 2 },
   watchlistForm: { width: 54, minHeight: 16, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 3 },
-  formDotSm: { width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  formDotSmText: { fontSize: 7, fontWeight: '700', color: '#fff' },
+  formDotSm: { width: 10, height: 10, borderRadius: 5 },
   watchlistRemove: { padding: 6 },
 
   // Recently viewed
@@ -1232,19 +1243,20 @@ const styles = StyleSheet.create({
   notifHourBtnText: { fontSize: 13, fontWeight: '500' },
   notifHourBtnTextActive: { fontWeight: '600' },
 
-  // Team picker modal
-  modalContainer: { flex: 1 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 52, paddingBottom: 12, borderBottomWidth: 0.5 },
-  modalTitle: { fontSize: 17, fontWeight: '600' },
-  modalClose: { fontSize: 15 },
-  searchBox: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5 },
+  // Team picker bottom sheet
+  bsOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  bsDismissArea:{ flex: 1 },
+  bsContainer:  { borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '88%' },
+  bsHandle:     { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 2 },
+  bsHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 0.5 },
+  bsTitle:      { fontSize: 16, fontWeight: '600' },
+  bsSearch:     { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5 },
   searchInput: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14 },
   pickerLeagueHeader: { paddingHorizontal: 14, paddingVertical: 8, borderBottomWidth: 0.5 },
   pickerLeagueTitle: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
   pickerTeamRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 14, borderBottomWidth: 0.5, gap: 12 },
   pickerTeamDot: { width: 10, height: 10, borderRadius: 5 },
   pickerTeamName: { flex: 1, fontSize: 15 },
-  pickerArrow: { fontSize: 18 },
   pickerLoadingText: { paddingHorizontal: 14, paddingVertical: 12, fontSize: 13, textAlign: 'center' },
   pickerBottomSpacer: { height: 40 },
 

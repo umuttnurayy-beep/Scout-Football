@@ -101,9 +101,10 @@ function metricsForMatch(m: Match, standingsMap: Record<number, Standing[]>): Me
 // ─── components ──────────────────────────────────────────────────────────────
 
 function HeroCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress: () => void }) {
+  const { colors: c, isDark } = useTheme();
   const cardAnalysis = buildHomeCardAnalysis(m, metrics);
   return (
-    <TouchableOpacity style={sc.heroCard} onPress={onPress} activeOpacity={0.85}>
+    <TouchableOpacity style={[sc.heroCard, { backgroundColor: c.primaryDark }, cardShadow(isDark)]} onPress={onPress} activeOpacity={0.85}>
       <View style={sc.heroTop}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
           <Ionicons name="flame" size={13} color="#fff" />
@@ -1623,7 +1624,7 @@ export default function HomeScreen() {
           const isTodayDate = isToday(date);
           return (
             <TouchableOpacity key={i}
-              style={[styles.datePill, { borderColor: c.border }, isSelected && styles.datePillActive]}
+              style={[styles.datePill, { borderColor: c.border }, isSelected && { backgroundColor: c.primary, borderColor: c.primary }]}
               onPress={() => setSelectedDate(date)}>
               <Text style={[styles.dateDayName, { color: c.textMuted }, isSelected && styles.dateDayNameActive]}>
                 {isTodayDate ? 'Bugün' : DAYS[date.getDay()]}
@@ -1639,7 +1640,7 @@ export default function HomeScreen() {
         style={[styles.filterRow, { backgroundColor: c.surface, borderBottomColor: c.borderLight }]}
         contentContainerStyle={{ paddingHorizontal: 14, alignItems: 'center', gap: 8 }}>
         <TouchableOpacity
-          style={[styles.scoutPill, { borderColor: c.primary }, activeFilter === 'Scout' && styles.scoutPillActive]}
+          style={[styles.scoutPill, { borderColor: c.primary }, activeFilter === 'Scout' && { backgroundColor: c.primaryDark, borderColor: c.primaryDark }]}
           onPress={() => goToFilter('Scout')}>
           <Text style={[styles.scoutPillText, { color: c.primary }, activeFilter === 'Scout' && styles.scoutPillTextActive]}>
             🔍 Scout
@@ -1647,7 +1648,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
         {LIG_FILTERS.map(f => (
           <TouchableOpacity key={f.id}
-            style={[styles.filterPill, { borderColor: c.border }, activeFilter === f.label && styles.filterPillActive]}
+            style={[styles.filterPill, { borderColor: c.border }, activeFilter === f.label && { backgroundColor: c.primary, borderColor: c.primary }]}
             onPress={() => goToFilter(f.label)}>
             <Text style={[styles.filterText, { color: c.textMuted }, activeFilter === f.label && styles.filterTextActive]}>{f.label}</Text>
           </TouchableOpacity>
@@ -1762,12 +1763,12 @@ const styles = StyleSheet.create({
 
 const sc = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingTop: 16, paddingBottom: 8 },
-  sectionTitle:  { fontSize: 11, fontWeight: '700', letterSpacing: 0.6 },
+  sectionTitle:  { fontSize: 11, fontWeight: '600', letterSpacing: 0.6, textTransform: 'uppercase' },
   sectionSub:    { fontSize: 10 },
   leagueSubHeader: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4 },
   leagueSubHeaderText: { fontSize: 11, fontWeight: '600', letterSpacing: 0.3 },
 
-  heroCard:      { backgroundColor: '#0C447C', borderRadius: 16, padding: 16 },
+  heroCard:      { borderRadius: 16, padding: 16 },
   heroTop:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   heroFireLabel: { fontSize: 12, fontWeight: '700', color: '#fff', letterSpacing: 0.4 },
   heroLeague:    { fontSize: 11, color: 'rgba(255,255,255,0.55)' },
@@ -1862,7 +1863,7 @@ const sc = StyleSheet.create({
   daySummaryTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, marginBottom: 6 },
   daySummaryText:  { fontSize: 13, lineHeight: 19 },
 
-  matchCard:     { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, padding: 14, elevation: 3, shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: 2 } },
+  matchCard:     { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, padding: 14 },
   matchTop:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   matchLeague:   { fontSize: 11, fontWeight: '600' },
   matchTime:     { fontSize: 12, fontWeight: '600' },
