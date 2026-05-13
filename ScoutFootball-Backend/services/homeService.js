@@ -411,7 +411,12 @@ function createHomeService(deps) {
           superLigMatches.some(m => isLiveStatus(m.status));
         const hasVisibleMatches = visibleMatchCountFromPayload(supportedMatches, superLigMatches) > 0;
         if (upstreamErrors.length === 0 || hasVisibleMatches) {
-          await setCache(cacheKey, payload, ttlForMatchDate(date, hasLive));
+          // If there are upstream errors, cache briefly so a retry can recover
+          // without the partial result being stuck for hours (e.g. FD fails but SL succeeds)
+          const ttl = upstreamErrors.length > 0
+            ? TTL.matchday
+            : ttlForMatchDate(date, hasLive);
+          await setCache(cacheKey, payload, ttl);
         }
         if (hasVisibleMatches) {
           await setCache(staleKey, payload, HOME_STALE_TTL);
