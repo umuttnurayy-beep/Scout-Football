@@ -11,7 +11,7 @@ import { CURRENT_FOOTBALL_SEASON, DISPLAY_FOOTBALL_SEASON } from '../constants/s
 import { UCLKnockouts, getStandings, getSuperLigStandings, getUclKnockouts } from '../services/api';
 import { isStanding } from '../services/apiNormalizers';
 import { leagueDataEmptyMessage } from '../utils/emptyStates';
-import scoutStyles from '../utils/scoutStyles';
+import scoutStyles, { cardShadow } from '../utils/scoutStyles';
 import { isArrayOf, readTimedCache, writeTimedCache } from '../utils/timedCache';
 import {
   LeagueStanding,
@@ -426,7 +426,7 @@ export default function LeaguesScreen() {
                   )}
 
                   {ligChar && (
-                    <View style={[stStyles.ligCharCard, { backgroundColor: c.surface, borderColor: c.border, borderLeftColor: ligChar.color }]}>
+                    <View style={[stStyles.ligCharCard, { backgroundColor: c.surface, borderLeftColor: ligChar.color }, cardShadow(isDark)]}>
                       <View style={stStyles.ligCharTraits}>
                         {ligChar.traits.map((t, i) => (
                           <View key={i} style={stStyles.ligCharTrait}>
@@ -755,7 +755,7 @@ export default function LeaguesScreen() {
                     const atkS       = attackScore(row);
                     const defS       = defenseScore(row);
                     return (
-                      <View key={i} style={[stStyles.tkCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+                      <View key={i} style={[stStyles.tkCard, { backgroundColor: c.surface }, cardShadow(isDark)]}>
                         <View style={stStyles.tkCardTop}>
                           <View style={[styles.posBadge, getBadgeStyle(row.pos, standings.length, activeLeague.apiId)]}>
                             <Text style={styles.posText}>{row.pos}</Text>
@@ -1041,7 +1041,7 @@ const stStyles = StyleSheet.create({
   topPts:           { fontSize: 13, fontWeight: '700', minWidth: 36, textAlign: 'right' },
   trendNote:        { marginHorizontal: 14, marginTop: 10, marginBottom: 4, padding: 10, borderRadius: 8 },
   trendNoteText:    { fontSize: 12, textAlign: 'center' },
-  tkCard:           { marginHorizontal: 14, marginBottom: 8, padding: 12, borderRadius: 10, borderWidth: 0.5 },
+  tkCard:           { marginHorizontal: 14, marginBottom: 8, padding: 12, borderRadius: 10 },
   tkCardTop:        { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   tkName:           { flex: 1, fontSize: 13, fontWeight: '600' },
   tkLabel:          { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
@@ -1055,7 +1055,7 @@ const stStyles = StyleSheet.create({
   tkStat:           { flex: 1, alignItems: 'center' },
   tkStatV:          { fontSize: 14, fontWeight: '600' },
   tkStatL:          { fontSize: 10, marginTop: 2 },
-  ligCharCard:      { marginHorizontal: 14, marginTop: 6, marginBottom: 6, padding: 14, borderRadius: 12, borderWidth: 0.5, borderLeftWidth: 3 },
+  ligCharCard:      { marginHorizontal: 14, marginTop: 6, marginBottom: 6, padding: 14, borderRadius: 12, borderLeftWidth: 3 },
   ligCharBadge:     { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   ligCharBadgeText: { fontSize: 12, fontWeight: '700' },
   ligCharTraits:    { gap: 4, marginBottom: 12 },

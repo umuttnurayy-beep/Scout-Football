@@ -17,7 +17,7 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { DISPLAY_FOOTBALL_SEASON } from '../constants/seasons';
 import { formDataEmptyMessage } from '../utils/emptyStates';
-import scoutStyles from '../utils/scoutStyles';
+import scoutStyles, { cardShadow } from '../utils/scoutStyles';
 import { SeasonStats, calcSLSeasonStats, calcSeasonStats, getTeamProfile, parseForm } from '../utils/teamStats';
 import { isArrayOf, readTimedCache, writeTimedCache } from '../utils/timedCache';
 
@@ -274,7 +274,7 @@ export default function TeamStatsScreen() {
               const avgGa = ga / played;
               const profile = getTeamProfile(avgGf, avgGa, winPct, isDark);
               return (
-                <View style={[styles.profileCard, { backgroundColor: c.surfaceAlt, borderColor: c.border, borderLeftColor: profile.color }]}>
+                <View style={[styles.profileCard, { backgroundColor: c.surface, borderLeftColor: profile.color }, cardShadow(isDark)]}>
                   <View style={styles.profileTop}>
                     <Text style={styles.profileEmoji}>{profile.emoji}</Text>
                     <View style={{ flex: 1 }}>
@@ -326,7 +326,7 @@ export default function TeamStatsScreen() {
 
             {/* MAÇ ÖZETİ — eski GENEL'in kompakt hali */}
             <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>MAÇ ÖZETİ</Text>
-            <View style={[styles.summaryCard, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+            <View style={[styles.summaryCard, { backgroundColor: c.surface }, cardShadow(isDark)]}>
               <View style={styles.summaryRow}>
                 <View style={styles.summaryStat}>
                   <Text style={[styles.summaryV, { color: c.text }]}>{played}</Text>
@@ -360,7 +360,7 @@ export default function TeamStatsScreen() {
 
             {/* GOL — sadece 3 makro rakam (gol/maç profil kartında zaten var) */}
             <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>GOL</Text>
-            <View style={[styles.goalCard, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+            <View style={[styles.goalCard, { backgroundColor: c.surface }, cardShadow(isDark)]}>
               <View style={styles.goalStat}>
                 <Text style={[styles.goalV, { color: c.win }]}>{gf}</Text>
                 <Text style={[styles.goalL, { color: c.textMuted }]}>Atılan</Text>
@@ -385,7 +385,7 @@ export default function TeamStatsScreen() {
             ) : formLoadError ? (
               <EmptyStateCard
                 compact
-                icon="📡"
+                icon="wifi-outline"
                 title="İstatistik verisi alınamadı"
                 onRetry={() => apiId === 203 ? loadSLData() : loadForm()}
               />
@@ -398,7 +398,7 @@ export default function TeamStatsScreen() {
                 <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>
                   GOL BEKLENTİLERİ ({activeSeasonStats.total} maç)
                 </Text>
-                <View style={[styles.expectCard, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                <View style={[styles.expectCard, { backgroundColor: c.surface }, cardShadow(isDark)]}>
                   {[
                     { label: '1.5 Üst', value: activeSeasonStats.over15Pct },
                     { label: '2.5 Üst', value: activeSeasonStats.over25Pct },
@@ -416,15 +416,15 @@ export default function TeamStatsScreen() {
 
                 <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>ÖZEL DURUMLAR</Text>
                 <View style={styles.specialRow}>
-                  <View style={[styles.specialBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                  <View style={[styles.specialBox, { backgroundColor: c.surfaceAlt }]}>
                     <Text style={[styles.specialV, { color: c.primary }]}>{activeSeasonStats.bttsPct}%</Text>
                     <Text style={[styles.specialL, { color: c.textMuted }]}>KG Var</Text>
                   </View>
-                  <View style={[styles.specialBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                  <View style={[styles.specialBox, { backgroundColor: c.surfaceAlt }]}>
                     <Text style={[styles.specialV, { color: c.win }]}>{activeSeasonStats.cleanSheetPct}%</Text>
                     <Text style={[styles.specialL, { color: c.textMuted }]}>Kale sıfır</Text>
                   </View>
-                  <View style={[styles.specialBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                  <View style={[styles.specialBox, { backgroundColor: c.surfaceAlt }]}>
                     <Text style={[styles.specialV, { color: c.loss }]}>{activeSeasonStats.failedToScorePct}%</Text>
                     <Text style={[styles.specialL, { color: c.textMuted }]}>Gol atamadı</Text>
                   </View>
@@ -432,7 +432,7 @@ export default function TeamStatsScreen() {
 
                 {/* İÇ SAHA vs DEPLASMAN — görsel karşılaştırma */}
                 <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>İÇ SAHA vs DEPLASMAN</Text>
-                <View style={[styles.splitCompareCard, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                <View style={[styles.splitCompareCard, { backgroundColor: c.surface }, cardShadow(isDark)]}>
                   {[
                     { label: 'İç Saha',   data: activeSeasonStats.home },
                     { label: 'Deplasman', data: activeSeasonStats.away },
@@ -474,19 +474,19 @@ export default function TeamStatsScreen() {
                 </Text>
                 <View style={styles.statGrid}>
                   {avgCorners != null && (
-                    <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                    <View style={[styles.statBox, { backgroundColor: c.surfaceAlt }]}>
                       <Text style={[styles.statVal, { color: c.primary }]}>{avgCorners.toFixed(1)}</Text>
                       <Text style={[styles.statLbl, { color: c.textMuted }]}>Ort. Korner</Text>
                     </View>
                   )}
                   {avgOppCorners != null && (
-                    <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                    <View style={[styles.statBox, { backgroundColor: c.surfaceAlt }]}>
                       <Text style={[styles.statVal, { color: c.textMuted }]}>{avgOppCorners.toFixed(1)}</Text>
                       <Text style={[styles.statLbl, { color: c.textMuted }]}>Rakip Korner</Text>
                     </View>
                   )}
                   {totalCorners != null && (
-                    <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                    <View style={[styles.statBox, { backgroundColor: c.surfaceAlt }]}>
                       <Text style={[styles.statVal, { color: c.text }]}>
                         {totalCorners.toFixed(1)}
                       </Text>
@@ -494,7 +494,7 @@ export default function TeamStatsScreen() {
                     </View>
                   )}
                   {avgPossession != null && (
-                    <View style={[styles.statBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                    <View style={[styles.statBox, { backgroundColor: c.surfaceAlt }]}>
                       <Text style={[styles.statVal, { color: c.primary }]}>{avgPossession.toFixed(0)}%</Text>
                       <Text style={[styles.statLbl, { color: c.textMuted }]}>Ort. Possession</Text>
                     </View>
@@ -524,13 +524,13 @@ const styles = StyleSheet.create({
   teamTitle:           { fontSize: 16, fontWeight: '500' },
   teamSub:             { fontSize: 12, marginTop: 2 },
   statGrid:            { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 10, gap: 8, marginBottom: 4 },
-  statBox:             { width: '30%', flexGrow: 1, borderRadius: 10, padding: 12, borderWidth: 0.5 },
+  statBox:             { width: '30%', flexGrow: 1, borderRadius: 10, padding: 12 },
   statVal:             { fontSize: 22, fontWeight: '500' },
   statLbl:             { fontSize: 10, marginTop: 2 },
   noDataSmall:         { fontSize: 12, paddingHorizontal: 14, paddingBottom: 10 },
 
   // Maç Özeti (W-D-L bar dahil)
-  summaryCard:         { marginHorizontal: 14, marginBottom: 8, borderRadius: 10, borderWidth: 0.5, padding: 12 },
+  summaryCard:         { marginHorizontal: 14, marginBottom: 8, borderRadius: 10, padding: 12 },
   summaryRow:          { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   summaryStat:         { alignItems: 'center' },
   summaryV:            { fontSize: 20, fontWeight: '600' },
@@ -542,14 +542,14 @@ const styles = StyleSheet.create({
   wdlL:                {},
 
   // Gol kartı
-  goalCard:            { flexDirection: 'row', marginHorizontal: 14, marginBottom: 8, borderRadius: 10, borderWidth: 0.5, padding: 14 },
+  goalCard:            { flexDirection: 'row', marginHorizontal: 14, marginBottom: 8, borderRadius: 10, padding: 14 },
   goalStat:            { flex: 1, alignItems: 'center' },
   goalDivider:         { width: 0.5 },
   goalV:               { fontSize: 26, fontWeight: '600' },
   goalL:               { fontSize: 11, marginTop: 3 },
 
   // Gol Beklentileri — yatay bar
-  expectCard:          { marginHorizontal: 14, marginBottom: 8, borderRadius: 10, borderWidth: 0.5, padding: 14 },
+  expectCard:          { marginHorizontal: 14, marginBottom: 8, borderRadius: 10, padding: 14 },
   pbRow:               { flexDirection: 'row', alignItems: 'center', marginVertical: 5, gap: 8 },
   pbLabel:             { fontSize: 12, width: 54 },
   pbTrack:             { flex: 1, height: 8, borderRadius: 4, overflow: 'hidden' },
@@ -558,12 +558,12 @@ const styles = StyleSheet.create({
 
   // Özel durumlar
   specialRow:          { flexDirection: 'row', marginHorizontal: 10, gap: 8, marginBottom: 8 },
-  specialBox:          { flex: 1, borderRadius: 10, padding: 12, borderWidth: 0.5, alignItems: 'center' },
+  specialBox:          { flex: 1, borderRadius: 10, padding: 12, alignItems: 'center' },
   specialV:            { fontSize: 20, fontWeight: '600' },
   specialL:            { fontSize: 10, marginTop: 3, textAlign: 'center' },
 
   // İç Saha vs Deplasman — karşılaştırma barı
-  splitCompareCard:    { marginHorizontal: 14, marginBottom: 8, borderRadius: 10, borderWidth: 0.5, padding: 12 },
+  splitCompareCard:    { marginHorizontal: 14, marginBottom: 8, borderRadius: 10, padding: 12 },
   splitCompareRow:     { marginVertical: 6 },
   splitCompareHeader:  { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
   splitCompareLabel:   { flex: 1, fontSize: 12, fontWeight: '500' },
@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
   formNote:            { fontSize: 11, marginLeft: 6 },
   noDataBox:           { margin: 20, padding: 20, borderRadius: 10, alignItems: 'center' },
   noDataText:          { fontSize: 13, textAlign: 'center' },
-  profileCard:         { marginHorizontal: 14, marginBottom: 6, padding: 14, borderRadius: 12, borderLeftWidth: 3, borderWidth: 0.5 },
+  profileCard:         { marginHorizontal: 14, marginBottom: 6, padding: 14, borderRadius: 12, borderLeftWidth: 3 },
   profileTop:          { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
   profileEmoji:        { fontSize: 26, marginTop: 2 },
   profileLabel:        { fontSize: 15, fontWeight: '700', marginBottom: 3 },

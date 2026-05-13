@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -473,7 +474,7 @@ export default function MatchDetail() {
         <View style={{ width: 60 }} />
       </View>
       <EmptyStateCard
-        icon="📡"
+        icon="wifi-outline"
         title="Maç verisi yüklenemedi"
         subtitle="Sunucu yanıt vermedi veya bağlantı kesildi. Tekrar denemek için aşağıdaki butona dokun."
         onRetry={retry}
@@ -550,7 +551,7 @@ export default function MatchDetail() {
             (isDark?'#2A1F00':'#FFF8E1')}]}>
             <Text style={[scStyles.guvenText,
               {color:analysis.guven==='Yüksek'?(isDark?'#3FB950':'#1B6B3A'):analysis.guven==='Düşük'?(isDark?'#F85149':'#A32D2D'):(isDark?'#E3B341':'#7A5700')}]}>
-              {analysis.guven==='Yüksek'?'✅':analysis.guven==='Düşük'?'⚠️':'⚡'} Güven: {analysis.guven}
+              Güven: {analysis.guven}
             </Text>
             <TouchableOpacity onPress={()=>setShowScoutHelp(showScoutHelp==='guven'?null:'guven')} style={scStyles.inlineHelpBtn}>
               <Text style={[scStyles.inlineHelpText,{color:analysis.guven==='Yüksek'?(isDark?'#3FB950':'#1B6B3A'):analysis.guven==='Düşük'?(isDark?'#F85149':'#A32D2D'):(isDark?'#E3B341':'#7A5700')}]}>{showScoutHelp==='guven'?'×':'?'}</Text>
@@ -599,7 +600,7 @@ export default function MatchDetail() {
             <View style={[scStyles.pickBox,{backgroundColor:isDark?'rgba(255,255,255,0.04)':'rgba(255,255,255,0.72)',borderColor:pickColor}]}>
               <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
                 <Text style={[scStyles.pickKicker,{color:pickColor}]}>SCOUT PICK</Text>
-                {pickSaved && <Text style={{fontSize:11,color:c.textFaint}}>📋 Haftaya eklendi</Text>}
+                {pickSaved && <Text style={{fontSize:11,color:c.textFaint}}>Haftaya eklendi</Text>}
               </View>
               <Text style={[scStyles.pickLabel,{color:c.text}]}>{analysis.scoutPick.label}</Text>
               <Text style={[scStyles.pickDetail,{color:c.textSub}]}>{analysis.scoutPick.detail}</Text>
@@ -766,7 +767,7 @@ export default function MatchDetail() {
                     if(!trend) return null;
                     const col = trendColor(trend.direction);
                     return (
-                      <View key={i} style={{flex:1,backgroundColor:c.surfaceAlt,borderRadius:8,padding:10,borderWidth:0.5,borderColor:c.border}}>
+                      <View key={i} style={{flex:1,backgroundColor:c.surfaceAlt,borderRadius:8,padding:10}}>
                         <Text style={{fontSize:10,color:c.textMuted,marginBottom:3}} numberOfLines={1}>{label}</Text>
                         <Text style={{fontSize:18,fontWeight:'700',color:col}}>{trendIcon(trend.direction)} {trend.direction==='up'?'Yükselişte':trend.direction==='down'?'Düşüşte':'Stabil'}</Text>
                         <Text style={{fontSize:10,color:c.textFaint,marginTop:2}}>Son 5: {trend.pts5} puan · Önceki 5: {trend.ptsPrev} puan</Text>
@@ -813,7 +814,7 @@ export default function MatchDetail() {
           return(
             <View style={[styles.scoutOddsCard,ts.scoutCard]}>
               <View style={styles.scoutOddsHeader}>
-                <Text style={[styles.scoutOddsTitle,ts.scoutTitle]}>🎯 SCOUT TAHMİNİ</Text>
+                <Text style={[styles.scoutOddsTitle,ts.scoutTitle]}>SCOUT TAHMİNİ</Text>
                 <Text style={[styles.scoutOddsSub,ts.scoutSub]}>Form verisinden hesaplandı</Text>
               </View>
               <View style={{flexDirection:'row',backgroundColor:c.surface}}>
@@ -879,7 +880,7 @@ export default function MatchDetail() {
                   </View>
                   <View style={{paddingHorizontal:12,paddingBottom:10,backgroundColor:c.surface}}>
                     <View style={[{padding:8,borderRadius:6},hasValue?{backgroundColor:isDark?'#0D2010':'#f0fff4',borderWidth:0.5,borderColor:c.win}:{backgroundColor:c.surfaceAlt}]}>
-                      <Text style={{fontSize:11,color:hasValue?c.win:c.textMuted,lineHeight:16,flexShrink:1,flexWrap:'wrap',width:'100%'}}>{hasValue?`💡 ${valueText}`:valueText}</Text>
+                      <Text style={{fontSize:11,color:hasValue?c.win:c.textMuted,lineHeight:16,flexShrink:1,flexWrap:'wrap',width:'100%'}}>{valueText}</Text>
                     </View>
                   </View>
                 </View>
@@ -906,22 +907,27 @@ export default function MatchDetail() {
           <>
             <View style={[styles.weatherCard,ts.weatherCard]}>
               <Text style={[styles.weatherCity,ts.weatherCity]}>{weatherData.city}</Text>
-              <Text style={styles.weatherIcon}>{(weatherData.temp??0)>25?'☀️':(weatherData.temp??0)>15?'⛅':(weatherData.temp??0)>5?'🌥️':'❄️'}</Text>
+              <Ionicons
+                name={(weatherData.temp??0)>25?'sunny':(weatherData.temp??0)>15?'partly-sunny-outline':(weatherData.temp??0)>5?'cloudy-outline':'snow-outline'}
+                size={36}
+                color={(weatherData.temp??0)>25?'#F59E0B':(weatherData.temp??0)>15?'#60A5FA':(weatherData.temp??0)>5?'#9CA3AF':'#93C5FD'}
+                style={styles.weatherIcon}
+              />
               <Text style={[styles.weatherTemp,ts.weatherTemp]}>{weatherData.temp}°C</Text>
               <Text style={[styles.weatherDesc,ts.weatherDesc]}>{weatherData.condition}</Text>
               <View style={styles.weatherBadgeRow}>
-                <View style={[styles.weatherBadge,ts.weatherBadge]}><Text style={[styles.weatherBadgeText,ts.weatherBadgeText]}>💨 {weatherData.wind} km/s</Text></View>
-                <View style={[styles.weatherBadge,ts.weatherBadge]}><Text style={[styles.weatherBadgeText,ts.weatherBadgeText]}>💧 %{weatherData.humidity} nem</Text></View>
+                <View style={[styles.weatherBadge,ts.weatherBadge]}><Text style={[styles.weatherBadgeText,ts.weatherBadgeText]}>{weatherData.wind} km/s rüzgar</Text></View>
+                <View style={[styles.weatherBadge,ts.weatherBadge]}><Text style={[styles.weatherBadgeText,ts.weatherBadgeText]}>%{weatherData.humidity} nem</Text></View>
               </View>
             </View>
             <View style={{flexDirection:'row',gap:8,paddingHorizontal:14,marginBottom:6}}>
               {[
-                {icon:'🌧️',label:'Yağmur',level:/rain|shower|drizzle/.test((weatherData.condition||'').toLowerCase())?'orta':'yok',color:'#42A5F5'},
-                {icon:'💨',label:'Rüzgar',level:(weatherData.wind??0)>40?'yüksek':(weatherData.wind??0)>25?'orta':'düşük',color:(weatherData.wind??0)>40?'#E65100':(weatherData.wind??0)>25?'#FF8F00':c.textFaint},
-                {icon:'🌡️',label:'Sıcaklık',level:(weatherData.temp??0)>28||(weatherData.temp??0)<5?'orta':'düşük',color:(weatherData.temp??0)>28||(weatherData.temp??0)<5?'#6A1B9A':c.textFaint},
+                {icon:'rainy-outline' as const,label:'Yağmur',level:/rain|shower|drizzle/.test((weatherData.condition||'').toLowerCase())?'orta':'yok',color:'#42A5F5'},
+                {icon:'partly-sunny-outline' as const,label:'Rüzgar',level:(weatherData.wind??0)>40?'yüksek':(weatherData.wind??0)>25?'orta':'düşük',color:(weatherData.wind??0)>40?'#E65100':(weatherData.wind??0)>25?'#FF8F00':c.textFaint},
+                {icon:'thermometer-outline' as const,label:'Sıcaklık',level:(weatherData.temp??0)>28||(weatherData.temp??0)<5?'orta':'düşük',color:(weatherData.temp??0)>28||(weatherData.temp??0)<5?'#6A1B9A':c.textFaint},
               ].map(item=>(
                 <View key={item.label} style={[styles.impactBadge,ts.impactBadge,{borderColor:item.color}]}>
-                  <Text style={styles.impactIcon}>{item.icon}</Text>
+                  <Ionicons name={item.icon} size={16} color={item.color} />
                   <Text style={[styles.impactLabel,ts.impactLabel]}>{item.label}</Text>
                   <Text style={[styles.impactLevel,{color:item.color}]}>{item.level}</Text>
                 </View>
@@ -945,7 +951,7 @@ export default function MatchDetail() {
         {refProfile ? (
           <>
             <View style={[styles.refCard,ts.refCard]}>
-              <Text style={styles.refIcon}>🧑‍⚖️</Text>
+              <Ionicons name="person-circle-outline" size={36} color={c.textMuted} style={styles.refIcon} />
               <Text style={[styles.refName,ts.refName]}>{refName}</Text>
               <Text style={[styles.refSub,ts.refSub]}>{league} · Model hakem profili</Text>
             </View>
@@ -954,17 +960,17 @@ export default function MatchDetail() {
                 <Text style={[styles.refTagText,{color:refProfile.kartColor}]}>{refProfile.kartEmoji} Kart: {refProfile.kart}</Text>
               </View>
               <View style={[styles.refTagPill,ts.refFaulPill]}>
-                <Text style={[styles.refTagText,ts.refFaulText]}>⚖️ Faul: {refProfile.faul}</Text>
+                <Text style={[styles.refTagText,ts.refFaulText]}>Faul: {refProfile.faul}</Text>
               </View>
               <View style={[styles.refTagPill,ts.refAkisPill]}>
-                <Text style={[styles.refTagText,ts.refAkisText]}>🎮 Akış: {refProfile.akis}</Text>
+                <Text style={[styles.refTagText,ts.refAkisText]}>Akış: {refProfile.akis}</Text>
               </View>
             </View>
             <DetailInsightBox message={refProfile.narrative} boxStyle={[scStyles.insightBox,ts.insightBox]} textStyle={[scStyles.insightText,ts.insightText]} />
           </>
         ) : (
           <DetailDataNotice
-            message={(!isFinished && !isLive) ? '📅 Hakem maç gününe yakın açıklanacak.' : 'Hakem bilgisi bulunamadı.'}
+            message={(!isFinished && !isLive) ? 'Hakem maç gününe yakın açıklanacak.' : 'Hakem bilgisi bulunamadı.'}
             boxStyle={styles.noDataBox}
             textStyle={styles.noDataText}
           />
@@ -979,9 +985,9 @@ export default function MatchDetail() {
               {[
                 {label:'2.5 Üst',val:`%${deepH2H.over25Pct}`,color:deepH2H.over25Pct>=60?(isDark?'#F85149':'#A32D2D'):deepH2H.over25Pct<=35?(isDark?'#3FB950':'#27500A'):(isDark?'#E3B341':'#7A5700')},
                 {label:'KG Var',val:`%${deepH2H.bttsPct}`,color:deepH2H.bttsPct>=60?(isDark?'#F85149':'#A32D2D'):deepH2H.bttsPct<=30?(isDark?'#3FB950':'#27500A'):(isDark?'#E3B341':'#7A5700')},
-                {label:'Son Trend',val:deepH2H.trendDir==='home'?'🏠 Ev üstün':deepH2H.trendDir==='away'?'✈️ Dep. üstün':'⚖️ Dengeli',color:c.textSub},
+                {label:'Son Trend',val:deepH2H.trendDir==='home'?'Ev üstün':deepH2H.trendDir==='away'?'Dep. üstün':'Dengeli',color:c.textSub},
               ].map((item,i)=>(
-                <View key={i} style={{flex:1,backgroundColor:c.surfaceAlt,borderRadius:8,padding:9,alignItems:'center',borderWidth:0.5,borderColor:c.border}}>
+                <View key={i} style={{flex:1,backgroundColor:c.surfaceAlt,borderRadius:8,padding:9,alignItems:'center'}}>
                   <Text style={{fontSize:10,color:c.textMuted,marginBottom:3}}>{item.label}</Text>
                   <Text style={{fontSize:15,fontWeight:'700',color:item.color}} numberOfLines={1}>{item.val}</Text>
                 </View>
@@ -1065,7 +1071,7 @@ export default function MatchDetail() {
         <DetailSectionTitle style={scStyles.sectionLabel}>MOTİVASYON FAKTÖRÜ</DetailSectionTitle>
         {motivationComment ? (
           <DetailInsightBox
-            message={`🏆 ${motivationComment}`}
+            message={motivationComment}
             accentColor={isDark ? '#E3B341' : '#E6A817'}
             textColor={isDark ? '#E3B341' : '#7A5700'}
             boxStyle={[scStyles.insightBox,ts.insightBox]}
@@ -1084,13 +1090,13 @@ export default function MatchDetail() {
         <View style={[styles.riskBox,ts.riskBox]}>
           {riskWarns.map((w,i)=>(
             <View key={i} style={[styles.riskRow,{backgroundColor:c.surface},i>0&&{borderTopWidth:0.5,...ts.riskRow}]}>
-              <Text style={styles.riskIcon}>{w.startsWith('Belirgin')? '✅':'⚠️'}</Text>
+              <Ionicons name={w.startsWith('Belirgin') ? 'checkmark-circle-outline' : 'warning-outline'} size={16} color={w.startsWith('Belirgin') ? c.win : '#E6A817'} />
               <Text style={[styles.riskText,ts.riskText]}>{w}</Text>
             </View>
           ))}
         </View>
         <View style={[styles.disclaimerBox,ts.disclaimer]}>
-          <Text style={[styles.disclaimerText,ts.disclaimerText]}>ℹ️ Bu sayfa yalnızca bilgilendirme amaçlıdır. Analizler form verileri ve lig profillerine dayalı algoritmik tahmindir.</Text>
+          <Text style={[styles.disclaimerText,ts.disclaimerText]}>Bu sayfa yalnızca bilgilendirme amaçlıdır. Analizler form verileri ve lig profillerine dayalı algoritmik tahmindir.</Text>
         </View>
 
         <View style={{height:30}}/>
