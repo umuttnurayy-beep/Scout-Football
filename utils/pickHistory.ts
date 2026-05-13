@@ -148,6 +148,24 @@ export function getCurrentWeekRange(): { start: string; end: string; label: stri
   return { start: fmt(monday), end: fmt(sunday), label: `${dayFmt(monday)} – ${dayFmt(sunday)}` };
 }
 
+// Geçen haftanın sonuçları Pazartesi 09:00'dan itibaren görünür.
+// offset=0 döndürüyorsa geçen haftayı göster; -1 ise iki hafta öncesini göster.
+export function getMaxWeekOffset(): number {
+  const now = new Date();
+  if (now.getDay() === 1 && now.getHours() < 9) return -1;
+  return 0;
+}
+
+// Mevcut devam eden haftanın sonuçlarının açılacağı etiket: "18 May Pazartesi 09:00"
+export function getUnlockDateLabel(): string {
+  const currentWeek = getWeekRange(1);
+  const endDate = new Date(currentWeek.end + 'T12:00:00');
+  const unlockDate = new Date(endDate);
+  unlockDate.setDate(endDate.getDate() + 1);
+  const months = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+  return `${unlockDate.getDate()} ${months[unlockDate.getMonth()]} Pazartesi 09:00`;
+}
+
 // Performans ekranı için: offset=0 → son tamamlanmış Pzt-Paz haftası.
 // Haftanın kapanması için Pazartesi gelmiş olması gerekir; Pazar günü bile geçen hafta görünür.
 export function getWeekRange(weekOffset: number): { start: string; end: string; label: string } {

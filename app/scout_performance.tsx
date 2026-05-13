@@ -8,15 +8,9 @@ import { useTheme } from '../context/ThemeContext';
 import { getSuperLigMatch, getMatchStats } from '../services/api';
 import {
   SavedPick, clearPickHistory, filterPicksForWeek, groupPicksByDay,
-  getWeekRange, loadPickHistory, pickAccuracy, resolvePickResults, removeStalePicks,
+  getWeekRange, getMaxWeekOffset, getUnlockDateLabel,
+  loadPickHistory, pickAccuracy, resolvePickResults, removeStalePicks,
 } from '../utils/pickHistory';
-
-// Geçen haftanın sonuçları Pazartesi 09:00'dan itibaren görünür
-function getMaxWeekOffset(): number {
-  const now = new Date();
-  if (now.getDay() === 1 && now.getHours() < 9) return -1;
-  return 0;
-}
 
 const DAY_NAMES = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 const MONTHS_SHORT = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
@@ -218,7 +212,7 @@ export default function ScoutPerformanceScreen() {
               <>
                 <Text style={[styles.emptyTitle, { color: c.text }]}>Geçen haftanın sonuçları hazırlanıyor</Text>
                 <Text style={[styles.emptySub, { color: c.textSub }]}>
-                  Bugün saat 09:00'dan itibaren geçen haftanın scout performansı burada görünecek.
+                  Saat 09:00'dan itibaren geçen haftanın scout performansı burada görünecek.
                 </Text>
               </>
             ) : (

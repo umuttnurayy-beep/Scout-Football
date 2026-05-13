@@ -16,7 +16,7 @@ import {
   H2HRawItem, HomeData, checkBackendHealth, clearLastApiError, getAllSportsH2H, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, preloadMatchContext, preloadSuperLigMatchContext, Standing,
 } from '../services/api';
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
-import { filterPicksForWeek, getCurrentWeekRange, loadPickHistory, pickAccuracy, savePick } from '../utils/pickHistory';
+import { filterPicksForWeek, getCurrentWeekRange, getWeekRange, getMaxWeekOffset, getUnlockDateLabel, loadPickHistory, pickAccuracy, savePick } from '../utils/pickHistory';
 import { dataNoticeMessage, matchListEmptyMessage } from '../utils/emptyStates';
 import { teamsMatch } from '../utils/teamStats';
 import {
@@ -676,20 +676,17 @@ export default function HomeScreen() {
     }, [selectedDate])
   );
 
-  // Load weekly pick accuracy for Scout mode card — son tamamlanmış hafta
+  // Load weekly pick accuracy for Scout mode card — geçen tamamlanmış hafta (Pzt 09:00 kuralı)
   useFocusEffect(
     useCallback(() => {
       (async () => {
-        const range = getCurrentWeekRange(); // devam eden bu hafta
+        const range = getWeekRange(getMaxWeekOffset());
         const picks = await loadPickHistory();
         const weekPicks = filterPicksForWeek(picks, range.start, range.end)
           .filter(p => p.pickTone !== 'caution');
-        if (weekPicks.length > 0) {
-          const acc = pickAccuracy(weekPicks);
-          setWeeklyAcc({ ...acc, allTotal: weekPicks.length, label: range.label });
-        } else {
-          setWeeklyAcc(null);
-        }
+        const acc = pickAccuracy(weekPicks);
+        // Her zaman kartı göster — isEmpty durumunda "coming soon" metni çıkar
+        setWeeklyAcc({ ...acc, allTotal: weekPicks.length, label: range.label });
       })();
     }, [])
   );
@@ -1153,11 +1150,11 @@ export default function HomeScreen() {
       }
       if (anyNew) {
         const updatedPicks = await loadPickHistory();
-        const weekPicks = filterPicksForWeek(updatedPicks, range.start, range.end);
-        if (weekPicks.length > 0) {
-          const acc = pickAccuracy(weekPicks);
-          setWeeklyAcc({ ...acc, allTotal: weekPicks.length, label: range.label });
-        }
+        const prevRange = getWeekRange(getMaxWeekOffset());
+        const prevPicks = filterPicksForWeek(updatedPicks, prevRange.start, prevRange.end)
+          .filter(p => p.pickTone !== 'caution');
+        const acc = pickAccuracy(prevPicks);
+        setWeeklyAcc({ ...acc, allTotal: prevPicks.length, label: prevRange.label });
       }
     })();
   }, [matches, matchesDateStr, metricsMap, standingsMap]);
@@ -1280,7 +1277,7 @@ export default function HomeScreen() {
         weeklyCorrect: weeklyAcc?.correct ?? 0,
         weeklyTotal: weeklyAcc?.total ?? 0,
         weeklyPct: weeklyAcc?.pct ?? 0,
-        weeklyLabel: weeklyAcc?.label ?? getCurrentWeekRange().label,
+        weeklyLabel: weeklyAcc?.label ?? getWeekRange(getMaxWeekOffset()).label,
         weeklyAllTotal: weeklyAcc?.allTotal ?? 0,
       });
 
@@ -1533,11 +1530,14 @@ export default function HomeScreen() {
                 </>
               ) : (
                 <>
-                  <Text style={[sc.weeklyCardSub, { color: c.text, fontSize: 14, fontWeight: '600', marginBottom: 6 }]}>
-                    Haftalık Scout Performansı yakında
+                  <Text style={[sc.weeklyCardSub, { color: c.text, fontSize: 14, fontWeight: '600', marginBottom: 4 }]}>
+                    Bu haftanın sonuçları hazırlanıyor
                   </Text>
                   <Text style={[sc.weeklyCardSub, { color: c.textSub }]}>
-                    {weeklyLabel} değerlendirmesi · Tümünü Gör →
+                    {getWeekRange(1).label} · {getUnlockDateLabel()}'dan görünecek
+                  </Text>
+                  <Text style={[sc.weeklyCardSub, { color: c.primary, marginTop: 4 }]}>
+                    Tümünü Gör →
                   </Text>
                 </>
               )}
