@@ -8,7 +8,7 @@ import { useTheme } from '../context/ThemeContext';
 import { getSuperLigMatch, getMatchStats } from '../services/api';
 import {
   SavedPick, clearPickHistory, filterPicksForWeek, groupPicksByDay,
-  getWeekRange, getMaxWeekOffset, getUnlockDateLabel,
+  getWeekRange, getUnlockDateLabel,
   loadPickHistory, pickAccuracy, resolvePickResults, removeStalePicks,
 } from '../utils/pickHistory';
 
@@ -62,7 +62,8 @@ function PickCard({ pick }: { pick: SavedPick }) {
 export default function ScoutPerformanceScreen() {
   const router = useRouter();
   const { colors: c, isDark } = useTheme();
-  const [weekOffset, setWeekOffset] = useState(getMaxWeekOffset);
+  // offset=1 = bu hafta (kilitli), offset=0 = geçen hafta, offset<0 = daha eskiler
+  const [weekOffset, setWeekOffset] = useState(1);
   const [allPicks, setAllPicks] = useState<SavedPick[]>([]);
   const [resolving, setResolving] = useState(false);
 
@@ -76,19 +77,15 @@ export default function ScoutPerformanceScreen() {
         const history = await loadPickHistory();
         if (!cancelled) {
           setAllPicks(history);
-          const maxOffset = getMaxWeekOffset();
-          // maxOffset'i aşan offset varsa sıfırla
-          setWeekOffset(prev => Math.min(prev, maxOffset));
-          // Görülebilecek en son hafta boşsa geriye dönük en fazla 8 hafta ara
-          const targetWeek = getWeekRange(maxOffset);
-          const targetPicks = filterPicksForWeek(history, targetWeek.start, targetWeek.end)
-            .filter(p => p.pickTone !== 'caution');
-          if (targetPicks.length === 0) {
-            for (let o = maxOffset - 1; o >= maxOffset - 8; o--) {
-              const w = getWeekRange(o);
-              const wPicks = filterPicksForWeek(history, w.start, w.end)
-                .filter(p => p.pickTone !== 'caution');
-              if (wPicks.length > 0) { setWeekOffset(o); break; }
+          // Geçen haftada sonuçlanmış pick varsa ve Pazartesi 09:00 geçtiyse oraya atla
+          const now = new Date();
+          const lastWeekUnlocked = !(now.getDay() === 1 && now.getHours() < 9);
+          if (lastWeekUnlocked) {
+            const lastWeek = getWeekRange(0);
+            const lastWeekPicks = filterPicksForWeek(history, lastWeek.start, lastWeek.end)
+              .filter(p => p.pickTone !== 'caution' && p.result);
+            if (lastWeekPicks.length > 0) {
+              setWeekOffset(0);
             }
           }
         }
@@ -122,17 +119,17 @@ export default function ScoutPerformanceScreen() {
     }, [])
   );
 
-  const maxWeekOffset = getMaxWeekOffset();
-  const isPendingMonday = maxWeekOffset === -1 && weekOffset === -1;
+  // offset=1 = bu hafta (her zaman kilitli — sonuçlar henüz açılmadı)
+  const isCurrentWeek = weekOffset === 1;
+  const isLatestWeek = weekOffset >= 1;
 
-  const weekPicks = filterPicksForWeek(allPicks, week.start, week.end)
-    .filter(p => p.pickTone !== 'caution');
+  const weekPicks = isCurrentWeek
+    ? [] // Bu haftanın pick'leri henüz gösterilmez
+    : filterPicksForWeek(allPicks, week.start, week.end).filter(p => p.pickTone !== 'caution');
   const acc = pickAccuracy(weekPicks);
   const pending = weekPicks.filter(p => !p.result).length;
   const grouped = groupPicksByDay(weekPicks);
 
-  const isLatestWeek = weekOffset >= maxWeekOffset;
-  const isDefaultWeek = weekOffset === maxWeekOffset;
   const barPct = acc.total > 0 ? acc.pct : 0;
   const barColor = barPct >= 60 ? c.win : barPct >= 40 ? (isDark ? '#E3B341' : '#B7791F') : c.loss;
 
@@ -155,10 +152,11 @@ export default function ScoutPerformanceScreen() {
         </TouchableOpacity>
         <View style={styles.weekNavCenter}>
           <Text style={[styles.weekLabel, { color: c.text }]}>{week.label}</Text>
-          {isDefaultWeek && <Text style={[styles.weekBadge, { color: c.primary }]}>Geçen Hafta</Text>}
+          {isCurrentWeek && <Text style={[styles.weekBadge, { color: c.primary }]}>Bu Hafta</Text>}
+          {weekOffset === 0 && <Text style={[styles.weekBadge, { color: c.primary }]}>Geçen Hafta</Text>}
         </View>
         <TouchableOpacity
-          onPress={() => setWeekOffset(w => Math.min(maxWeekOffset, w + 1))}
+          onPress={() => setWeekOffset(w => Math.min(1, w + 1))}
           style={styles.weekNavBtn}
           disabled={isLatestWeek}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -169,8 +167,16 @@ export default function ScoutPerformanceScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
-        {/* Accuracy summary */}
-        {acc.total > 0 ? (
+        {/* Bu hafta kilitli kartı */}
+        {isCurrentWeek ? (
+          <View style={[styles.lockedCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+            <Text style={styles.lockedIcon}>🔒</Text>
+            <Text style={[styles.lockedTitle, { color: c.text }]}>Sonuçlar Henüz Hazır Değil</Text>
+            <Text style={[styles.lockedSub, { color: c.textSub }]}>
+              {getUnlockDateLabel()}'dan bu haftanın{'\n'}performansı burada görünecek.
+            </Text>
+          </View>
+        ) : acc.total > 0 ? (
           <View style={[styles.accCard, { backgroundColor: c.surface }]}>
             <View style={styles.accRow}>
               <View>
@@ -208,21 +214,10 @@ export default function ScoutPerformanceScreen() {
         ) : (
           <View style={[styles.emptyCard, { backgroundColor: c.surface }]}>
             <Text style={[styles.emptyIcon]}>📋</Text>
-            {isDefaultWeek ? (
-              <>
-                <Text style={[styles.emptyTitle, { color: c.text }]}>Bu haftanın sonuçları hazırlanıyor</Text>
-                <Text style={[styles.emptySub, { color: c.textSub }]}>
-                  {getWeekRange(1).label} haftası · {getUnlockDateLabel()}'dan görünecek
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text style={[styles.emptyTitle, { color: c.text }]}>Bu hafta için pick bulunamadı</Text>
-                <Text style={[styles.emptySub, { color: c.textSub }]}>
-                  Ana ekranda o haftanın maçlarını görüntüleyince Scout pick'leri otomatik kaydedilir.
-                </Text>
-              </>
-            )}
+            <Text style={[styles.emptyTitle, { color: c.text }]}>Bu hafta için pick bulunamadı</Text>
+            <Text style={[styles.emptySub, { color: c.textSub }]}>
+              Ana ekranda o haftanın maçlarını görüntüleyince Scout pick'leri otomatik kaydedilir.
+            </Text>
           </View>
         )}
 
@@ -286,6 +281,14 @@ const styles = StyleSheet.create({
   barBg: { height: 8, borderRadius: 4, overflow: 'hidden' },
   barFill: { height: 8, borderRadius: 4 },
   resolveHint: { fontSize: 11, marginTop: 8, textAlign: 'right' },
+
+  lockedCard: {
+    borderRadius: 14, padding: 28, alignItems: 'center', marginBottom: 16,
+    borderWidth: 1,
+  },
+  lockedIcon: { fontSize: 40, marginBottom: 12 },
+  lockedTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+  lockedSub: { fontSize: 14, textAlign: 'center', lineHeight: 21 },
 
   emptyCard: { borderRadius: 14, padding: 24, alignItems: 'center', marginBottom: 16 },
   emptyIcon: { fontSize: 36, marginBottom: 10 },
