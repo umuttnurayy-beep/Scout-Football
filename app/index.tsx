@@ -5,7 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, AppState, FlatList, Image, RefreshControl, ScrollView, StatusBar, StyleSheet,
-  Text, TouchableOpacity, View,
+  Text, TouchableOpacity, View, useWindowDimensions,
 } from 'react-native';
 import BottomTabBar from '../components/BottomTabBar';
 import EmptyStateCard from '../components/EmptyStateCard';
@@ -48,6 +48,8 @@ const LIG_FILTERS = [
   { label: 'UCL',         id: 2001 },
   { label: 'Süper Lig',   id: 203  },
 ];
+
+const ALL_FILTERS = ['Scout', ...LIG_FILTERS.map(f => f.label)];
 
 const DAYS   = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 const MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
@@ -561,6 +563,8 @@ function MatchRow({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
 export default function HomeScreen() {
   const router = useRouter();
   const { colors: c, isDark } = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
+  const pagerRef = useRef<ScrollView>(null);
   const [activeFilter, setActiveFilter] = useState<string>('Scout');
   const [matches, setMatches]           = useState<Match[]>([]);
   const [matchesDateStr, setMatchesDateStr] = useState<string | null>(null);
@@ -1232,14 +1236,13 @@ export default function HomeScreen() {
     AsyncStorage.setItem(FEATURED_MATCH_CACHE_KEY, JSON.stringify(nextCache)).catch(() => {});
   }, [activeFilter, sortedMatches, backendFeaturedMatchId, selectedDateKey, featuredMatchCache, featuredCacheLoaded, matchesReadyForSelectedDate]);
 
-  const listItems = useMemo<ListItem[]>(() => {
-    const scoutMode = activeFilter === 'Scout' && featuredMatches.length > 0;
+  const scoutListItems = useMemo<ListItem[]>(() => {
     const items: ListItem[] = [];
-    if (activeFilter === 'Scout' && homeDataNotice === 'error' && featuredMatches.length === 0) {
-      items.push({ key: `notice-${homeDataNotice}`, type: 'notice', notice: homeDataNotice, warningText: homeDataWarningText });
+    if (homeDataNotice === 'error' && featuredMatches.length === 0) {
+      items.push({ key: 'notice-error', type: 'notice', notice: 'error', warningText: homeDataWarningText });
     }
 
-    if (scoutMode) {
+    if (featuredMatches.length > 0) {
       const hero = featuredMatches[0];
       const highlights = featuredMatches.slice(1, 4);
       const shownIds = new Set([hero?.id, ...highlights.map(m => m.id)]);
@@ -1270,7 +1273,6 @@ export default function HomeScreen() {
 
       items.push({ key: 'day-summary', type: 'day-summary', summary });
 
-      // Show weekly card always in Scout mode (placeholder if no picks yet)
       items.push({
         key: 'weekly-card',
         type: 'weekly-card',
@@ -1314,21 +1316,32 @@ export default function HomeScreen() {
         }
       }
     } else {
-      if (sortedMatches.length === 0) {
-        items.push({ key: 'empty', type: activeFilter === 'Scout' ? 'empty-scout' : 'empty', filter: activeFilter });
-      } else {
-        const title = activeFilter !== 'Scout'
-          ? `${activeFilter.toUpperCase()} MAÇLARI`
-          : `${selectedDate.getDate()} ${MONTHS[selectedDate.getMonth()]} MAÇLARI`;
-        items.push({ key: 'h-list', type: 'section-header', title });
-        sortedMatches.forEach(m => {
-          items.push({ key: `m-${m.id}`, type: 'match', m, metrics: metricsMap.get(m.id) ?? NO_DATA });
-        });
-      }
+      items.push({ key: 'empty-scout', type: 'empty-scout', filter: 'Scout' });
     }
 
     return items;
-  }, [featuredMatches, sortedMatches, metricsMap, activeFilter, selectedDate, nextDayPreview, singleH2H, homeDataNotice, homeDataWarningText, weeklyAcc]);
+  }, [featuredMatches, metricsMap, selectedDate, nextDayPreview, singleH2H, homeDataNotice, homeDataWarningText, weeklyAcc]);
+
+  const leagueFilterItems = useMemo<Record<string, ListItem[]>>(() => {
+    const result: Record<string, ListItem[]> = {};
+    for (const f of LIG_FILTERS) {
+      const filtered = matchesReadyForSelectedDate
+        ? matches.filter(m => m.leagueApiId === f.id)
+        : [];
+      const sorted = [...filtered].sort((a, b) =>
+        scoutScore(b, metricsMap.get(b.id) ?? NO_DATA) - scoutScore(a, metricsMap.get(a.id) ?? NO_DATA)
+      );
+      if (sorted.length === 0) {
+        result[f.label] = [{ key: `empty-${f.id}`, type: 'empty', filter: f.label }];
+      } else {
+        result[f.label] = [
+          { key: `h-${f.id}`, type: 'section-header', title: `${f.label.toUpperCase()} MAÇLARI` },
+          ...sorted.map(m => ({ key: `m-${m.id}`, type: 'match' as const, m, metrics: metricsMap.get(m.id) ?? NO_DATA })),
+        ];
+      }
+    }
+    return result;
+  }, [matches, matchesReadyForSelectedDate, metricsMap]);
 
   const goToMatch = useCallback((m: Match, metrics?: Metrics) => {
     const metricParams = {
@@ -1416,6 +1429,26 @@ export default function HomeScreen() {
   const openNextPreviewMatch = useCallback(() => {
     if (nextDayPreview) goToMatch(nextDayPreview.m, nextDayPreview.metrics);
   }, [goToMatch, nextDayPreview]);
+
+  const goToFilter = useCallback((label: string) => {
+    const idx = ALL_FILTERS.indexOf(label);
+    setActiveFilter(label);
+    if (idx >= 0) pagerRef.current?.scrollTo({ x: idx * screenWidth, animated: true });
+  }, [screenWidth]);
+
+  // When data becomes ready (after loading), snap pager to the current active filter
+  const isDataReady = !loading && featuredCacheLoaded && matchesReadyForSelectedDate;
+  useEffect(() => {
+    if (!isDataReady) return;
+    const idx = ALL_FILTERS.indexOf(activeFilter);
+    if (idx > 0) {
+      requestAnimationFrame(() => {
+        pagerRef.current?.scrollTo({ x: idx * screenWidth, animated: false });
+      });
+    }
+    // Only run when data transitions to ready
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDataReady]);
 
   const keyExtractor = useCallback((item: ListItem) => item.key, []);
   const listContentStyle = useMemo(() => ({ paddingBottom: 16 }), []);
@@ -1603,7 +1636,7 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingHorizontal: 14, alignItems: 'center', gap: 8 }}>
         <TouchableOpacity
           style={[styles.scoutPill, { borderColor: c.primary }, activeFilter === 'Scout' && styles.scoutPillActive]}
-          onPress={() => setActiveFilter('Scout')}>
+          onPress={() => goToFilter('Scout')}>
           <Text style={[styles.scoutPillText, { color: c.primary }, activeFilter === 'Scout' && styles.scoutPillTextActive]}>
             🔍 Scout
           </Text>
@@ -1611,7 +1644,7 @@ export default function HomeScreen() {
         {LIG_FILTERS.map(f => (
           <TouchableOpacity key={f.id}
             style={[styles.filterPill, { borderColor: c.border }, activeFilter === f.label && styles.filterPillActive]}
-            onPress={() => setActiveFilter(f.label)}>
+            onPress={() => goToFilter(f.label)}>
             <Text style={[styles.filterText, { color: c.textMuted }, activeFilter === f.label && styles.filterTextActive]}>{f.label}</Text>
           </TouchableOpacity>
         ))}
@@ -1629,26 +1662,58 @@ export default function HomeScreen() {
           {[3, 4, 5].map(i => <SkeletonMatchCard key={i} />)}
         </ScrollView>
       ) : (
-        <FlatList
+        <ScrollView
+          ref={pagerRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onMomentumScrollEnd={e => {
+            const idx = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
+            const label = ALL_FILTERS[idx];
+            if (label) setActiveFilter(label);
+          }}
           style={styles.scroll}
-          data={listItems}
-          keyExtractor={keyExtractor}
-          renderItem={renderListItem}
-          contentContainerStyle={listContentStyle}
-          initialNumToRender={8}
-          maxToRenderPerBatch={8}
-          windowSize={7}
-          updateCellsBatchingPeriod={40}
-          removeClippedSubviews
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={refreshSelectedDate}
-              tintColor={c.primary}
-              colors={[c.primary]}
+        >
+          {/* Scout page */}
+          <FlatList
+            style={{ width: screenWidth, flex: 1 }}
+            data={scoutListItems}
+            keyExtractor={keyExtractor}
+            renderItem={renderListItem}
+            contentContainerStyle={listContentStyle}
+            initialNumToRender={8}
+            maxToRenderPerBatch={8}
+            windowSize={7}
+            updateCellsBatchingPeriod={40}
+            removeClippedSubviews
+            nestedScrollEnabled
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={refreshSelectedDate}
+                tintColor={c.primary}
+                colors={[c.primary]}
+              />
+            }
+          />
+          {/* League pages */}
+          {LIG_FILTERS.map(f => (
+            <FlatList
+              key={f.id}
+              style={{ width: screenWidth, flex: 1 }}
+              data={leagueFilterItems[f.label] ?? []}
+              keyExtractor={keyExtractor}
+              renderItem={renderListItem}
+              contentContainerStyle={listContentStyle}
+              initialNumToRender={8}
+              maxToRenderPerBatch={8}
+              windowSize={5}
+              removeClippedSubviews
+              nestedScrollEnabled
             />
-          }
-        />
+          ))}
+        </ScrollView>
       )}
 
       <BottomTabBar activeTab="matches" />
