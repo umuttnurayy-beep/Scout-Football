@@ -208,11 +208,11 @@ export default function ScoutPerformanceScreen() {
         ) : (
           <View style={[styles.emptyCard, { backgroundColor: c.surface }]}>
             <Text style={[styles.emptyIcon]}>📋</Text>
-            {isPendingMonday ? (
+            {isDefaultWeek ? (
               <>
-                <Text style={[styles.emptyTitle, { color: c.text }]}>Geçen haftanın sonuçları hazırlanıyor</Text>
+                <Text style={[styles.emptyTitle, { color: c.text }]}>Bu haftanın sonuçları hazırlanıyor</Text>
                 <Text style={[styles.emptySub, { color: c.textSub }]}>
-                  Saat 09:00'dan itibaren geçen haftanın scout performansı burada görünecek.
+                  {getWeekRange(1).label} haftası · {getUnlockDateLabel()}'dan görünecek
                 </Text>
               </>
             ) : (
