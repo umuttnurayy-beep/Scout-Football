@@ -345,14 +345,22 @@ export default function LeaguesScreen() {
         )}
       </View>
 
-      <View style={[stStyles.subTabBar, { borderBottomColor: c.border, backgroundColor: c.surface }]}>
-        {SUB_TABS.map(t => (
-          <TouchableOpacity key={t.key}
-            style={[stStyles.subTab, subTab === t.key && stStyles.subTabActive]}
-            onPress={() => goToTab(t.key)}>
-            <Text style={[stStyles.subTabText, { color: c.textMuted }, subTab === t.key && { color: c.primary, fontWeight: '600' }]}>{t.label}</Text>
-          </TouchableOpacity>
-        ))}
+      <View style={[stStyles.subTabBar, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
+        <View style={[stStyles.subTabTrack, { backgroundColor: c.surfaceAlt }]}>
+          {SUB_TABS.map(t => {
+            const isActive = subTab === t.key;
+            return (
+              <TouchableOpacity key={t.key}
+                style={[stStyles.subTabPill, isActive && { backgroundColor: c.surface }]}
+                onPress={() => goToTab(t.key)}
+                activeOpacity={0.75}>
+                <Text style={[stStyles.subTabText, { color: isActive ? c.primary : c.textMuted }, isActive && stStyles.subTabTextActive]}>
+                  {t.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       {refreshing && !loading && (
@@ -695,7 +703,7 @@ export default function LeaguesScreen() {
                         <Text style={[styles.dataCell, { color: c.primary, fontWeight: '600' }]}>P</Text>
                       </View>
                       {standings.map((row, i) => (
-                        <View key={i} style={[styles.tableRow, { borderBottomColor: c.borderLight }, i % 2 === 0 && { backgroundColor: c.surfaceAlt }]}>
+                        <View key={i} style={[styles.tableRow, i < standings.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.borderLight }]}>
                           <View style={[styles.posBadge, getBadgeStyle(row.pos, standings.length, activeLeague.apiId)]}>
                             <Text style={styles.posText}>{row.pos}</Text>
                           </View>
@@ -963,14 +971,14 @@ const styles = StyleSheet.create({
   leagueHeaderName:    { fontSize: 16, fontWeight: '500' },
   leagueHeaderSub:     { fontSize: 12, marginTop: 2 },
   emptyText:           { textAlign: 'center', marginTop: 40, fontSize: 13 },
-  tableHeader:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 8, borderBottomWidth: 0.5 },
-  tableRow:            { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 0.5 },
+  tableHeader:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 0.5 },
+  tableRow:            { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 },
   tableRowAlt:         {},
   rankCell:            { fontSize: 11, width: 28, textAlign: 'center' },
   teamCell:            { flex: 1, fontSize: 11 },
   dataCell:            { fontSize: 11, width: 28, textAlign: 'center' },
-  teamNameCell:        { flex: 1, fontSize: 12, fontWeight: '500' },
-  posBadge:            { width: 20, height: 20, borderRadius: 4, alignItems: 'center', justifyContent: 'center', marginRight: 6 },
+  teamNameCell:        { flex: 1, fontSize: 13, fontWeight: '500' },
+  posBadge:            { width: 24, height: 24, borderRadius: 6, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
   posTop:              { backgroundColor: TABLE_COLORS.champions },
   posUclQual:          { backgroundColor: TABLE_COLORS.championsQual },
   posMid:              { backgroundColor: TABLE_COLORS.europa },
@@ -979,7 +987,7 @@ const styles = StyleSheet.create({
   posRelPlayoff:       { backgroundColor: TABLE_COLORS.relegationPlayoff },
   posRel:              { backgroundColor: TABLE_COLORS.relegation },
   posNormal:           { backgroundColor: '#888' },
-  posText:             { fontSize: 10, fontWeight: '600', color: '#fff' },
+  posText:             { fontSize: 11, fontWeight: '700', color: '#fff' },
   legendBox:           { marginHorizontal: 14, marginTop: 12, gap: 6 },
   legendRow:           { flexDirection: 'row', alignItems: 'center', gap: 8 },
   legendDot:           { width: 10, height: 10, borderRadius: 2 },
@@ -1007,10 +1015,11 @@ const styles = StyleSheet.create({
 });
 
 const stStyles = StyleSheet.create({
-  subTabBar:        { flexDirection: 'row', borderBottomWidth: 0.5 },
-  subTab:           { flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  subTabActive:     { borderBottomColor: '#185FA5' },
-  subTabText:       { fontSize: 11 },
+  subTabBar:        { paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 0.5 },
+  subTabTrack:      { flexDirection: 'row', borderRadius: 10, padding: 3 },
+  subTabPill:       { flex: 1, paddingVertical: 7, alignItems: 'center', borderRadius: 8 },
+  subTabText:       { fontSize: 12 },
+  subTabTextActive: { fontWeight: '600' },
   summaryCard:      { margin: 14, padding: 14, borderRadius: 12 },
   summaryRow:       { flexDirection: 'row', marginBottom: 10 },
   summaryStat:      { flex: 1, alignItems: 'center' },

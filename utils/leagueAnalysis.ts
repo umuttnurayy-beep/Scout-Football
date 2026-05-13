@@ -167,12 +167,12 @@ export function getLiderTags(
   const isTopScorer = sortedByGfR[0]?.team === leader.team;
   const isBestDef   = sortedByGaR[0]?.team === leader.team;
 
-  if (isTopScorer)       tags.push({ label: '⚽ En Golcü',        ...cp('red',    isDark) });
-  if (isBestDef)         tags.push({ label: '🛡️ Sağlam Savunma', ...cp('green',  isDark) });
-  if (winRate >= 0.65)   tags.push({ label: '🔥 Dominant',        ...cp('yellow', isDark) });
-  if (leaderGap >= 8)    tags.push({ label: '📏 Açık Ara Lider',  ...cp('purple', isDark) });
-  if (leader.loss === 0) tags.push({ label: '✅ Yenilmez',        ...cp('blue',   isDark) });
-  if (tags.length === 0) tags.push({ label: '🏆 Lider',           ...cp('blue',   isDark) });
+  if (isTopScorer)       tags.push({ label: 'En Golcü',        ...cp('red',    isDark) });
+  if (isBestDef)         tags.push({ label: 'Sağlam Savunma', ...cp('green',  isDark) });
+  if (winRate >= 0.65)   tags.push({ label: 'Dominant',        ...cp('yellow', isDark) });
+  if (leaderGap >= 8)    tags.push({ label: 'Açık Ara Lider',  ...cp('purple', isDark) });
+  if (leader.loss === 0) tags.push({ label: 'Yenilmez',        ...cp('blue',   isDark) });
+  if (tags.length === 0) tags.push({ label: 'Lider',           ...cp('blue',   isDark) });
 
   return tags;
 }

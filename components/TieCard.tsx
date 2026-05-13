@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
@@ -53,13 +54,14 @@ export default function TieCard({ tie, isFinal }: { tie: UCLTie; isFinal?: boole
 
       {winner ? (
         <View style={[styles.winnerBadge, { backgroundColor: c.primaryLight }]}>
-          <Text style={[styles.winnerText, { color: c.primary }]}>
-            {isFinal ? '🏆' : '✅'} {winner}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <Ionicons name={isFinal ? 'trophy' : 'checkmark-circle'} size={13} color={c.primary} />
+            <Text style={[styles.winnerText, { color: c.primary }]}>{winner}</Text>
+          </View>
         </View>
       ) : hasScore && secondLegPlayed ? (
         <View style={[styles.winnerBadge, { backgroundColor: c.surfaceAlt }]}>
-          <Text style={[styles.winnerText, { color: c.textMuted }]}>⏳ Uzatma / Penaltı</Text>
+          <Text style={[styles.winnerText, { color: c.textMuted }]}>Uzatma / Penaltı</Text>
         </View>
       ) : null}
     </View>

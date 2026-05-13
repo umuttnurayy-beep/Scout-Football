@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -70,8 +71,9 @@ export default function TeamDetailScreen() {
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
       <View style={[styles.topbar, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={[styles.backBtn, { color: c.primary }]}>‹ Geri</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Ionicons name="chevron-back" size={22} color={c.primary} />
+          <Text style={{ color: c.primary, fontSize: 15, fontWeight: '500' }}>Geri</Text>
         </TouchableOpacity>
         <View style={styles.topbarCenter}>
           <Image source={require('../assets/images/sf-logo.png')} style={styles.headerLogo} />
@@ -136,7 +138,7 @@ export default function TeamDetailScreen() {
 const styles = StyleSheet.create({
   container:        { flex: 1 },
   topbar:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingTop: 52, paddingBottom: 10, borderBottomWidth: 0.5 },
-  backBtn:          { fontSize: 16, fontWeight: '500' },
+  backBtn:          { flexDirection: 'row', alignItems: 'center', gap: 2 },
   topbarCenter:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   headerLogo:       { width: 28, height: 28, resizeMode: 'contain' },
   topbarTitle:      { fontSize: 14, fontWeight: '500' },

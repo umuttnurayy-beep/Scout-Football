@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -17,6 +18,7 @@ import {
 import BottomTabBar from '../components/BottomTabBar';
 import { useTheme } from '../context/ThemeContext';
 import { FavTeam, RecentItem, parseFavTeam, parseFavTeamList, parseRecentItems } from '../utils/profileStorage';
+import { cardShadow } from '../utils/scoutStyles';
 import { parseForm, transliterate } from '../utils/teamStats';
 import { isArrayOf, readTimedCache, writeTimedCache } from '../utils/timedCache';
 
@@ -729,7 +731,7 @@ export default function ProfileScreen() {
       >
 
         {/* ── Scout Kimlik Kartı ── */}
-        <View style={[styles.identityCard, { backgroundColor: c.surface }]}>
+        <View style={[styles.identityCard, { backgroundColor: c.surface }, cardShadow(isDark)]}>
           <TouchableOpacity style={[styles.avatar, { backgroundColor: avatarColor }]}
             onPress={() => setAvatarPickerVisible(true)}>
             <Text style={styles.avatarText}>{avatarLabel}</Text>
@@ -799,7 +801,7 @@ export default function ProfileScreen() {
                   <View style={styles.favErrorWrap}>
                     <EmptyStateCard
                       compact
-                      icon="📡"
+                      icon="wifi-outline"
                       title="Takım verisi alınamadı"
                       onRetry={() => favTeam && loadFavTeamData(favTeam)}
                       retryLabel="Tekrar Dene"
@@ -885,7 +887,7 @@ export default function ProfileScreen() {
                 </View>
                 <TouchableOpacity style={styles.watchlistRemove}
                   onPress={() => removeWatchlistItem(team.name)}>
-                  <Text style={[styles.watchlistRemoveText, { color: c.textVeryFaint }]}>✕</Text>
+                  <Ionicons name="close" size={16} color={c.textVeryFaint} />
                 </TouchableOpacity>
               </TouchableOpacity>
             );
@@ -943,7 +945,7 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               </View>
               {acc.total > 0 && (
-                <View style={[styles.pickAccCard, { backgroundColor: c.surface }]}>
+                <View style={[styles.pickAccCard, { backgroundColor: c.surface }, cardShadow(isDark)]}>
                   <View style={styles.pickAccTop}>
                     <Text style={[styles.pickAccScore, { color: c.text }]}>
                       {acc.correct}<Text style={[styles.pickAccTotal, { color: c.textMuted }]}>/{acc.total}</Text>
@@ -1137,7 +1139,7 @@ const styles = StyleSheet.create({
   bottomSpacer: { height: 30 },
 
   // Identity card
-  identityCard: { flexDirection: 'row', alignItems: 'center', padding: 18, marginBottom: 8, gap: 14 },
+  identityCard: { flexDirection: 'row', alignItems: 'center', padding: 18, marginHorizontal: 14, borderRadius: 14, marginBottom: 8, gap: 14 },
   avatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 22, fontWeight: '700', color: '#fff' },
   identityInfo: { flex: 1 },
@@ -1150,7 +1152,7 @@ const styles = StyleSheet.create({
 
   // Section
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingTop: 20, paddingBottom: 8 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.6 },
+  sectionLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0.6, textTransform: 'uppercase' },
   sectionAction: { fontSize: 13, fontWeight: '500' },
   emptyHint: { fontSize: 13, paddingHorizontal: 14, paddingBottom: 8, textAlign: 'center', marginTop: 4 },
 
@@ -1186,7 +1188,7 @@ const styles = StyleSheet.create({
   formLoss: { backgroundColor: '#C0392B' },
 
   // Watchlist
-  watchlistItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 0.5, gap: 10 },
+  watchlistItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 14, borderBottomWidth: 0.5, gap: 10 },
   watchlistDot: { width: 10, height: 10, borderRadius: 5 },
   watchlistInfo: { flex: 1 },
   watchlistName: { fontSize: 14, fontWeight: '600' },
@@ -1195,10 +1197,9 @@ const styles = StyleSheet.create({
   formDotSm: { width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   formDotSmText: { fontSize: 7, fontWeight: '700', color: '#fff' },
   watchlistRemove: { padding: 6 },
-  watchlistRemoveText: { fontSize: 14 },
 
   // Recently viewed
-  recentItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 0.5, gap: 10 },
+  recentItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 13, borderBottomWidth: 0.5, gap: 10 },
   recentIcon: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   recentIconText: { fontSize: 11, fontWeight: '700' },
   recentInfo: { flex: 1 },
@@ -1219,7 +1220,7 @@ const styles = StyleSheet.create({
 
   // Notification settings
   notifSectionHeader: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 6 },
-  notifSectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.6 },
+  notifSectionTitle: { fontSize: 11, fontWeight: '600', letterSpacing: 0.6, textTransform: 'uppercase' },
   themeAutoHint: { fontSize: 11, paddingHorizontal: 14, paddingBottom: 10 },
   notifLabelWrap: { flex: 1, paddingRight: 12 },
   notifSub: { fontSize: 11, marginTop: 2 },

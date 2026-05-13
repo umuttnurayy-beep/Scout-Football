@@ -1,11 +1,24 @@
 import { StyleSheet } from 'react-native';
 import { SP } from './spacing';
 
+export function cardShadow(isDark: boolean): object {
+  return isDark
+    ? { borderWidth: StyleSheet.hairlineWidth, borderColor: '#30363D' }
+    : {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.07,
+        shadowRadius: 10,
+        elevation: 3,
+      };
+}
+
 const scoutStyles = StyleSheet.create({
   // ── shared section / insight styles ─────────────────────────────────────────
   sectionLabel: {
-    fontSize: 11, fontWeight: '500', letterSpacing: 0.5,
+    fontSize: 11, fontWeight: '600', letterSpacing: 0.6,
     paddingHorizontal: SP.sectionPx, paddingTop: SP.sectionPt, paddingBottom: SP.sectionPb,
+    textTransform: 'uppercase',
   },
   insightBox: {
     marginHorizontal: SP.insightMx, marginBottom: SP.insightMb,

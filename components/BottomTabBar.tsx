@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Href, useRouter } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 
@@ -18,24 +18,35 @@ const TABS: { key: ActiveTab; label: string; icon: IoniconName; activeIcon: Ioni
 
 export default function BottomTabBar({ activeTab }: { activeTab: ActiveTab }) {
   const router = useRouter();
-  const { colors: c } = useTheme();
+  const { colors: c, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.tabBar, { backgroundColor: c.surface, borderTopColor: c.border, paddingBottom: Math.max(12, insets.bottom) }]}>
+    <View style={[
+      styles.tabBar,
+      {
+        backgroundColor: c.surface,
+        paddingBottom: Math.max(12, insets.bottom),
+        shadowColor: isDark ? '#000' : '#000',
+        shadowOpacity: isDark ? 0.4 : 0.08,
+      },
+    ]}>
       {TABS.map(tab => {
         const isActive = tab.key === activeTab;
         return (
           <TouchableOpacity
             key={tab.key}
             style={styles.tab}
+            activeOpacity={0.7}
             onPress={() => { if (!isActive) router.push(tab.route); }}
           >
-            <Ionicons
-              name={isActive ? tab.activeIcon : tab.icon}
-              size={22}
-              color={isActive ? c.primary : c.textMuted}
-            />
+            <View style={[styles.iconWrap, isActive && { backgroundColor: c.primaryLight }]}>
+              <Ionicons
+                name={isActive ? tab.activeIcon : tab.icon}
+                size={22}
+                color={isActive ? c.primary : c.textMuted}
+              />
+            </View>
             <Text style={[styles.tabText, { color: isActive ? c.primary : c.textMuted }, isActive && styles.tabActive]}>
               {tab.label}
             </Text>
@@ -47,8 +58,14 @@ export default function BottomTabBar({ activeTab }: { activeTab: ActiveTab }) {
 }
 
 const styles = StyleSheet.create({
-  tabBar:    { flexDirection: 'row', borderTopWidth: 0.5 },
-  tab:       { flex: 1, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', gap: 3 },
-  tabText:   { fontSize: 12 },
-  tabActive: { fontWeight: '500' },
+  tabBar: {
+    flexDirection: 'row',
+    shadowOffset: { width: 0, height: -3 },
+    shadowRadius: 12,
+    elevation: 12,
+  },
+  tab:      { flex: 1, paddingTop: 10, paddingBottom: 2, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  iconWrap: { width: 48, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  tabText:  { fontSize: 11, letterSpacing: 0.1 },
+  tabActive: { fontWeight: '600' },
 });

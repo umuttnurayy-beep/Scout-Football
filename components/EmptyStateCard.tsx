@@ -1,10 +1,12 @@
-import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
 type Props = {
-  icon: string;
+  icon: IoniconName;
   title: string;
   subtitle?: string;
   onRetry?: () => void;
@@ -20,12 +22,12 @@ export default function EmptyStateCard({
   retryLabel = 'Tekrar Dene',
   compact = false,
 }: Props) {
-  const { colors: c, isDark } = useTheme();
+  const { colors: c } = useTheme();
 
   if (compact) {
     return (
-      <View style={[s.compact, { backgroundColor: isDark ? c.surface : '#F7F9FC', borderColor: c.border }]}>
-        <Text style={s.compactIcon}>{icon}</Text>
+      <View style={[s.compact, { backgroundColor: c.surfaceAlt, borderColor: c.borderLight }]}>
+        <Ionicons name={icon} size={22} color={c.textMuted} />
         <View style={s.compactCopy}>
           <Text style={[s.compactTitle, { color: c.text }]} numberOfLines={2}>{title}</Text>
           {subtitle ? <Text style={[s.compactSub, { color: c.textSub }]} numberOfLines={2}>{subtitle}</Text> : null}
@@ -42,7 +44,9 @@ export default function EmptyStateCard({
 
   return (
     <View style={s.full}>
-      <Text style={s.icon}>{icon}</Text>
+      <View style={[s.iconWrap, { backgroundColor: c.surfaceAlt }]}>
+        <Ionicons name={icon} size={32} color={c.textMuted} />
+      </View>
       <Text style={[s.title, { color: c.text }]}>{title}</Text>
       {subtitle ? <Text style={[s.subtitle, { color: c.textSub }]}>{subtitle}</Text> : null}
       {onRetry ? (
@@ -67,7 +71,7 @@ const s = StyleSheet.create({
     paddingVertical: 48,
     paddingHorizontal: 32,
   },
-  icon:     { fontSize: 44, marginBottom: 14 },
+  iconWrap:  { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   title:    { fontSize: 16, fontWeight: '600', textAlign: 'center', marginBottom: 6 },
   subtitle: { fontSize: 13, textAlign: 'center', lineHeight: 19, marginBottom: 20 },
   retryBtn: {
@@ -91,10 +95,9 @@ const s = StyleSheet.create({
     padding: 12,
     minHeight: 58,
     borderRadius: 10,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     gap: 10,
   },
-  compactIcon:  { fontSize: 22 },
   compactCopy:  { flex: 1, minWidth: 0 },
   compactTitle: { fontSize: 13, fontWeight: '600', marginBottom: 2 },
   compactSub:   { fontSize: 12, lineHeight: 16 },

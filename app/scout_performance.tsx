@@ -139,8 +139,9 @@ export default function ScoutPerformanceScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       {/* Header */}
       <View style={[styles.header, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={[styles.backBtn, { color: c.primary }]}>‹ Geri</Text>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={styles.backBtn}>
+          <Ionicons name="chevron-back" size={22} color={c.primary} />
+          <Text style={{ color: c.primary, fontSize: 15, fontWeight: '500' }}>Geri</Text>
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: c.text }]}>Scout Performansı</Text>
         <View style={{ width: 52 }} />
@@ -258,7 +259,7 @@ const styles = StyleSheet.create({
     paddingTop: 52, paddingBottom: 12, paddingHorizontal: 16,
     borderBottomWidth: 0.5,
   },
-  backBtn: { fontSize: 17, fontWeight: '500', minWidth: 52 },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, minWidth: 52 },
   headerTitle: { fontSize: 17, fontWeight: '700' },
 
   weekNav: {
@@ -296,7 +297,7 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 15, fontWeight: '700', marginBottom: 6 },
   emptySub: { fontSize: 13, textAlign: 'center', lineHeight: 19 },
 
-  dayHeader: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5, marginTop: 12, marginBottom: 6, textTransform: 'uppercase' },
+  dayHeader: { fontSize: 11, fontWeight: '600', letterSpacing: 0.6, marginTop: 12, marginBottom: 6, textTransform: 'uppercase' },
 
   pickCard: {
     flexDirection: 'row', alignItems: 'center', borderRadius: 12,
