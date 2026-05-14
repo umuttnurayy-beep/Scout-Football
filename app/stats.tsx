@@ -6,54 +6,53 @@ import { useTheme } from '../context/ThemeContext';
 
 type Stil = 'Hücumcu' | 'Savunmacı' | 'Dengeli';
 
+function computeStil(avgGoals: number): Stil {
+  if (avgGoals >= 2.8) return 'Hücumcu';
+  if (avgGoals < 2.2)  return 'Savunmacı';
+  return 'Dengeli';
+}
+
 const leagues = [
   {
     id: 1, apiId: 39, fdId: 2021,
     name: 'Premier Lig', abbrev: 'PL', country: 'İngiltere', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-    stil: 'Dengeli' as Stil, badgeColor: '#7C3AED',
-    avgGoals: '2.7', tempo: 'Yüksek',
+    badgeColor: '#7C3AED', avgGoals: 2.7, tempo: 'Yüksek',
     desc: 'Yüksek tempo, fiziksel oyun ve sıkı rekabet',
   },
   {
     id: 2, apiId: 140, fdId: 2014,
     name: 'La Liga', abbrev: 'LL', country: 'İspanya', flag: '🇪🇸',
-    stil: 'Savunmacı' as Stil, badgeColor: '#EA580C',
-    avgGoals: '2.5', tempo: 'Orta',
+    badgeColor: '#EA580C', avgGoals: 2.5, tempo: 'Orta',
     desc: 'Taktik derinlik ve bireysel kalite öne çıkar',
   },
   {
     id: 3, apiId: 78, fdId: 2002,
     name: 'Bundesliga', abbrev: 'BL', country: 'Almanya', flag: '🇩🇪',
-    stil: 'Hücumcu' as Stil, badgeColor: '#DC2626',
-    avgGoals: '3.1', tempo: 'Yüksek',
+    badgeColor: '#DC2626', avgGoals: 3.1, tempo: 'Yüksek',
     desc: "Avrupa'nın en golcü ligi, agresif pressing",
   },
   {
     id: 4, apiId: 135, fdId: 2019,
     name: 'Serie A', abbrev: 'SA', country: 'İtalya', flag: '🇮🇹',
-    stil: 'Savunmacı' as Stil, badgeColor: '#1D4ED8',
-    avgGoals: '2.4', tempo: 'Orta',
+    badgeColor: '#1D4ED8', avgGoals: 2.4, tempo: 'Orta',
     desc: 'Savunma disiplini ve taktiksel sertlik',
   },
   {
     id: 5, apiId: 61, fdId: 2015,
     name: 'Ligue 1', abbrev: 'L1', country: 'Fransa', flag: '🇫🇷',
-    stil: 'Dengeli' as Stil, badgeColor: '#0891B2',
-    avgGoals: '2.6', tempo: 'Yüksek',
+    badgeColor: '#0891B2', avgGoals: 2.6, tempo: 'Yüksek',
     desc: 'Dinamik oyun, sürpriz sonuçlar sık görülür',
   },
   {
     id: 6, apiId: 2, fdId: 2001,
     name: 'UCL', abbrev: 'CL', country: 'Avrupa', flag: '🌍',
-    stil: 'Dengeli' as Stil, badgeColor: '#B45309',
-    avgGoals: '2.7', tempo: 'Yüksek',
+    badgeColor: '#B45309', avgGoals: 2.7, tempo: 'Yüksek',
     desc: "Avrupa'nın elit kulüpleri, eleme formatı",
   },
   {
     id: 7, apiId: 203, fdId: 0,
     name: 'Süper Lig', abbrev: 'SL', country: 'Türkiye', flag: '🇹🇷',
-    stil: 'Dengeli' as Stil, badgeColor: '#E30A17',
-    avgGoals: '2.6', tempo: 'Yüksek',
+    badgeColor: '#E30A17', avgGoals: 2.6, tempo: 'Yüksek',
     desc: 'Yüksek tempo ve rekabetçi yapı',
   },
 ];
@@ -88,7 +87,8 @@ export default function StatsScreen() {
         {/* League Cards */}
         <View style={styles.cardsWrap}>
           {leagues.map(l => {
-            const badge = stilBadgeColors(l.stil, isDark);
+            const stil = computeStil(l.avgGoals);
+            const badge = stilBadgeColors(stil, isDark);
             return (
               <TouchableOpacity
                 key={l.id}
@@ -109,7 +109,7 @@ export default function StatsScreen() {
                   <View style={styles.cardTopRow}>
                     <Text style={[styles.leagueName, { color: l.badgeColor }]} numberOfLines={1}>{l.name}</Text>
                     <View style={[styles.stilPill, { backgroundColor: badge.bg }]}>
-                      <Text style={[styles.stilText, { color: badge.color }]}>{l.stil}</Text>
+                      <Text style={[styles.stilText, { color: badge.color }]}>{stil}</Text>
                     </View>
                   </View>
                   <Text style={[styles.countryText, { color: c.textMuted }]}>{l.flag} {l.country}</Text>
@@ -117,7 +117,7 @@ export default function StatsScreen() {
                   <View style={[styles.divider, { backgroundColor: c.border }]} />
                   <View style={styles.metricRow}>
                     <View style={styles.metric}>
-                      <Text style={[styles.metricVal, { color: c.text }]}>{l.avgGoals}</Text>
+                      <Text style={[styles.metricVal, { color: c.text }]}>{l.avgGoals.toFixed(1)}</Text>
                       <Text style={[styles.metricLbl, { color: c.textMuted }]}>Gol/Maç</Text>
                     </View>
                     <View style={[styles.metricDivider, { backgroundColor: c.border }]} />
@@ -127,7 +127,7 @@ export default function StatsScreen() {
                     </View>
                     <View style={[styles.metricDivider, { backgroundColor: c.border }]} />
                     <View style={styles.metric}>
-                      <Text style={[styles.metricVal, { color: c.text }]}>{l.stil}</Text>
+                      <Text style={[styles.metricVal, { color: c.text }]}>{stil}</Text>
                       <Text style={[styles.metricLbl, { color: c.textMuted }]}>Profil</Text>
                     </View>
                   </View>
