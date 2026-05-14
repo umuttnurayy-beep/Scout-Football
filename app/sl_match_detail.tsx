@@ -49,6 +49,21 @@ import { calcFormStatsSL, calcFormPointsSL } from '../utils/teamStats';
 
 const SL_DETAIL_SECONDARY_CACHE_PREFIX = 'sl_match_detail_secondary_v1';
 
+const SL_TLA_BY_ID: Record<number, string> = {
+  133804: 'GS',  133807: 'FB',  133794: 'BJK', 133796: 'TS',
+  134589: 'BŞK', 133797: 'SAM', 135891: 'GZP', 133885: 'RİZ',
+  133835: 'KON', 138092: 'GAZ', 133870: 'KOC', 135676: 'ALA',
+  133799: 'ANT', 133798: 'GNB', 138977: 'EYP', 133802: 'KAY',
+  138983: 'KGM', 133834: 'KSP',
+};
+
+function slAbbrev(name: string, teamId?: number): string {
+  if (teamId && SL_TLA_BY_ID[teamId]) return SL_TLA_BY_ID[teamId];
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 1) return name.slice(0, 3).toUpperCase();
+  return words.map(w => w[0] || '').join('').slice(0, 3).toUpperCase();
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface MatchAnalysis {
@@ -319,12 +334,12 @@ export default function SLMatchDetail() {
   const eventId    = p('eventId');
   const home       = p('home');
   const away       = p('away');
-  const homeAbbr   = (() => { const ws = home.trim().split(/\s+/); return ws.length === 1 ? home.slice(0,3).toUpperCase() : ws.map(w=>w[0]||'').join('').slice(0,3).toUpperCase(); })();
-  const awayAbbr   = (() => { const ws = away.trim().split(/\s+/); return ws.length === 1 ? away.slice(0,3).toUpperCase() : ws.map(w=>w[0]||'').join('').slice(0,3).toUpperCase(); })();
   const leagueName = p('league') || 'Süper Lig';
   const leagueApiId = parseInt(p('leagueApiId') || '203') || 203;
   const homeTeamId = parseInt(p('homeTeamId') || '0');
   const awayTeamId = parseInt(p('awayTeamId') || '0');
+  const homeAbbr   = slAbbrev(home, homeTeamId || undefined);
+  const awayAbbr   = slAbbrev(away, awayTeamId || undefined);
   const homePos    = parseInt(p('homePos') || '0') || undefined;
   const awayPos    = parseInt(p('awayPos') || '0') || undefined;
   const homePts    = parseInt(p('homePts') || '0') || undefined;
@@ -625,21 +640,14 @@ export default function SLMatchDetail() {
         </TouchableOpacity>
         <View style={styles.topbarMatchInfo}>
           <View style={[styles.topbarTeamBadge, {backgroundColor:c.primaryLight}]}>
-            <Text style={[styles.topbarTeamInit, {color:c.primary}]}>
-              {home.split(' ').map((w:string)=>w[0]).join('').slice(0,2).toUpperCase()}
-            </Text>
+            <Text style={[styles.topbarTeamInit, {color:c.primary}]}>{homeAbbr}</Text>
           </View>
           <View style={styles.topbarVsBlock}>
-            {hasScore
-              ? <Text style={[styles.topbarScore, {color:c.text}]}>{displayHomeScore} : {displayAwayScore}</Text>
-              : <Text style={[styles.topbarVs, {color:c.textMuted}]}>vs</Text>
-            }
+            <Text style={[styles.topbarVs, {color:c.textMuted}]}>vs</Text>
             <Text style={[styles.topbarSub, {color:c.textMuted}]} numberOfLines={1}>{leagueName}</Text>
           </View>
           <View style={[styles.topbarTeamBadge, {backgroundColor:c.surfaceAlt}]}>
-            <Text style={[styles.topbarTeamInit, {color:c.textSub}]}>
-              {away.split(' ').map((w:string)=>w[0]).join('').slice(0,2).toUpperCase()}
-            </Text>
+            <Text style={[styles.topbarTeamInit, {color:c.textSub}]}>{awayAbbr}</Text>
           </View>
         </View>
         <View style={{width:60}}/>
