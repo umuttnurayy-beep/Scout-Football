@@ -68,7 +68,7 @@ const LEAGUE_BADGE_COLOR: Record<number, string> = {
   2019: '#d97706',
   2015: '#059669',
   2001: '#0369a1',
-  203:  '#dc2626',
+  203:  '#be185d',
 };
 
 const SL_TLA_BY_ID: Record<number, string> = {
