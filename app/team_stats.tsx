@@ -373,7 +373,7 @@ export default function TeamStatsScreen() {
             <Text style={[styles.infoCardTitle, { color: c.textMuted }]}>KİMLİK</Text>
             {profile ? (
               <>
-                <Text style={[styles.infoCardBig, { color: profile.color }]}>{profile.emoji}</Text>
+                <Ionicons name={profile.icon as any} size={22} color={profile.color} style={{ marginBottom: 4 }} />
                 <Text style={[styles.infoCardLabel, { color: profile.color }]} numberOfLines={2}>{profile.label}</Text>
               </>
             ) : (

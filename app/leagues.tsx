@@ -849,28 +849,31 @@ export default function LeaguesScreen() {
                         const compOk    = compScore >= 50;
                         const goalTrend = avgGoals >= 2.8 ? 'Yüksek' : avgGoals >= 2.3 ? 'Stabil' : 'Düşük';
                         const goalOk    = avgGoals >= 2.3;
-                        const lastThreePts = standings.length >= 4 ? standings[standings.length - 3]?.pts ?? 0 : 0;
-                        const fourthLastPts = standings.length >= 4 ? standings[standings.length - 4]?.pts ?? 0 : 0;
-                        const relRisk   = lastThreePts < fourthLastPts + 6 ? 'Yüksek' : 'Orta';
-                        const relOk     = relRisk === 'Orta';
+                        // Küme düşme hattı: 3. sonuncunun 4. sonuncuya puan farkı ne kadar dar?
+                        const safetyPts    = standings.length >= 4 ? standings[standings.length - 4]?.pts ?? 0 : 0;
+                        const thirdLastPts = standings.length >= 4 ? standings[standings.length - 3]?.pts ?? 0 : 0;
+                        const relGap       = safetyPts - thirdLastPts;
+                        const relLabel     = relGap <= 3 ? 'Kritik' : relGap <= 7 ? 'Sıkı' : 'Rahat';
+                        const relOk        = relGap > 7;
+                        const relWarn      = relGap <= 3;
                         const insights = [
-                          { emoji: compOk ? '📈' : '⚖️', label: 'Şampiyonluk yarışı', value: compLabel, ok: compOk },
-                          { emoji: goalOk ? '⚽' : '🔒', label: 'Gol trend',           value: goalTrend, ok: goalOk },
-                          { emoji: relOk  ? '📊' : '🔴', label: 'Küme düşme riski',    value: relRisk,   ok: relOk  },
+                          { icon: 'trophy-outline'       as const, label: 'Şampiyonluk',    value: compLabel, ok: compOk,  warn: false   },
+                          { icon: 'stats-chart-outline'  as const, label: 'Gol trendi',      value: goalTrend, ok: goalOk,  warn: false   },
+                          { icon: 'warning-outline'      as const, label: 'Küme düşme hattı',value: relLabel,  ok: relOk,   warn: relWarn },
                         ];
                         return (
                           <ScrollView horizontal showsHorizontalScrollIndicator={false}
                             style={stStyles.insightBarScroll}
                             contentContainerStyle={stStyles.insightBarContent}>
                             <View style={[stStyles.insightBarBrain, { backgroundColor: c.primaryLight }]}>
-                              <Text style={{ fontSize: 16 }}>🧠</Text>
+                              <Ionicons name="analytics-outline" size={16} color={c.primary} />
                               <Text style={[stStyles.insightBarBrainText, { color: c.primary }]}>{'LİG\nİÇGÖRÜSÜ'}</Text>
                             </View>
                             {insights.map((item, idx) => (
                               <View key={idx} style={[stStyles.insightBarItem, { backgroundColor: c.surface }]}>
-                                <Text style={{ fontSize: 13, marginBottom: 3 }}>{item.emoji}</Text>
+                                <Ionicons name={item.icon} size={14} color={item.warn ? c.loss : item.ok ? c.win : c.amber} style={{ marginBottom: 3 }} />
                                 <Text style={[stStyles.insightBarLabel, { color: c.textMuted }]}>{item.label}</Text>
-                                <Text style={[stStyles.insightBarValue, { color: item.ok ? c.win : c.amber }]}>{item.value}</Text>
+                                <Text style={[stStyles.insightBarValue, { color: item.warn ? c.loss : item.ok ? c.win : c.amber }]}>{item.value}</Text>
                               </View>
                             ))}
                           </ScrollView>

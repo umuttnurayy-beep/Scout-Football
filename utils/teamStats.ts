@@ -221,18 +221,18 @@ export function calcFormPointsSL(matches: SLFormMatch[], teamId: number): number
 export function getTeamProfile(avgGf: number, avgGa: number, winPct: number, isDark: boolean) {
   const total = avgGf + avgGa;
   if (avgGf >= 2.0 && avgGa <= 1.0)
-    return { label: 'Dominant',         emoji: '👑', color: isDark ? '#79AAFF' : '#1565C0', desc: 'Hem hücum hem savunmada ligde öne çıkıyor. Rakipleri için en zor karşılaşmalardan biri.' };
+    return { label: 'Dominant',        icon: 'star',                 color: isDark ? '#79AAFF' : '#1565C0', desc: 'Hem hücum hem savunmada ligde öne çıkıyor. Rakipleri için en zor karşılaşmalardan biri.' };
   if (total > 3.2)
-    return { label: 'Tempolu',           emoji: '⚡', color: '#E65100',                      desc: 'Karşılıklı gol ve yüksek tempo bu takımın imzası. Maçları genellikle çok gollü geçiyor.' };
+    return { label: 'Tempolu',         icon: 'flash',                color: '#E65100',                      desc: 'Karşılıklı gol ve yüksek tempo bu takımın imzası. Maçları genellikle çok gollü geçiyor.' };
   if (avgGf >= 1.8 && avgGa >= 1.4)
-    return { label: 'Hücumcu',           emoji: '⚽', color: isDark ? '#58A6FF' : '#185FA5', desc: 'Güçlü hücumla gol üreten ama savunmada bedel ödeyen bir takım. Yüksek skorlu maç profili.' };
+    return { label: 'Hücumcu',         icon: 'arrow-up-circle',      color: isDark ? '#58A6FF' : '#185FA5', desc: 'Güçlü hücumla gol üreten ama savunmada bedel ödeyen bir takım. Yüksek skorlu maç profili.' };
   if (avgGf <= 1.0 && avgGa <= 0.8)
-    return { label: 'Katı Savunmacı',    emoji: '🛡️', color: isDark ? '#3FB950' : '#1B5E20', desc: 'Yenilmezlik üzerine kurulu bir sistem. Az gol, az yenilen — sağlam ama az gollü maçlar.' };
+    return { label: 'Katı Savunmacı',  icon: 'shield',               color: isDark ? '#3FB950' : '#1B5E20', desc: 'Yenilmezlik üzerine kurulu bir sistem. Az gol, az yenilen — sağlam ama az gollü maçlar.' };
   if (avgGf <= 1.2 && avgGa <= 1.0)
-    return { label: 'Savunmacı',         emoji: '🛡️', color: isDark ? '#56D364' : '#388E3C', desc: 'Savunma odaklı, kontrollü bir oyun anlayışı. Riskten kaçınan ve sağlam bir yapı.' };
+    return { label: 'Savunmacı',       icon: 'shield-outline',       color: isDark ? '#56D364' : '#388E3C', desc: 'Savunma odaklı, kontrollü bir oyun anlayışı. Riskten kaçınan ve sağlam bir yapı.' };
   if (avgGa > 1.7)
-    return { label: 'Kırılgan Savunma',  emoji: '🚨', color: isDark ? '#F85149' : '#A32D2D', desc: 'Savunma beklenmedik gol yeme riski taşıyor. Hücumuyla öne geçse de arkasında açık var.' };
+    return { label: 'Kırılgan Savunma',icon: 'alert-circle',         color: isDark ? '#F85149' : '#A32D2D', desc: 'Savunma beklenmedik gol yeme riski taşıyor. Hücumuyla öne geçse de arkasında açık var.' };
   if (winPct >= 55 && avgGf >= 1.5)
-    return { label: 'Kontrollü',         emoji: '📈', color: isDark ? '#1F6FEB' : '#0C447C', desc: 'Galibiyet yüzdesi ve gol dengesi iyi. Ligde üst sıralarda tutarlı bir güç.' };
-  return   { label: 'Dengeli',           emoji: '⚖️', color: isDark ? '#B1BAC4' : '#555',    desc: 'Hücum ve savunma arasında denge kurmuş, her türlü rakiple yarışabilen bir takım.' };
+    return { label: 'Kontrollü',       icon: 'trending-up',          color: isDark ? '#1F6FEB' : '#0C447C', desc: 'Galibiyet yüzdesi ve gol dengesi iyi. Ligde üst sıralarda tutarlı bir güç.' };
+  return   { label: 'Dengeli',         icon: 'git-compare-outline',  color: isDark ? '#B1BAC4' : '#555',    desc: 'Hücum ve savunma arasında denge kurmuş, her türlü rakiple yarışabilen bir takım.' };
 }

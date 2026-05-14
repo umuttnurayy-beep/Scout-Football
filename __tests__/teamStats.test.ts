@@ -378,7 +378,7 @@ describe('getTeamProfile', () => {
   test('Dominant: avgGf ≥ 2.0 and avgGa ≤ 1.0', () => {
     const p = getTeamProfile(2.0, 1.0, 60, false);
     expect(p.label).toBe('Dominant');
-    expect(p.emoji).toBe('👑');
+    expect(p.icon).toBe('star');
   });
 
   test('Tempolu: total goals > 3.2 (not Dominant)', () => {
