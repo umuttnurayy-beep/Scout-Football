@@ -163,7 +163,12 @@ function HeroCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
             <Text style={sc.heroBadgeLabel}>{levelFromExpectedGoals(metrics.expectedGoals)} Tempo</Text>
           </View>
           <View style={[sc.heroBadge, { flex: 1, justifyContent: 'center' }]}>
-            <Text style={sc.heroBadgeLabel} numberOfLines={1}>{cardAnalysis.headline}</Text>
+            <Text style={sc.heroBadgeLabel} numberOfLines={1}>
+              {cardAnalysis.headline
+                .replace(m.home, homeAbbr)
+                .replace(m.away, awayAbbr)
+                .replace('galibiyete yakın', 'önde')}
+            </Text>
           </View>
         </View>
       )}
