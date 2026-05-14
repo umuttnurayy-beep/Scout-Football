@@ -180,7 +180,15 @@ const API_ID_TO_FD_ID: Record<number, number> = {
   39: 2021, 140: 2014, 78: 2002, 135: 2019, 61: 2015, 2: 2001, 203: 0,
 };
 
-type TeamSort = 'puan' | 'scout' | 'hucum' | 'savunma' | 'alfa';
+type TeamSort  = 'puan' | 'scout' | 'hucum' | 'savunma' | 'alfa';
+type TrendTab  = 'hucum' | 'savunma' | 'tempo' | 'beraberlik';
+
+const TREND_TABS: { key: TrendTab; label: string; sub: string; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
+  { key: 'hucum',      label: 'Hücum Gücü',       sub: 'Gol/Maç',         icon: 'football-outline'  },
+  { key: 'savunma',    label: 'Savunma Direnci',   sub: 'Yenilen/Maç',     icon: 'shield-outline'    },
+  { key: 'tempo',      label: 'Tempo Endeksi',     sub: 'Toplam Gol/Maç',  icon: 'flash-outline'     },
+  { key: 'beraberlik', label: 'Beraberlik Eğilimi', sub: 'Maç Sonucu',     icon: 'remove-outline'    },
+];
 
 function getZoneBarColor(pos: number, apiId: number): string | null {
   if (apiId === 2) {
@@ -250,8 +258,10 @@ export default function LeaguesScreen() {
   const [loadError, setLoadError]               = useState(false);
   const [knockoutsLoading, setKnockoutsLoading] = useState(false);
   const [knockoutsLoadError, setKnockoutsLoadError] = useState(false);
-  const [teamSearch, setTeamSearch] = useState('');
-  const [teamSort, setTeamSort]     = useState<TeamSort>('puan');
+  const [teamSearch, setTeamSearch]     = useState('');
+  const [teamSort, setTeamSort]         = useState<TeamSort>('puan');
+  const [trendTab, setTrendTab]         = useState<TrendTab>('hucum');
+  const [trendExpanded, setTrendExpanded] = useState(false);
 
   function goToTab(key: SubTab) {
     tapLight();
@@ -1088,132 +1098,175 @@ export default function LeaguesScreen() {
             />
           </View>
         ) : (
-                  <>
-                    <View style={[stStyles.trendNote, { backgroundColor: c.primaryLight }]}>
-                      <Text style={[stStyles.trendNoteText, { color: c.text }]}>
-                        Maç başı {avgGoals.toFixed(2)} gol ·
-                        {avgGoals >= 2.8 ? ' Yüksek tempolu lig' : avgGoals >= 2.3 ? ' Orta tempolu lig' : ' Düşük tempolu lig'}
-                      </Text>
+          <>
+            {/* ── LEAGUE PULSE ── */}
+            <View style={[trStyles.pulsCard, { backgroundColor: isDark ? '#0D2038' : '#EBF5FF', borderColor: c.primary }]}>
+              <View style={trStyles.pulsHeader}>
+                <Ionicons name="pulse" size={13} color={c.primary} />
+                <Text style={[trStyles.pulsTitle, { color: c.primary }]}>LEAGUE PULSE</Text>
+                <Text style={[trStyles.pulsSubTitle, { color: c.textMuted }]}>Sezon genel trend özeti</Text>
+              </View>
+              <View style={trStyles.pulsRow}>
+                {[
+                  { label: 'GOL/MAÇ',  val: avgGoals.toFixed(2),                                                                 sub: 'Lig ortalaması', color: c.primary },
+                  { label: 'TEMPO',    val: avgGoals >= 2.8 ? 'YÜKSEK' : avgGoals >= 2.3 ? 'ORTA' : 'DÜŞÜK',                   sub: 'Seviyesi',       color: c.amber },
+                  { label: 'REKABET',  val: `${compScore}/100`,                                                                   sub: 'Endeks',         color: isDark ? '#A78BFA' : '#8B5CF6' },
+                  { label: 'SÜRPRIZ',  val: `${surpriseScore}%`,                                                                  sub: 'Oran',           color: c.win },
+                ].map((item, i) => (
+                  <View key={i} style={[trStyles.pulsItem, i > 0 && { borderLeftWidth: 0.5, borderLeftColor: c.border }]}>
+                    <Text style={[trStyles.pulsVal, { color: item.color }]}>{item.val}</Text>
+                    <Text style={[trStyles.pulsLabel, { color: c.textMuted }]}>{item.label}</Text>
+                    <Text style={[trStyles.pulsSub2, { color: c.textFaint }]}>{item.sub}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* ── FİLTRE TAB BARI ── */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}
+              contentContainerStyle={trStyles.trendTabContent}>
+              {TREND_TABS.map(tab => {
+                const active = trendTab === tab.key;
+                return (
+                  <TouchableOpacity key={tab.key}
+                    style={[trStyles.trendTab, { borderColor: active ? c.primary : c.border, backgroundColor: active ? c.primaryLight : c.surface }]}
+                    onPress={() => { tapLight(); setTrendTab(tab.key); setTrendExpanded(false); }}>
+                    <Ionicons name={tab.icon} size={13} color={active ? c.primary : c.textMuted} />
+                    <View>
+                      <Text style={[trStyles.trendTabLabel, { color: active ? c.primary : c.text }]}>{tab.label}</Text>
+                      <Text style={[trStyles.trendTabSub, { color: c.textMuted }]}>{tab.sub}</Text>
                     </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
 
-                    <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>HÜCUM GÜCÜ (Gol/Maç)</Text>
-                    <Text style={[styles.effSubtitle, { color: c.textFaint }]}>Maç başı en fazla gol atan takımlar</Text>
-                    {trendProfiles.attackTop[0] && (
-                      <View style={[stStyles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
-                        <Text style={[stStyles.insightText, { color: c.text }]}>
-                          En golcü {trendProfiles.attackTop[0].team}, maç başı {trendProfiles.attackTop[0].gfPer.toFixed(1)} golle ligin hücum motorunu temsil ediyor.
-                        </Text>
-                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Yüksek hücum gücü, 2.5 üst ve KG-var senaryolarında güçlü bir ipucu sunar.</Text>
-                      </View>
-                    )}
-                    {trendProfiles.attackTop.map((row, i) => {
-                      const ratio = row.gfPer / trendProfiles.maxAtk;
-                      const color = i === 0 ? c.primary : i < 3 ? c.textSub : i < 5 ? c.textMuted : c.textVeryFaint;
-                      return (
-                        <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
-                          <Text style={[styles.effRank, { color }]}>{i + 1}</Text>
-                          <View style={styles.flexOne}>
-                            <View style={styles.effBarRow}>
-                              <Text style={[styles.effTeam, { color: c.text }]} numberOfLines={1}>{row.team}</Text>
-                              <View style={[styles.effBarWrap, { backgroundColor: c.border }]}>
-                                <View style={[styles.effBarFill, { width: `${ratio * 100}%`, backgroundColor: color }]} />
-                              </View>
-                              <Text style={[styles.effGoals, { color }]}>{row.gfPer.toFixed(2)}</Text>
-                            </View>
-                          </View>
-                        </View>
-                      );
-                    })}
+            {/* ── AKTİF BÖLÜM ── */}
+            {(() => {
+              type TrendRow = { abbr: string; team: string; ratio: number; val: string; color: string };
+              let title = '', subtitle = '', ligOrt = '', insightMain = '', insightWhy = '';
+              let barColor = c.primary;
+              let rows: TrendRow[] = [];
 
-                    <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>SAVUNMA DİRENCİ (Yenilen/Maç)</Text>
-                    <Text style={[styles.effSubtitle, { color: c.textFaint }]}>En az gol yiyen takımlar — düşük değer daha iyi</Text>
-                    {trendProfiles.defTop[0] && (
-                      <View style={[stStyles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
-                        <Text style={[stStyles.insightText, { color: c.text }]}>
-                          {trendProfiles.defTop[0].team} maç başı yalnızca {trendProfiles.defTop[0].gaPer.toFixed(1)} gol yiyor — ligin en sağlam savunması.
-                        </Text>
-                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Az gol yiyen takımlar, alt 2.5 ve kale sıfır senaryolarında güvenilir referans noktasıdır.</Text>
-                      </View>
-                    )}
-                    {trendProfiles.defTop.map((row, i) => {
-                      const ratio = (trendProfiles.maxDef - row.gaPer) / trendProfiles.defRange;
-                      const color = i === 0 ? c.win : i < 3 ? c.textSub : i < 5 ? c.textMuted : c.textVeryFaint;
-                      return (
-                        <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
-                          <Text style={[styles.effRank, { color }]}>{i + 1}</Text>
-                          <View style={styles.flexOne}>
-                            <View style={styles.effBarRow}>
-                              <Text style={[styles.effTeam, { color: c.text }]} numberOfLines={1}>{row.team}</Text>
-                              <View style={[styles.effBarWrap, { backgroundColor: c.border }]}>
-                                <View style={[styles.effBarFill, { width: `${ratio * 100}%`, backgroundColor: color }]} />
-                              </View>
-                              <Text style={[styles.effGoals, { color }]}>{row.gaPer.toFixed(2)}</Text>
-                            </View>
-                          </View>
-                        </View>
-                      );
-                    })}
+              if (trendTab === 'hucum') {
+                title = 'HÜCUM GÜCÜ (GOL/MAÇ)';
+                subtitle = 'Maç başı en fazla gol atan takımlar';
+                ligOrt = `Lig ort.: ${avgLeagueGfPer.toFixed(2)}`;
+                barColor = c.primary;
+                const top = trendProfiles.attackTop[0];
+                insightMain = top ? `${top.team} maç başı ${top.gfPer.toFixed(1)} golle ligin hücum motorunu temsil ediyor.` : '';
+                insightWhy  = 'Yüksek hücum gücü, 2.5 üst ve KG-var senaryolarında güçlü bir ipucu sunar.';
+                rows = trendProfiles.attackTop.map((r, i) => ({
+                  abbr: teamAbbrev(r.team), team: r.team,
+                  ratio: r.gfPer / trendProfiles.maxAtk,
+                  val: r.gfPer.toFixed(2),
+                  color: i === 0 ? c.primary : i < 3 ? c.textSub : c.textMuted,
+                }));
+              } else if (trendTab === 'savunma') {
+                title = 'SAVUNMA DİRENCİ (YENİLEN/MAÇ)';
+                subtitle = 'En az gol yiyen takımlar — düşük değer daha iyi';
+                ligOrt = `Lig ort.: ${avgLeagueGaPer.toFixed(2)}`;
+                barColor = c.win;
+                const top = trendProfiles.defTop[0];
+                insightMain = top ? `${top.team} maç başı yalnızca ${top.gaPer.toFixed(1)} gol yiyor — ligin en sağlam savunması.` : '';
+                insightWhy  = 'Az gol yiyen takımlar, alt 2.5 ve kale sıfır senaryolarında güvenilir referanslardır.';
+                rows = trendProfiles.defTop.map((r, i) => ({
+                  abbr: teamAbbrev(r.team), team: r.team,
+                  ratio: (trendProfiles.maxDef - r.gaPer) / trendProfiles.defRange,
+                  val: r.gaPer.toFixed(2),
+                  color: i === 0 ? c.win : i < 3 ? c.textSub : c.textMuted,
+                }));
+              } else if (trendTab === 'tempo') {
+                title = 'TEMPO ENDEKSİ (TOPLAM GOL/MAÇ)';
+                subtitle = 'Maçlarında en fazla toplam gol oynanan takımlar';
+                ligOrt = `Lig ort.: ${avgGoals.toFixed(2)}`;
+                barColor = c.amber;
+                const top = trendProfiles.tempoTop[0];
+                insightMain = top ? `${top.team} maçları bu ligde en heyecanlı seyrediyor — maç başı ${top.tempoPer.toFixed(1)} toplam gol.` : '';
+                insightWhy  = 'Toplam gol ortalaması, over/alt kararlarının en doğrudan göstergesidir.';
+                rows = trendProfiles.tempoTop.map((r, i) => ({
+                  abbr: teamAbbrev(r.team), team: r.team,
+                  ratio: r.tempoPer / trendProfiles.maxTempo,
+                  val: r.tempoPer.toFixed(2),
+                  color: i === 0 ? c.amber : i < 3 ? c.textSub : c.textMuted,
+                }));
+              } else {
+                title = 'BERABERLİK EĞİLİMİ';
+                subtitle = 'En fazla beraberlikle biten maç oynayan takımlar';
+                ligOrt = `Lig ort.: ${Math.round(drawRate * 100)}%`;
+                barColor = c.textSub;
+                const top = trendProfiles.drawTop[0];
+                insightMain = top ? `${top.team} bu sezon en sık beraberlik oynayan takım — ${top.draw} kez eşit bitti.` : '';
+                insightWhy  = 'Beraberlik eğilimi yüksek takımlar çift ihtimal senaryolarında öne çıkar.';
+                rows = trendProfiles.drawTop.map((r, i) => ({
+                  abbr: teamAbbrev(r.team), team: r.team,
+                  ratio: r.drawPer / trendProfiles.maxDraw,
+                  val: r.draw.toString(),
+                  color: i === 0 ? c.textSub : i < 3 ? c.textMuted : c.textVeryFaint,
+                }));
+              }
 
-                    <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>TEMPO ENDEKSİ (Toplam Gol/Maç)</Text>
-                    <Text style={[styles.effSubtitle, { color: c.textFaint }]}>Maçlarında en fazla toplam gol oynanan takımlar — over eğilimi göstergesi</Text>
-                    {trendProfiles.tempoTop[0] && (
-                      <View style={[stStyles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
-                        <Text style={[stStyles.insightText, { color: c.text }]}>
-                          {trendProfiles.tempoTop[0].team} maçları bu ligde en heyecanlı seyrediyor — maç başı {trendProfiles.tempoTop[0].tempoPer.toFixed(1)} toplam gol.
-                        </Text>
-                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Toplam gol ortalaması, over/alt kararlarının en doğrudan göstergesidir.</Text>
-                      </View>
-                    )}
-                    {trendProfiles.tempoTop.map((row, i) => {
-                      const ratio  = row.tempoPer / trendProfiles.maxTempo;
-                      const isOver = row.tempoPer >= 2.5;
-                      const color  = i === 0 ? c.amber : i < 3 ? c.textSub : i < 5 ? c.textMuted : c.textVeryFaint;
-                      return (
-                        <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
-                          <Text style={[styles.effRank, { color }]}>{i + 1}</Text>
-                          <View style={styles.flexOne}>
-                            <View style={styles.effBarRow}>
-                              <Text style={[styles.effTeam, { color: c.text }]} numberOfLines={1}>{row.team}</Text>
-                              <View style={[styles.effBarWrap, { backgroundColor: c.border }]}>
-                                <View style={[styles.effBarFill, { width: `${ratio * 100}%`, backgroundColor: color }]} />
-                              </View>
-                              <Text style={[styles.effGoals, { color }]}>{row.tempoPer.toFixed(2)}</Text>
-                            </View>
-                            {isOver && <Text style={[styles.effLabel, { color: c.textFaint }]}>Over 2.5 eğilimi güçlü</Text>}
-                          </View>
-                        </View>
-                      );
-                    })}
+              const visibleRows = trendExpanded ? rows : rows.slice(0, 5);
 
-                    <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>BERABERLİK EĞİLİMİ</Text>
-                    <Text style={[styles.effSubtitle, { color: c.textFaint }]}>En fazla beraberlikle biten maç oynayan takımlar</Text>
-                    {trendProfiles.drawTop[0] && (
-                      <View style={[stStyles.insightBox, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
-                        <Text style={[stStyles.insightText, { color: c.text }]}>
-                          {trendProfiles.drawTop[0].team} bu sezon en sık beraberlik oynayan takım — {trendProfiles.drawTop[0].draw} kez eşit bitti, sonuç belirsizliği yüksek.
-                        </Text>
-                        <Text style={[stStyles.insightWhy, { color: c.textSub }]}>Neden önemli: Beraberlik eğilimi yüksek takımlar sonuç belirsizliği ve çift ihtimal senaryolarında öne çıkar.</Text>
+              return (
+                <View style={trStyles.sectionWrap}>
+                  {/* Bölüm başlığı + Lig ort. */}
+                  <View style={trStyles.sectionHead}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[trStyles.sectionTitle, { color: c.text }]}>{title}</Text>
+                      <Text style={[trStyles.sectionSub, { color: c.textMuted }]}>{subtitle}</Text>
+                    </View>
+                    <Text style={[trStyles.ligOrt, { color: barColor }]}>{ligOrt}</Text>
+                  </View>
+
+                  {/* AI Insight */}
+                  {insightMain ? (
+                    <View style={[trStyles.aiBox, { backgroundColor: isDark ? '#0D2038' : '#EBF5FF', borderColor: c.primary }]}>
+                      <View style={trStyles.aiBoxHeader}>
+                        <Text style={{ fontSize: 11, color: c.primary }}>✧</Text>
+                        <Text style={[trStyles.aiBoxLabel, { color: c.primary }]}>AI INSIGHT</Text>
                       </View>
-                    )}
-                    {trendProfiles.drawTop.map((row, i) => {
-                      const ratio = row.drawPer / trendProfiles.maxDraw;
-                      const color = i === 0 ? c.textSub : i < 3 ? c.textMuted : i < 5 ? c.textVeryFaint : c.textVeryFaint;
-                      return (
-                        <View key={i} style={[styles.effRow, { borderBottomColor: c.borderLight }]}>
-                          <Text style={[styles.effRank, { color }]}>{i + 1}</Text>
-                          <View style={styles.flexOne}>
-                            <View style={styles.effBarRow}>
-                              <Text style={[styles.effTeam, { color: c.text }]} numberOfLines={1}>{row.team}</Text>
-                              <View style={[styles.effBarWrap, { backgroundColor: c.border }]}>
-                                <View style={[styles.effBarFill, { width: `${ratio * 100}%`, backgroundColor: color }]} />
-                              </View>
-                              <Text style={[styles.effGoals, { color }]}>{row.draw}</Text>
-                            </View>
-                          </View>
+                      <Text style={[trStyles.aiBoxMain, { color: c.text }]}>{insightMain}</Text>
+                      <Text style={[trStyles.aiBoxWhy, { color: c.textSub }]}>{insightWhy}</Text>
+                    </View>
+                  ) : null}
+
+                  {/* Satır listesi */}
+                  <View style={[trStyles.rowCard, { backgroundColor: c.surface }]}>
+                    {visibleRows.map((row, i) => (
+                      <View key={i} style={[trStyles.trendRow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.borderLight }]}>
+                        <Text style={[trStyles.trendRank, { color: row.color }]}>{i + 1}</Text>
+                        <View style={trStyles.trendTeamCol}>
+                          <Text style={[trStyles.trendAbbr, { color: row.color }]}>{row.abbr}</Text>
+                          <Text style={[trStyles.trendTeamName, { color: c.textMuted }]} numberOfLines={1}>{row.team}</Text>
                         </View>
-                      );
-                    })}
-                  </>
+                        <View style={[trStyles.trendBarWrap, { backgroundColor: c.border }]}>
+                          <View style={[trStyles.trendBarFill, { width: `${Math.max(row.ratio * 100, 2)}%` as any, backgroundColor: row.color }]} />
+                        </View>
+                        <Text style={[trStyles.trendVal, { color: row.color }]}>{row.val}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  {/* Genişlet / Daralt */}
+                  {!trendExpanded && rows.length > 5 && (
+                    <TouchableOpacity style={[trStyles.showAllBtn, { backgroundColor: c.surface }]}
+                      onPress={() => { tapLight(); setTrendExpanded(true); }}>
+                      <Text style={[trStyles.showAllText, { color: c.primary }]}>Tüm takımları göster</Text>
+                      <Ionicons name="chevron-forward" size={13} color={c.primary} />
+                    </TouchableOpacity>
+                  )}
+                  {trendExpanded && rows.length > 5 && (
+                    <TouchableOpacity style={[trStyles.showAllBtn, { backgroundColor: c.surface }]}
+                      onPress={() => { tapLight(); setTrendExpanded(false); }}>
+                      <Text style={[trStyles.showAllText, { color: c.textMuted }]}>Daha az göster</Text>
+                      <Ionicons name="chevron-up" size={13} color={c.textMuted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              );
+            })()}
+          </>
         )}
         <View style={styles.bottomSpacer} />
         </ScrollView>
@@ -1402,6 +1455,43 @@ const stStyles = StyleSheet.create({
   tkNewPowerVal:    { fontSize: 11, fontWeight: '700' },
   tkNewWDLBar:      { flexDirection: 'row', height: 3, width: '100%', borderRadius: 1.5, overflow: 'hidden', gap: 1 },
   tkNewWDLLbl:      { fontSize: 8, marginTop: 3 },
+});
+
+const trStyles = StyleSheet.create({
+  pulsCard:        { margin: 14, marginBottom: 4, borderRadius: 14, borderWidth: 0.5, padding: 14 },
+  pulsHeader:      { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
+  pulsTitle:       { fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
+  pulsSubTitle:    { flex: 1, fontSize: 11 },
+  pulsRow:         { flexDirection: 'row' },
+  pulsItem:        { flex: 1, alignItems: 'center', paddingVertical: 4 },
+  pulsVal:         { fontSize: 15, fontWeight: '800', marginBottom: 2 },
+  pulsLabel:       { fontSize: 8, fontWeight: '700', letterSpacing: 0.5 },
+  pulsSub2:        { fontSize: 9, marginTop: 1 },
+  trendTabContent: { paddingHorizontal: 14, gap: 8, paddingVertical: 10, flexDirection: 'row' },
+  trendTab:        { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1 },
+  trendTabLabel:   { fontSize: 11, fontWeight: '600' },
+  trendTabSub:     { fontSize: 9, marginTop: 1 },
+  sectionWrap:     { paddingHorizontal: 14, paddingBottom: 14 },
+  sectionHead:     { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10, gap: 8 },
+  sectionTitle:    { fontSize: 14, fontWeight: '800', letterSpacing: -0.3 },
+  sectionSub:      { fontSize: 11, marginTop: 3 },
+  ligOrt:          { fontSize: 12, fontWeight: '600', paddingTop: 2 },
+  aiBox:           { borderRadius: 10, borderWidth: 1, padding: 12, marginBottom: 10 },
+  aiBoxHeader:     { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 },
+  aiBoxLabel:      { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  aiBoxMain:       { fontSize: 13, fontStyle: 'italic', lineHeight: 18, marginBottom: 5 },
+  aiBoxWhy:        { fontSize: 11, lineHeight: 16 },
+  rowCard:         { borderRadius: 12, overflow: 'hidden', marginBottom: 8 },
+  trendRow:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, gap: 10 },
+  trendRank:       { fontSize: 13, fontWeight: '700', width: 18, textAlign: 'center' },
+  trendTeamCol:    { width: 68 },
+  trendAbbr:       { fontSize: 14, fontWeight: '800', letterSpacing: -0.3 },
+  trendTeamName:   { fontSize: 9, lineHeight: 12 },
+  trendBarWrap:    { flex: 1, height: 8, borderRadius: 4, overflow: 'hidden' },
+  trendBarFill:    { height: '100%', borderRadius: 4 },
+  trendVal:        { fontSize: 14, fontWeight: '700', width: 40, textAlign: 'right' },
+  showAllBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 12, borderRadius: 10 },
+  showAllText:     { fontSize: 13, fontWeight: '600' },
 });
 
 const ozStyles = StyleSheet.create({
