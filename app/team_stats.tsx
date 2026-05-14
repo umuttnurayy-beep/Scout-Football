@@ -57,20 +57,19 @@ function normalizeAllSportsStats(value: AllSportsTeamStats | null): AllSportsTea
   };
 }
 
-const SL_TLA: Record<string, string> = {
-  'Galatasaray': 'GS', 'Fenerbahçe': 'FB', 'Beşiktaş': 'BJK', 'Trabzonspor': 'TS',
-  'Başakşehir': 'IBB', 'Samsunspor': 'SAM', 'Göztepe': 'GZT', 'Çaykur Rizespor': 'RİZ',
-  'Konyaspor': 'KON', 'Gaziantep FK': 'GFK', 'Kocaelispor': 'KOC', 'Alanyaspor': 'ALA',
-  'Antalyaspor': 'ANT', 'Gençlerbirliği': 'GNB', 'Eyüpspor': 'EYP', 'Kayserispor': 'KAY',
-  'Fatih Karagümrük': 'FKG', 'Kasımpaşa': 'KSP', 'Sivasspor': 'SİV', 'Hatayspor': 'HAT',
-  'Adana Demirspor': 'ADS', 'İstanbul Başakşehir': 'IBB', 'Pendikspor': 'PEN',
-  'Ankaragücü': 'ANK', 'Ümraniyespor': 'ÜMR', 'Giresunspor': 'GİR',
+const SL_TLA_BY_ID: Record<number, string> = {
+  133804: 'GS',  133807: 'FB',  133794: 'BJK', 133796: 'TS',
+  134589: 'IBB', 133797: 'SAM', 135891: 'GZT', 133885: 'RİZ',
+  133835: 'KON', 138092: 'GFK', 133870: 'KOC', 135676: 'ALA',
+  133799: 'ANT', 133798: 'GNB', 138977: 'EYP', 133802: 'KAY',
+  138983: 'FKG', 133834: 'KSP', 133800: 'SİV', 137630: 'HAT',
+  134199: 'ADS', 138094: 'ÜMR', 135534: 'PEN', 133879: 'SAK',
+  139327: 'BDR', 139328: 'ÇRK',
 };
 
-function teamAbbrev(name: string, tla?: string): string {
+function teamAbbrev(name: string, tla?: string, teamId?: number): string {
+  if (teamId && SL_TLA_BY_ID[teamId]) return SL_TLA_BY_ID[teamId];
   if (tla && tla.length > 0) return tla.toUpperCase();
-  const sl = SL_TLA[name];
-  if (sl) return sl;
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (words.length === 1) return name.slice(0, 3).toUpperCase();
   return words.map(w => w[0] || '').join('').slice(0, 3).toUpperCase();
@@ -193,7 +192,7 @@ export default function TeamStatsScreen() {
 
   const averaj = gf - ga;
   const winPct = played > 0 ? Math.round((win / played) * 100) : 0;
-  const abbrev = teamAbbrev(teamName, passedTla || undefined);
+  const abbrev = teamAbbrev(teamName, passedTla || undefined, teamId || undefined);
 
   const isSportsDbLeague = apiId === 203;
   const displayForm = isSportsDbLeague ? slForm : recentForm;

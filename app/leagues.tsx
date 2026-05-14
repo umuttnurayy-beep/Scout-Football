@@ -170,7 +170,19 @@ function getLeagueLegend(apiId: number) {
   ];
 }
 
-function teamAbbrev(name: string): string {
+const SL_TLA_BY_ID: Record<number, string> = {
+  133804: 'GS',  133807: 'FB',  133794: 'BJK', 133796: 'TS',
+  134589: 'IBB', 133797: 'SAM', 135891: 'GZT', 133885: 'RİZ',
+  133835: 'KON', 138092: 'GFK', 133870: 'KOC', 135676: 'ALA',
+  133799: 'ANT', 133798: 'GNB', 138977: 'EYP', 133802: 'KAY',
+  138983: 'FKG', 133834: 'KSP', 133800: 'SİV', 137630: 'HAT',
+  134199: 'ADS', 138094: 'ÜMR', 135534: 'PEN', 133879: 'SAK',
+  139327: 'BDR', 139328: 'ÇRK',
+};
+
+function teamAbbrev(name: string, tla?: string, teamId?: number): string {
+  if (teamId && SL_TLA_BY_ID[teamId]) return SL_TLA_BY_ID[teamId];
+  if (tla && tla.length > 0) return tla.toUpperCase();
   const words = name.trim().split(/\s+/);
   if (words.length === 1) return name.slice(0, 3).toUpperCase();
   return words.map(w => w[0] || '').join('').slice(0, 3).toUpperCase();
@@ -1004,7 +1016,7 @@ export default function LeaguesScreen() {
               const scoutR    = ((atkS + defS) / 2).toFixed(1);
               const zoneColor = getZoneBarColor(row.pos, activeLeague.apiId);
               const teamTag   = teamTagMap.get(row.team);
-              const abbr      = teamAbbrev(row.team);
+              const abbr      = teamAbbrev(row.team, (row as any).tla, (row as any).teamId);
               const totalGames = Math.max(row.win + row.draw + row.loss, 1);
               const fdId      = API_ID_TO_FD_ID[activeLeague.apiId] ?? 0;
               return (
@@ -1160,7 +1172,7 @@ export default function LeaguesScreen() {
                 insightMain = top ? `${top.team} maç başı ${top.gfPer.toFixed(1)} golle ligin hücum motorunu temsil ediyor.` : '';
                 insightWhy  = 'Yüksek hücum gücü, 2.5 üst ve KG-var senaryolarında güçlü bir ipucu sunar.';
                 rows = trendProfiles.attackTop.map((r, i) => ({
-                  abbr: teamAbbrev(r.team), team: r.team,
+                  abbr: teamAbbrev(r.team, (r as any).tla, r.teamId), team: r.team,
                   ratio: r.gfPer / trendProfiles.maxAtk,
                   val: r.gfPer.toFixed(2),
                   color: i === 0 ? c.primary : i < 3 ? c.textSub : c.textMuted,
@@ -1174,7 +1186,7 @@ export default function LeaguesScreen() {
                 insightMain = top ? `${top.team} maç başı yalnızca ${top.gaPer.toFixed(1)} gol yiyor — ligin en sağlam savunması.` : '';
                 insightWhy  = 'Az gol yiyen takımlar, alt 2.5 ve kale sıfır senaryolarında güvenilir referanslardır.';
                 rows = trendProfiles.defTop.map((r, i) => ({
-                  abbr: teamAbbrev(r.team), team: r.team,
+                  abbr: teamAbbrev(r.team, (r as any).tla, r.teamId), team: r.team,
                   ratio: (trendProfiles.maxDef - r.gaPer) / trendProfiles.defRange,
                   val: r.gaPer.toFixed(2),
                   color: i === 0 ? c.win : i < 3 ? c.textSub : c.textMuted,
@@ -1188,7 +1200,7 @@ export default function LeaguesScreen() {
                 insightMain = top ? `${top.team} maçları bu ligde en heyecanlı seyrediyor — maç başı ${top.tempoPer.toFixed(1)} toplam gol.` : '';
                 insightWhy  = 'Toplam gol ortalaması, over/alt kararlarının en doğrudan göstergesidir.';
                 rows = trendProfiles.tempoTop.map((r, i) => ({
-                  abbr: teamAbbrev(r.team), team: r.team,
+                  abbr: teamAbbrev(r.team, (r as any).tla, r.teamId), team: r.team,
                   ratio: r.tempoPer / trendProfiles.maxTempo,
                   val: r.tempoPer.toFixed(2),
                   color: i === 0 ? c.amber : i < 3 ? c.textSub : c.textMuted,
@@ -1202,7 +1214,7 @@ export default function LeaguesScreen() {
                 insightMain = top ? `${top.team} bu sezon en sık beraberlik oynayan takım — ${top.draw} kez eşit bitti.` : '';
                 insightWhy  = 'Beraberlik eğilimi yüksek takımlar çift ihtimal senaryolarında öne çıkar.';
                 rows = trendProfiles.drawTop.map((r, i) => ({
-                  abbr: teamAbbrev(r.team), team: r.team,
+                  abbr: teamAbbrev(r.team, (r as any).tla, r.teamId), team: r.team,
                   ratio: r.drawPer / trendProfiles.maxDraw,
                   val: r.draw.toString(),
                   color: i === 0 ? c.textSub : i < 3 ? c.textMuted : c.textVeryFaint,
