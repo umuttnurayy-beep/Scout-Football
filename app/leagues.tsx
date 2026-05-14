@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { Image, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { useRouter } from 'expo-router';
 import BottomTabBar from '../components/BottomTabBar';
 import EmptyStateCard from '../components/EmptyStateCard';
 import RefreshStatusBar, { REFRESH_STATUS_MESSAGES } from '../components/RefreshStatusBar';
@@ -169,6 +170,18 @@ function getLeagueLegend(apiId: number) {
   ];
 }
 
+function teamAbbrev(name: string): string {
+  const words = name.trim().split(/\s+/);
+  if (words.length === 1) return name.slice(0, 3).toUpperCase();
+  return words.map(w => w[0] || '').join('').slice(0, 3).toUpperCase();
+}
+
+const API_ID_TO_FD_ID: Record<number, number> = {
+  39: 2021, 140: 2014, 78: 2002, 135: 2019, 61: 2015, 2: 2001, 203: 0,
+};
+
+type TeamSort = 'puan' | 'scout' | 'hucum' | 'savunma' | 'alfa';
+
 function getZoneBarColor(pos: number, apiId: number): string | null {
   if (apiId === 2) {
     if (pos <= 8)  return TABLE_COLORS.champions;
@@ -224,7 +237,8 @@ function getZoneBarColor(pos: number, apiId: number): string | null {
 export default function LeaguesScreen() {
   const { colors: c, isDark } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
-  const pagerRef = useRef<ScrollView>(null);
+  const router    = useRouter();
+  const pagerRef  = useRef<ScrollView>(null);
   const [activeLeague, setActiveLeague] = useState<League>(configuredLeagues[0]);
   const [subTab, setSubTab]             = useState<SubTab>('genel');
   const [uclView, setUclView]           = useState<'standings' | 'bracket'>('standings');
@@ -236,6 +250,8 @@ export default function LeaguesScreen() {
   const [loadError, setLoadError]               = useState(false);
   const [knockoutsLoading, setKnockoutsLoading] = useState(false);
   const [knockoutsLoadError, setKnockoutsLoadError] = useState(false);
+  const [teamSearch, setTeamSearch] = useState('');
+  const [teamSort, setTeamSort]     = useState<TeamSort>('puan');
 
   function goToTab(key: SubTab) {
     tapLight();
@@ -331,6 +347,21 @@ export default function LeaguesScreen() {
     goalScore, tempoScore, compScore, surpriseScore,
     mostGoals, bestDef, mostTempo, bestWinRate, surpriseTeam, liderTags,
   } = useMemo(() => computeLeagueStats(standings, isDark), [standings, isDark]);
+
+  const sortedTeams = useMemo(() => {
+    let list = [...standings];
+    if (teamSearch.trim()) {
+      const q = teamSearch.toLowerCase();
+      list = list.filter(r => r.team.toLowerCase().includes(q));
+    }
+    switch (teamSort) {
+      case 'scout':   return list.sort((a, b) => ((attackScore(b) + defenseScore(b)) / 2) - ((attackScore(a) + defenseScore(a)) / 2));
+      case 'hucum':   return list.sort((a, b) => attackScore(b)  - attackScore(a));
+      case 'savunma': return list.sort((a, b) => defenseScore(b) - defenseScore(a));
+      case 'alfa':    return list.sort((a, b) => a.team.localeCompare(b.team, 'tr'));
+      default:        return list;
+    }
+  }, [standings, teamSearch, teamSort, attackScore, defenseScore]);
 
   const teamTagMap = useMemo(() => {
     const map = new Map<string, { label: string; bg: string; color: string }>();
@@ -881,61 +912,155 @@ export default function LeaguesScreen() {
         </ScrollView>
 
         {/* ===== PAGE 2: TAKIMLAR ===== */}
-        <ScrollView style={[styles.page, { width: screenWidth }]} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+        <ScrollView style={[styles.page, { width: screenWidth }]} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardShouldPersistTaps="handled">
         {loading ? (
           <View style={styles.stateFrame}><SkeletonLeagueTable /></View>
+        ) : standings.length === 0 ? (
+          <View style={styles.stateFrame}>
+            <EmptyStateCard
+              icon="people-outline"
+              title={loadError ? 'Takım verisi yüklenemedi' : 'Veri bulunamadı'}
+              subtitle={leagueDataEmptyMessage(activeLeague.name)}
+              onRetry={retryStandings}
+            />
+          </View>
         ) : (
           <>
-            {standings.length === 0 ? (
-                <View style={styles.stateFrame}>
-                  <EmptyStateCard
-                    icon="people-outline"
-                    title={loadError ? 'Takım verisi yüklenemedi' : 'Veri bulunamadı'}
-                    subtitle={leagueDataEmptyMessage(activeLeague.name)}
-                    onRetry={retryStandings}
-                  />
+            {/* ── STATS ŞERİDİ ── */}
+            {(() => {
+              const totalPlayed = standings.reduce((s, r) => s + r.played, 0);
+              const totalWins   = standings.reduce((s, r) => s + r.win, 0);
+              const winPct      = totalPlayed > 0 ? Math.round(totalWins / totalPlayed * 100) : 0;
+              return (
+                <View style={stStyles.standStatStrip}>
+                  {[
+                    { val: standings.length.toString(), lbl: 'Takım\nLig genelinde' },
+                    { val: avgGoals.toFixed(2),         lbl: 'Gol/Maç\nLig ortalaması' },
+                    { val: `${winPct}%`,                lbl: 'Galibiyet\nOrtalama' },
+                    { val: `${surpriseScore}%`,         lbl: 'Sürpriz Sonuç\nYüksek' },
+                  ].map(s => (
+                    <View key={s.lbl} style={[stStyles.standStatCard, { backgroundColor: c.surface }]}>
+                      <Text style={[stStyles.standStatVal, { color: c.text }]}>{s.val}</Text>
+                      <Text style={[stStyles.standStatLbl, { color: c.textMuted }]}>{s.lbl}</Text>
+                    </View>
+                  ))}
                 </View>
-              ) : (
-                <>
-                  <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>TAKIM KİMLİKLERİ</Text>
-                  <Text style={[styles.effSubtitle, { color: c.textFaint }]}>Alfabetik sırada · sezon ortalamaları + karakter profili</Text>
-                  {standingsAlpha.map((row, i) => {
-                    const avgGf      = row.played > 0 ? row.gf / row.played : 0;
-                    const avgGa      = row.played > 0 ? row.ga / row.played : 0;
-                    const winRate    = row.played > 0 ? row.win / row.played : 0;
-                    const winPct     = Math.round(winRate * 100);
-                    const lbl        = getTeamLabel(avgGf, avgGa, winRate, row.pos, standings.length, avgLeagueGfPer, avgLeagueGaPer, isDark);
-                    const personality = getTeamPersonality(lbl.label, avgGf, avgGa, winRate, avgLeagueGfPer);
-                    const atkS       = attackScore(row);
-                    const defS       = defenseScore(row);
-                    return (
-                      <View key={i} style={[stStyles.tkCard, { backgroundColor: c.surface }, cardShadow(isDark)]}>
-                        <View style={stStyles.tkCardTop}>
-                          <View style={[styles.posBadge, getBadgeStyle(row.pos, standings.length, activeLeague.apiId)]}>
-                            <Text style={styles.posText}>{row.pos}</Text>
-                          </View>
-                          <Text style={[stStyles.tkName, { color: c.text }]} numberOfLines={1}>{row.team}</Text>
-                          <View style={[stStyles.tkLabel, { backgroundColor: lbl.bg }]}>
-                            <Text style={[stStyles.tkLabelText, { color: lbl.color }]}>{lbl.label}</Text>
-                          </View>
+              );
+            })()}
+
+            {/* ── ARAMA + SIRALAMA ── */}
+            <View style={stStyles.tkSearchRow}>
+              <View style={[stStyles.tkSearchBox, { backgroundColor: c.surface, borderColor: c.border }]}>
+                <Ionicons name="search-outline" size={14} color={c.textMuted} />
+                <TextInput
+                  style={[stStyles.tkSearchInput, { color: c.text }]}
+                  placeholder="Takım ara..."
+                  placeholderTextColor={c.textFaint}
+                  value={teamSearch}
+                  onChangeText={setTeamSearch}
+                />
+                {teamSearch.length > 0 && (
+                  <TouchableOpacity onPress={() => setTeamSearch('')}>
+                    <Ionicons name="close-circle" size={14} color={c.textMuted} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}
+              contentContainerStyle={stStyles.tkSortRow}>
+              {([
+                { key: 'puan',    label: 'Puan'        },
+                { key: 'scout',   label: 'Scout Rating' },
+                { key: 'hucum',   label: 'Hücum'       },
+                { key: 'savunma', label: 'Savunma'     },
+                { key: 'alfa',    label: 'Alfabetik'   },
+              ] as { key: TeamSort; label: string }[]).map(opt => (
+                <TouchableOpacity key={opt.key}
+                  style={[stStyles.tkSortPill, { borderColor: c.border, backgroundColor: teamSort === opt.key ? c.primary : c.surface }]}
+                  onPress={() => { tapLight(); setTeamSort(opt.key); }}>
+                  <Text style={[stStyles.tkSortPillText, { color: teamSort === opt.key ? '#fff' : c.textMuted }]}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* ── KARTLAR ── */}
+            {sortedTeams.length === 0 ? (
+              <View style={styles.stateFrame}>
+                <EmptyStateCard icon="search-outline" title="Eşleşen takım bulunamadı" />
+              </View>
+            ) : sortedTeams.map((row, i) => {
+              const atkS      = attackScore(row);
+              const defS      = defenseScore(row);
+              const scoutR    = ((atkS + defS) / 2).toFixed(1);
+              const zoneColor = getZoneBarColor(row.pos, activeLeague.apiId);
+              const teamTag   = teamTagMap.get(row.team);
+              const abbr      = teamAbbrev(row.team);
+              const totalGames = Math.max(row.win + row.draw + row.loss, 1);
+              const fdId      = API_ID_TO_FD_ID[activeLeague.apiId] ?? 0;
+              return (
+                <TouchableOpacity key={i} activeOpacity={0.75}
+                  onPress={() => {
+                    tapLight();
+                    router.push({
+                      pathname: '/team_stats',
+                      params: {
+                        teamId:    (row as any).teamId || (row as any).id || 0,
+                        teamName:  row.team,
+                        fdId,
+                        apiId:     activeLeague.apiId,
+                        standings: JSON.stringify(standings),
+                      },
+                    });
+                  }}>
+                  <View style={[stStyles.tkNewCard, { backgroundColor: c.surface }]}>
+                    {/* Sol bölge barı */}
+                    <View style={[stStyles.zoneBar, { backgroundColor: zoneColor ?? 'transparent' }]} />
+
+                    {/* Pozisyon badge */}
+                    <View style={[styles.posBadge, getBadgeStyle(row.pos, standings.length, activeLeague.apiId), { marginRight: 10 }]}>
+                      <Text style={styles.posText}>{row.pos}</Text>
+                    </View>
+
+                    {/* Takım bilgisi */}
+                    <View style={stStyles.tkNewTeamCol}>
+                      <Text style={[stStyles.tkNewAbbr, { color: c.text }]}>{abbr}</Text>
+                      <Text style={[stStyles.tkNewName, { color: c.textMuted }]} numberOfLines={1}>{row.team}</Text>
+                      {teamTag && (
+                        <View style={[stStyles.teamTagPill, { backgroundColor: teamTag.bg, marginTop: 4 }]}>
+                          <Text style={[stStyles.teamTagText, { color: teamTag.color }]}>{teamTag.label}</Text>
                         </View>
-                        <Text style={[stStyles.tkPersonality, { color: c.textSub }]}>{personality}</Text>
-                        <View style={stStyles.tkPowerRow}>
-                          <Text style={[stStyles.tkPowerText, { color: c.textSub }]}>Hücum <Text style={[stStyles.tkPowerVal, { color: c.primary }]}>{atkS.toFixed(2)}</Text>/10</Text>
-                          <Text style={[stStyles.tkPowerDot, { color: c.textVeryFaint }]}>·</Text>
-                          <Text style={[stStyles.tkPowerText, { color: c.textSub }]}>Savunma <Text style={[stStyles.tkPowerVal, { color: c.primary }]}>{defS.toFixed(2)}</Text>/10</Text>
-                        </View>
-                        <View style={[stStyles.tkStats, { borderTopColor: c.border }]}>
-                          <View style={stStyles.tkStat}><Text style={[stStyles.tkStatV, { color: c.text }]}>{avgGf.toFixed(1)}</Text><Text style={[stStyles.tkStatL, { color: c.textMuted }]}>Gol/M</Text></View>
-                          <View style={stStyles.tkStat}><Text style={[stStyles.tkStatV, { color: c.text }]}>{avgGa.toFixed(1)}</Text><Text style={[stStyles.tkStatL, { color: c.textMuted }]}>Yenilen/M</Text></View>
-                          <View style={stStyles.tkStat}><Text style={[stStyles.tkStatV, { color: c.text }]}>{winPct}%</Text><Text style={[stStyles.tkStatL, { color: c.textMuted }]}>Galibiyet</Text></View>
-                          <View style={stStyles.tkStat}><Text style={[stStyles.tkStatV, { color: c.text }]}>{row.pts}</Text><Text style={[stStyles.tkStatL, { color: c.textMuted }]}>Puan</Text></View>
-                        </View>
+                      )}
+                    </View>
+
+                    {/* Scout Rating + Puan */}
+                    <View style={stStyles.tkNewCenter}>
+                      <Text style={[stStyles.tkNewBigNum, { color: c.primary }]}>{scoutR}</Text>
+                      <Text style={[stStyles.tkNewSmallLbl, { color: c.textFaint }]}>Scout{'\n'}Rating</Text>
+                      <View style={[stStyles.tkNewDivider, { backgroundColor: c.borderLight }]} />
+                      <Text style={[stStyles.tkNewBigNum, { color: c.text }]}>{row.pts}</Text>
+                      <Text style={[stStyles.tkNewSmallLbl, { color: c.textFaint }]}>Puan</Text>
+                    </View>
+
+                    {/* Hücum + Savunma + W-D-L bar */}
+                    <View style={stStyles.tkNewRight}>
+                      <Text style={[stStyles.tkNewPowerLbl, { color: c.textMuted }]}>Hücum</Text>
+                      <Text style={[stStyles.tkNewPowerVal, { color: c.primary }]}>{atkS.toFixed(2)}/10</Text>
+                      <Text style={[stStyles.tkNewPowerLbl, { color: c.textMuted, marginTop: 5 }]}>Savunma</Text>
+                      <Text style={[stStyles.tkNewPowerVal, { color: c.primary }]}>{defS.toFixed(2)}/10</Text>
+                      <View style={[stStyles.tkNewWDLBar, { marginTop: 7 }]}>
+                        <View style={{ flex: row.win / totalGames,  backgroundColor: c.win,         borderRadius: 1.5 }} />
+                        <View style={{ flex: row.draw / totalGames, backgroundColor: c.borderLight,  borderRadius: 1.5 }} />
+                        <View style={{ flex: row.loss / totalGames, backgroundColor: c.loss,         borderRadius: 1.5 }} />
                       </View>
-                    );
-                  })}
-                </>
-              )}
+                      <Text style={[stStyles.tkNewWDLLbl, { color: c.textFaint }]}>{row.win}G {row.draw}B {row.loss}M</Text>
+                    </View>
+
+                    {/* Chevron */}
+                    <Ionicons name="chevron-forward" size={14} color={c.textVeryFaint} style={{ marginLeft: 4 }} />
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </>
         )}
         <View style={styles.bottomSpacer} />
@@ -1250,6 +1375,25 @@ const stStyles = StyleSheet.create({
   teamNameMain:     { fontSize: 13, fontWeight: '500' },
   teamTagPill:      { alignSelf: 'flex-start', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 5, marginTop: 3 },
   teamTagText:      { fontSize: 9, fontWeight: '700', letterSpacing: 0.2 },
+  tkSearchRow:      { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6 },
+  tkSearchBox:      { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, borderWidth: 0.5, paddingHorizontal: 12, paddingVertical: 9 },
+  tkSearchInput:    { flex: 1, fontSize: 13, padding: 0 },
+  tkSortRow:        { paddingHorizontal: 14, gap: 7, paddingBottom: 10, flexDirection: 'row' },
+  tkSortPill:       { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 0.5 },
+  tkSortPillText:   { fontSize: 11, fontWeight: '600' },
+  tkNewCard:        { flexDirection: 'row', alignItems: 'center', marginHorizontal: 14, marginBottom: 8, borderRadius: 12, paddingVertical: 12, paddingRight: 10, overflow: 'hidden' },
+  tkNewTeamCol:     { flex: 1, marginRight: 8 },
+  tkNewAbbr:        { fontSize: 22, fontWeight: '900', letterSpacing: -0.5, lineHeight: 25 },
+  tkNewName:        { fontSize: 10, lineHeight: 13, marginTop: 1 },
+  tkNewCenter:      { alignItems: 'center', width: 58, gap: 2 },
+  tkNewBigNum:      { fontSize: 17, fontWeight: '800' },
+  tkNewSmallLbl:    { fontSize: 8, textAlign: 'center', lineHeight: 11 },
+  tkNewDivider:     { height: 0.5, width: 30, marginVertical: 5 },
+  tkNewRight:       { width: 82, alignItems: 'flex-end' },
+  tkNewPowerLbl:    { fontSize: 9 },
+  tkNewPowerVal:    { fontSize: 11, fontWeight: '700' },
+  tkNewWDLBar:      { flexDirection: 'row', height: 3, width: '100%', borderRadius: 1.5, overflow: 'hidden', gap: 1 },
+  tkNewWDLLbl:      { fontSize: 8, marginTop: 3 },
 });
 
 const ozStyles = StyleSheet.create({
