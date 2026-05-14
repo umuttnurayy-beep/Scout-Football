@@ -6,6 +6,7 @@ import {
   Image, ScrollView, StyleSheet, Text,
   TouchableOpacity, View,
 } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import CompareRow from '../components/CompareRow';
 import { DetailDataNotice, DetailInsightBox, DetailSectionTitle } from '../components/DetailDataState';
 import EmptyStateCard from '../components/EmptyStateCard';
@@ -363,6 +364,10 @@ export default function MatchDetail() {
   const analysis   = buildMatchAnalysis(displayHomeName,displayAwayName,leagueApiId,homeStats,awayStats,homeFormPts,awayFormPts,h2hData.length,weatherRisk,hasFormData,homeTrend,awayTrend,leagueAvgParam);
   const scoutAnalysisReady = hasFormData && !secondaryLoading;
 
+  const homeAbbr = displayHomeName.trim().split(/\s+/).map((w:string)=>w[0]||'').join('').slice(0,3).toUpperCase();
+  const awayAbbr = displayAwayName.trim().split(/\s+/).map((w:string)=>w[0]||'').join('').slice(0,3).toUpperCase();
+  const guvenPct = analysis.guven === 'Yüksek' ? 75 : analysis.guven === 'Düşük' ? 35 : 55;
+
   // Auto-save pick for upcoming/live matches; update with form-data pick when ready
   // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
@@ -516,34 +521,41 @@ export default function MatchDetail() {
       <ScrollView style={[styles.scroll,{backgroundColor:c.bg}]}>
 
       {/* ── Hero ── */}
-      <View style={[styles.hero,{backgroundColor:c.surface,borderBottomColor:c.border}]}>
-        <View style={styles.teamsRow}>
-          <Text style={[styles.teamNameLeft,{color:c.text}]} numberOfLines={1}>{displayHomeName}</Text>
-          <View style={styles.vsBlock}>
+      <View style={[styles.hero,{backgroundColor:c.primaryDark}]}>
+        <View style={styles.heroTeamRow}>
+          <View style={styles.heroTeamCol}>
+            <Text style={styles.heroAbbr}>{homeAbbr}</Text>
+            <Text style={styles.heroTeamNameSm} numberOfLines={1}>{displayHomeName}</Text>
+          </View>
+          <View style={styles.heroCenter}>
             {hasScore ? (
               <>
-                <Text style={[styles.vsScore,{color:c.text}]}>{displayHome} : {displayAway}</Text>
-                {isFinished&&<Text style={[styles.vsStatusLabel,{color:c.textMuted}]}>MS</Text>}
-                {isLive&&<Text style={[styles.vsStatusLabel,{color:c.loss}]}>CANLI</Text>}
+                <Text style={styles.heroScore}>{displayHome} : {displayAway}</Text>
+                {isFinished && <Text style={styles.heroStatusLabel}>MS</Text>}
+                {isLive && <Text style={[styles.heroStatusLabel,{color:'#F85149'}]}>CANLI</Text>}
               </>
             ) : (
-              <Text style={[styles.vsTime,{color:c.text}]}>{matchTime}</Text>
+              <Text style={styles.heroTime}>{matchTime}</Text>
             )}
-            <Text style={[styles.vsLabel,{color:c.textMuted}]}>{matchDate}</Text>
+            <Text style={styles.heroDate}>{matchDate}</Text>
           </View>
-          <Text style={[styles.teamNameRight,{color:c.text}]} numberOfLines={1}>{displayAwayName}</Text>
+          <View style={[styles.heroTeamCol,{alignItems:'flex-end'}]}>
+            <Text style={styles.heroAbbr}>{awayAbbr}</Text>
+            <Text style={[styles.heroTeamNameSm,{textAlign:'right'}]} numberOfLines={1}>{displayAwayName}</Text>
+          </View>
         </View>
         <View style={styles.heroBadgeRow}>
-          <View style={[styles.badgeLiga,{backgroundColor:c.primaryLight}]}><Text style={[styles.badgeLigaText,{color:c.primaryDark}]}>{league}</Text></View>
-          {scoutAnalysisReady && <View style={[styles.confidenceBadge,{backgroundColor:
-            analysis.badgeLabel.includes('Güçlü')
-              ? (isDark ? '#0D2010' : '#E8F8F0')
-              : analysis.badgeLabel.includes('Risk')
-                ? (isDark ? '#2C0A0A' : '#FDE8E8')
-                : (isDark ? '#2A1F00' : '#FFF8E1')
-          }]}>
-            <Text style={[styles.confidenceBadgeText,{color:analysis.badgeColor}]}>{analysis.badgeLabel}</Text>
-          </View>}
+          <View style={[styles.badgeLiga,{backgroundColor:'rgba(255,255,255,0.15)'}]}>
+            <Text style={[styles.badgeLigaText,{color:'rgba(255,255,255,0.9)'}]}>{league}</Text>
+          </View>
+          {scoutAnalysisReady && (
+            <View style={[styles.confidenceBadge,{backgroundColor:
+              analysis.badgeLabel.includes('Güçlü') ? 'rgba(63,185,80,0.2)'
+              : analysis.badgeLabel.includes('Risk') ? 'rgba(248,81,73,0.2)'
+              : 'rgba(227,179,65,0.2)'}]}>
+              <Text style={[styles.confidenceBadgeText,{color:analysis.badgeColor}]}>{analysis.badgeLabel}</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -611,14 +623,31 @@ export default function MatchDetail() {
             analysis.scoutPick.tone === 'goals' ? (isDark ? '#E3B341' : '#B7791F') :
             analysis.scoutPick.tone === 'caution' ? (isDark ? '#F85149' : '#A32D2D') :
             (isDark ? '#C19BFF' : '#5b2d8e');
+          const RING_R = 30, RING_C = 2 * Math.PI * RING_R;
+          const ringDash = (guvenPct / 100) * RING_C;
           return (
             <View style={[scStyles.pickBox,{backgroundColor:isDark?'rgba(255,255,255,0.04)':'rgba(255,255,255,0.72)',borderColor:pickColor}]}>
-              <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+              <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
                 <Text style={[scStyles.pickKicker,{color:pickColor}]}>SCOUT PICK</Text>
                 {pickSaved && <Text style={{fontSize:11,color:c.textFaint}}>Haftaya eklendi</Text>}
               </View>
-              <Text style={[scStyles.pickLabel,{color:c.text}]}>{analysis.scoutPick.label}</Text>
-              <Text style={[scStyles.pickDetail,{color:c.textSub}]}>{analysis.scoutPick.detail}</Text>
+              <View style={{flexDirection:'row',alignItems:'center',gap:14}}>
+                <View style={{alignItems:'center',justifyContent:'center'}}>
+                  <Svg width={76} height={76}>
+                    <Circle cx={38} cy={38} r={RING_R} stroke={isDark?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.08)'} strokeWidth={6} fill="none" />
+                    <Circle cx={38} cy={38} r={RING_R} stroke={pickColor} strokeWidth={6} fill="none"
+                      strokeDasharray={`${ringDash} ${RING_C}`} strokeLinecap="round" rotation="-90" origin="38,38" />
+                  </Svg>
+                  <View style={{position:'absolute',alignItems:'center',justifyContent:'center'}}>
+                    <Text style={{fontSize:15,fontWeight:'800',color:pickColor}}>%{guvenPct}</Text>
+                    <Text style={{fontSize:8,color:c.textMuted,marginTop:1}}>Güven</Text>
+                  </View>
+                </View>
+                <View style={{flex:1}}>
+                  <Text style={[scStyles.pickLabel,{color:c.text,marginBottom:4}]}>{analysis.scoutPick.label}</Text>
+                  <Text style={[scStyles.pickDetail,{color:c.textSub}]}>{analysis.scoutPick.detail}</Text>
+                </View>
+              </View>
             </View>
           );
         })() : null}
@@ -1034,10 +1063,19 @@ export default function MatchDetail() {
                 } else d++;
               });
               return(
-                <View style={styles.summaryGrid}>
-                  <View style={[styles.sumBox,ts.sumBox]}><Text style={[styles.sumVal,ts.sumVal,{color:c.primary}]}>{hw}</Text><Text style={[styles.sumLbl,ts.sumLbl]} numberOfLines={1}>{displayHomeName}</Text></View>
-                  <View style={[styles.sumBox,ts.sumBox]}><Text style={[styles.sumVal,ts.sumVal]}>{d}</Text><Text style={[styles.sumLbl,ts.sumLbl]}>Berabere</Text></View>
-                  <View style={[styles.sumBox,ts.sumBox]}><Text style={[styles.sumVal,ts.sumVal,{color:c.loss}]}>{aw}</Text><Text style={[styles.sumLbl,ts.sumLbl]} numberOfLines={1}>{displayAwayName}</Text></View>
+                <View style={styles.h2hBigGrid}>
+                  <View style={styles.h2hBigBox}>
+                    <Text style={[styles.h2hBigNum,{color:c.primary}]}>{hw}</Text>
+                    <Text style={[styles.h2hBigAbbr,{color:c.primary}]}>{homeAbbr}</Text>
+                  </View>
+                  <View style={styles.h2hBigBox}>
+                    <Text style={[styles.h2hBigNum,{color:c.textSub}]}>{d}</Text>
+                    <Text style={[styles.h2hBigAbbr,{color:c.textMuted}]}>Berabere</Text>
+                  </View>
+                  <View style={styles.h2hBigBox}>
+                    <Text style={[styles.h2hBigNum,{color:c.loss}]}>{aw}</Text>
+                    <Text style={[styles.h2hBigAbbr,{color:c.loss}]}>{awayAbbr}</Text>
+                  </View>
                 </View>
               );
             })()}
@@ -1139,15 +1177,16 @@ const styles = StyleSheet.create({
   topbarVsBlock:     { alignItems:'center', minWidth:50 },
   topbarScore:       { fontSize:16, fontWeight:'800' },
   topbarVs:          { fontSize:12, fontWeight:'600' },
-  hero:              { padding:16, borderBottomWidth:0.5 },
-  teamsRow:          { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:10 },
-  teamNameLeft:      { fontSize:13, fontWeight:'500', flex:1 },
-  teamNameRight:     { fontSize:13, fontWeight:'500', flex:1, textAlign:'right' },
-  vsBlock:           { alignItems:'center', paddingHorizontal:10 },
-  vsScore:           { fontSize:24, fontWeight:'600' },
-  vsStatusLabel:     { fontSize:10, marginTop:2, fontWeight:'500' },
-  vsTime:            { fontSize:20, fontWeight:'500' },
-  vsLabel:           { fontSize:11, marginTop:2 },
+  hero:              { paddingHorizontal:16, paddingTop:14, paddingBottom:16 },
+  heroTeamRow:       { flexDirection:'row', alignItems:'flex-end', marginBottom:14 },
+  heroTeamCol:       { flex:1, alignItems:'flex-start' },
+  heroAbbr:          { fontSize:36, fontWeight:'900', color:'#fff', letterSpacing:-0.5 },
+  heroTeamNameSm:    { fontSize:10, color:'rgba(255,255,255,0.6)', marginTop:3 },
+  heroCenter:        { alignItems:'center', paddingHorizontal:6, paddingBottom:2 },
+  heroScore:         { fontSize:26, fontWeight:'800', color:'#fff' },
+  heroStatusLabel:   { fontSize:10, color:'rgba(255,255,255,0.65)', marginTop:2, fontWeight:'600' },
+  heroTime:          { fontSize:22, fontWeight:'800', color:'#fff' },
+  heroDate:          { fontSize:10, color:'rgba(255,255,255,0.55)', marginTop:3 },
   heroBadgeRow:      { flexDirection:'row', justifyContent:'center', gap:8 },
   badgeLiga:         { borderRadius:20, paddingHorizontal:10, paddingVertical:3 },
   badgeLigaText:     { fontSize:11 },
@@ -1169,6 +1208,10 @@ const styles = StyleSheet.create({
   sumBox:            { flex:1, borderRadius:8, padding:10, alignItems:'center' },
   sumVal:            { fontSize:22, fontWeight:'500' },
   sumLbl:            { fontSize:10, marginTop:2, textAlign:'center' },
+  h2hBigGrid:        { flexDirection:'row', paddingHorizontal:14, marginBottom:12 },
+  h2hBigBox:         { flex:1, alignItems:'center', paddingVertical:14 },
+  h2hBigNum:         { fontSize:52, fontWeight:'900', lineHeight:56 },
+  h2hBigAbbr:        { fontSize:11, fontWeight:'700', letterSpacing:0.5, marginTop:4 },
   h2hRow:            { flexDirection:'row', alignItems:'center', justifyContent:'space-between', paddingHorizontal:14, paddingVertical:10, borderBottomWidth:0.5 },
   h2hLeft:           { flex:1 },
   h2hDate:           { fontSize:11, marginBottom:2 },
