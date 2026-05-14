@@ -236,10 +236,23 @@ export function computeLeagueStats(standings: LeagueStanding[], isDark: boolean)
   const attackScore  = (team: LeagueStanding) => maxGfPer === minGfPer ? 10 : 1 + ((gfPer(team) - minGfPer) / (maxGfPer - minGfPer)) * 9;
   const defenseScore = (team: LeagueStanding) => maxGaPer === minGaPer ? 10 : 1 + (1 - (gaPer(team) - minGaPer) / (maxGaPer - minGaPer)) * 9;
 
-  const goalScore     = Math.min(100, Math.round((avgGoals / 3.5) * 100));
-  const tempoScore    = Math.min(100, Math.round(avgGoals * 28));
-  const compScore     = Math.max(0, Math.min(100, 100 - leaderGap * 5));
-  const surpriseScore = Math.min(100, Math.round(drawRate * 280));
+  const goalScore  = Math.min(100, Math.round((avgGoals / 3.5) * 100));
+  const tempoScore = Math.min(100, Math.round(avgGoals * 28));
+  const compScore  = Math.max(0, Math.min(100, 100 - leaderGap * 5));
+
+  // Composite surprise score — 3 components:
+  // 1. Draw rate: draws signal unpredictability          (max 25 pts)
+  // 2. Win-rate spread (std dev): lower spread = teams closer in quality = more upsets (max 45 pts)
+  // 3. Bottom-half goal threat: weak teams scoring = upsets possible (max 20 pts)
+  const winRates  = standings.map(r => r.played > 0 ? r.win / r.played : 0);
+  const avgWR     = winRates.length > 0 ? winRates.reduce((s, v) => s + v, 0) / winRates.length : 0;
+  const wrStdDev  = Math.sqrt(winRates.reduce((s, v) => s + Math.pow(v - avgWR, 2), 0) / Math.max(winRates.length, 1));
+  const drawComp  = Math.min(25, Math.round(drawRate * 93));
+  const tightComp = Math.min(45, Math.round(Math.max(0, (0.22 - wrStdDev) / 0.16) * 45));
+  const half      = Math.floor(standings.length / 2);
+  const bhAvgGf   = (() => { const bh = standings.filter(r => r.pos > half); return bh.length > 0 ? bh.reduce((s, r) => s + r.gf / Math.max(r.played, 1), 0) / bh.length : 0; })();
+  const bottomComp = Math.min(20, Math.round(Math.max(0, (bhAvgGf - 0.7) / 0.7) * 20));
+  const surpriseScore = Math.min(100, drawComp + tightComp + bottomComp);
   const mostGoals     = sortedByGfR[0] ?? null;
   const bestDef       = sortedByGaR[0] ?? null;
   const mostTempo     = [...standings].sort((a, b) => (b.gf + b.ga) / Math.max(b.played, 1) - (a.gf + a.ga) / Math.max(a.played, 1))[0] ?? null;
