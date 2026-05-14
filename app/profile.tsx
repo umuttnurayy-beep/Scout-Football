@@ -256,6 +256,7 @@ export default function ProfileScreen() {
   const [loadingTeamPicker, setLoadingTeamPicker] = useState(false);
   const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
   const [picks, setPicks] = useState<SavedPick[]>([]);
+  const initialLoadDone = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -263,25 +264,28 @@ export default function ProfileScreen() {
       (async () => {
         const history = await loadPickHistory();
         if (!cancelled) setPicks(history);
-        await resolvePickResults(async (pick) => {
-          try {
-            if (pick.isSuperLig) {
-              const event = await getSuperLigMatch(pick.id);
-              if (!event) return null;
-              const finished = ['FT', 'AET', 'PEN', 'Match Finished'].includes(event.strStatus || '');
-              if (!finished) return null;
-              const h = Number(event.intHomeScore); const a = Number(event.intAwayScore);
-              return Number.isFinite(h) && Number.isFinite(a) ? { home: h, away: a } : null;
-            } else {
-              const data = await getMatchStats(pick.id);
-              if (!data || data.status !== 'FINISHED') return null;
-              const h = data.score?.fullTime?.home; const a = data.score?.fullTime?.away;
-              return typeof h === 'number' && typeof a === 'number' ? { home: h, away: a } : null;
-            }
-          } catch { return null; }
-        });
-        const updated = await loadPickHistory();
-        if (!cancelled) setPicks(updated);
+        // Resolve results (API calls) only on first focus — skip on settings return
+        if (!initialLoadDone.current) {
+          await resolvePickResults(async (pick) => {
+            try {
+              if (pick.isSuperLig) {
+                const event = await getSuperLigMatch(pick.id);
+                if (!event) return null;
+                const finished = ['FT', 'AET', 'PEN', 'Match Finished'].includes(event.strStatus || '');
+                if (!finished) return null;
+                const h = Number(event.intHomeScore); const a = Number(event.intAwayScore);
+                return Number.isFinite(h) && Number.isFinite(a) ? { home: h, away: a } : null;
+              } else {
+                const data = await getMatchStats(pick.id);
+                if (!data || data.status !== 'FINISHED') return null;
+                const h = data.score?.fullTime?.home; const a = data.score?.fullTime?.away;
+                return typeof h === 'number' && typeof a === 'number' ? { home: h, away: a } : null;
+              }
+            } catch { return null; }
+          });
+          const updated = await loadPickHistory();
+          if (!cancelled) setPicks(updated);
+        }
       })();
       return () => { cancelled = true; };
     }, [])
@@ -289,7 +293,10 @@ export default function ProfileScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadAll();
+      if (!initialLoadDone.current) {
+        initialLoadDone.current = true;
+        loadAll();
+      }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
   );
