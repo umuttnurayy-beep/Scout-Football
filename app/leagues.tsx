@@ -169,6 +169,56 @@ function getLeagueLegend(apiId: number) {
   ];
 }
 
+function getZoneBarColor(pos: number, apiId: number): string | null {
+  if (apiId === 2) {
+    if (pos <= 8)  return TABLE_COLORS.champions;
+    if (pos <= 24) return TABLE_COLORS.europa;
+    return null;
+  }
+  if (apiId === 39) {
+    if (pos <= 5)  return TABLE_COLORS.champions;
+    if (pos === 6) return TABLE_COLORS.europa;
+    if (pos >= 18) return TABLE_COLORS.relegation;
+    return null;
+  }
+  if (apiId === 61) {
+    if (pos <= 3)   return TABLE_COLORS.champions;
+    if (pos === 4)  return TABLE_COLORS.championsQual;
+    if (pos === 5)  return TABLE_COLORS.europa;
+    if (pos === 6)  return TABLE_COLORS.conference;
+    if (pos === 16) return TABLE_COLORS.relegationPlayoff;
+    if (pos >= 17)  return TABLE_COLORS.relegation;
+    return null;
+  }
+  if (apiId === 203) {
+    if (pos === 1)  return TABLE_COLORS.champions;
+    if (pos === 2)  return TABLE_COLORS.championsQual;
+    if (pos === 3)  return TABLE_COLORS.europaQual;
+    if (pos === 4)  return TABLE_COLORS.conference;
+    if (pos >= 16)  return TABLE_COLORS.relegation;
+    return null;
+  }
+  if (apiId === 78) {
+    if (pos <= 4)   return TABLE_COLORS.champions;
+    if (pos === 5)  return TABLE_COLORS.europa;
+    if (pos === 6)  return TABLE_COLORS.conference;
+    if (pos === 16) return TABLE_COLORS.relegationPlayoff;
+    if (pos >= 17)  return TABLE_COLORS.relegation;
+    return null;
+  }
+  if (apiId === 140 || apiId === 135) {
+    if (pos <= 4)   return TABLE_COLORS.champions;
+    if (pos === 5)  return TABLE_COLORS.europa;
+    if (pos === 6)  return TABLE_COLORS.conference;
+    if (pos >= 18)  return TABLE_COLORS.relegation;
+    return null;
+  }
+  if (pos <= 4)   return TABLE_COLORS.champions;
+  if (pos === 5)  return TABLE_COLORS.europa;
+  if (pos === 6)  return TABLE_COLORS.conference;
+  return null;
+}
+
 // ── SCREEN ────────────────────────────────────────────────────
 
 export default function LeaguesScreen() {
@@ -281,6 +331,21 @@ export default function LeaguesScreen() {
     goalScore, tempoScore, compScore, surpriseScore,
     mostGoals, bestDef, mostTempo, bestWinRate, surpriseTeam, liderTags,
   } = useMemo(() => computeLeagueStats(standings, isDark), [standings, isDark]);
+
+  const teamTagMap = useMemo(() => {
+    const map = new Map<string, { label: string; bg: string; color: string }>();
+    const blue   = { bg: isDark ? 'rgba(88,166,255,0.13)' : '#E6F1FB', color: isDark ? '#58A6FF' : '#185FA5' };
+    const green  = { bg: isDark ? 'rgba(63,185,80,0.13)'  : '#E8F8F0', color: isDark ? '#3FB950' : '#27500A' };
+    const orange = { bg: isDark ? 'rgba(230,168,23,0.13)' : '#FFF3E0', color: isDark ? '#E6A817' : '#B37800' };
+    const purple = { bg: isDark ? 'rgba(139,92,246,0.13)' : '#F3E8FF', color: isDark ? '#A78BFA' : '#6D28D9' };
+    const red    = { bg: isDark ? 'rgba(248,81,73,0.13)'  : '#FFF0F0', color: isDark ? '#F85149' : '#A32D2D' };
+    if (mostGoals)                                         map.set(mostGoals.team,    { ...blue,   label: 'En golcü'        });
+    if (bestDef)                                           map.set(bestDef.team,      { ...green,  label: 'En iyi savunma'  });
+    if (mostTempo && !map.has(mostTempo.team))             map.set(mostTempo.team,    { ...orange, label: 'En tempolu'      });
+    if (bestWinRate && !map.has(bestWinRate.team))         map.set(bestWinRate.team,  { ...purple, label: 'En formda'       });
+    if (surpriseTeam && !map.has(surpriseTeam.team))       map.set(surpriseTeam.team, { ...red,    label: 'Sürpriz'         });
+    return map;
+  }, [mostGoals, bestDef, mostTempo, bestWinRate, surpriseTeam, isDark]);
 
   const trendProfiles = useMemo(() => {
     const withRates = standings.map(r => ({
@@ -703,8 +768,65 @@ export default function LeaguesScreen() {
                     </View>
                   ) : (
                     <>
+                      {/* ── İSTATİSTİK ŞERİDİ ── */}
+                      {(() => {
+                        const totalPlayed = standings.reduce((s, r) => s + r.played, 0);
+                        const totalWins   = standings.reduce((s, r) => s + r.win, 0);
+                        const winPct      = totalPlayed > 0 ? Math.round(totalWins / totalPlayed * 100) : 0;
+                        return (
+                          <View style={stStyles.standStatStrip}>
+                            {[
+                              { val: avgGoals.toFixed(2), lbl: 'Gol / Maç\nOrtalama' },
+                              { val: `${Math.round(drawRate * 100)}%`, lbl: 'Beraberlik\nOrtalama' },
+                              { val: `${winPct}%`, lbl: 'Galibiyet\nOrtalama' },
+                              { val: `${surpriseScore}%`, lbl: 'Sürpriz Sonuç\nOrtalama' },
+                            ].map(s => (
+                              <View key={s.lbl} style={[stStyles.standStatCard, { backgroundColor: c.surface }]}>
+                                <Text style={[stStyles.standStatVal, { color: c.text }]}>{s.val}</Text>
+                                <Text style={[stStyles.standStatLbl, { color: c.textMuted }]}>{s.lbl}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        );
+                      })()}
+
+                      {/* ── LİG İÇGÖRÜSÜ ── */}
+                      {(() => {
+                        const compLabel = compScore >= 70 ? 'Çok çekişmeli' : compScore >= 50 ? 'Rekabetçi' : 'Belirgin favori';
+                        const compOk    = compScore >= 50;
+                        const goalTrend = avgGoals >= 2.8 ? 'Yüksek' : avgGoals >= 2.3 ? 'Stabil' : 'Düşük';
+                        const goalOk    = avgGoals >= 2.3;
+                        const lastThreePts = standings.length >= 4 ? standings[standings.length - 3]?.pts ?? 0 : 0;
+                        const fourthLastPts = standings.length >= 4 ? standings[standings.length - 4]?.pts ?? 0 : 0;
+                        const relRisk   = lastThreePts < fourthLastPts + 6 ? 'Yüksek' : 'Orta';
+                        const relOk     = relRisk === 'Orta';
+                        const insights = [
+                          { emoji: compOk ? '📈' : '⚖️', label: 'Şampiyonluk yarışı', value: compLabel, ok: compOk },
+                          { emoji: goalOk ? '⚽' : '🔒', label: 'Gol trend',           value: goalTrend, ok: goalOk },
+                          { emoji: relOk  ? '📊' : '🔴', label: 'Küme düşme riski',    value: relRisk,   ok: relOk  },
+                        ];
+                        return (
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                            style={stStyles.insightBarScroll}
+                            contentContainerStyle={stStyles.insightBarContent}>
+                            <View style={[stStyles.insightBarBrain, { backgroundColor: c.primaryLight }]}>
+                              <Text style={{ fontSize: 16 }}>🧠</Text>
+                              <Text style={[stStyles.insightBarBrainText, { color: c.primary }]}>{'LİG\nİÇGÖRÜSÜ'}</Text>
+                            </View>
+                            {insights.map((item, idx) => (
+                              <View key={idx} style={[stStyles.insightBarItem, { backgroundColor: c.surface }]}>
+                                <Text style={{ fontSize: 13, marginBottom: 3 }}>{item.emoji}</Text>
+                                <Text style={[stStyles.insightBarLabel, { color: c.textMuted }]}>{item.label}</Text>
+                                <Text style={[stStyles.insightBarValue, { color: item.ok ? c.win : c.amber }]}>{item.value}</Text>
+                              </View>
+                            ))}
+                          </ScrollView>
+                        );
+                      })()}
+
+                      {/* ── TABLO ── */}
                       <Text style={[scoutStyles.sectionLabel, { color: c.textMuted }]}>PUAN TABLOSU</Text>
-                      <View style={[styles.tableHeader, { backgroundColor: c.surfaceAlt, borderBottomColor: c.border }]}>
+                      <View style={[styles.tableHeader, { backgroundColor: c.surfaceAlt, borderBottomColor: c.border, paddingLeft: 16 }]}>
                         <Text style={[styles.rankCell, { color: c.textMuted }]}>#</Text>
                         <Text style={[styles.teamCell, { color: c.textMuted }]}>Takım</Text>
                         <Text style={[styles.dataCell, { color: c.textMuted }]}>O</Text>
@@ -714,20 +836,32 @@ export default function LeaguesScreen() {
                         <Text style={[styles.dataCell, { color: c.textMuted }]}>AG</Text>
                         <Text style={[styles.dataCell, { color: c.primary, fontWeight: '600' }]}>P</Text>
                       </View>
-                      {standings.map((row, i) => (
-                        <View key={i} style={[styles.tableRow, i < standings.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.borderLight }]}>
-                          <View style={[styles.posBadge, getBadgeStyle(row.pos, standings.length, activeLeague.apiId)]}>
-                            <Text style={styles.posText}>{row.pos}</Text>
+                      {standings.map((row, i) => {
+                        const zoneColor = getZoneBarColor(row.pos, activeLeague.apiId);
+                        const teamTag   = teamTagMap.get(row.team);
+                        return (
+                          <View key={i} style={[stStyles.standRow, i < standings.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.borderLight }]}>
+                            <View style={[stStyles.zoneBar, { backgroundColor: zoneColor ?? 'transparent' }]} />
+                            <View style={[styles.posBadge, getBadgeStyle(row.pos, standings.length, activeLeague.apiId)]}>
+                              <Text style={styles.posText}>{row.pos}</Text>
+                            </View>
+                            <View style={stStyles.teamInfoCol}>
+                              <Text style={[stStyles.teamNameMain, { color: c.text }]} numberOfLines={1}>{row.team}</Text>
+                              {teamTag && (
+                                <View style={[stStyles.teamTagPill, { backgroundColor: teamTag.bg }]}>
+                                  <Text style={[stStyles.teamTagText, { color: teamTag.color }]} numberOfLines={1}>{teamTag.label}</Text>
+                                </View>
+                              )}
+                            </View>
+                            <Text style={[styles.dataCell, { color: c.textMuted }]}>{row.played}</Text>
+                            <Text style={[styles.dataCell, { color: c.textMuted }]}>{row.win}</Text>
+                            <Text style={[styles.dataCell, { color: c.textMuted }]}>{row.draw}</Text>
+                            <Text style={[styles.dataCell, { color: c.textMuted }]}>{row.loss}</Text>
+                            <Text style={[styles.dataCell, { color: c.textMuted }]}>{row.gf - row.ga > 0 ? `+${row.gf - row.ga}` : row.gf - row.ga}</Text>
+                            <Text style={[styles.dataCell, { color: c.primary, fontWeight: '600' }]}>{row.pts}</Text>
                           </View>
-                          <Text style={[styles.teamNameCell, { color: c.text }]} numberOfLines={1}>{row.team}</Text>
-                          <Text style={[styles.dataCell, { color: c.textMuted }]}>{row.played}</Text>
-                          <Text style={[styles.dataCell, { color: c.textMuted }]}>{row.win}</Text>
-                          <Text style={[styles.dataCell, { color: c.textMuted }]}>{row.draw}</Text>
-                          <Text style={[styles.dataCell, { color: c.textMuted }]}>{row.loss}</Text>
-                          <Text style={[styles.dataCell, { color: c.textMuted }]}>{row.gf - row.ga > 0 ? `+${row.gf - row.ga}` : row.gf - row.ga}</Text>
-                          <Text style={[styles.dataCell, { color: c.primary, fontWeight: '600' }]}>{row.pts}</Text>
-                        </View>
-                      ))}
+                        );
+                      })}
                       <View style={styles.legendBox}>
                         {getLeagueLegend(activeLeague.apiId).map(item => (
                           <View key={item.label} style={styles.legendRow}>
@@ -1099,6 +1233,23 @@ const stStyles = StyleSheet.create({
   insightBox:       { marginHorizontal: 14, marginBottom: 10, padding: 11, borderRadius: 8, borderLeftWidth: 3, alignSelf: 'stretch' },
   insightText:      { width: '100%', flexShrink: 1, flexWrap: 'wrap', fontSize: 12, lineHeight: 17, fontStyle: 'italic' },
   insightWhy:       { fontSize: 11, marginTop: 5, lineHeight: 16 },
+  standStatStrip:   { flexDirection: 'row', gap: 7, paddingHorizontal: 14, marginTop: 10, marginBottom: 6 },
+  standStatCard:    { flex: 1, padding: 9, borderRadius: 10, alignItems: 'center' },
+  standStatVal:     { fontSize: 17, fontWeight: '800', marginBottom: 2 },
+  standStatLbl:     { fontSize: 9, textAlign: 'center', lineHeight: 12 },
+  insightBarScroll: { marginBottom: 2 },
+  insightBarContent:{ paddingHorizontal: 14, gap: 8, paddingVertical: 8, flexDirection: 'row', alignItems: 'stretch' },
+  insightBarBrain:  { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10 },
+  insightBarBrainText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5, lineHeight: 13 },
+  insightBarItem:   { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10, minWidth: 110, alignItems: 'flex-start' },
+  insightBarLabel:  { fontSize: 10, marginBottom: 3 },
+  insightBarValue:  { fontSize: 12, fontWeight: '700' },
+  standRow:         { flexDirection: 'row', alignItems: 'center', paddingRight: 12, paddingVertical: 9 },
+  zoneBar:          { width: 3, alignSelf: 'stretch', marginRight: 9, borderRadius: 1.5 },
+  teamInfoCol:      { flex: 1, marginRight: 3 },
+  teamNameMain:     { fontSize: 13, fontWeight: '500' },
+  teamTagPill:      { alignSelf: 'flex-start', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 5, marginTop: 3 },
+  teamTagText:      { fontSize: 9, fontWeight: '700', letterSpacing: 0.2 },
 });
 
 const ozStyles = StyleSheet.create({
