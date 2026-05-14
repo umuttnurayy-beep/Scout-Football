@@ -1004,11 +1004,19 @@ export default function LeaguesScreen() {
                     router.push({
                       pathname: '/team_stats',
                       params: {
-                        teamId:    (row as any).teamId || (row as any).id || 0,
-                        teamName:  row.team,
+                        teamId:     (row as any).teamId || (row as any).id || 0,
+                        teamName:   row.team,
+                        leagueName: activeLeague.name,
+                        leagueFlag: activeLeague.flag,
                         fdId,
-                        apiId:     activeLeague.apiId,
-                        standings: JSON.stringify(standings),
+                        apiId:      activeLeague.apiId,
+                        played:     row.played,
+                        win:        row.win,
+                        draw:       row.draw,
+                        loss:       row.loss,
+                        gf:         row.gf,
+                        ga:         row.ga,
+                        pts:        row.pts,
                       },
                     });
                   }}>
