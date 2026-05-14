@@ -1473,6 +1473,7 @@ export default function HomeScreen() {
         id: m.id, home: m.home, away: m.away, league: m.league,
         leagueApiId: m.leagueApiId, city: m.city, utcDate: m.utcDate,
         homeTeamId: m.homeTeamId, awayTeamId: m.awayTeamId,
+        homeTla: m.homeTla || '', awayTla: m.awayTla || '',
         live: '0', score: m.score || '', finished: m.finished ? '1' : '0',
         ...metricParams,
       },

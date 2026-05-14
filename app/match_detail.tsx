@@ -49,7 +49,19 @@ import { isPickSaved, savePick, updatePickIfUnresolved } from '../utils/pickHist
 const DETAIL_SECONDARY_CACHE_PREFIX = 'match_detail_secondary_v1';
 const NEON = '#00E676';
 
-function abbrevName(name: string): string {
+const SL_TLA_BY_ID: Record<number, string> = {
+  133804: 'GS',  133807: 'FB',  133794: 'BJK', 133796: 'TS',
+  134589: 'IBB', 133797: 'SAM', 135891: 'GZT', 133885: 'RİZ',
+  133835: 'KON', 138092: 'GFK', 133870: 'KOC', 135676: 'ALA',
+  133799: 'ANT', 133798: 'GNB', 138977: 'EYP', 133802: 'KAY',
+  138983: 'FKG', 133834: 'KSP', 133800: 'SİV', 137630: 'HAT',
+  134199: 'ADS', 138094: 'ÜMR', 135534: 'PEN', 133879: 'SAK',
+  139327: 'BDR', 139328: 'ÇRK',
+};
+
+function abbrevName(name: string, tla?: string, teamId?: number): string {
+  if (teamId && SL_TLA_BY_ID[teamId]) return SL_TLA_BY_ID[teamId];
+  if (tla && tla.length > 0) return tla.toUpperCase();
   const words = name.trim().split(/\s+/);
   if (words.length === 1) return name.slice(0, 3).toUpperCase();
   return words.map(w => w[0] || '').join('').slice(0, 3).toUpperCase();
@@ -153,6 +165,8 @@ export default function MatchDetail() {
   const awayBelowPts   = parseInt(p('awayBelowPts') || '0') || undefined;
   const safetyPts      = parseInt(p('safetyPts') || '0') || undefined;
   const leagueAvgParam = parseFloat(p('leagueAvg') || '0') || 1.5;
+  const homeTlaParam   = p('homeTla');
+  const awayTlaParam   = p('awayTla');
 
   const matchDate = utcDate ? new Date(utcDate).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'}) : '';
   const matchTime = utcDate ? new Date(utcDate).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}) : '';
@@ -370,8 +384,8 @@ export default function MatchDetail() {
   const analysis   = buildMatchAnalysis(displayHomeName,displayAwayName,leagueApiId,homeStats,awayStats,homeFormPts,awayFormPts,h2hData.length,weatherRisk,hasFormData,homeTrend,awayTrend,leagueAvgParam);
   const scoutAnalysisReady = hasFormData && !secondaryLoading;
 
-  const homeAbbr = abbrevName(displayHomeName);
-  const awayAbbr = abbrevName(displayAwayName);
+  const homeAbbr = abbrevName(displayHomeName, homeTlaParam || (matchData?.homeTeam as any)?.tla, homeTeamId);
+  const awayAbbr = abbrevName(displayAwayName, awayTlaParam || (matchData?.awayTeam as any)?.tla, awayTeamId);
 
   // Auto-save pick for upcoming/live matches; update with form-data pick when ready
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -503,21 +517,14 @@ export default function MatchDetail() {
         </TouchableOpacity>
         <View style={styles.topbarMatchInfo}>
           <View style={[styles.topbarTeamBadge,{backgroundColor:c.primaryLight}]}>
-            <Text style={[styles.topbarTeamInit,{color:c.primary}]}>
-              {displayHomeName.split(' ').map((w:string)=>w[0]).join('').slice(0,2).toUpperCase()}
-            </Text>
+            <Text style={[styles.topbarTeamInit,{color:c.primary}]}>{homeAbbr}</Text>
           </View>
           <View style={styles.topbarVsBlock}>
-            {hasScore
-              ? <Text style={[styles.topbarScore,{color:c.text}]}>{displayHome} : {displayAway}</Text>
-              : <Text style={[styles.topbarVs,{color:c.textMuted}]}>vs</Text>
-            }
+            <Text style={[styles.topbarVs,{color:c.textMuted}]}>vs</Text>
             <Text style={[styles.topbarSub,{color:c.textMuted}]} numberOfLines={1}>{league}</Text>
           </View>
           <View style={[styles.topbarTeamBadge,{backgroundColor:c.surfaceAlt}]}>
-            <Text style={[styles.topbarTeamInit,{color:c.textSub}]}>
-              {displayAwayName.split(' ').map((w:string)=>w[0]).join('').slice(0,2).toUpperCase()}
-            </Text>
+            <Text style={[styles.topbarTeamInit,{color:c.textSub}]}>{awayAbbr}</Text>
           </View>
         </View>
         <View style={{width:60}}/>
