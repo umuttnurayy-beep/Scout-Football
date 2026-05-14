@@ -40,13 +40,13 @@ const leagues = [
   {
     id: 5, apiId: 61, fdId: 2015,
     name: 'Ligue 1', abbrev: 'L1', country: 'Fransa', flag: '🇫🇷',
-    badgeColor: '#0891B2', avgGoals: 2.6, tempo: 'Yüksek',
+    badgeColor: '#0891B2', avgGoals: 2.9, tempo: 'Yüksek',
     desc: 'Dinamik oyun, sürpriz sonuçlar sık görülür',
   },
   {
     id: 6, apiId: 2, fdId: 2001,
     name: 'UCL', abbrev: 'CL', country: 'Avrupa', flag: '🌍',
-    badgeColor: '#B45309', avgGoals: 2.7, tempo: 'Yüksek',
+    badgeColor: '#B45309', avgGoals: 2.9, tempo: 'Yüksek',
     desc: "Avrupa'nın elit kulüpleri, eleme formatı",
   },
   {
