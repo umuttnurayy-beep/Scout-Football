@@ -64,6 +64,7 @@ const ZONE_COLORS = {
   champions: '#185FA5',
   europa: '#E6A817',
   conference: '#27AE60',
+  conferencePlayoff: '#1A7A4A',
   relegation: '#C0392B',
 };
 
@@ -74,27 +75,28 @@ function posZoneColor(pos: number, apiId: number): string | null {
     return null;
   }
   if (apiId === 39) {
-    if (pos <= 4) return ZONE_COLORS.champions;
-    if (pos === 5) return ZONE_COLORS.europa;
+    if (pos <= 5) return ZONE_COLORS.champions;
+    if (pos === 6) return ZONE_COLORS.europa;
+    if (pos === 7) return ZONE_COLORS.conferencePlayoff;
     if (pos >= 18) return ZONE_COLORS.relegation;
     return null;
   }
   if (apiId === 78) {
-    if (pos <= 4) return ZONE_COLORS.champions;
-    if (pos === 5) return ZONE_COLORS.europa;
-    if (pos === 6) return ZONE_COLORS.conference;
-    if (pos >= 17) return ZONE_COLORS.relegation;
+    if (pos <= 4)              return ZONE_COLORS.champions;
+    if (pos === 5 || pos === 6) return ZONE_COLORS.europa;
+    if (pos === 7)             return ZONE_COLORS.conference;
+    if (pos >= 17)             return ZONE_COLORS.relegation;
     return null;
   }
   if (apiId === 140 || apiId === 135) {
-    if (pos <= 4) return ZONE_COLORS.champions;
-    if (pos === 5) return ZONE_COLORS.europa;
-    if (pos === 6) return ZONE_COLORS.conference;
+    if (pos <= 5)  return ZONE_COLORS.champions;
+    if (pos === 6) return ZONE_COLORS.europa;
+    if (pos === 7) return ZONE_COLORS.conference;
     if (pos >= 18) return ZONE_COLORS.relegation;
     return null;
   }
   if (apiId === 61) {
-    if (pos <= 3) return ZONE_COLORS.champions;
+    if (pos <= 3)  return ZONE_COLORS.champions;
     if (pos === 5) return ZONE_COLORS.europa;
     if (pos === 6) return ZONE_COLORS.conference;
     if (pos >= 17) return ZONE_COLORS.relegation;

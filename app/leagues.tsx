@@ -66,6 +66,7 @@ const TABLE_COLORS = {
   europa: '#E6A817',
   europaQual: '#F97316',
   conference: '#27AE60',
+  conferencePlayoff: '#1A7A4A',
   relegationPlayoff: '#8E1B13',
   relegation: '#C0392B',
 };
@@ -79,6 +80,7 @@ function getBadgeStyle(pos: number, total: number, apiId: number) {
   if (apiId === 39) {
     if (pos <= 5) return styles.posTop;
     if (pos === 6) return styles.posMid;
+    if (pos === 7) return styles.posConfPlayoff;
     if (pos >= 18) return styles.posRel;
     return styles.posNormal;
   }
@@ -101,16 +103,16 @@ function getBadgeStyle(pos: number, total: number, apiId: number) {
   }
   if (apiId === 78) {
     if (pos <= 4) return styles.posTop;
-    if (pos === 5) return styles.posMid;
-    if (pos === 6) return styles.posConf;
+    if (pos === 5 || pos === 6) return styles.posMid;
+    if (pos === 7) return styles.posConf;
     if (pos === 16) return styles.posRelPlayoff;
     if (pos >= 17) return styles.posRel;
     return styles.posNormal;
   }
   if (apiId === 140 || apiId === 135) {
-    if (pos <= 4) return styles.posTop;
-    if (pos === 5) return styles.posMid;
-    if (pos === 6) return styles.posConf;
+    if (pos <= 5) return styles.posTop;
+    if (pos === 6) return styles.posMid;
+    if (pos === 7) return styles.posConf;
     if (pos >= 18) return styles.posRel;
     return styles.posNormal;
   }
@@ -131,6 +133,7 @@ function getLeagueLegend(apiId: number) {
     return [
       { color: TABLE_COLORS.champions, label: 'Şampiyonlar Ligi' },
       { color: TABLE_COLORS.europa, label: 'Avrupa Ligi' },
+      { color: TABLE_COLORS.conferencePlayoff, label: 'Konferans Ligi Play-off' },
       { color: TABLE_COLORS.relegation, label: 'Küme Düşme' },
     ];
   }
@@ -162,9 +165,18 @@ function getLeagueLegend(apiId: number) {
       { color: TABLE_COLORS.relegation, label: 'Küme Düşme' },
     ];
   }
+  if (apiId === 140 || apiId === 135) {
+    return [
+      { color: TABLE_COLORS.champions, label: 'Şampiyonlar Ligi' },
+      { color: TABLE_COLORS.europa, label: 'Avrupa Ligi' },
+      { color: TABLE_COLORS.conference, label: 'Konferans Ligi Eleme' },
+      { color: TABLE_COLORS.relegation, label: 'Küme Düşme' },
+    ];
+  }
   return [
     { color: TABLE_COLORS.champions, label: 'Şampiyonlar Ligi' },
     { color: TABLE_COLORS.europa, label: 'Avrupa Ligi' },
+    { color: TABLE_COLORS.conferencePlayoff, label: 'Konferans Ligi Play-off' },
     { color: TABLE_COLORS.conference, label: 'Konferans Ligi Eleme' },
     { color: TABLE_COLORS.relegation, label: 'Küme Düşme' },
   ];
@@ -211,6 +223,7 @@ function getZoneBarColor(pos: number, apiId: number): string | null {
   if (apiId === 39) {
     if (pos <= 5)  return TABLE_COLORS.champions;
     if (pos === 6) return TABLE_COLORS.europa;
+    if (pos === 7) return TABLE_COLORS.conferencePlayoff;
     if (pos >= 18) return TABLE_COLORS.relegation;
     return null;
   }
@@ -232,18 +245,18 @@ function getZoneBarColor(pos: number, apiId: number): string | null {
     return null;
   }
   if (apiId === 78) {
-    if (pos <= 4)   return TABLE_COLORS.champions;
-    if (pos === 5)  return TABLE_COLORS.europa;
-    if (pos === 6)  return TABLE_COLORS.conference;
-    if (pos === 16) return TABLE_COLORS.relegationPlayoff;
-    if (pos >= 17)  return TABLE_COLORS.relegation;
+    if (pos <= 4)              return TABLE_COLORS.champions;
+    if (pos === 5 || pos === 6) return TABLE_COLORS.europa;
+    if (pos === 7)             return TABLE_COLORS.conference;
+    if (pos === 16)            return TABLE_COLORS.relegationPlayoff;
+    if (pos >= 17)             return TABLE_COLORS.relegation;
     return null;
   }
   if (apiId === 140 || apiId === 135) {
-    if (pos <= 4)   return TABLE_COLORS.champions;
-    if (pos === 5)  return TABLE_COLORS.europa;
-    if (pos === 6)  return TABLE_COLORS.conference;
-    if (pos >= 18)  return TABLE_COLORS.relegation;
+    if (pos <= 5)  return TABLE_COLORS.champions;
+    if (pos === 6) return TABLE_COLORS.europa;
+    if (pos === 7) return TABLE_COLORS.conference;
+    if (pos >= 18) return TABLE_COLORS.relegation;
     return null;
   }
   if (pos <= 4)   return TABLE_COLORS.champions;
@@ -1334,6 +1347,7 @@ const styles = StyleSheet.create({
   posMid:              { backgroundColor: TABLE_COLORS.europa },
   posEuropaQual:       { backgroundColor: TABLE_COLORS.europaQual },
   posConf:             { backgroundColor: TABLE_COLORS.conference },
+  posConfPlayoff:      { backgroundColor: TABLE_COLORS.conferencePlayoff },
   posRelPlayoff:       { backgroundColor: TABLE_COLORS.relegationPlayoff },
   posRel:              { backgroundColor: TABLE_COLORS.relegation },
   posNormal:           { backgroundColor: '#888' },
