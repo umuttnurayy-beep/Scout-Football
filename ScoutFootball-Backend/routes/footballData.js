@@ -55,7 +55,7 @@ function createFootballDataRouter({
     if (!FOOTBALL_DATA_KEY) return missingConfig(res, 'FOOTBALL_DATA_KEY', null);
 
     const isFinished = req.query.finished === '1';
-    const cacheKey = `match_context_v2_${matchId}_${isFinished ? 'finished' : 'active'}`;
+    const cacheKey = `match_context_v3_${matchId}_${isFinished ? 'finished' : 'active'}`;
     const cached = await getCache(cacheKey);
     if (cached && hasCompleteContextForm(cached)) return res.json({ ok: true, data: cached });
 
@@ -75,14 +75,21 @@ function createFootballDataRouter({
       const homeForm = homeFormR.status === 'fulfilled' ? homeFormR.value : [];
       const awayForm = awayFormR.status === 'fulfilled' ? awayFormR.value : [];
       let h2h = h2hR.status === 'fulfilled' ? h2hR.value : [];
-      if (h2h.length === 0 && homeForm.length > 0 && awayForm.length > 0) {
-        h2h = deriveH2HFromTeamMatches({
+      if (homeForm.length > 0 && awayForm.length > 0) {
+        const derived = deriveH2HFromTeamMatches({
           homeForm,
           awayForm,
           homeTeam: match.homeTeam,
           awayTeam: match.awayTeam,
           currentMatchId: match.id || matchId,
         });
+        if (h2h.length < 5 && derived.length > 0) {
+          const seenIds = new Set(h2h.map(m => String(m.id)));
+          const extra = derived.filter(m => !seenIds.has(String(m.id)));
+          h2h = [...h2h, ...extra]
+            .sort((a, b) => new Date(b.utcDate || 0) - new Date(a.utcDate || 0))
+            .slice(0, 10);
+        }
       }
 
       const issues = [];
@@ -126,25 +133,34 @@ function createFootballDataRouter({
     const isFinished = req.query.finished === '1';
     const cacheKey = `h2h_${matchId}`;
     try {
-      const h2h = await fetchFootballDataH2H(matchId, isFinished);
-      if (Array.isArray(h2h) && h2h.length > 0) return res.json(h2h);
+      let h2h = await fetchFootballDataH2H(matchId, isFinished);
+      if (!Array.isArray(h2h)) h2h = [];
 
       const match = await fetchFootballDataMatch(matchId);
-      if (!match) return res.json([]);
+      if (!match) return res.json(h2h);
       const homeTeamId = match.homeTeam?.id || 0;
       const awayTeamId = match.awayTeam?.id || 0;
       const [homeFormR, awayFormR] = await Promise.allSettled([
         homeTeamId ? fetchFootballDataTeamMatches(homeTeamId) : Promise.resolve([]),
         awayTeamId ? fetchFootballDataTeamMatches(awayTeamId) : Promise.resolve([]),
       ]);
-      const fallback = deriveH2HFromTeamMatches({
-        homeForm: homeFormR.status === 'fulfilled' ? homeFormR.value : [],
-        awayForm: awayFormR.status === 'fulfilled' ? awayFormR.value : [],
-        homeTeam: match.homeTeam,
-        awayTeam: match.awayTeam,
-        currentMatchId: match.id || matchId,
-      });
-      return res.json(fallback);
+      const homeForm = homeFormR.status === 'fulfilled' ? homeFormR.value : [];
+      const awayForm = awayFormR.status === 'fulfilled' ? awayFormR.value : [];
+      if (homeForm.length > 0 && awayForm.length > 0) {
+        const derived = deriveH2HFromTeamMatches({
+          homeForm, awayForm,
+          homeTeam: match.homeTeam, awayTeam: match.awayTeam,
+          currentMatchId: match.id || matchId,
+        });
+        if (h2h.length < 5 && derived.length > 0) {
+          const seenIds = new Set(h2h.map(m => String(m.id)));
+          const extra = derived.filter(m => !seenIds.has(String(m.id)));
+          h2h = [...h2h, ...extra]
+            .sort((a, b) => new Date(b.utcDate || 0) - new Date(a.utcDate || 0))
+            .slice(0, 10);
+        }
+      }
+      return res.json(h2h);
     } catch (e) {
       return apiStaleOrError(res, cacheKey, 502, 'upstream_error', e.message, []);
     }
