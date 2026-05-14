@@ -57,7 +57,20 @@ function normalizeAllSportsStats(value: AllSportsTeamStats | null): AllSportsTea
   };
 }
 
-function teamAbbrev(name: string): string {
+const SL_TLA: Record<string, string> = {
+  'Galatasaray': 'GS', 'Fenerbahçe': 'FB', 'Beşiktaş': 'BJK', 'Trabzonspor': 'TS',
+  'Başakşehir': 'IBB', 'Samsunspor': 'SAM', 'Göztepe': 'GZT', 'Çaykur Rizespor': 'RİZ',
+  'Konyaspor': 'KON', 'Gaziantep FK': 'GFK', 'Kocaelispor': 'KOC', 'Alanyaspor': 'ALA',
+  'Antalyaspor': 'ANT', 'Gençlerbirliği': 'GNB', 'Eyüpspor': 'EYP', 'Kayserispor': 'KAY',
+  'Fatih Karagümrük': 'FKG', 'Kasımpaşa': 'KSP', 'Sivasspor': 'SİV', 'Hatayspor': 'HAT',
+  'Adana Demirspor': 'ADS', 'İstanbul Başakşehir': 'IBB', 'Pendikspor': 'PEN',
+  'Ankaragücü': 'ANK', 'Ümraniyespor': 'ÜMR', 'Giresunspor': 'GİR',
+};
+
+function teamAbbrev(name: string, tla?: string): string {
+  if (tla && tla.length > 0) return tla.toUpperCase();
+  const sl = SL_TLA[name];
+  if (sl) return sl;
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (words.length === 1) return name.slice(0, 3).toUpperCase();
   return words.map(w => w[0] || '').join('').slice(0, 3).toUpperCase();
@@ -165,6 +178,7 @@ export default function TeamStatsScreen() {
   const ga         = routeInt(params, 'ga');
   const pts        = routeInt(params, 'pts');
   const passedScoutRating = routeFloat(params, 'scoutRating');
+  const passedTla         = routeString(params, 'tla');
 
   const [recentForm,  setRecentForm]  = useState<string[]>([]);
   const [seasonStats, setSeasonStats] = useState<SeasonStats | null>(null);
@@ -179,7 +193,7 @@ export default function TeamStatsScreen() {
 
   const averaj = gf - ga;
   const winPct = played > 0 ? Math.round((win / played) * 100) : 0;
-  const abbrev = teamAbbrev(teamName);
+  const abbrev = teamAbbrev(teamName, passedTla || undefined);
 
   const isSportsDbLeague = apiId === 203;
   const displayForm = isSportsDbLeague ? slForm : recentForm;

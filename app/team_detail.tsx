@@ -15,7 +15,20 @@ function teamListCacheKey(apiId: number) {
   return `team_list_standings_v1_${apiId}`;
 }
 
-function teamAbbrev(name: string): string {
+const SL_TLA: Record<string, string> = {
+  'Galatasaray': 'GS', 'Fenerbahçe': 'FB', 'Beşiktaş': 'BJK', 'Trabzonspor': 'TS',
+  'Başakşehir': 'IBB', 'Samsunspor': 'SAM', 'Göztepe': 'GZT', 'Çaykur Rizespor': 'RİZ',
+  'Konyaspor': 'KON', 'Gaziantep FK': 'GFK', 'Kocaelispor': 'KOC', 'Alanyaspor': 'ALA',
+  'Antalyaspor': 'ANT', 'Gençlerbirliği': 'GNB', 'Eyüpspor': 'EYP', 'Kayserispor': 'KAY',
+  'Fatih Karagümrük': 'FKG', 'Kasımpaşa': 'KSP', 'Sivasspor': 'SİV', 'Hatayspor': 'HAT',
+  'Adana Demirspor': 'ADS', 'İstanbul Başakşehir': 'IBB', 'Pendikspor': 'PEN',
+  'Ankaragücü': 'ANK', 'Ümraniyespor': 'ÜMR', 'Giresunspor': 'GİR',
+};
+
+function teamAbbrev(name: string, tla?: string): string {
+  if (tla && tla.length > 0) return tla.toUpperCase();
+  const sl = SL_TLA[name];
+  if (sl) return sl;
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (words.length === 1) return name.slice(0, 3).toUpperCase();
   return words.map(w => w[0] || '').join('').slice(0, 3).toUpperCase();
@@ -267,7 +280,7 @@ export default function TeamDetailScreen() {
               Eşleşen takım bulunamadı
             </Text>
           ) : sortedTeams.map((team, i) => {
-            const abbrev = teamAbbrev(team.team);
+            const abbrev = teamAbbrev(team.team, team.tla);
             const sr = scoutRating(team, teams);
             const zoneColor = posZoneColor(team.pos, apiId);
             const avgGf = team.played > 0 ? (team.gf / team.played).toFixed(2) : '—';
@@ -294,6 +307,7 @@ export default function TeamDetailScreen() {
                     ga: team.ga,
                     pts: team.pts,
                     scoutRating: sr.toFixed(1),
+                    tla: abbrev,
                   },
                 })}
               >

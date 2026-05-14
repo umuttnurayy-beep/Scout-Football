@@ -181,6 +181,7 @@ export type Standing = {
   pos: number;
   team: string;
   teamId: number;
+  tla?: string;
   played: number;
   win: number;
   draw: number;

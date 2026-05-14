@@ -47,6 +47,7 @@ function createFootballDataService({
         pos:    item.position,
         team:   item.team.name,
         teamId: item.team.id,
+        tla:    item.team.tla || item.team.shortName || '',
         crest:  item.team.crest,
         played: item.playedGames,
         win:    item.won,

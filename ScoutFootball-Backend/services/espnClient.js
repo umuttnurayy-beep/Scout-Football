@@ -112,6 +112,7 @@ function createEspnClient({ upstream, currentSeason }) {
         pos:    idx + 1,
         team:   entry.team?.displayName || entry.team?.name || '?',
         teamId: 0,
+        tla:    entry.team?.abbreviation || '',
         played: sm.gamesPlayed   || 0,
         win:    sm.wins          || 0,
         draw:   sm.ties          || 0,

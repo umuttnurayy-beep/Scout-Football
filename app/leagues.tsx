@@ -1029,6 +1029,7 @@ export default function LeaguesScreen() {
                         ga:          row.ga,
                         pts:         row.pts,
                         scoutRating: ((atkS + defS) / 2).toFixed(1),
+                        tla:         (row as any).tla || '',
                       },
                     });
                   }}>
