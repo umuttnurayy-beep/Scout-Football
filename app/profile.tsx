@@ -63,10 +63,34 @@ function watchlistFormTag(form: string[], isDark: boolean): { label: string; col
   return { label: 'Dengeli', color: isDark ? '#79AAFF' : '#0C447C', bg: isDark ? '#0A1929' : '#E6F1FB' };
 }
 
+const TEAM_TLA: Record<string, string> = {
+  'Galatasaray': 'GS', 'Fenerbahçe': 'FB', 'Beşiktaş': 'BJK', 'Trabzonspor': 'TS',
+  'Başakşehir': 'BŞK', 'Samsunspor': 'SAM', 'Göztepe': 'GZP', 'Çaykur Rizespor': 'RİZ',
+  'Konyaspor': 'KON', 'Gaziantep FK': 'GAZ', 'Kocaelispor': 'KOC', 'Alanyaspor': 'ALA',
+  'Antalyaspor': 'ANT', 'Gençlerbirliği': 'GNB', 'Eyüpspor': 'EYP', 'Kayserispor': 'KAY',
+  'Fatih Karagümrük': 'KGM', 'Kasımpaşa': 'KSP',
+  'Arsenal': 'ARS', 'Aston Villa': 'AVL', 'Chelsea': 'CHE', 'Everton': 'EVE',
+  'Liverpool': 'LIV', 'Manchester City': 'MCI', 'Manchester United': 'MUN',
+  'Newcastle': 'NEW', 'Tottenham': 'TOT', 'West Ham': 'WHU',
+  'Real Madrid': 'RMA', 'Barcelona': 'BAR', 'Atlético Madrid': 'ATM',
+  'Sevilla': 'SEV', 'Valencia': 'VAL', 'Villarreal': 'VIL',
+  'Bayern Münih': 'BAY', 'Borussia Dortmund': 'BVB', 'Bayer Leverkusen': 'LEV',
+  'RB Leipzig': 'RBL', 'Eintracht Frankfurt': 'SGE',
+  'AC Milan': 'MIL', 'Inter Milan': 'INT', 'Juventus': 'JUV', 'Napoli': 'NAP',
+  'Roma': 'ROM', 'Atalanta': 'ATA', 'Fiorentina': 'FIO', 'Lazio': 'LAZ',
+  'Paris Saint-Germain': 'PSG', 'Monaco': 'MON', 'Olympique Marseille': 'OM',
+  'Lyon': 'OL', 'Lille': 'LIL',
+};
+
 function teamAbbrev(name: string): string {
+  for (const key of Object.keys(TEAM_TLA)) {
+    if (name.toLowerCase().includes(key.toLowerCase()) || key.toLowerCase().includes(name.toLowerCase())) {
+      return TEAM_TLA[key];
+    }
+  }
   const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 1) return name.slice(0, 2).toUpperCase();
-  return words.map(w => w[0] || '').join('').slice(0, 2).toUpperCase();
+  if (words.length === 1) return name.slice(0, 3).toUpperCase();
+  return words.map(w => w[0] || '').join('').slice(0, 3).toUpperCase();
 }
 
 const INSIGHT_LEAGUE_MAP: Record<string, string> = {
