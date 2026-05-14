@@ -156,11 +156,11 @@ function HeroCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
       {metrics.hasData && (
         <View style={sc.heroBadgeRow}>
           <View style={sc.heroBadge}>
-            <Text style={sc.heroBadgeNum}>{metrics.expectedGoals.toFixed(1)}</Text>
-            <Text style={sc.heroBadgeLbl}>xG</Text>
+            <Text style={sc.heroBadgeNum}>~{metrics.expectedGoals.toFixed(1)}</Text>
+            <Text style={sc.heroBadgeLbl}>Gol</Text>
           </View>
           <View style={sc.heroBadge}>
-            <Text style={sc.heroBadgeLabel}>{expectedLine(metrics)}</Text>
+            <Text style={sc.heroBadgeLabel}>{levelFromExpectedGoals(metrics.expectedGoals)} Tempo</Text>
           </View>
           <View style={[sc.heroBadge, { flex: 1, justifyContent: 'center' }]}>
             <Text style={sc.heroBadgeLabel} numberOfLines={1}>{cardAnalysis.headline}</Text>
@@ -544,8 +544,8 @@ function MiniHighlightCard({ m, metrics, onPress }: {
       </View>
       {metrics.hasData ? (
         <View style={[sc.miniHlMetricRow, { borderTopColor: c.borderLight }]}>
-          <Text style={[sc.miniHlMetricMain, { color: c.primary }]} numberOfLines={1}>{expectedLine(metrics)}</Text>
-          <Text style={[sc.miniHlMetricSub, { color: c.textSub }]}>xG {metrics.expectedGoals.toFixed(1)}</Text>
+          <Text style={[sc.miniHlMetricMain, { color: c.primary }]} numberOfLines={1}>{cardAnalysis.headline}</Text>
+          <Text style={[sc.miniHlMetricSub, { color: c.textSub }]}>~{metrics.expectedGoals.toFixed(1)} Gol</Text>
         </View>
       ) : (
         <Text style={[sc.miniHlMetricSub, { color: c.textFaint, marginTop: 8 }]} numberOfLines={2}>{cardAnalysis.summary}</Text>
@@ -609,11 +609,9 @@ function MatchRow({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
       </View>
       {metrics.hasData ? (
         <View style={sc.matchMetricPills}>
-          <Text style={[sc.matchPill, { color: c.textSub }]}>xG <Text style={{ color: c.text, fontWeight: '700' }}>{metrics.expectedGoals.toFixed(1)}</Text></Text>
-          <Text style={[sc.matchPillDiv, { color: c.borderLight }]}>|</Text>
-          <Text style={[sc.matchPill, { color: c.primary, fontWeight: '600' }]}>{expectedLine(metrics)}</Text>
-          <Text style={[sc.matchPillDiv, { color: c.borderLight }]}>|</Text>
-          <Text style={[sc.matchPill, { color: c.textSub }]} numberOfLines={1}>{cardAnalysis.headline}</Text>
+          <Text style={[sc.matchPill, { color: c.textSub }]}>~<Text style={{ color: c.text, fontWeight: '700' }}>{metrics.expectedGoals.toFixed(1)}</Text> Gol</Text>
+          <Text style={[sc.matchPillDiv, { color: c.borderLight }]}>·</Text>
+          <Text style={[sc.matchPill, { color: c.primary, fontWeight: '600' }]} numberOfLines={1}>{cardAnalysis.headline}</Text>
         </View>
       ) : (
         <Text style={[sc.matchMetricLineMuted, { color: c.textFaint }]}>{metrics.reason}</Text>
