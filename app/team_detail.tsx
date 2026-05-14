@@ -12,7 +12,7 @@ import { isArrayOf, readTimedCache, writeTimedCache } from '../utils/timedCache'
 const TEAM_LIST_STANDINGS_TTL = 60 * 60 * 1000;
 
 function teamListCacheKey(apiId: number) {
-  return `team_list_standings_v1_${apiId}`;
+  return `team_list_standings_v2_${apiId}`;
 }
 
 const SL_TLA: Record<string, string> = {

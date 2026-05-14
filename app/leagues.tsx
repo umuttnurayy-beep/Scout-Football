@@ -38,7 +38,7 @@ const configuredLeagues = leagues.map(league => ({
 const LEAGUE_STANDINGS_TTL = 60 * 60 * 1000;
 
 function standingsCacheKey(apiId: number) {
-  return `league_standings_v1_${apiId}`;
+  return `league_standings_v2_${apiId}`;
 }
 
 const UCL_STAGES = [

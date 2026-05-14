@@ -408,7 +408,7 @@ function createSuperLigService({
   }
 
   async function fetchStandings() {
-    const cacheKey = 'superlig_standings_v3';
+    const cacheKey = 'superlig_standings_v4';
     const cached = await getCache(cacheKey);
     if (cached) return cached;
 
@@ -428,6 +428,7 @@ function createSuperLigService({
           pos:    Math.round(stats.rank    || 0),
           team:   espnName,
           teamId: sportsDbTeamIdForName(espnName),
+          tla:    e.team?.abbreviation || '',
           played: Math.round(stats.gamesPlayed || 0),
           win:    Math.round(stats.wins    || 0),
           draw:   Math.round(stats.ties    || 0),

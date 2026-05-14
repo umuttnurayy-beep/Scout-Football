@@ -29,7 +29,7 @@ function createFootballDataRouter({
   router.get('/standings/:leagueId', async (req, res) => {
     const { leagueId } = req.params;
     if (!FOOTBALL_DATA_KEY) return missingConfig(res, 'FOOTBALL_DATA_KEY', []);
-    const cacheKey = `standings_v3_${leagueId}`;
+    const cacheKey = `standings_v4_${leagueId}`;
     try {
       return res.json(await fetchStandingsForLeague(leagueId));
     } catch (e) {

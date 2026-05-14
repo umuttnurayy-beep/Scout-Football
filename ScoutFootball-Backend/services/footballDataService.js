@@ -29,7 +29,7 @@ function createFootballDataService({
 
   async function fetchStandingsForLeague(leagueId) {
     if (!footballDataKey) return [];
-    const cacheKey = `standings_v3_${leagueId}`;
+    const cacheKey = `standings_v4_${leagueId}`;
     const cached = await getCache(cacheKey);
     if (cached) return cached;
 
