@@ -71,7 +71,19 @@ const LEAGUE_BADGE_COLOR: Record<number, string> = {
   203:  '#dc2626',
 };
 
-function teamAbbrev(name: string): string {
+const SL_TLA_BY_ID: Record<number, string> = {
+  133804: 'GS',  133807: 'FB',  133794: 'BJK', 133796: 'TS',
+  134589: 'IBB', 133797: 'SAM', 135891: 'GZT', 133885: 'RİZ',
+  133835: 'KON', 138092: 'GFK', 133870: 'KOC', 135676: 'ALA',
+  133799: 'ANT', 133798: 'GNB', 138977: 'EYP', 133802: 'KAY',
+  138983: 'FKG', 133834: 'KSP', 133800: 'SİV', 137630: 'HAT',
+  134199: 'ADS', 138094: 'ÜMR', 135534: 'PEN', 133879: 'SAK',
+  139327: 'BDR', 139328: 'ÇRK',
+};
+
+function teamAbbrev(name: string, tla?: string, teamId?: number): string {
+  if (teamId && SL_TLA_BY_ID[teamId]) return SL_TLA_BY_ID[teamId];
+  if (tla && tla.length > 0) return tla.toUpperCase();
   const words = name.trim().split(/\s+/);
   if (words.length === 1) return name.slice(0, 3).toUpperCase();
   return words.map(w => w[0] || '').join('').slice(0, 3).toUpperCase();
@@ -122,8 +134,8 @@ function HeroCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
   const { colors: c, isDark } = useTheme();
   const cardAnalysis = buildHomeCardAnalysis(m, metrics);
   const hasScore = m.finished && m.score;
-  const homeAbbr = teamAbbrev(m.home);
-  const awayAbbr = teamAbbrev(m.away);
+  const homeAbbr = teamAbbrev(m.home, m.homeTla, m.homeTeamId);
+  const awayAbbr = teamAbbrev(m.away, m.awayTla, m.awayTeamId);
   return (
     <TouchableOpacity style={[sc.heroCard, { backgroundColor: c.primaryDark }, cardShadow(isDark)]} onPress={onPress} activeOpacity={0.85}>
       <View style={sc.heroTop}>
@@ -527,8 +539,8 @@ function MiniHighlightCard({ m, metrics, onPress }: {
   const { colors: c, isDark } = useTheme();
   const cardAnalysis = buildHomeCardAnalysis(m, metrics);
   const hasScore = m.finished && m.score;
-  const homeAbbr = teamAbbrev(m.home);
-  const awayAbbr = teamAbbrev(m.away);
+  const homeAbbr = teamAbbrev(m.home, m.homeTla, m.homeTeamId);
+  const awayAbbr = teamAbbrev(m.away, m.awayTla, m.awayTeamId);
   const lgColor = LEAGUE_BADGE_COLOR[m.leagueApiId] ?? c.primary;
   return (
     <TouchableOpacity style={[sc.miniHlCard, { backgroundColor: c.surface }, cardShadow(isDark)]} onPress={onPress} activeOpacity={0.85}>
@@ -586,8 +598,8 @@ function MatchRow({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
   const { colors: c, isDark } = useTheme();
   const hasScore = m.finished && m.score;
   const cardAnalysis = buildHomeCardAnalysis(m, metrics);
-  const homeAbbr = teamAbbrev(m.home);
-  const awayAbbr = teamAbbrev(m.away);
+  const homeAbbr = teamAbbrev(m.home, m.homeTla, m.homeTeamId);
+  const awayAbbr = teamAbbrev(m.away, m.awayTla, m.awayTeamId);
   const lgColor = LEAGUE_BADGE_COLOR[m.leagueApiId] ?? c.primary;
   return (
     <TouchableOpacity style={[sc.matchCard, { backgroundColor: c.surface }, cardShadow(isDark)]} onPress={onPress} activeOpacity={0.8}>

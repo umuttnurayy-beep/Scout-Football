@@ -75,6 +75,7 @@ export const MIN_PLAYED = 3;
 export type Match = {
   id: number; leagueApiId: number; league: string;
   home: string; away: string; time: string;
+  homeTla?: string; awayTla?: string;
   date?: string;
   score: string | null; finished: boolean;
   city: string | null; utcDate: string;
@@ -462,6 +463,8 @@ export function mapMatch(m: FDMatch): Match {
     league:      LEAGUE_NAMES[m.competition?.id ?? 0] || m.competition?.name || 'Diğer',
     home:        displayTeamName(m.homeTeam?.shortName || m.homeTeam?.name || ''),
     away:        displayTeamName(m.awayTeam?.shortName || m.awayTeam?.name || ''),
+    homeTla:     (m.homeTeam as any)?.tla || undefined,
+    awayTla:     (m.awayTeam as any)?.tla || undefined,
     time:        formatTime(m.utcDate),
     score:       finished && fh !== null && fh !== undefined ? `${fh} - ${fa}` : null,
     finished,
