@@ -319,6 +319,8 @@ export default function SLMatchDetail() {
   const eventId    = p('eventId');
   const home       = p('home');
   const away       = p('away');
+  const homeAbbr   = (() => { const ws = home.trim().split(/\s+/); return ws.length === 1 ? home.slice(0,3).toUpperCase() : ws.map(w=>w[0]||'').join('').slice(0,3).toUpperCase(); })();
+  const awayAbbr   = (() => { const ws = away.trim().split(/\s+/); return ws.length === 1 ? away.slice(0,3).toUpperCase() : ws.map(w=>w[0]||'').join('').slice(0,3).toUpperCase(); })();
   const leagueName = p('league') || 'Süper Lig';
   const leagueApiId = parseInt(p('leagueApiId') || '203') || 203;
   const homeTeamId = parseInt(p('homeTeamId') || '0');
@@ -608,9 +610,9 @@ export default function SLMatchDetail() {
     </View>
   );
 
-  const scoutCardBg    = isDark ? '#1A1228' : '#f4f0ff';
-  const scoutBorderCol = isDark ? '#2D2040' : '#ddd6ff';
-  const scoutPurple    = isDark ? '#C19BFF' : '#5b2d8e';
+  const scoutCardBg    = c.surface;
+  const scoutBorderCol = c.border;
+  const scoutPurple    = c.primary;
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
@@ -647,15 +649,17 @@ export default function SLMatchDetail() {
 
       {/* ── Hero ── */}
       <View style={[styles.hero, { borderBottomColor: c.border, backgroundColor: c.surface }]}>
-        <View style={styles.teamsRow}>
-          <Text style={[styles.teamNameLeft, { color: c.text }]}  numberOfLines={1}>{home}</Text>
-          <View style={styles.vsBlock}>
+        <View style={styles.heroTeamRow}>
+          <View style={styles.heroTeamCol}>
+            <Text style={[styles.heroAbbr, {color:c.primary}]}>{homeAbbr}</Text>
+            <Text style={[styles.heroTeamNameSm, {color:c.textMuted}]} numberOfLines={1}>{home}</Text>
+          </View>
+          <View style={styles.heroCenter}>
             {shouldShowScore ? (
               <>
                 <Text style={[styles.vsScore, { color: c.text }]}>{displayHomeScore} : {displayAwayScore}</Text>
                 {shouldShowFinished&&<Text style={[styles.vsStatusLabel, { color: c.textMuted }]}>MS</Text>}
                 {isLive&&<Text style={[styles.vsStatusLabel,{color:c.loss}]}>CANLI</Text>}
-                {!shouldShowFinished&&!isLive&&<Text style={[styles.vsStatusLabel, { color: c.textMuted }]}>devam ediyor</Text>}
               </>
             ) : (
               <Text style={[styles.vsTime, { color: c.text }]}>{timeParam || '–'}</Text>
@@ -666,10 +670,13 @@ export default function SLMatchDetail() {
               <Text style={[styles.vsLabel, { color: c.textMuted }]}>{round}</Text>
             ) : null}
           </View>
-          <Text style={[styles.teamNameRight, { color: c.text }]} numberOfLines={1}>{away}</Text>
+          <View style={[styles.heroTeamCol, {alignItems:'flex-end'}]}>
+            <Text style={[styles.heroAbbr, {color:c.loss}]}>{awayAbbr}</Text>
+            <Text style={[styles.heroTeamNameSm, {color:c.textMuted, textAlign:'right'}]} numberOfLines={1}>{away}</Text>
+          </View>
         </View>
         <View style={styles.heroBadgeRow}>
-          <View style={[styles.badgeLiga, { backgroundColor: c.primaryLight }]}><Text style={[styles.badgeLigaText, { color: c.primaryDark }]}>{leagueName}{round?` · ${round}`:''}</Text></View>
+          <View style={[styles.badgeLiga, { backgroundColor: c.primaryLight }]}><Text style={[styles.badgeLigaText, { color: c.primary }]}>{leagueName}{round?` · ${round}`:''}</Text></View>
           {scoutAnalysisReady && <View style={[styles.confidenceBadge,{backgroundColor:analysis.badgeBg}]}>
             <Text style={[styles.confidenceBadgeText,{color:analysis.badgeColor}]}>{analysis.badgeLabel}</Text>
           </View>}
@@ -736,7 +743,7 @@ export default function SLMatchDetail() {
           })}
         </View>
         {showScoutHelp && (
-          <View style={[scStyles.helpBox,{backgroundColor:isDark?'rgba(255,255,255,0.04)':'rgba(255,255,255,0.68)',borderColor:scoutBorderCol}]}>
+          <View style={[scStyles.helpBox,{backgroundColor:c.surfaceAlt,borderColor:c.border}]}>
             <Text style={[scStyles.helpText,{color:c.textSub}]}>
               <Text style={[scStyles.helpStrong,{color:c.text}]}>{SCOUT_HELP[showScoutHelp].title}: </Text>
               {SCOUT_HELP[showScoutHelp].body}
@@ -752,7 +759,7 @@ export default function SLMatchDetail() {
             analysis.scoutPick.tone === 'caution' ? (isDark ? '#F85149' : '#A32D2D') :
             scoutPurple;
           return (
-            <View style={[scStyles.pickBox,{backgroundColor:isDark?'rgba(255,255,255,0.04)':'rgba(255,255,255,0.72)',borderColor:pickColor}]}>
+            <View style={[scStyles.pickBox,{backgroundColor:c.surfaceAlt,borderColor:pickColor}]}>
               <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
                 <Text style={[scStyles.pickKicker,{color:pickColor}]}>SCOUT PICK</Text>
                 {pickSaved && <Text style={{fontSize:11,color:c.textFaint}}>Haftaya eklendi</Text>}
@@ -773,7 +780,7 @@ export default function SLMatchDetail() {
           </View>
         )}
         </> : (
-          <View style={[styles.limitedDataBanner, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.72)', borderColor: scoutBorderCol }]}>
+          <View style={[styles.limitedDataBanner, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
             <Text style={[styles.limitedDataText, { color: c.textSub }]}>
               {formNoticeMessage('prediction')}
             </Text>
@@ -1148,7 +1155,12 @@ const styles = StyleSheet.create({
   headerLogo:         { width:28, height:28, resizeMode:'contain' },
   topbarTitle:        { fontSize:13, fontWeight:'500', textAlign:'center', maxWidth:200 },
   topbarSub:          { fontSize:10, textAlign:'center', marginTop:1 },
-  hero:               { padding:16, borderBottomWidth:0.5 },
+  hero:               { paddingHorizontal:16, paddingTop:14, paddingBottom:16, borderBottomWidth:0.5 },
+  heroTeamRow:        { flexDirection:'row', alignItems:'flex-end', marginBottom:14 },
+  heroTeamCol:        { flex:1, alignItems:'flex-start' },
+  heroAbbr:           { fontSize:36, fontWeight:'900', letterSpacing:-0.5 },
+  heroTeamNameSm:     { fontSize:10, marginTop:3 },
+  heroCenter:         { alignItems:'center', paddingHorizontal:6, paddingBottom:2 },
   teamsRow:           { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:10 },
   teamNameLeft:       { fontSize:13, fontWeight:'500', flex:1 },
   teamNameRight:      { fontSize:13, fontWeight:'500', flex:1, textAlign:'right' },

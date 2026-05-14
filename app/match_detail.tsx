@@ -49,6 +49,12 @@ import { isPickSaved, savePick, updatePickIfUnresolved } from '../utils/pickHist
 const DETAIL_SECONDARY_CACHE_PREFIX = 'match_detail_secondary_v1';
 const NEON = '#00E676';
 
+function abbrevName(name: string): string {
+  const words = name.trim().split(/\s+/);
+  if (words.length === 1) return name.slice(0, 3).toUpperCase();
+  return words.map(w => w[0] || '').join('').slice(0, 3).toUpperCase();
+}
+
 const UCL_LEAGUE_PHASE_STAGES = new Set(['LEAGUE_PHASE', 'GROUP_STAGE']);
 
 function buildRouteFallbackMatch({
@@ -364,9 +370,8 @@ export default function MatchDetail() {
   const analysis   = buildMatchAnalysis(displayHomeName,displayAwayName,leagueApiId,homeStats,awayStats,homeFormPts,awayFormPts,h2hData.length,weatherRisk,hasFormData,homeTrend,awayTrend,leagueAvgParam);
   const scoutAnalysisReady = hasFormData && !secondaryLoading;
 
-  const homeAbbr = displayHomeName.trim().split(/\s+/).map((w:string)=>w[0]||'').join('').slice(0,3).toUpperCase();
-  const awayAbbr = displayAwayName.trim().split(/\s+/).map((w:string)=>w[0]||'').join('').slice(0,3).toUpperCase();
-  const guvenPct = analysis.guven === 'Yüksek' ? 75 : analysis.guven === 'Düşük' ? 35 : 55;
+  const homeAbbr = abbrevName(displayHomeName);
+  const awayAbbr = abbrevName(displayAwayName);
 
   // Auto-save pick for upcoming/live matches; update with form-data pick when ready
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -419,7 +424,7 @@ export default function MatchDetail() {
   const drawAnalysis      = hasFormData ? getDrawAnalysis(oddsData, homeStats, awayStats) : '';
 
   const ts = useMemo(() => ({
-    insightBox:      { backgroundColor: isDark ? '#0D2038' : '#f4f8ff', borderLeftColor: c.primary },
+    insightBox:      { backgroundColor: isDark ? '#0D2038' : '#EBF5FF', borderLeftColor: c.primary },
     insightText:     { color: isDark ? c.textSub : '#1a3a5c' },
     sumBox:          { backgroundColor: c.surfaceAlt },
     sumVal:          { color: c.text },
@@ -521,38 +526,38 @@ export default function MatchDetail() {
       <ScrollView style={[styles.scroll,{backgroundColor:c.bg}]}>
 
       {/* ── Hero ── */}
-      <View style={[styles.hero,{backgroundColor:c.primaryDark}]}>
+      <View style={[styles.hero,{backgroundColor:c.surface,borderBottomWidth:0.5,borderBottomColor:c.border}]}>
         <View style={styles.heroTeamRow}>
           <View style={styles.heroTeamCol}>
-            <Text style={styles.heroAbbr}>{homeAbbr}</Text>
-            <Text style={styles.heroTeamNameSm} numberOfLines={1}>{displayHomeName}</Text>
+            <Text style={[styles.heroAbbr,{color:c.primary}]}>{homeAbbr}</Text>
+            <Text style={[styles.heroTeamNameSm,{color:c.textMuted}]} numberOfLines={1}>{displayHomeName}</Text>
           </View>
           <View style={styles.heroCenter}>
             {hasScore ? (
               <>
-                <Text style={styles.heroScore}>{displayHome} : {displayAway}</Text>
-                {isFinished && <Text style={styles.heroStatusLabel}>MS</Text>}
+                <Text style={[styles.heroScore,{color:c.text}]}>{displayHome} : {displayAway}</Text>
+                {isFinished && <Text style={[styles.heroStatusLabel,{color:c.textMuted}]}>MS</Text>}
                 {isLive && <Text style={[styles.heroStatusLabel,{color:'#F85149'}]}>CANLI</Text>}
               </>
             ) : (
-              <Text style={styles.heroTime}>{matchTime}</Text>
+              <Text style={[styles.heroTime,{color:c.text}]}>{matchTime}</Text>
             )}
-            <Text style={styles.heroDate}>{matchDate}</Text>
+            <Text style={[styles.heroDate,{color:c.textMuted}]}>{matchDate}</Text>
           </View>
           <View style={[styles.heroTeamCol,{alignItems:'flex-end'}]}>
-            <Text style={styles.heroAbbr}>{awayAbbr}</Text>
-            <Text style={[styles.heroTeamNameSm,{textAlign:'right'}]} numberOfLines={1}>{displayAwayName}</Text>
+            <Text style={[styles.heroAbbr,{color:c.loss}]}>{awayAbbr}</Text>
+            <Text style={[styles.heroTeamNameSm,{color:c.textMuted,textAlign:'right'}]} numberOfLines={1}>{displayAwayName}</Text>
           </View>
         </View>
         <View style={styles.heroBadgeRow}>
-          <View style={[styles.badgeLiga,{backgroundColor:'rgba(255,255,255,0.15)'}]}>
-            <Text style={[styles.badgeLigaText,{color:'rgba(255,255,255,0.9)'}]}>{league}</Text>
+          <View style={[styles.badgeLiga,{backgroundColor:c.primaryLight}]}>
+            <Text style={[styles.badgeLigaText,{color:c.primary}]}>{league}</Text>
           </View>
           {scoutAnalysisReady && (
             <View style={[styles.confidenceBadge,{backgroundColor:
-              analysis.badgeLabel.includes('Güçlü') ? 'rgba(63,185,80,0.2)'
-              : analysis.badgeLabel.includes('Risk') ? 'rgba(248,81,73,0.2)'
-              : 'rgba(227,179,65,0.2)'}]}>
+              analysis.badgeLabel.includes('Güçlü') ? (isDark?'rgba(63,185,80,0.15)':'#E8F8F0')
+              : analysis.badgeLabel.includes('Risk') ? (isDark?'rgba(248,81,73,0.15)':'#FDE8E8')
+              : (isDark?'rgba(227,179,65,0.15)':'#FFF8E1')}]}>
               <Text style={[styles.confidenceBadgeText,{color:analysis.badgeColor}]}>{analysis.badgeLabel}</Text>
             </View>
           )}
@@ -569,9 +574,9 @@ export default function MatchDetail() {
       )}
 
       {/* ── Scout Özeti ── */}
-      <View style={[scStyles.card,{backgroundColor:isDark?'#1A1228':'#f4f0ff',borderBottomColor:isDark?'#2D2040':'#ddd6ff'}]}>
+      <View style={[scStyles.card,{backgroundColor:c.surface,borderBottomColor:c.border}]}>
         <View style={scStyles.headerRow}>
-          <Text style={[scStyles.headerLabel,{color:isDark?'#C19BFF':'#5b2d8e'}]}>🧠 SCOUT ÖZETİ</Text>
+          <Text style={[scStyles.headerLabel,{color:c.primary}]}>🧠 SCOUT ÖZETİ</Text>
           {scoutAnalysisReady ? <View style={[scStyles.guvenPill,{backgroundColor:
             analysis.guven==='Yüksek' ? (isDark?'#0D2010':'#E8F8F0') :
             analysis.guven==='Düşük'  ? (isDark?'#2C0A0A':'#FDE8E8') :
@@ -607,7 +612,7 @@ export default function MatchDetail() {
         </View>
 
         {showScoutHelp && (
-          <View style={[scStyles.helpBox,{backgroundColor:isDark?'rgba(255,255,255,0.04)':'rgba(255,255,255,0.68)',borderColor:isDark?'#2D2040':'#ddd6ff'}]}>
+          <View style={[scStyles.helpBox,{backgroundColor:c.surfaceAlt,borderColor:c.border}]}>
             <Text style={[scStyles.helpText,{color:c.textSub}]}>
               <Text style={[scStyles.helpStrong,{color:c.text}]}>{SCOUT_HELP[showScoutHelp].title}: </Text>
               {SCOUT_HELP[showScoutHelp].body}
@@ -622,48 +627,31 @@ export default function MatchDetail() {
             analysis.scoutPick.tone === 'away' ? c.loss :
             analysis.scoutPick.tone === 'goals' ? (isDark ? '#E3B341' : '#B7791F') :
             analysis.scoutPick.tone === 'caution' ? (isDark ? '#F85149' : '#A32D2D') :
-            (isDark ? '#C19BFF' : '#5b2d8e');
-          const RING_R = 30, RING_C = 2 * Math.PI * RING_R;
-          const ringDash = (guvenPct / 100) * RING_C;
+            (isDark ? c.primary : c.primaryDark);
           return (
-            <View style={[scStyles.pickBox,{backgroundColor:isDark?'rgba(255,255,255,0.04)':'rgba(255,255,255,0.72)',borderColor:pickColor}]}>
-              <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+            <View style={[scStyles.pickBox,{backgroundColor:c.surfaceAlt,borderColor:pickColor}]}>
+              <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
                 <Text style={[scStyles.pickKicker,{color:pickColor}]}>SCOUT PICK</Text>
                 {pickSaved && <Text style={{fontSize:11,color:c.textFaint}}>Haftaya eklendi</Text>}
               </View>
-              <View style={{flexDirection:'row',alignItems:'center',gap:14}}>
-                <View style={{alignItems:'center',justifyContent:'center'}}>
-                  <Svg width={76} height={76}>
-                    <Circle cx={38} cy={38} r={RING_R} stroke={isDark?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.08)'} strokeWidth={6} fill="none" />
-                    <Circle cx={38} cy={38} r={RING_R} stroke={pickColor} strokeWidth={6} fill="none"
-                      strokeDasharray={`${ringDash} ${RING_C}`} strokeLinecap="round" rotation="-90" origin="38,38" />
-                  </Svg>
-                  <View style={{position:'absolute',alignItems:'center',justifyContent:'center'}}>
-                    <Text style={{fontSize:15,fontWeight:'800',color:pickColor}}>%{guvenPct}</Text>
-                    <Text style={{fontSize:8,color:c.textMuted,marginTop:1}}>Güven</Text>
-                  </View>
-                </View>
-                <View style={{flex:1}}>
-                  <Text style={[scStyles.pickLabel,{color:c.text,marginBottom:4}]}>{analysis.scoutPick.label}</Text>
-                  <Text style={[scStyles.pickDetail,{color:c.textSub}]}>{analysis.scoutPick.detail}</Text>
-                </View>
-              </View>
+              <Text style={[scStyles.pickLabel,{color:c.text}]}>{analysis.scoutPick.label}</Text>
+              <Text style={[scStyles.pickDetail,{color:c.textSub}]}>{analysis.scoutPick.detail}</Text>
             </View>
           );
         })() : null}
 
         <TouchableOpacity onPress={()=>setShowNeden(v=>!v)} style={scStyles.nedenBtn}>
-          <Text style={[scStyles.nedenBtnText,{color:isDark?'#C19BFF':'#5b2d8e'}]}>{showNeden?'▲ Kapat':'▼ Neden? — Gerekçeleri göster'}</Text>
+          <Text style={[scStyles.nedenBtnText,{color:c.primary}]}>{showNeden?'▲ Kapat':'▼ Neden? — Gerekçeleri göster'}</Text>
         </TouchableOpacity>
         {showNeden && (
-          <View style={[scStyles.nedenBox,{borderTopColor:isDark?'#2D2040':'#ddd6ff'}]}>
+          <View style={[scStyles.nedenBox,{borderTopColor:c.border}]}>
             {analysis.reasons.map((r,i)=>(
               <Text key={i} style={[scStyles.nedenBullet,{color:c.textSub}]}>• {r}</Text>
             ))}
           </View>
         )}
         </> : (
-          <View style={[styles.limitedDataBanner, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.72)', borderColor: isDark ? '#2D2040' : '#ddd6ff' }]}>
+          <View style={[styles.limitedDataBanner, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
             <Text style={[styles.limitedDataText, { color: c.textSub }]}>
               {formNoticeMessage('prediction')}
             </Text>
