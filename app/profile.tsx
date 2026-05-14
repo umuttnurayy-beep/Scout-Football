@@ -232,6 +232,7 @@ export default function ProfileScreen() {
   const [loadingTeamPicker, setLoadingTeamPicker] = useState(false);
   const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
   const [picks, setPicks] = useState<SavedPick[]>([]);
+  const [activeSettingsPanel, setActiveSettingsPanel] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -819,13 +820,89 @@ export default function ProfileScreen() {
           </>
         )}
 
-        {/* ── Scout Performansı ─────────────────────────────────────────────── */}
-        {picks.length > 0 && (() => {
+        {/* ── Ayarlar Grid ──────────────────────────────────────────────────── */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionLabel, { color: c.textMuted }]}>AYARLAR</Text>
+        </View>
+        <View style={styles.settingsGrid}>
+          {[
+            { icon: 'color-palette-outline', label: 'Görünüm', desc: 'Tema tercihleri', color: '#7C3AED', panel: 'gorunum' },
+            { icon: 'notifications-outline', label: 'Bildirimler', desc: 'Kişisel tercihler', color: '#0891B2', panel: 'bildirimler' },
+            { icon: 'trending-up-outline', label: 'Performans', desc: 'Analiz istatistikleri', color: '#27AE60', panel: 'performans' },
+            { icon: 'trophy-outline', label: 'Ligler', desc: 'Tüm liglere git', color: '#E6A817', panel: null },
+          ].map((item) => {
+            const isActive = item.panel && activeSettingsPanel === item.panel;
+            return (
+              <TouchableOpacity key={item.label} style={[styles.settingsGridItem, { backgroundColor: c.surface }, isActive && { borderWidth: 1.5, borderColor: item.color }]}
+                onPress={() => {
+                  if (!item.panel) { router.push('/leagues'); return; }
+                  setActiveSettingsPanel(activeSettingsPanel === item.panel ? null : item.panel);
+                }}>
+                <View style={[styles.settingsGridIcon, { backgroundColor: `${item.color}22` }]}>
+                  <Ionicons name={item.icon as any} size={20} color={item.color} />
+                </View>
+                <Text style={[styles.settingsGridLabel, { color: c.text }]}>{item.label}</Text>
+                <Text style={[styles.settingsGridDesc, { color: c.textFaint }]}>{item.desc}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* ── Görünüm Paneli ───────────────────────────────────────────────── */}
+        {activeSettingsPanel === 'gorunum' && (
+          <View style={[styles.settingsCard, { backgroundColor: c.surface, marginTop: 8 }]}>
+            <View style={styles.notifSectionHeader}>
+              <Text style={[styles.notifSectionTitle, { color: c.textMuted }]}>TEMA</Text>
+            </View>
+            <Text style={[styles.themeAutoHint, { color: c.textFaint }]}>Otomatik: 07:00-19:59 açık, 20:00-06:59 koyu</Text>
+            <View style={styles.themeSegmentRow}>
+              {([['light', '☀️ Açık'], ['system', '⚙️ Otomatik'], ['dark', '🌙 Koyu']] as const).map(([m, label]) => (
+                <TouchableOpacity key={m} onPress={() => setMode(m)}
+                  style={[styles.themeSegmentBtn, { borderColor: mode === m ? c.primary : c.border, backgroundColor: mode === m ? c.primaryLight : c.surface }]}>
+                  <Text style={[styles.themeSegmentText, { color: mode === m ? c.primary : c.textMuted, fontWeight: mode === m ? '600' : '400' }]}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* ── Bildirimler Paneli ────────────────────────────────────────────── */}
+        {activeSettingsPanel === 'bildirimler' && (
+          <View style={[styles.settingsCard, { backgroundColor: c.surface, marginTop: 8 }]}>
+            <View style={styles.notifSectionHeader}>
+              <Text style={[styles.notifSectionTitle, { color: c.textMuted }]}>BİLDİRİMLER</Text>
+            </View>
+            {[
+              { key: 'daily' as keyof NotifPrefs, label: 'Günlük analiz bildirimi', sub: 'Her gün "Bugünün analizleri hazır"' },
+              { key: 'favTeam' as keyof NotifPrefs, label: 'Maç hatırlatması', sub: 'Favori ve takip listesi takımları, maçtan 30 dk önce' },
+              { key: 'featured' as keyof NotifPrefs, label: 'Öne çıkan maçlar', sub: 'Günün en yüksek puanlı maçı' },
+            ].map((item, i, arr) => (
+              <View key={item.key}>
+                <View style={styles.settingsRow}>
+                  <View style={styles.notifLabelWrap}>
+                    <Text style={[styles.settingsLabel, { color: c.text }]}>{item.label}</Text>
+                    <Text style={[styles.notifSub, { color: c.textFaint }]}>{item.sub}</Text>
+                  </View>
+                  <Switch value={notifPrefs[item.key]} onValueChange={v => togglePref(item.key, v)} trackColor={{ false: c.border, true: c.primary }} thumbColor={c.surface} />
+                </View>
+                {i < arr.length - 1 && <View style={[styles.settingsDivider, { backgroundColor: c.borderLight }]} />}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* ── Performans Paneli ─────────────────────────────────────────────── */}
+        {activeSettingsPanel === 'performans' && (() => {
+          if (picks.length === 0) return (
+            <View style={[styles.settingsCard, { backgroundColor: c.surface, marginTop: 8 }]}>
+              <Text style={[styles.emptyHint, { color: c.textFaint, paddingVertical: 12 }]}>Henüz kaydedilmiş tahmin yok.</Text>
+            </View>
+          );
           const acc = pickAccuracy(picks);
           const displayPicks = picks.slice(0, 10);
           return (
-            <>
-              <View style={styles.sectionHeader}>
+            <View style={{ marginTop: 8 }}>
+              <View style={[styles.sectionHeader, { paddingTop: 4 }]}>
                 <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SCOUT PERFORMANSI</Text>
                 <TouchableOpacity onPress={async () => { await clearPickHistory(); setPicks([]); }}>
                   <Text style={[styles.sectionAction, { color: c.primary }]}>Temizle</Text>
@@ -863,72 +940,9 @@ export default function ProfileScreen() {
                 );
               })}
               {picks.length > 10 && <Text style={[styles.pickMoreHint, { color: c.textFaint }]}>+{picks.length - 10} daha eski tahmin</Text>}
-            </>
+            </View>
           );
         })()}
-
-        {/* ── Ayarlar Grid ──────────────────────────────────────────────────── */}
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionLabel, { color: c.textMuted }]}>AYARLAR</Text>
-        </View>
-        <View style={styles.settingsGrid}>
-          {[
-            { icon: 'color-palette-outline', label: 'Görünüm', desc: 'Tema tercihleri', color: '#7C3AED' },
-            { icon: 'notifications-outline', label: 'Bildirimler', desc: 'Kişisel tercihler', color: '#0891B2' },
-            { icon: 'trending-up-outline', label: 'Performans', desc: 'Analiz istatistikleri', color: '#27AE60' },
-            { icon: 'trophy-outline', label: 'Ligler', desc: 'Tüm liglere git', color: '#E6A817' },
-          ].map((item, i) => (
-            <TouchableOpacity key={item.label} style={[styles.settingsGridItem, { backgroundColor: c.surface }]}
-              onPress={() => { if (item.label === 'Ligler') router.push('/leagues'); }}>
-              <View style={[styles.settingsGridIcon, { backgroundColor: `${item.color}22` }]}>
-                <Ionicons name={item.icon as any} size={20} color={item.color} />
-              </View>
-              <Text style={[styles.settingsGridLabel, { color: c.text }]}>{item.label}</Text>
-              <Text style={[styles.settingsGridDesc, { color: c.textFaint }]}>{item.desc}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* ── Tema ─────────────────────────────────────────────────────────── */}
-        <View style={[styles.settingsCard, { backgroundColor: c.surface }]}>
-          <View style={styles.notifSectionHeader}>
-            <Text style={[styles.notifSectionTitle, { color: c.textMuted }]}>TEMA</Text>
-          </View>
-          <Text style={[styles.themeAutoHint, { color: c.textFaint }]}>Otomatik: 07:00-19:59 açık, 20:00-06:59 koyu</Text>
-          <View style={styles.themeSegmentRow}>
-            {([['light', '☀️ Açık'], ['system', '⚙️ Otomatik'], ['dark', '🌙 Koyu']] as const).map(([m, label]) => (
-              <TouchableOpacity key={m} onPress={() => setMode(m)}
-                style={[styles.themeSegmentBtn, { borderColor: mode === m ? c.primary : c.border, backgroundColor: mode === m ? c.primaryLight : c.surface }]}>
-                <Text style={[styles.themeSegmentText, { color: mode === m ? c.primary : c.textMuted, fontWeight: mode === m ? '600' : '400' }]}>{label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.sectionSpacer} />
-
-        {/* ── Bildirimler ───────────────────────────────────────────────────── */}
-        <View style={[styles.settingsCard, { backgroundColor: c.surface }]}>
-          <View style={styles.notifSectionHeader}>
-            <Text style={[styles.notifSectionTitle, { color: c.textMuted }]}>BİLDİRİMLER</Text>
-          </View>
-          {[
-            { key: 'daily' as keyof NotifPrefs, label: 'Günlük analiz bildirimi', sub: 'Her gün "Bugünün analizleri hazır"' },
-            { key: 'favTeam' as keyof NotifPrefs, label: 'Maç hatırlatması', sub: 'Favori ve takip listesi takımları, maçtan 30 dk önce' },
-            { key: 'featured' as keyof NotifPrefs, label: 'Öne çıkan maçlar', sub: 'Günün en yüksek puanlı maçı' },
-          ].map((item, i, arr) => (
-            <View key={item.key}>
-              <View style={styles.settingsRow}>
-                <View style={styles.notifLabelWrap}>
-                  <Text style={[styles.settingsLabel, { color: c.text }]}>{item.label}</Text>
-                  <Text style={[styles.notifSub, { color: c.textFaint }]}>{item.sub}</Text>
-                </View>
-                <Switch value={notifPrefs[item.key]} onValueChange={v => togglePref(item.key, v)} trackColor={{ false: c.border, true: c.primary }} thumbColor={c.surface} />
-              </View>
-              {i < arr.length - 1 && <View style={[styles.settingsDivider, { backgroundColor: c.borderLight }]} />}
-            </View>
-          ))}
-        </View>
 
         <View style={styles.sectionSpacer} />
 
@@ -939,8 +953,6 @@ export default function ProfileScreen() {
             { label: 'Instagram', icon: 'logo-instagram', color: '#E1306C', url: 'https://instagram.com/scoutfootballapp' },
             { label: 'X (Twitter)', icon: 'logo-twitter', color: '#1DA1F2', url: 'https://twitter.com/scoutfootballhq' },
             { label: 'TikTok', icon: 'logo-tiktok', color: '#69C9D0', url: 'https://tiktok.com/@scoutfootballapp' },
-            { label: 'YouTube', icon: 'logo-youtube', color: '#FF0000', url: 'https://youtube.com' },
-            { label: 'Discord', icon: 'chatbubbles-outline', color: '#5865F2', url: 'https://discord.gg' },
           ].map(item => (
             <TouchableOpacity key={item.label} style={[styles.networkPill, { backgroundColor: c.surface, borderColor: c.border }]}
               onPress={() => Linking.openURL(item.url)}>
