@@ -232,7 +232,6 @@ export default function ProfileScreen() {
   const [loadingTeamPicker, setLoadingTeamPicker] = useState(false);
   const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
   const [picks, setPicks] = useState<SavedPick[]>([]);
-  const [activeSettingsPanel, setActiveSettingsPanel] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -826,125 +825,22 @@ export default function ProfileScreen() {
         </View>
         <View style={styles.settingsGrid}>
           {[
-            { icon: 'color-palette-outline', label: 'Görünüm', desc: 'Tema tercihleri', color: '#7C3AED', panel: 'gorunum' },
-            { icon: 'notifications-outline', label: 'Bildirimler', desc: 'Kişisel tercihler', color: '#0891B2', panel: 'bildirimler' },
-            { icon: 'trending-up-outline', label: 'Performans', desc: 'Analiz istatistikleri', color: '#27AE60', panel: 'performans' },
-            { icon: 'trophy-outline', label: 'Ligler', desc: 'Tüm liglere git', color: '#E6A817', panel: null },
-          ].map((item) => {
-            const isActive = item.panel && activeSettingsPanel === item.panel;
-            return (
-              <TouchableOpacity key={item.label} style={[styles.settingsGridItem, { backgroundColor: c.surface }, isActive && { borderWidth: 1.5, borderColor: item.color }]}
-                onPress={() => {
-                  if (!item.panel) { router.push('/leagues'); return; }
-                  setActiveSettingsPanel(activeSettingsPanel === item.panel ? null : item.panel);
-                }}>
-                <View style={[styles.settingsGridIcon, { backgroundColor: `${item.color}22` }]}>
-                  <Ionicons name={item.icon as any} size={20} color={item.color} />
-                </View>
-                <Text style={[styles.settingsGridLabel, { color: c.text }]}>{item.label}</Text>
-                <Text style={[styles.settingsGridDesc, { color: c.textFaint }]}>{item.desc}</Text>
-              </TouchableOpacity>
-            );
-          })}
+            { icon: 'color-palette-outline', label: 'Görünüm', desc: 'Tema tercihleri', color: '#7C3AED', route: '/settings_appearance' },
+            { icon: 'notifications-outline', label: 'Bildirimler', desc: 'Kişisel tercihler', color: '#0891B2', route: '/settings_notifications' },
+            { icon: 'trending-up-outline', label: 'Performans', desc: 'Analiz istatistikleri', color: '#27AE60', route: '/scout_performance' },
+            { icon: 'trophy-outline', label: 'Ligler', desc: 'Tüm liglere git', color: '#E6A817', route: '/leagues' },
+          ].map((item) => (
+            <TouchableOpacity key={item.label} style={[styles.settingsGridItem, { backgroundColor: c.surface }]}
+              onPress={() => router.push(item.route as any)}>
+              <View style={[styles.settingsGridIcon, { backgroundColor: `${item.color}22` }]}>
+                <Ionicons name={item.icon as any} size={20} color={item.color} />
+              </View>
+              <Text style={[styles.settingsGridLabel, { color: c.text }]}>{item.label}</Text>
+              <Text style={[styles.settingsGridDesc, { color: c.textFaint }]}>{item.desc}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        {/* ── Görünüm Paneli ───────────────────────────────────────────────── */}
-        {activeSettingsPanel === 'gorunum' && (
-          <View style={[styles.settingsCard, { backgroundColor: c.surface, marginTop: 8 }]}>
-            <View style={styles.notifSectionHeader}>
-              <Text style={[styles.notifSectionTitle, { color: c.textMuted }]}>TEMA</Text>
-            </View>
-            <Text style={[styles.themeAutoHint, { color: c.textFaint }]}>Otomatik: 07:00-19:59 açık, 20:00-06:59 koyu</Text>
-            <View style={styles.themeSegmentRow}>
-              {([['light', '☀️ Açık'], ['system', '⚙️ Otomatik'], ['dark', '🌙 Koyu']] as const).map(([m, label]) => (
-                <TouchableOpacity key={m} onPress={() => setMode(m)}
-                  style={[styles.themeSegmentBtn, { borderColor: mode === m ? c.primary : c.border, backgroundColor: mode === m ? c.primaryLight : c.surface }]}>
-                  <Text style={[styles.themeSegmentText, { color: mode === m ? c.primary : c.textMuted, fontWeight: mode === m ? '600' : '400' }]}>{label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* ── Bildirimler Paneli ────────────────────────────────────────────── */}
-        {activeSettingsPanel === 'bildirimler' && (
-          <View style={[styles.settingsCard, { backgroundColor: c.surface, marginTop: 8 }]}>
-            <View style={styles.notifSectionHeader}>
-              <Text style={[styles.notifSectionTitle, { color: c.textMuted }]}>BİLDİRİMLER</Text>
-            </View>
-            {[
-              { key: 'daily' as keyof NotifPrefs, label: 'Günlük analiz bildirimi', sub: 'Her gün "Bugünün analizleri hazır"' },
-              { key: 'favTeam' as keyof NotifPrefs, label: 'Maç hatırlatması', sub: 'Favori ve takip listesi takımları, maçtan 30 dk önce' },
-              { key: 'featured' as keyof NotifPrefs, label: 'Öne çıkan maçlar', sub: 'Günün en yüksek puanlı maçı' },
-            ].map((item, i, arr) => (
-              <View key={item.key}>
-                <View style={styles.settingsRow}>
-                  <View style={styles.notifLabelWrap}>
-                    <Text style={[styles.settingsLabel, { color: c.text }]}>{item.label}</Text>
-                    <Text style={[styles.notifSub, { color: c.textFaint }]}>{item.sub}</Text>
-                  </View>
-                  <Switch value={notifPrefs[item.key]} onValueChange={v => togglePref(item.key, v)} trackColor={{ false: c.border, true: c.primary }} thumbColor={c.surface} />
-                </View>
-                {i < arr.length - 1 && <View style={[styles.settingsDivider, { backgroundColor: c.borderLight }]} />}
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* ── Performans Paneli ─────────────────────────────────────────────── */}
-        {activeSettingsPanel === 'performans' && (() => {
-          if (picks.length === 0) return (
-            <View style={[styles.settingsCard, { backgroundColor: c.surface, marginTop: 8 }]}>
-              <Text style={[styles.emptyHint, { color: c.textFaint, paddingVertical: 12 }]}>Henüz kaydedilmiş tahmin yok.</Text>
-            </View>
-          );
-          const acc = pickAccuracy(picks);
-          const displayPicks = picks.slice(0, 10);
-          return (
-            <View style={{ marginTop: 8 }}>
-              <View style={[styles.sectionHeader, { paddingTop: 4 }]}>
-                <Text style={[styles.sectionLabel, { color: c.textMuted }]}>SCOUT PERFORMANSI</Text>
-                <TouchableOpacity onPress={async () => { await clearPickHistory(); setPicks([]); }}>
-                  <Text style={[styles.sectionAction, { color: c.primary }]}>Temizle</Text>
-                </TouchableOpacity>
-              </View>
-              {acc.total > 0 && (
-                <View style={[styles.pickAccCard, { backgroundColor: c.surface }, cardShadow(isDark)]}>
-                  <View style={styles.pickAccTop}>
-                    <Text style={[styles.pickAccScore, { color: c.text }]}>{acc.correct}<Text style={[styles.pickAccTotal, { color: c.textMuted }]}>/{acc.total}</Text></Text>
-                    <Text style={[styles.pickAccLabel, { color: c.textSub }]}>isabetli tahmin</Text>
-                    <Text style={[styles.pickAccPct, { color: acc.pct >= 60 ? '#3FB950' : acc.pct >= 40 ? (isDark ? '#E3B341' : '#B7791F') : '#F85149' }]}>%{acc.pct}</Text>
-                  </View>
-                  <View style={[styles.pickAccBarBg, { backgroundColor: c.borderLight }]}>
-                    <AnimatedBar pct={acc.pct} color={acc.pct >= 60 ? '#3FB950' : acc.pct >= 40 ? (isDark ? '#E3B341' : '#B7791F') : '#F85149'} style={styles.pickAccBarFill} />
-                  </View>
-                </View>
-              )}
-              {displayPicks.map((pick) => {
-                const hasResult = pick.result !== undefined;
-                const correct = pick.result?.correct;
-                const icon = hasResult ? (correct ? '✓' : '✗') : '⏳';
-                const iconColor = hasResult ? (correct ? '#3FB950' : '#F85149') : c.textFaint;
-                const dateLabel = pick.date ? new Date(pick.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' }) : '';
-                const scoreLabel = hasResult ? ` · ${pick.result!.homeScore}-${pick.result!.awayScore}` : '';
-                return (
-                  <View key={pick.id} style={[styles.pickRow, { backgroundColor: c.surface, borderBottomColor: c.borderLight }]}>
-                    <View style={[styles.pickIconWrap, { borderColor: iconColor }]}>
-                      <Text style={[styles.pickIcon, { color: iconColor }]}>{icon}</Text>
-                    </View>
-                    <View style={styles.pickRowContent}>
-                      <Text style={[styles.pickTeams, { color: c.text }]} numberOfLines={1}>{pick.homeTeam} – {pick.awayTeam}</Text>
-                      <Text style={[styles.pickMeta, { color: c.textFaint }]} numberOfLines={1}>{pick.pickLabel}{scoreLabel} · {dateLabel}</Text>
-                    </View>
-                  </View>
-                );
-              })}
-              {picks.length > 10 && <Text style={[styles.pickMoreHint, { color: c.textFaint }]}>+{picks.length - 10} daha eski tahmin</Text>}
-            </View>
-          );
-        })()}
-
-        <View style={styles.sectionSpacer} />
 
         {/* ── ScoutFootball Network ─────────────────────────────────────────── */}
         <Text style={[styles.sectionLabelStandalone, { color: c.textMuted }]}>SCOUTFOOTBALL NETWORK</Text>
@@ -1022,7 +918,7 @@ const styles = StyleSheet.create({
   // ── Section headers ──────────────────────────────────────────────────────────
   sectionHeader:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingTop: 20, paddingBottom: 8 },
   sectionLabel:       { fontSize: 11, fontWeight: '600', letterSpacing: 0.6 },
-  sectionLabelStandalone: { fontSize: 11, fontWeight: '600', letterSpacing: 0.6, paddingHorizontal: 14, paddingTop: 20, paddingBottom: 10 },
+  sectionLabelStandalone: { fontSize: 11, fontWeight: '600', letterSpacing: 0.6, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 10 },
   sectionAction:      { fontSize: 13, fontWeight: '500' },
   emptyHint:          { fontSize: 13, paddingHorizontal: 14, paddingBottom: 8, textAlign: 'center', marginTop: 4 },
 
@@ -1092,11 +988,11 @@ const styles = StyleSheet.create({
   insightDonutLbl:    { fontSize: 9, textAlign: 'center', maxWidth: 72 },
 
   // ── Settings Grid 2x2 ────────────────────────────────────────────────────────
-  settingsGrid:       { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 10, gap: 8, marginBottom: 12 },
-  settingsGridItem:   { width: '47%', flexGrow: 1, borderRadius: 14, padding: 14, gap: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, elevation: 1 },
-  settingsGridIcon:   { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  settingsGridLabel:  { fontSize: 13, fontWeight: '600' },
-  settingsGridDesc:   { fontSize: 11 },
+  settingsGrid:       { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 14, gap: 10, marginBottom: 0 },
+  settingsGridItem:   { width: '47%', flexGrow: 1, borderRadius: 14, padding: 14, gap: 4, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, elevation: 1 },
+  settingsGridIcon:   { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  settingsGridLabel:  { fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  settingsGridDesc:   { fontSize: 11, textAlign: 'center' },
 
   // ── Settings cards ────────────────────────────────────────────────────────────
   settingsCard:       { marginHorizontal: 14, borderRadius: 12, overflow: 'hidden' },
