@@ -7,6 +7,7 @@ import {
   ActivityIndicator, AppState, FlatList, Image, RefreshControl, ScrollView, StatusBar, StyleSheet,
   Text, TouchableOpacity, View, useWindowDimensions,
 } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import BottomTabBar from '../components/BottomTabBar';
 import EmptyStateCard from '../components/EmptyStateCard';
 import RefreshStatusBar, { REFRESH_STATUS_MESSAGES } from '../components/RefreshStatusBar';
@@ -60,6 +61,22 @@ const LEAGUE_FLAG: Record<number, string> = {
   2021: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 2014: '🇪🇸', 2002: '🇩🇪', 2019: '🇮🇹', 2015: '🇫🇷', 2001: '🌍', 203: '🇹🇷',
 };
 
+const LEAGUE_BADGE_COLOR: Record<number, string> = {
+  2021: '#7c3aed',
+  2014: '#185FA5',
+  2002: '#dc2626',
+  2019: '#d97706',
+  2015: '#059669',
+  2001: '#0369a1',
+  203:  '#dc2626',
+};
+
+function teamAbbrev(name: string): string {
+  const words = name.trim().split(/\s+/);
+  if (words.length === 1) return name.slice(0, 3).toUpperCase();
+  return words.map(w => w[0] || '').join('').slice(0, 3).toUpperCase();
+}
+
 const NEXT_MATCH_LOOKAHEAD_DAYS = 7;
 const FOCUS_REFRESH_MIN_INTERVAL_MS = 10 * 60 * 1000;
 const DETAIL_CONTEXT_PREFETCH_LIMIT = 12;
@@ -104,6 +121,9 @@ function metricsForMatch(m: Match, standingsMap: Record<number, Standing[]>): Me
 function HeroCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress: () => void }) {
   const { colors: c, isDark } = useTheme();
   const cardAnalysis = buildHomeCardAnalysis(m, metrics);
+  const hasScore = m.finished && m.score;
+  const homeAbbr = teamAbbrev(m.home);
+  const awayAbbr = teamAbbrev(m.away);
   return (
     <TouchableOpacity style={[sc.heroCard, { backgroundColor: c.primaryDark }, cardShadow(isDark)]} onPress={onPress} activeOpacity={0.85}>
       <View style={sc.heroTop}>
@@ -113,36 +133,42 @@ function HeroCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
         </View>
         <Text style={sc.heroLeague}>{m.league}</Text>
       </View>
+
+      {!hasScore && <Text style={sc.heroTimeCenter}>{m.time}</Text>}
+
       <View style={sc.heroTeamRow}>
-        <Text style={sc.heroTeam} numberOfLines={1}>{m.home}</Text>
-        <View style={sc.heroCenter}>
-          {m.finished && m.score ? (
-            <>
-              <Text style={sc.heroScore}>{m.score}</Text>
-              <Text style={sc.heroSubLabel}>MS</Text>
-            </>
-          ) : (
-            <>
-              <Text style={sc.heroSubLabel}>vs</Text>
-              <Text style={sc.heroTime}>{m.time}</Text>
-            </>
-          )}
+        <View style={sc.heroTeamSide}>
+          <Text style={sc.heroAbbr}>{homeAbbr}</Text>
+          <Text style={sc.heroTeamNameSm} numberOfLines={1}>{m.home}</Text>
         </View>
-        <Text style={[sc.heroTeam, { textAlign: 'right' }]} numberOfLines={1}>{m.away}</Text>
+        <View style={sc.heroVsBubble}>
+          {hasScore
+            ? <Text style={sc.heroScoreTxt}>{m.score}</Text>
+            : <Text style={sc.heroVsTxt}>vs</Text>
+          }
+        </View>
+        <View style={[sc.heroTeamSide, { alignItems: 'flex-end' }]}>
+          <Text style={sc.heroAbbr}>{awayAbbr}</Text>
+          <Text style={[sc.heroTeamNameSm, { textAlign: 'right' }]} numberOfLines={1}>{m.away}</Text>
+        </View>
       </View>
 
-      {metrics.hasData ? (
-        <>
-          <View style={sc.heroMetricRow}>
-            <Text style={sc.heroMetricPrimary}>{expectedLine(metrics)}</Text>
-            <Text style={sc.heroMetricDot}>·</Text>
-            <Text style={sc.heroMetricPrimary} numberOfLines={1}>{cardAnalysis.headline}</Text>
+      {metrics.hasData && (
+        <View style={sc.heroBadgeRow}>
+          <View style={sc.heroBadge}>
+            <Text style={sc.heroBadgeNum}>{metrics.expectedGoals.toFixed(1)}</Text>
+            <Text style={sc.heroBadgeLbl}>xG</Text>
           </View>
-          <Text style={sc.heroSummary}>{cardAnalysis.summary}</Text>
-        </>
-      ) : (
-        <Text style={sc.heroSummary}>{cardAnalysis.summary}</Text>
+          <View style={sc.heroBadge}>
+            <Text style={sc.heroBadgeLabel}>{expectedLine(metrics)}</Text>
+          </View>
+          <View style={[sc.heroBadge, { flex: 1, justifyContent: 'center' }]}>
+            <Text style={sc.heroBadgeLabel} numberOfLines={1}>{cardAnalysis.headline}</Text>
+          </View>
+        </View>
       )}
+
+      <Text style={sc.heroSummary}>{cardAnalysis.summary}</Text>
     </TouchableOpacity>
   );
 }
@@ -490,33 +516,54 @@ function EmptyScoutState({
   );
 }
 
-function HighlightCard({ m, rank, metrics, onPress }: {
-  m: Match; rank: number; metrics: Metrics; onPress: () => void;
+function MiniHighlightCard({ m, metrics, onPress }: {
+  m: Match; metrics: Metrics; onPress: () => void;
 }) {
   const { colors: c, isDark } = useTheme();
   const cardAnalysis = buildHomeCardAnalysis(m, metrics);
-  const label = rank === 0 ? 'Öne Çıkan' : rank === 1 ? 'İzlenecek' : 'Dikkat';
-  const borderColor = rank === 0 ? c.primary : rank === 1 ? c.textSub : c.textFaint;
+  const hasScore = m.finished && m.score;
+  const homeAbbr = teamAbbrev(m.home);
+  const awayAbbr = teamAbbrev(m.away);
+  const lgColor = LEAGUE_BADGE_COLOR[m.leagueApiId] ?? c.primary;
   return (
-    <TouchableOpacity style={[sc.hlCard, { backgroundColor: c.surface, borderLeftColor: borderColor }, cardShadow(isDark)]} onPress={onPress} activeOpacity={0.85}>
-      <View style={sc.hlTop}>
-        <Text style={[sc.hlRank, { color: borderColor }]}>{label}</Text>
-        <Text style={[sc.hlLeague, { color: c.textFaint }]}>{m.league}</Text>
+    <TouchableOpacity style={[sc.miniHlCard, { backgroundColor: c.surface }, cardShadow(isDark)]} onPress={onPress} activeOpacity={0.85}>
+      <View style={sc.miniHlTop}>
+        <Text style={[sc.miniHlLeague, { color: lgColor }]} numberOfLines={1}>{m.league}</Text>
+        <Text style={[sc.miniHlTime, { color: c.textMuted }]}>{hasScore ? 'MS' : m.time}</Text>
       </View>
-      <View style={sc.hlTeams}>
-        <Text style={[sc.hlTeam, { color: c.text }]} numberOfLines={1}>{m.home}</Text>
-        <Text style={[sc.hlTime, { color: c.textSub }]}>{m.finished && m.score ? m.score : m.time}</Text>
-        <Text style={[sc.hlTeam, { color: c.text, textAlign: 'right' }]} numberOfLines={1}>{m.away}</Text>
+      <View style={sc.miniHlTeams}>
+        <View style={sc.miniHlTeamCol}>
+          <Text style={[sc.miniHlAbbr, { color: c.text }]}>{homeAbbr}</Text>
+          <Text style={[sc.miniHlName, { color: c.textMuted }]} numberOfLines={1}>{m.home}</Text>
+        </View>
+        <Text style={[sc.miniHlVs, { color: c.textFaint }]}>{hasScore ? m.score : 'vs'}</Text>
+        <View style={[sc.miniHlTeamCol, { alignItems: 'flex-end' }]}>
+          <Text style={[sc.miniHlAbbr, { color: c.text }]}>{awayAbbr}</Text>
+          <Text style={[sc.miniHlName, { color: c.textMuted, textAlign: 'right' }]} numberOfLines={1}>{m.away}</Text>
+        </View>
       </View>
       {metrics.hasData ? (
-        <>
-          <Text style={[sc.hlMetric, { color: c.primary }]}>{expectedLine(metrics)} · {cardAnalysis.headline}</Text>
-          <Text style={[sc.hlSummary, { color: c.textSub }]}>{cardAnalysis.summary}</Text>
-        </>
+        <View style={[sc.miniHlMetricRow, { borderTopColor: c.borderLight }]}>
+          <Text style={[sc.miniHlMetricMain, { color: c.primary }]} numberOfLines={1}>{expectedLine(metrics)}</Text>
+          <Text style={[sc.miniHlMetricSub, { color: c.textSub }]}>xG {metrics.expectedGoals.toFixed(1)}</Text>
+        </View>
       ) : (
-        <Text style={[sc.hlSummary, { color: c.textSub }]}>{cardAnalysis.summary}</Text>
+        <Text style={[sc.miniHlMetricSub, { color: c.textFaint, marginTop: 8 }]} numberOfLines={2}>{cardAnalysis.summary}</Text>
       )}
     </TouchableOpacity>
+  );
+}
+
+function HorizontalHighlights({ highlights, onPress }: {
+  highlights: { m: Match; metrics: Metrics; rank: number }[];
+  onPress: (m: Match, metrics: Metrics) => void;
+}) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={sc.hlScrollContent}>
+      {highlights.map(({ m, metrics }) => (
+        <MiniHighlightCard key={m.id} m={m} metrics={metrics} onPress={() => onPress(m, metrics)} />
+      ))}
+    </ScrollView>
   );
 }
 
@@ -534,29 +581,40 @@ function MatchRow({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
   const { colors: c, isDark } = useTheme();
   const hasScore = m.finished && m.score;
   const cardAnalysis = buildHomeCardAnalysis(m, metrics);
+  const homeAbbr = teamAbbrev(m.home);
+  const awayAbbr = teamAbbrev(m.away);
+  const lgColor = LEAGUE_BADGE_COLOR[m.leagueApiId] ?? c.primary;
   return (
     <TouchableOpacity style={[sc.matchCard, { backgroundColor: c.surface }, cardShadow(isDark)]} onPress={onPress} activeOpacity={0.8}>
       <View style={sc.matchTop}>
-        <Text style={[sc.matchLeague, { color: c.primary }]}>{m.league}</Text>
-        {hasScore ? (
-          <Text style={[sc.scoreMs, { color: c.textFaint }]}>MS</Text>
-        ) : (
-          <Text style={[sc.matchTime, { color: c.textSub }]}>{m.time}</Text>
-        )}
+        <Text style={[sc.matchLeague, { color: lgColor }]}>{m.league}</Text>
+        {hasScore
+          ? <Text style={[sc.scoreMs, { color: c.textFaint }]}>MS</Text>
+          : <Text style={[sc.matchTime, { color: c.textSub }]}>{m.time}</Text>
+        }
       </View>
-      <View style={sc.matchTeams}>
-        <Text style={[sc.matchTeam, { color: c.text }]} numberOfLines={1}>{m.home}</Text>
-        {hasScore ? (
-          <Text style={[sc.scoreText, { color: c.text, paddingHorizontal: 8 }]}>{m.score}</Text>
-        ) : (
-          <Text style={[sc.matchSep, { color: c.textVeryFaint }]}>—</Text>
-        )}
-        <Text style={[sc.matchTeam, { color: c.text, textAlign: 'right' }]} numberOfLines={1}>{m.away}</Text>
+      <View style={sc.matchTeamBlock}>
+        <View style={sc.matchTeamSide}>
+          <Text style={[sc.matchAbbr, { color: c.text }]}>{homeAbbr}</Text>
+          <Text style={[sc.matchTeamNameSm, { color: c.textMuted }]} numberOfLines={1}>{m.home}</Text>
+        </View>
+        {hasScore
+          ? <Text style={[sc.matchScoreCenter, { color: c.text }]}>{m.score}</Text>
+          : <Text style={[sc.matchVs, { color: c.textFaint }]}>vs</Text>
+        }
+        <View style={[sc.matchTeamSide, { alignItems: 'flex-end' }]}>
+          <Text style={[sc.matchAbbr, { color: c.text }]}>{awayAbbr}</Text>
+          <Text style={[sc.matchTeamNameSm, { color: c.textMuted, textAlign: 'right' }]} numberOfLines={1}>{m.away}</Text>
+        </View>
       </View>
       {metrics.hasData ? (
-        <Text style={[sc.matchMetricLine, { color: c.primary }]}>
-          {expectedLine(metrics)} · {cardAnalysis.headline}
-        </Text>
+        <View style={sc.matchMetricPills}>
+          <Text style={[sc.matchPill, { color: c.textSub }]}>xG <Text style={{ color: c.text, fontWeight: '700' }}>{metrics.expectedGoals.toFixed(1)}</Text></Text>
+          <Text style={[sc.matchPillDiv, { color: c.borderLight }]}>|</Text>
+          <Text style={[sc.matchPill, { color: c.primary, fontWeight: '600' }]}>{expectedLine(metrics)}</Text>
+          <Text style={[sc.matchPillDiv, { color: c.borderLight }]}>|</Text>
+          <Text style={[sc.matchPill, { color: c.textSub }]} numberOfLines={1}>{cardAnalysis.headline}</Text>
+        </View>
       ) : (
         <Text style={[sc.matchMetricLineMuted, { color: c.textFaint }]}>{metrics.reason}</Text>
       )}
@@ -1271,9 +1329,11 @@ export default function HomeScreen() {
       }
 
       if (highlights.length > 0) {
-        items.push({ key: 'h-highlights', type: 'section-header', title: 'GÜNÜN ÖNE ÇIKANLARI' });
-        highlights.forEach((m, i) => {
-          items.push({ key: `hl-${m.id}`, type: 'highlight', m, rank: i, metrics: metricsMap.get(m.id) ?? NO_DATA });
+        items.push({ key: 'h-highlights', type: 'section-header', title: 'ÖNE ÇIKAN MAÇLAR' });
+        items.push({
+          key: 'highlights-group',
+          type: 'highlights-group',
+          highlights: highlights.map((m, i) => ({ m, metrics: metricsMap.get(m.id) ?? NO_DATA, rank: i })),
         });
       }
 
@@ -1493,10 +1553,10 @@ export default function HomeScreen() {
           </View>
         );
       }
-      case 'highlight': {
-        const { m, metrics, rank } = item;
-        if (!m || !metrics || rank === undefined) return null;
-        return <HighlightCard m={m} rank={rank} metrics={metrics} onPress={() => goToMatch(m, metrics)} />;
+      case 'highlights-group': {
+        const { highlights } = item;
+        if (!highlights?.length) return null;
+        return <HorizontalHighlights highlights={highlights} onPress={(m, metrics) => goToMatch(m, metrics)} />;
       }
       case 'day-summary':
         return item.summary ? <DaySummaryCard summary={item.summary} /> : null;
@@ -1539,36 +1599,47 @@ export default function HomeScreen() {
         const { weeklyCorrect = 0, weeklyTotal = 0, weeklyPct = 0, weeklyLabel = '', weeklyAllTotal = 0 } = item;
         const pending = weeklyAllTotal - weeklyTotal;
         const hasResolved = weeklyTotal > 0;
-        const isEmpty = weeklyAllTotal === 0;
         const barColor = weeklyPct >= 60 ? c.win : weeklyPct >= 40 ? '#B7791F' : c.loss;
+        const RING_R = 34;
+        const RING_C = 2 * Math.PI * RING_R;
+        const ringDash = (weeklyPct / 100) * RING_C;
         return (
           <TouchableOpacity onPress={openWeeklyPerformance} activeOpacity={0.82}>
-            <View style={[sc.weeklyCard, { backgroundColor: c.primaryLight, borderLeftColor: c.primary }]}>
+            <View style={[sc.weeklyCard, { backgroundColor: c.surface }, cardShadow(isDark)]}>
               <View style={sc.weeklyCardTop}>
                 <View style={sc.weeklyCardTitleRow}>
                   <Ionicons name="trophy" size={14} color={c.primary} />
                   <Text style={[sc.weeklyCardTitle, { color: c.primary }]}>SCOUT PERFORMANSI</Text>
                 </View>
-                <Text style={[sc.weeklyCardChevron, { color: c.primary }]}>›</Text>
+                <Ionicons name="chevron-forward" size={16} color={c.primary} />
               </View>
               {hasResolved ? (
-                <>
-                  <View style={sc.weeklyCardRow}>
-                    <View>
-                      <Text style={[sc.weeklyCardScore, { color: c.text }]}>
-                        {weeklyCorrect}<Text style={[sc.weeklyCardOf, { color: c.textMuted }]}>/{weeklyTotal}</Text>
-                      </Text>
-                      <Text style={[sc.weeklyCardSub, { color: c.textSub }]}>isabetli tahmin</Text>
+                <View style={sc.weeklyRingRow}>
+                  <View style={sc.weeklyRingWrap}>
+                    <Svg width={88} height={88}>
+                      <Circle cx={44} cy={44} r={RING_R} stroke={c.borderLight} strokeWidth={7} fill="none" />
+                      <Circle
+                        cx={44} cy={44} r={RING_R}
+                        stroke={barColor} strokeWidth={7} fill="none"
+                        strokeDasharray={`${ringDash} ${RING_C}`}
+                        strokeLinecap="round"
+                        rotation="-90"
+                        origin="44, 44"
+                      />
+                    </Svg>
+                    <View style={sc.weeklyRingCenter}>
+                      <Text style={[sc.weeklyRingPct, { color: barColor }]}>%{weeklyPct}</Text>
                     </View>
-                    <Text style={[sc.weeklyCardPct, { color: barColor }]}>%{weeklyPct}</Text>
                   </View>
-                  <View style={[sc.weeklyBarBg, { backgroundColor: c.border }]}>
-                    <View style={[sc.weeklyBarFill, { width: `${weeklyPct}%`, backgroundColor: barColor }]} />
+                  <View style={sc.weeklyRingInfo}>
+                    <Text style={[sc.weeklyCardSub, { color: c.textMuted, letterSpacing: 0.4 }]}>Scout Accuracy</Text>
+                    <Text style={[sc.weeklyRingScore, { color: c.win }]}>{weeklyCorrect} DOĞRU</Text>
+                    <Text style={[sc.weeklyRingMiss, { color: c.loss }]}>{weeklyTotal - weeklyCorrect} YANLIŞ</Text>
+                    <Text style={[sc.weeklyCardSub, { color: c.textSub, marginTop: 8 }]}>
+                      {weeklyLabel}{pending > 0 ? ` · ${pending} bekleniyor` : ''}
+                    </Text>
                   </View>
-                  <Text style={[sc.weeklyCardSub, { color: c.textSub, marginTop: 6 }]}>
-                    {weeklyLabel}{pending > 0 ? ` · ${pending} sonuç bekleniyor` : ''} · Tümünü Gör →
-                  </Text>
-                </>
+                </View>
               ) : (
                 <>
                   <Text style={[sc.weeklyCardSub, { color: c.text, fontSize: 14, fontWeight: '600', marginBottom: 4 }]}>
@@ -1771,20 +1842,24 @@ const sc = StyleSheet.create({
   leagueSubHeader: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4 },
   leagueSubHeaderText: { fontSize: 11, fontWeight: '600', letterSpacing: 0.3 },
 
-  heroCard:      { borderRadius: 16, padding: 16 },
-  heroTop:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  heroFireLabel: { fontSize: 12, fontWeight: '700', color: '#fff', letterSpacing: 0.4 },
-  heroLeague:    { fontSize: 11, color: 'rgba(255,255,255,0.55)' },
-  heroTeamRow:   { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  heroTeam:      { flex: 1, fontSize: 15, fontWeight: '700', color: '#fff' },
-  heroCenter:    { alignItems: 'center', paddingHorizontal: 10 },
-  heroSubLabel:  { fontSize: 10, color: 'rgba(255,255,255,0.5)', marginBottom: 2 },
-  heroTime:      { fontSize: 20, fontWeight: '800', color: '#fff' },
-  heroScore:     { fontSize: 22, fontWeight: '800', color: '#fff' },
-  heroMetricRow:     { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 4 },
-  heroMetricPrimary: { fontSize: 13, fontWeight: '700', color: '#fff' },
-  heroMetricDot:     { fontSize: 13, color: 'rgba(255,255,255,0.5)', paddingHorizontal: 6 },
-  heroSummary:       { fontSize: 12, color: 'rgba(255,255,255,0.82)', lineHeight: 17, marginTop: 10 },
+  heroCard:        { borderRadius: 16, padding: 16 },
+  heroTop:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  heroFireLabel:   { fontSize: 12, fontWeight: '700', color: '#fff', letterSpacing: 0.4 },
+  heroLeague:      { fontSize: 11, color: 'rgba(255,255,255,0.55)' },
+  heroTimeCenter:  { fontSize: 22, fontWeight: '800', color: '#fff', textAlign: 'center', marginBottom: 12 },
+  heroTeamRow:     { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 4 },
+  heroTeamSide:    { flex: 1, alignItems: 'flex-start' },
+  heroAbbr:        { fontSize: 32, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
+  heroTeamNameSm:  { fontSize: 10, color: 'rgba(255,255,255,0.6)', marginTop: 3 },
+  heroVsBubble:    { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+  heroVsTxt:       { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
+  heroScoreTxt:    { fontSize: 17, fontWeight: '800', color: '#fff' },
+  heroBadgeRow:    { flexDirection: 'row', gap: 7, marginTop: 14, marginBottom: 2 },
+  heroBadge:       { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.12)' },
+  heroBadgeNum:    { fontSize: 15, fontWeight: '800', color: '#fff' },
+  heroBadgeLbl:    { fontSize: 10, color: 'rgba(255,255,255,0.65)', fontWeight: '600' },
+  heroBadgeLabel:  { fontSize: 11, fontWeight: '700', color: '#fff' },
+  heroSummary:     { fontSize: 12, color: 'rgba(255,255,255,0.82)', lineHeight: 17, marginTop: 10 },
 
   singlePanel:    { marginHorizontal: 14, marginTop: 8, marginBottom: 8, padding: 14, borderRadius: 12 },
   singlePanelLeft:{ flex: 1, minWidth: 0 },
@@ -1866,31 +1941,50 @@ const sc = StyleSheet.create({
   daySummaryTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, marginBottom: 6 },
   daySummaryText:  { fontSize: 13, lineHeight: 19 },
 
-  matchCard:     { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, padding: 14 },
-  matchTop:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  matchLeague:   { fontSize: 11, fontWeight: '600' },
-  matchTime:     { fontSize: 12, fontWeight: '600' },
-  scoreRow:      { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  scoreText:     { fontSize: 13, fontWeight: '700' },
-  scoreMs:       { fontSize: 10 },
-  matchTeams:    { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  matchTeam:     { flex: 1, fontSize: 14, fontWeight: '600' },
-  matchSep:      { paddingHorizontal: 8, fontSize: 14 },
-  matchMetricLine:      { fontSize: 12, marginTop: 4 },
+  matchCard:        { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, padding: 14 },
+  matchTop:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
+  matchLeague:      { fontSize: 11, fontWeight: '700', letterSpacing: 0.2 },
+  matchTime:        { fontSize: 12, fontWeight: '600' },
+  scoreRow:         { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  scoreText:        { fontSize: 13, fontWeight: '700' },
+  scoreMs:          { fontSize: 10 },
+  matchTeamBlock:   { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginVertical: 8 },
+  matchTeamSide:    { flex: 1, alignItems: 'flex-start' },
+  matchAbbr:        { fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
+  matchTeamNameSm:  { fontSize: 10, marginTop: 2 },
+  matchVs:          { fontSize: 12, fontWeight: '600', paddingHorizontal: 10, paddingBottom: 4 },
+  matchScoreCenter: { fontSize: 18, fontWeight: '800', paddingHorizontal: 8, paddingBottom: 4 },
+  matchMetricPills: { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
+  matchPill:        { fontSize: 11 },
+  matchPillDiv:     { fontSize: 11 },
   matchMetricLineMuted: { fontSize: 11, marginTop: 4, fontStyle: 'italic' },
 
+  // Mini highlight cards (horizontal scroll)
+  hlScrollContent:  { paddingHorizontal: 14, gap: 10, paddingBottom: 4 },
+  miniHlCard:       { width: 148, borderRadius: 12, padding: 12 },
+  miniHlTop:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  miniHlLeague:     { fontSize: 9, fontWeight: '700', letterSpacing: 0.3, flex: 1, marginRight: 4 },
+  miniHlTime:       { fontSize: 9, fontWeight: '500' },
+  miniHlTeams:      { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 6 },
+  miniHlTeamCol:    { flex: 1, alignItems: 'flex-start' },
+  miniHlAbbr:       { fontSize: 18, fontWeight: '800', letterSpacing: -0.5 },
+  miniHlName:       { fontSize: 8, marginTop: 2, maxWidth: '100%' },
+  miniHlVs:         { fontSize: 10, fontWeight: '600', paddingHorizontal: 6, paddingBottom: 2 },
+  miniHlMetricRow:  { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8 },
+  miniHlMetricMain: { fontSize: 11, fontWeight: '700' },
+  miniHlMetricSub:  { fontSize: 10, marginTop: 2 },
+
   // Weekly performance card
-  weeklyCard:        { marginHorizontal:14, marginBottom:10, borderRadius:14, padding:14, borderLeftWidth:4 },
-  weeklyCardTop:     { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:10 },
+  weeklyCard:        { marginHorizontal:14, marginBottom:10, borderRadius:14, padding:14 },
+  weeklyCardTop:     { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:12 },
   weeklyCardTitleRow:{ flexDirection:'row', alignItems:'center', gap:6 },
-  weeklyCardEmoji:   { fontSize:16 },
   weeklyCardTitle:   { fontSize:11, fontWeight:'800', letterSpacing:0.6 },
-  weeklyCardChevron: { fontSize:22, fontWeight:'300' },
-  weeklyCardRow:     { flexDirection:'row', alignItems:'flex-end', justifyContent:'space-between', marginBottom:10 },
-  weeklyCardScore:   { fontSize:32, fontWeight:'800', lineHeight:36 },
-  weeklyCardOf:      { fontSize:20, fontWeight:'600' },
-  weeklyCardPct:     { fontSize:28, fontWeight:'800' },
-  weeklyBarBg:       { height:7, borderRadius:4, overflow:'hidden' },
-  weeklyBarFill:     { height:7, borderRadius:4 },
+  weeklyRingRow:     { flexDirection:'row', alignItems:'center', gap:16 },
+  weeklyRingWrap:    { width:88, height:88, alignItems:'center', justifyContent:'center' },
+  weeklyRingCenter:  { position:'absolute', alignItems:'center', justifyContent:'center' },
+  weeklyRingPct:     { fontSize:17, fontWeight:'800' },
+  weeklyRingInfo:    { flex:1 },
+  weeklyRingScore:   { fontSize:14, fontWeight:'700', marginTop:6 },
+  weeklyRingMiss:    { fontSize:12, fontWeight:'600', marginTop:3 },
   weeklyCardSub:     { fontSize:11, lineHeight:15 },
 });
