@@ -14,7 +14,7 @@ import RefreshStatusBar, { REFRESH_STATUS_MESSAGES } from '../components/Refresh
 import { SkeletonMatchCard, SkeletonSectionHeader } from '../components/SkeletonLoader';
 import { useTheme } from '../context/ThemeContext';
 import {
-  H2HRawItem, HomeData, checkBackendHealth, clearLastApiError, getAllSportsH2H, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, preloadMatchContext, preloadSuperLigMatchContext, Standing,
+  H2HRawItem, HomeData, checkBackendHealth, clearLastApiError, getAllSportsH2H, getH2H, getHomeData, getLastApiError, getStandings, getSuperLigMatches, getSuperLigStandings, getTodayMatches, getWorldCupMatches, preloadMatchContext, preloadSuperLigMatchContext, Standing,
 } from '../services/api';
 import { loadNotifPrefs, scheduleNotifications } from '../services/notifications';
 import { filterPicksForWeek, getCurrentWeekRange, getWeekRange, getMaxWeekOffset, getUnlockDateLabel, loadPickHistory, pickAccuracy, savePick } from '../utils/pickHistory';
@@ -43,13 +43,14 @@ const STANDINGS_TTL = 60 * 60 * 1000; // 1 saat — aynı gün içinde de bayat 
 type HomeDataNotice = 'stale' | 'cache' | 'warning' | 'error';
 
 const LIG_FILTERS = [
-  { label: 'Premier Lig', id: 2021 },
-  { label: 'La Liga',     id: 2014 },
-  { label: 'Bundesliga',  id: 2002 },
-  { label: 'Serie A',     id: 2019 },
-  { label: 'Ligue 1',     id: 2015 },
-  { label: 'UCL',         id: 2001 },
-  { label: 'Süper Lig',   id: 203  },
+  { label: 'Premier Lig',  id: 2021 },
+  { label: 'La Liga',      id: 2014 },
+  { label: 'Bundesliga',   id: 2002 },
+  { label: 'Serie A',      id: 2019 },
+  { label: 'Ligue 1',      id: 2015 },
+  { label: 'UCL',          id: 2001 },
+  { label: 'Süper Lig',    id: 203  },
+  { label: 'Dünya Kupası', id: 9999 },
 ];
 
 const ALL_FILTERS = ['Scout', ...LIG_FILTERS.map(f => f.label)];
@@ -69,7 +70,66 @@ const LEAGUE_BADGE_COLOR: Record<number, string> = {
   2015: '#059669',
   2001: '#0369a1',
   203:  '#be185d',
+  9999: '#0A3D62',
 };
+
+const WC_TEAM_TR: Record<string, string> = {
+  'Mexico': 'Meksika', 'South Africa': 'Güney Afrika', 'South Korea': 'Güney Kore',
+  'Republic of Korea': 'Güney Kore', 'Czech Republic': 'Çek Cumhuriyeti',
+  'Canada': 'Kanada', 'Bosnia-Herzegovina': 'Bosna-Hersek', 'Bosnia Herzegovina': 'Bosna-Hersek',
+  'USA': 'ABD', 'United States': 'ABD', 'Paraguay': 'Paraguay',
+  'Brazil': 'Brezilya', 'Morocco': 'Fas', 'Qatar': 'Katar', 'Switzerland': 'İsviçre',
+  'Haiti': 'Haiti', 'Scotland': 'İskoçya', 'Germany': 'Almanya', 'Curaçao': 'Curaçao',
+  'Ivory Coast': 'Fildişi Sahili', "Cote d'Ivoire": 'Fildişi Sahili',
+  'Ecuador': 'Ekvador', 'Netherlands': 'Hollanda', 'Japan': 'Japonya',
+  'Australia': 'Avustralya', 'Turkey': 'Türkiye', 'Belgium': 'Belçika',
+  'Egypt': 'Mısır', 'Saudi Arabia': 'Suudi Arabistan', 'Uruguay': 'Uruguay',
+  'Spain': 'İspanya', 'Cape Verde': 'Yeşil Burun Adaları', 'Sweden': 'İsveç',
+  'Tunisia': 'Tunus', 'Argentina': 'Arjantin', 'France': 'Fransa',
+  'Portugal': 'Portekiz', 'England': 'İngiltere', 'Colombia': 'Kolombiya',
+  'Croatia': 'Hırvatistan', 'Serbia': 'Sırbistan', 'Poland': 'Polonya',
+  'Nigeria': 'Nijerya', 'Senegal': 'Senegal', 'Iran': 'İran',
+  'Venezuela': 'Venezuela', 'Peru': 'Peru', 'Chile': 'Şili',
+  'Costa Rica': 'Kosta Rika', 'Honduras': 'Honduras', 'Panama': 'Panama',
+  'Jamaica': 'Jamaika', 'Bolivia': 'Bolivya', 'New Zealand': 'Yeni Zelanda',
+  'Algeria': 'Cezayir', 'Ghana': 'Gana', 'Cameroon': 'Kamerun',
+  'Iraq': 'Irak', 'Indonesia': 'Endonezya', 'Denmark': 'Danimarka',
+  'Ukraine': 'Ukrayna', 'Greece': 'Yunanistan', 'Norway': 'Norveç',
+};
+
+function translateWCTeam(name: string): string {
+  return WC_TEAM_TR[name] || name;
+}
+
+function wcTimeToTurkey(timeStr: string): string {
+  if (!timeStr) return '--:--';
+  const parts = timeStr.split(':');
+  const h = parseInt(parts[0], 10);
+  const m = parseInt(parts[1] || '0', 10);
+  if (isNaN(h)) return timeStr.slice(0, 5);
+  const totalMins = (h * 60 + m + 180) % (24 * 60);
+  return `${String(Math.floor(totalMins / 60)).padStart(2, '0')}:${String(totalMins % 60).padStart(2, '0')}`;
+}
+
+function mapWcMatchToMatch(m: any): Match {
+  const finished = m.homeScore !== null && m.awayScore !== null;
+  return {
+    id: Number(m.id),
+    leagueApiId: 9999,
+    league: 'Dünya Kupası 2026',
+    home: translateWCTeam(m.home || ''),
+    away: translateWCTeam(m.away || ''),
+    time: wcTimeToTurkey(m.time || ''),
+    homeTla: undefined,
+    awayTla: undefined,
+    score: finished ? `${m.homeScore} - ${m.awayScore}` : null,
+    finished,
+    city: m.venue || null,
+    utcDate: m.date || '',
+    homeTeamId: m.homeTeamId || 0,
+    awayTeamId: m.awayTeamId || 0,
+  };
+}
 
 const SL_TLA_BY_ID: Record<number, string> = {
   133804: 'GS',  133807: 'FB',  133794: 'BJK', 133796: 'TS',
@@ -671,6 +731,9 @@ export default function HomeScreen() {
   const lastHomeLoadAtByDate = useRef<Record<string, number>>({});
   const warmedDetailContextsRef = useRef<Set<string>>(new Set());
   const [weeklyAcc, setWeeklyAcc] = useState<{ correct: number; total: number; pct: number; allTotal: number; label: string } | null>(null);
+  const [wcMatches, setWcMatches] = useState<Match[]>([]);
+  const [wcMatchesLoading, setWcMatchesLoading] = useState(false);
+  const wcLoadedDateRef = useRef<string | null>(null);
   const launchSplashStartedAt = useRef(Date.now());
   const launchSplashHiddenRef = useRef(false);
   const wasOnTodayBeforeBackground = useRef(true);
@@ -718,6 +781,13 @@ export default function HomeScreen() {
     // loadMatches reads the latest standings cache; selectedDate is the trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
+
+  useEffect(() => {
+    if (activeFilter === 'Dünya Kupası') {
+      loadWcMatchesForDate(formatDateParam(selectedDate));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFilter, selectedDate]);
 
   // 10 dakikada bir sessiz yenileme — bitmiş maçların skorlarını günceller
   useEffect(() => {
@@ -804,6 +874,20 @@ export default function HomeScreen() {
       return cachedHome;
     } catch {
       return null;
+    }
+  }
+
+  async function loadWcMatchesForDate(dateStr: string) {
+    if (wcLoadedDateRef.current === dateStr) return;
+    setWcMatchesLoading(true);
+    try {
+      const raw = await getWorldCupMatches(dateStr);
+      wcLoadedDateRef.current = dateStr;
+      setWcMatches(Array.isArray(raw) ? raw.map(mapWcMatchToMatch) : []);
+    } catch {
+      setWcMatches([]);
+    } finally {
+      setWcMatchesLoading(false);
     }
   }
 
@@ -1406,6 +1490,20 @@ export default function HomeScreen() {
   const leagueFilterItems = useMemo<Record<string, ListItem[]>>(() => {
     const result: Record<string, ListItem[]> = {};
     for (const f of LIG_FILTERS) {
+      if (f.id === 9999) {
+        if (wcMatchesLoading) {
+          result[f.label] = [{ key: 'wc-loading', type: 'empty', filter: f.label }];
+        } else if (wcMatches.length === 0) {
+          result[f.label] = [{ key: 'empty-wc', type: 'empty', filter: f.label }];
+        } else {
+          const sorted = [...wcMatches].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+          result[f.label] = [
+            { key: 'h-wc', type: 'section-header', title: 'DÜNYA KUPASI 2026 MAÇLARI' },
+            ...sorted.map(m => ({ key: `m-${m.id}`, type: 'match' as const, m, metrics: NO_DATA })),
+          ];
+        }
+        continue;
+      }
       const filtered = matchesReadyForSelectedDate
         ? matches.filter(m => m.leagueApiId === f.id)
         : [];
@@ -1422,7 +1520,7 @@ export default function HomeScreen() {
       }
     }
     return result;
-  }, [matches, matchesReadyForSelectedDate, metricsMap]);
+  }, [matches, matchesReadyForSelectedDate, metricsMap, wcMatches, wcMatchesLoading]);
 
   const goToMatch = useCallback((m: Match, metrics?: Metrics) => {
     tapMedium();
@@ -1442,6 +1540,21 @@ export default function HomeScreen() {
       safetyPts: metrics?.safetyPts != null ? String(metrics.safetyPts) : '',
       leagueAvg: metrics?.leagueAvg != null ? String(metrics.leagueAvg) : '',
     };
+    if (m.leagueApiId === 9999) {
+      router.push({
+        pathname: '/sl_match_detail',
+        params: {
+          matchId: String(m.id),
+          home: m.home,
+          away: m.away,
+          homeTeamId: String(m.homeTeamId),
+          awayTeamId: String(m.awayTeamId),
+          date: m.utcDate,
+          leagueName: 'Dünya Kupası 2026',
+        },
+      });
+      return;
+    }
     if (m.leagueApiId === 203) {
       void preloadSuperLigMatchContext({
         eventId: String(m.id),

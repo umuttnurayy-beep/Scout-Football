@@ -93,15 +93,17 @@ export default function StatsScreen() {
         {/* League Cards */}
         <View style={styles.cardsWrap}>
           {leagues.map(l => {
+            const isWC = l.apiId === 9999;
             const stil = computeStil(l.avgGoals);
             const badge = stilBadgeColors(stil, isDark);
+            const wcBadge = { color: isDark ? '#79AAFF' : '#0C447C', bg: isDark ? '#0A1929' : '#E6F1FB' };
             return (
               <TouchableOpacity
                 key={l.id}
                 style={[styles.leagueCard, { backgroundColor: c.surface }]}
                 activeOpacity={0.7}
                 onPress={() => {
-                  if (l.apiId === 9999) {
+                  if (isWC) {
                     router.push({ pathname: '/leagues', params: { openLeague: 'wc' } });
                     return;
                   }
@@ -117,29 +119,48 @@ export default function StatsScreen() {
                 <View style={styles.cardBody}>
                   <View style={styles.cardTopRow}>
                     <Text style={[styles.leagueName, { color: l.badgeColor }]} numberOfLines={1}>{l.name}</Text>
-                    <View style={[styles.stilPill, { backgroundColor: badge.bg }]}>
-                      <Text style={[styles.stilText, { color: badge.color }]}>{stil}</Text>
+                    <View style={[styles.stilPill, { backgroundColor: isWC ? wcBadge.bg : badge.bg }]}>
+                      <Text style={[styles.stilText, { color: isWC ? wcBadge.color : badge.color }]}>{isWC ? 'Turnuva' : stil}</Text>
                     </View>
                   </View>
                   <Text style={[styles.countryText, { color: c.textMuted }]}>{l.flag} {l.country}</Text>
                   <Text style={[styles.descText, { color: c.textFaint }]} numberOfLines={1}>{l.desc}</Text>
                   <View style={[styles.divider, { backgroundColor: c.border }]} />
-                  <View style={styles.metricRow}>
-                    <View style={styles.metric}>
-                      <Text style={[styles.metricVal, { color: c.text }]}>{l.avgGoals.toFixed(1)}</Text>
-                      <Text style={[styles.metricLbl, { color: c.textMuted }]}>Gol/Maç</Text>
+                  {isWC ? (
+                    <View style={styles.metricRow}>
+                      <View style={styles.metric}>
+                        <Text style={[styles.metricVal, { color: c.text }]}>48</Text>
+                        <Text style={[styles.metricLbl, { color: c.textMuted }]}>Takım</Text>
+                      </View>
+                      <View style={[styles.metricDivider, { backgroundColor: c.border }]} />
+                      <View style={styles.metric}>
+                        <Text style={[styles.metricVal, { color: c.text }]}>11 Haz</Text>
+                        <Text style={[styles.metricLbl, { color: c.textMuted }]}>Başlangıç</Text>
+                      </View>
+                      <View style={[styles.metricDivider, { backgroundColor: c.border }]} />
+                      <View style={styles.metric}>
+                        <Text style={[styles.metricVal, { color: c.text, fontSize: 11 }]}>ABD·MEK·KAN</Text>
+                        <Text style={[styles.metricLbl, { color: c.textMuted }]}>Ev Sahipleri</Text>
+                      </View>
                     </View>
-                    <View style={[styles.metricDivider, { backgroundColor: c.border }]} />
-                    <View style={styles.metric}>
-                      <Text style={[styles.metricVal, { color: c.text }]}>{l.tempo}</Text>
-                      <Text style={[styles.metricLbl, { color: c.textMuted }]}>Tempo</Text>
+                  ) : (
+                    <View style={styles.metricRow}>
+                      <View style={styles.metric}>
+                        <Text style={[styles.metricVal, { color: c.text }]}>{l.avgGoals.toFixed(1)}</Text>
+                        <Text style={[styles.metricLbl, { color: c.textMuted }]}>Gol/Maç</Text>
+                      </View>
+                      <View style={[styles.metricDivider, { backgroundColor: c.border }]} />
+                      <View style={styles.metric}>
+                        <Text style={[styles.metricVal, { color: c.text }]}>{l.tempo}</Text>
+                        <Text style={[styles.metricLbl, { color: c.textMuted }]}>Tempo</Text>
+                      </View>
+                      <View style={[styles.metricDivider, { backgroundColor: c.border }]} />
+                      <View style={styles.metric}>
+                        <Text style={[styles.metricVal, { color: c.text }]}>{stil}</Text>
+                        <Text style={[styles.metricLbl, { color: c.textMuted }]}>Profil</Text>
+                      </View>
                     </View>
-                    <View style={[styles.metricDivider, { backgroundColor: c.border }]} />
-                    <View style={styles.metric}>
-                      <Text style={[styles.metricVal, { color: c.text }]}>{stil}</Text>
-                      <Text style={[styles.metricLbl, { color: c.textMuted }]}>Profil</Text>
-                    </View>
-                  </View>
+                  )}
                 </View>
 
                 {/* Right: chevron */}

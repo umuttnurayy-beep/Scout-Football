@@ -207,6 +207,53 @@ const API_ID_TO_FD_ID: Record<number, number> = {
   39: 2021, 140: 2014, 78: 2002, 135: 2019, 61: 2015, 2: 2001, 203: 0,
 };
 
+const WC_TEAM_TR: Record<string, string> = {
+  'Mexico': 'Meksika', 'South Africa': 'Güney Afrika', 'South Korea': 'Güney Kore',
+  'Republic of Korea': 'Güney Kore', 'Czech Republic': 'Çek Cumhuriyeti',
+  'Canada': 'Kanada', 'Bosnia-Herzegovina': 'Bosna-Hersek', 'Bosnia Herzegovina': 'Bosna-Hersek',
+  'USA': 'ABD', 'United States': 'ABD', 'Paraguay': 'Paraguay',
+  'Brazil': 'Brezilya', 'Morocco': 'Fas', 'Qatar': 'Katar', 'Switzerland': 'İsviçre',
+  'Haiti': 'Haiti', 'Scotland': 'İskoçya', 'Germany': 'Almanya', 'Curaçao': 'Curaçao',
+  'Ivory Coast': 'Fildişi Sahili', "Cote d'Ivoire": 'Fildişi Sahili',
+  'Ecuador': 'Ekvador', 'Netherlands': 'Hollanda', 'Japan': 'Japonya',
+  'Australia': 'Avustralya', 'Turkey': 'Türkiye', 'Belgium': 'Belçika',
+  'Egypt': 'Mısır', 'Saudi Arabia': 'Suudi Arabistan', 'Uruguay': 'Uruguay',
+  'Spain': 'İspanya', 'Cape Verde': 'Yeşil Burun Adaları', 'Sweden': 'İsveç',
+  'Tunisia': 'Tunus', 'Argentina': 'Arjantin', 'France': 'Fransa',
+  'Portugal': 'Portekiz', 'England': 'İngiltere', 'Colombia': 'Kolombiya',
+  'Croatia': 'Hırvatistan', 'Serbia': 'Sırbistan', 'Poland': 'Polonya',
+  'Nigeria': 'Nijerya', 'Senegal': 'Senegal', 'Iran': 'İran',
+  'Venezuela': 'Venezuela', 'Peru': 'Peru', 'Chile': 'Şili',
+  'Costa Rica': 'Kosta Rika', 'Honduras': 'Honduras', 'Panama': 'Panama',
+  'Jamaica': 'Jamaika', 'Bolivia': 'Bolivya', 'New Zealand': 'Yeni Zelanda',
+  'Algeria': 'Cezayir', 'Ghana': 'Gana', 'Cameroon': 'Kamerun',
+  'Slovakia': 'Slovakya', 'Romania': 'Romanya', 'Austria': 'Avusturya',
+  'Denmark': 'Danimarka', 'Norway': 'Norveç', 'Ukraine': 'Ukrayna',
+  'Greece': 'Yunanistan', 'Iraq': 'Irak', 'Indonesia': 'Endonezya',
+  'Congo DR': 'Kongo DR', 'Guinea': 'Gine', 'Mali': 'Mali', 'Kenya': 'Kenya',
+};
+
+function translateWCTeam(name: string): string {
+  return WC_TEAM_TR[name] || name;
+}
+
+function wcTimeToTurkey(timeStr: string): string {
+  if (!timeStr) return '--:--';
+  const parts = timeStr.split(':');
+  const h = parseInt(parts[0], 10);
+  const m = parseInt(parts[1] || '0', 10);
+  if (isNaN(h)) return timeStr.slice(0, 5);
+  const totalMins = (h * 60 + m + 180) % (24 * 60);
+  return `${String(Math.floor(totalMins / 60)).padStart(2, '0')}:${String(totalMins % 60).padStart(2, '0')}`;
+}
+
+function formatWcDate(dateStr: string): string {
+  if (!dateStr) return 'Bilinmiyor';
+  const [, mm, dd] = dateStr.split('-');
+  const months = ['', 'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+  return `${parseInt(dd, 10)} ${months[parseInt(mm, 10)] || mm}`;
+}
+
 type TeamSort  = 'puan' | 'scout' | 'hucum' | 'savunma' | 'alfa';
 type TrendTab  = 'hucum' | 'savunma' | 'tempo' | 'beraberlik';
 
@@ -484,15 +531,14 @@ export default function LeaguesScreen() {
       if (dateCompare !== 0) return dateCompare;
       return (a.time || '').localeCompare(b.time || '');
     });
-    const groups: { label: string; matches: any[] }[] = [];
+    const groups: { label: string; date: string; matches: any[] }[] = [];
     const seen = new Map<string, number>();
     for (const m of sorted) {
-      const round = m.round ? String(m.round) : null;
-      const key = round || m.date || 'Bilinmiyor';
-      const label = round ? `${round}` : (m.date ? m.date : 'Bilinmiyor');
+      const key = m.date || 'Bilinmiyor';
+      const label = formatWcDate(m.date);
       if (!seen.has(key)) {
         seen.set(key, groups.length);
-        groups.push({ label, matches: [] });
+        groups.push({ label, date: key, matches: [] });
       }
       groups[seen.get(key)!].matches.push(m);
     }
@@ -583,13 +629,17 @@ export default function LeaguesScreen() {
             <View style={{ paddingBottom: 24 }}>
               {groupedWcFixtures.map((group, gi) => (
                 <View key={gi}>
-                  <Text style={[scoutStyles.sectionLabel, { color: c.textMuted, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 }]}>
-                    {group.label}
-                  </Text>
+                  <View style={[wcStyles.dateHeader, { borderBottomColor: c.border }]}>
+                    <Text style={[wcStyles.dateHeaderText, { color: c.textMuted }]}>{group.label}</Text>
+                    <Text style={[wcStyles.dateHeaderSub, { color: c.textFaint }]}>{group.matches.length} maç</Text>
+                  </View>
                   {group.matches.map((m: any, mi: number) => {
                     const homeScore = m.homeScore !== null && m.homeScore !== undefined ? m.homeScore : null;
                     const awayScore = m.awayScore !== null && m.awayScore !== undefined ? m.awayScore : null;
                     const isFinished = homeScore !== null;
+                    const homeTr = translateWCTeam(m.home || '');
+                    const awayTr = translateWCTeam(m.away || '');
+                    const displayTime = wcTimeToTurkey(m.time || '');
                     return (
                       <TouchableOpacity
                         key={mi}
@@ -599,8 +649,8 @@ export default function LeaguesScreen() {
                           pathname: '/sl_match_detail',
                           params: {
                             matchId: String(m.id),
-                            home: m.home || '',
-                            away: m.away || '',
+                            home: homeTr,
+                            away: awayTr,
                             homeTeamId: String(m.homeTeamId || 0),
                             awayTeamId: String(m.awayTeamId || 0),
                             date: m.date || '',
@@ -609,23 +659,21 @@ export default function LeaguesScreen() {
                         })}
                       >
                         <View style={wcStyles.matchTimeCol}>
-                          <Text style={[wcStyles.matchTime, { color: c.textMuted }]}>{m.time ? m.time.slice(0, 5) : '--:--'}</Text>
-                          {m.status && !isFinished && (
-                            <Text style={[wcStyles.matchStatus, { color: c.textFaint }]} numberOfLines={1}>{m.status}</Text>
-                          )}
+                          <Text style={[wcStyles.matchTime, { color: c.textMuted }]}>{displayTime}</Text>
+                          <Text style={[wcStyles.matchTimeSub, { color: c.textFaint }]}>TR</Text>
                           {isFinished && (
-                            <Text style={[wcStyles.matchStatus, { color: c.win }]}>Bitti</Text>
+                            <Text style={[wcStyles.matchStatus, { color: c.win }]}>MS</Text>
                           )}
                         </View>
                         <View style={wcStyles.matchTeamsCol}>
-                          <Text style={[wcStyles.teamName, { color: c.text }]} numberOfLines={1}>{m.home || 'TBD'}</Text>
-                          <Text style={[wcStyles.teamName, { color: c.text }]} numberOfLines={1}>{m.away || 'TBD'}</Text>
+                          <Text style={[wcStyles.teamName, { color: c.text }]} numberOfLines={1}>{homeTr || 'TBD'}</Text>
+                          <Text style={[wcStyles.teamName, { color: c.text }]} numberOfLines={1}>{awayTr || 'TBD'}</Text>
                         </View>
                         <View style={wcStyles.matchScoreCol}>
                           {isFinished ? (
                             <>
-                              <Text style={[wcStyles.scoreText, { color: c.text }]}>{homeScore}</Text>
-                              <Text style={[wcStyles.scoreText, { color: c.text }]}>{awayScore}</Text>
+                              <Text style={[wcStyles.scoreText, { color: homeScore > awayScore ? c.win : homeScore === awayScore ? c.text : c.textMuted }]}>{homeScore}</Text>
+                              <Text style={[wcStyles.scoreText, { color: awayScore > homeScore ? c.win : homeScore === awayScore ? c.text : c.textMuted }]}>{awayScore}</Text>
                             </>
                           ) : (
                             <>
@@ -1745,19 +1793,27 @@ const genStyles = StyleSheet.create({
 });
 
 const wcStyles = StyleSheet.create({
+  dateHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 16, paddingTop: 18, paddingBottom: 8,
+    borderBottomWidth: 0.5,
+  },
+  dateHeaderText: { fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
+  dateHeaderSub:  { fontSize: 11 },
   matchRow: {
     flexDirection: 'row', alignItems: 'center',
-    marginHorizontal: 12, marginBottom: 6, borderRadius: 12,
+    marginHorizontal: 12, marginTop: 6, borderRadius: 12,
     padding: 12, gap: 8,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
   },
-  matchTimeCol: { width: 44, alignItems: 'center' },
-  matchTime:    { fontSize: 12, fontWeight: '600' },
-  matchStatus:  { fontSize: 10, marginTop: 2 },
+  matchTimeCol:  { width: 46, alignItems: 'center' },
+  matchTime:     { fontSize: 12, fontWeight: '700' },
+  matchTimeSub:  { fontSize: 9, marginTop: 1, letterSpacing: 0.2 },
+  matchStatus:   { fontSize: 10, marginTop: 2, fontWeight: '600' },
   matchTeamsCol: { flex: 1, gap: 4 },
-  teamName:     { fontSize: 13, fontWeight: '500' },
+  teamName:      { fontSize: 13, fontWeight: '500' },
   matchScoreCol: { width: 24, alignItems: 'center', gap: 4 },
-  scoreText:    { fontSize: 13, fontWeight: '700' },
-  matchArrow:   { fontSize: 20, paddingLeft: 4 },
+  scoreText:     { fontSize: 14, fontWeight: '700' },
+  matchArrow:    { fontSize: 20, paddingLeft: 4 },
 });
