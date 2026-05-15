@@ -366,7 +366,7 @@ export default function LeaguesScreen() {
   const { colors: c, isDark } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
   const router    = useRouter();
-  const params    = useLocalSearchParams<{ openLeague?: string }>();
+  const params    = useLocalSearchParams<{ openLeague?: string; openGroup?: string }>();
   const pagerRef  = useRef<ScrollView>(null);
   const [activeLeague, setActiveLeague] = useState<League>(configuredLeagues[0]);
   const [subTab, setSubTab]             = useState<SubTab>('genel');
@@ -394,13 +394,16 @@ export default function LeaguesScreen() {
     pagerRef.current?.scrollTo({ x: idx * screenWidth, animated: true });
   }
 
-  // openLeague param gelince WC sekmesine geç
+  // openLeague param gelince WC sekmesine geç; openGroup varsa o grubu aç
   useEffect(() => {
     if (params.openLeague === 'wc') {
       const wcLeague = configuredLeagues.find(l => l.apiId === 9999);
       if (wcLeague) setActiveLeague(wcLeague);
+      if (params.openGroup && WC_GROUP_KEYS.includes(params.openGroup)) {
+        setWcActiveGroup(params.openGroup);
+      }
     }
-  }, [params.openLeague]);
+  }, [params.openLeague, params.openGroup]);
 
   useEffect(() => {
     setSubTab('genel');

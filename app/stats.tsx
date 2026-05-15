@@ -104,7 +104,7 @@ export default function StatsScreen() {
                 activeOpacity={0.7}
                 onPress={() => {
                   if (isWC) {
-                    router.push({ pathname: '/leagues', params: { openLeague: 'wc' } });
+                    router.push({ pathname: '/wc_stats' });
                     return;
                   }
                   router.push({ pathname: '/team_detail', params: { leagueName: l.name, leagueFlag: l.flag, fdId: l.fdId, apiId: l.apiId } });
