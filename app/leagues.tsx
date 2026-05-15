@@ -209,12 +209,13 @@ const API_ID_TO_FD_ID: Record<number, number> = {
 
 const WC_TEAM_TR: Record<string, string> = {
   'Mexico': 'Meksika', 'South Africa': 'Güney Afrika', 'South Korea': 'Güney Kore',
-  'Republic of Korea': 'Güney Kore', 'Czech Republic': 'Çek Cumhuriyeti',
-  'Canada': 'Kanada', 'Bosnia-Herzegovina': 'Bosna-Hersek', 'Bosnia Herzegovina': 'Bosna-Hersek',
+  'Republic of Korea': 'Güney Kore', 'Czech Republic': 'Çekya', 'Czechia': 'Çekya',
+  'Canada': 'Kanada', 'Bosnia-Herzegovina': 'Bosna Hersek', 'Bosnia Herzegovina': 'Bosna Hersek',
+  'Bosnia and Herzegovina': 'Bosna Hersek',
   'USA': 'ABD', 'United States': 'ABD', 'Paraguay': 'Paraguay',
   'Brazil': 'Brezilya', 'Morocco': 'Fas', 'Qatar': 'Katar', 'Switzerland': 'İsviçre',
   'Haiti': 'Haiti', 'Scotland': 'İskoçya', 'Germany': 'Almanya', 'Curaçao': 'Curaçao',
-  'Ivory Coast': 'Fildişi Sahili', "Cote d'Ivoire": 'Fildişi Sahili',
+  'Ivory Coast': 'Fildişi Sahili', "Cote d'Ivoire": 'Fildişi Sahili', "Côte d'Ivoire": 'Fildişi Sahili',
   'Ecuador': 'Ekvador', 'Netherlands': 'Hollanda', 'Japan': 'Japonya',
   'Australia': 'Avustralya', 'Turkey': 'Türkiye', 'Belgium': 'Belçika',
   'Egypt': 'Mısır', 'Saudi Arabia': 'Suudi Arabistan', 'Uruguay': 'Uruguay',
@@ -230,11 +231,54 @@ const WC_TEAM_TR: Record<string, string> = {
   'Slovakia': 'Slovakya', 'Romania': 'Romanya', 'Austria': 'Avusturya',
   'Denmark': 'Danimarka', 'Norway': 'Norveç', 'Ukraine': 'Ukrayna',
   'Greece': 'Yunanistan', 'Iraq': 'Irak', 'Indonesia': 'Endonezya',
-  'Congo DR': 'Kongo DR', 'Guinea': 'Gine', 'Mali': 'Mali', 'Kenya': 'Kenya',
+  'Jordan': 'Ürdün', 'Uzbekistan': 'Özbekistan',
+  'Congo DR': 'Demokratik Kongo Cumhuriyeti', 'DR Congo': 'Demokratik Kongo Cumhuriyeti',
+  'Democratic Republic of Congo': 'Demokratik Kongo Cumhuriyeti',
+  'Democratic Republic of the Congo': 'Demokratik Kongo Cumhuriyeti',
+  'Guinea': 'Gine', 'Mali': 'Mali', 'Kenya': 'Kenya',
+};
+
+const WC_GROUPS: Record<string, string[]> = {
+  A: ['Meksika',   'Güney Afrika',                  'Güney Kore',    'Çekya'],
+  B: ['Kanada',    'Bosna Hersek',                  'Katar',         'İsviçre'],
+  C: ['Brezilya',  'Fas',                           'Haiti',         'İskoçya'],
+  D: ['ABD',       'Paraguay',                      'Avustralya',    'Türkiye'],
+  E: ['Almanya',   'Curaçao',                       'Fildişi Sahili','Ekvador'],
+  F: ['Hollanda',  'Japonya',                       'İsveç',         'Tunus'],
+  G: ['Belçika',   'Mısır',                         'İran',          'Yeni Zelanda'],
+  H: ['İspanya',   'Yeşil Burun Adaları',           'Suudi Arabistan','Uruguay'],
+  I: ['Fransa',    'Senegal',                       'Irak',          'Norveç'],
+  J: ['Arjantin',  'Cezayir',                       'Avusturya',     'Ürdün'],
+  K: ['Portekiz',  'Demokratik Kongo Cumhuriyeti',  'Özbekistan',    'Kolombiya'],
+  L: ['İngiltere', 'Hırvatistan',                   'Gana',          'Panama'],
+};
+
+const WC_GROUP_KEYS = Object.keys(WC_GROUPS);
+
+// Standard FIFA matchday pair indices within a group of 4
+const WC_MD_PAIRS: [number, number][][] = [
+  [[0, 1], [2, 3]],
+  [[0, 2], [1, 3]],
+  [[0, 3], [1, 2]],
+];
+
+const WC_TEAM_SHORT: Record<string, string> = {
+  'Demokratik Kongo Cumhuriyeti': 'D. Kongo',
+  'Yeşil Burun Adaları': 'Yeşil Burun',
+  'Güney Afrika': 'G. Afrika',
+  'Güney Kore': 'G. Kore',
+  'Fildişi Sahili': 'F. Sahili',
+  'Bosna Hersek': 'Bosna Her.',
+  'Suudi Arabistan': 'S. Arabistan',
+  'Yeni Zelanda': 'Y. Zelanda',
 };
 
 function translateWCTeam(name: string): string {
   return WC_TEAM_TR[name] || name;
+}
+
+function shortWCTeam(name: string): string {
+  return WC_TEAM_SHORT[name] || name;
 }
 
 function wcTimeToTurkey(timeStr: string): string {
@@ -341,6 +385,7 @@ export default function LeaguesScreen() {
   const [trendExpanded, setTrendExpanded] = useState(false);
   const [wcFixtures, setWcFixtures]     = useState<any[]>([]);
   const [wcFixturesLoading, setWcFixturesLoading] = useState(false);
+  const [wcActiveGroup, setWcActiveGroup] = useState('A');
 
   function goToTab(key: SubTab) {
     tapLight();
@@ -524,26 +569,54 @@ export default function LeaguesScreen() {
     };
   }, [standings]);
 
-  const groupedWcFixtures = useMemo(() => {
-    if (wcFixtures.length === 0) return [];
-    const sorted = [...wcFixtures].sort((a, b) => {
-      const dateCompare = (a.date || '').localeCompare(b.date || '');
-      if (dateCompare !== 0) return dateCompare;
-      return (a.time || '').localeCompare(b.time || '');
-    });
-    const groups: { label: string; date: string; matches: any[] }[] = [];
-    const seen = new Map<string, number>();
-    for (const m of sorted) {
-      const key = m.date || 'Bilinmiyor';
-      const label = formatWcDate(m.date);
-      if (!seen.has(key)) {
-        seen.set(key, groups.length);
-        groups.push({ label, date: key, matches: [] });
-      }
-      groups[seen.get(key)!].matches.push(m);
+  const wcGroupData = useMemo(() => {
+    const teams = WC_GROUPS[wcActiveGroup] || [];
+    const translated = wcFixtures.map(m => ({
+      ...m,
+      homeTr: translateWCTeam(m.home || ''),
+      awayTr: translateWCTeam(m.away || ''),
+    }));
+    const groupFixtures = translated.filter(
+      m => teams.includes(m.homeTr) && teams.includes(m.awayTr)
+    );
+
+    // Compute standings
+    type TeamStat = { played: number; w: number; d: number; l: number; gf: number; ga: number; pts: number };
+    const stats: Record<string, TeamStat> = {};
+    teams.forEach(t => { stats[t] = { played: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 }; });
+    for (const f of groupFixtures) {
+      if (f.homeScore === null || f.awayScore === null) continue;
+      const h = f.homeTr, a = f.awayTr;
+      const hs = Number(f.homeScore), as_ = Number(f.awayScore);
+      stats[h].gf += hs; stats[h].ga += as_; stats[h].played++;
+      stats[a].gf += as_; stats[a].ga += hs; stats[a].played++;
+      if (hs > as_) { stats[h].w++; stats[h].pts += 3; stats[a].l++; }
+      else if (hs < as_) { stats[a].w++; stats[a].pts += 3; stats[h].l++; }
+      else { stats[h].d++; stats[h].pts++; stats[a].d++; stats[a].pts++; }
     }
-    return groups;
-  }, [wcFixtures]);
+    const standings = [...teams]
+      .map(t => ({ team: t, ...stats[t] }))
+      .sort((a, b) => {
+        if (b.pts !== a.pts) return b.pts - a.pts;
+        const gdA = a.gf - a.ga, gdB = b.gf - b.ga;
+        if (gdB !== gdA) return gdB - gdA;
+        return b.gf - a.gf;
+      });
+
+    // Generate all 6 matchups grouped by matchday
+    type Matchup = { home: string; away: string; fixture: typeof translated[0] | null };
+    const matchdays: Matchup[][] = WC_MD_PAIRS.map(pairs =>
+      pairs.map(([hi, ai]) => {
+        const home = teams[hi], away = teams[ai];
+        const fixture = groupFixtures.find(
+          f => (f.homeTr === home && f.awayTr === away) || (f.homeTr === away && f.awayTr === home)
+        ) || null;
+        return { home, away, fixture };
+      })
+    );
+
+    return { standings, matchdays };
+  }, [wcFixtures, wcActiveGroup]);
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
@@ -607,90 +680,150 @@ export default function LeaguesScreen() {
 
       {/* ===== DÜNYA KUPASI GÖRÜNÜMÜ ===== */}
       {activeLeague.apiId === 9999 ? (
-        <ScrollView
-          style={styles.scroll}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} colors={[c.primary]} />}
-        >
-          {wcFixturesLoading ? (
-            <View style={styles.stateFrame}>
-              <SkeletonLeagueTable />
-            </View>
-          ) : wcFixtures.length === 0 ? (
-            <View style={styles.stateFrame}>
-              <EmptyStateCard
-                icon="trophy-outline"
-                title="Fikstür bulunamadı"
-                subtitle="Dünya Kupası 2026 fikstürü henüz yayınlanmamış olabilir."
-                onRetry={() => loadWcFixtures()}
-              />
-            </View>
-          ) : (
-            <View style={{ paddingBottom: 24 }}>
-              {groupedWcFixtures.map((group, gi) => (
-                <View key={gi}>
-                  <View style={[wcStyles.dateHeader, { borderBottomColor: c.border }]}>
-                    <Text style={[wcStyles.dateHeaderText, { color: c.textMuted }]}>{group.label}</Text>
-                    <Text style={[wcStyles.dateHeaderSub, { color: c.textFaint }]}>{group.matches.length} maç</Text>
+        <>
+          {/* Grup filtre pilleri */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={[wcStyles.groupNav, { backgroundColor: c.surface, borderBottomColor: c.border }]}
+            contentContainerStyle={wcStyles.groupNavContent}
+          >
+            {WC_GROUP_KEYS.map(g => (
+              <TouchableOpacity
+                key={g}
+                style={[wcStyles.groupPill, { borderColor: c.border }, wcActiveGroup === g && wcStyles.groupPillActive]}
+                onPress={() => { tapLight(); setWcActiveGroup(g); }}
+              >
+                <Text style={[wcStyles.groupPillText, { color: wcActiveGroup === g ? '#fff' : c.textMuted }]}>
+                  {g}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <ScrollView
+            style={styles.scroll}
+            showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} colors={[c.primary]} />}
+          >
+            {wcFixturesLoading ? (
+              <View style={styles.stateFrame}><SkeletonLeagueTable /></View>
+            ) : (
+              <View style={{ paddingBottom: 32 }}>
+
+                {/* Puan Durumu */}
+                <Text style={[scoutStyles.sectionLabel, { color: c.textMuted, paddingTop: 16 }]}>
+                  {wcActiveGroup} GRUBU · PUAN DURUMU
+                </Text>
+                <View style={[wcStyles.standingsCard, { backgroundColor: c.surface }]}>
+                  {/* Tablo başlığı */}
+                  <View style={[wcStyles.standingsHeader, { borderBottomColor: c.border }]}>
+                    <Text style={[wcStyles.standingsHdrTeam, { color: c.textMuted }]}>Takım</Text>
+                    <Text style={[wcStyles.standingsHdrNum, { color: c.textMuted }]}>O</Text>
+                    <Text style={[wcStyles.standingsHdrNum, { color: c.textMuted }]}>G</Text>
+                    <Text style={[wcStyles.standingsHdrNum, { color: c.textMuted }]}>B</Text>
+                    <Text style={[wcStyles.standingsHdrNum, { color: c.textMuted }]}>M</Text>
+                    <Text style={[wcStyles.standingsHdrNum, { color: c.textMuted }]}>AG</Text>
+                    <Text style={[wcStyles.standingsHdrNum, { color: c.textMuted }]}>P</Text>
                   </View>
-                  {group.matches.map((m: any, mi: number) => {
-                    const homeScore = m.homeScore !== null && m.homeScore !== undefined ? m.homeScore : null;
-                    const awayScore = m.awayScore !== null && m.awayScore !== undefined ? m.awayScore : null;
-                    const isFinished = homeScore !== null;
-                    const homeTr = translateWCTeam(m.home || '');
-                    const awayTr = translateWCTeam(m.away || '');
-                    const displayTime = wcTimeToTurkey(m.time || '');
+                  {wcGroupData.standings.map((row, idx) => {
+                    const isEleme = idx < 3;
+                    const gd = row.gf - row.ga;
                     return (
-                      <TouchableOpacity
-                        key={mi}
-                        style={[wcStyles.matchRow, { backgroundColor: c.surface }]}
-                        activeOpacity={0.75}
-                        onPress={() => router.push({
-                          pathname: '/sl_match_detail',
-                          params: {
-                            matchId: String(m.id),
-                            home: homeTr,
-                            away: awayTr,
-                            homeTeamId: String(m.homeTeamId || 0),
-                            awayTeamId: String(m.awayTeamId || 0),
-                            date: m.date || '',
-                            leagueName: 'Dünya Kupası 2026',
-                          },
-                        })}
+                      <View
+                        key={row.team}
+                        style={[
+                          wcStyles.standingsRow,
+                          { borderBottomColor: c.border },
+                          isEleme && { backgroundColor: isDark ? 'rgba(24,95,165,0.18)' : 'rgba(24,95,165,0.07)' },
+                        ]}
                       >
-                        <View style={wcStyles.matchTimeCol}>
-                          <Text style={[wcStyles.matchTime, { color: c.textMuted }]}>{displayTime}</Text>
-                          <Text style={[wcStyles.matchTimeSub, { color: c.textFaint }]}>TR</Text>
-                          {isFinished && (
-                            <Text style={[wcStyles.matchStatus, { color: c.win }]}>MS</Text>
-                          )}
+                        <View style={wcStyles.standingsPosWrap}>
+                          {isEleme
+                            ? <View style={wcStyles.standingsPosDot} />
+                            : <View style={[wcStyles.standingsPosDot, { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.border }]} />
+                          }
+                          <Text style={[wcStyles.standingsPos, { color: isEleme ? c.primary : c.textMuted }]}>{idx + 1}</Text>
                         </View>
-                        <View style={wcStyles.matchTeamsCol}>
-                          <Text style={[wcStyles.teamName, { color: c.text }]} numberOfLines={1}>{homeTr || 'TBD'}</Text>
-                          <Text style={[wcStyles.teamName, { color: c.text }]} numberOfLines={1}>{awayTr || 'TBD'}</Text>
-                        </View>
-                        <View style={wcStyles.matchScoreCol}>
-                          {isFinished ? (
-                            <>
-                              <Text style={[wcStyles.scoreText, { color: homeScore > awayScore ? c.win : homeScore === awayScore ? c.text : c.textMuted }]}>{homeScore}</Text>
-                              <Text style={[wcStyles.scoreText, { color: awayScore > homeScore ? c.win : homeScore === awayScore ? c.text : c.textMuted }]}>{awayScore}</Text>
-                            </>
-                          ) : (
-                            <>
-                              <Text style={[wcStyles.scoreText, { color: c.textFaint }]}>-</Text>
-                              <Text style={[wcStyles.scoreText, { color: c.textFaint }]}>-</Text>
-                            </>
-                          )}
-                        </View>
-                        <Text style={[wcStyles.matchArrow, { color: c.textVeryFaint }]}>›</Text>
-                      </TouchableOpacity>
+                        <Text style={[wcStyles.standingsTeam, { color: c.text }]} numberOfLines={1}>{shortWCTeam(row.team)}</Text>
+                        <Text style={[wcStyles.standingsNum, { color: c.textSub }]}>{row.played}</Text>
+                        <Text style={[wcStyles.standingsNum, { color: c.textSub }]}>{row.w}</Text>
+                        <Text style={[wcStyles.standingsNum, { color: c.textSub }]}>{row.d}</Text>
+                        <Text style={[wcStyles.standingsNum, { color: c.textSub }]}>{row.l}</Text>
+                        <Text style={[wcStyles.standingsNum, { color: gd > 0 ? c.win : gd < 0 ? c.loss : c.textSub }]}>
+                          {gd > 0 ? `+${gd}` : gd}
+                        </Text>
+                        <Text style={[wcStyles.standingsNum, { color: c.text, fontWeight: '700' }]}>{row.pts}</Text>
+                      </View>
                     );
                   })}
+                  {/* Legend */}
+                  <View style={[wcStyles.standingsLegend, { borderTopColor: c.border }]}>
+                    <View style={wcStyles.standingsPosDot} />
+                    <Text style={[wcStyles.standingsLegendText, { color: c.textFaint }]}>Eleme Aşaması (ilk 3)</Text>
+                  </View>
                 </View>
-              ))}
-            </View>
-          )}
-        </ScrollView>
+
+                {/* Fikstür */}
+                <Text style={[scoutStyles.sectionLabel, { color: c.textMuted, paddingTop: 8 }]}>
+                  {wcActiveGroup} GRUBU · FİKSTÜR
+                </Text>
+                {wcGroupData.matchdays.map((mdMatches, mdIdx) => (
+                  <View key={mdIdx}>
+                    <View style={[wcStyles.mdHeader, { borderBottomColor: c.border }]}>
+                      <Text style={[wcStyles.mdHeaderText, { color: c.textMuted }]}>MAÇ GÜNÜ {mdIdx + 1}</Text>
+                    </View>
+                    {mdMatches.map(({ home, away, fixture }, mi) => {
+                      const hs = fixture?.homeScore ?? null;
+                      const as_ = fixture?.awayScore ?? null;
+                      const isFinished = hs !== null && as_ !== null;
+                      const displayTime = fixture ? wcTimeToTurkey(fixture.time || '') : null;
+                      const displayDate = fixture ? formatWcDate(fixture.date || '') : null;
+                      // fixture home/away may be swapped vs our expected home/away
+                      const fixtureHome = fixture ? translateWCTeam(fixture.home || '') : home;
+                      const fixtureAway = fixture ? translateWCTeam(fixture.away || '') : away;
+                      const fhs = fixture?.homeScore ?? null;
+                      const fas = fixture?.awayScore ?? null;
+                      return (
+                        <View key={mi} style={[wcStyles.fixtureRow, { backgroundColor: c.surface }]}>
+                          <View style={wcStyles.fixtureTimeCol}>
+                            {displayDate
+                              ? <>
+                                  <Text style={[wcStyles.fixtureDate, { color: c.primary }]}>{displayDate}</Text>
+                                  <Text style={[wcStyles.fixtureTime, { color: c.textMuted }]}>{displayTime}</Text>
+                                  <Text style={[wcStyles.fixtureTimeSub, { color: c.textFaint }]}>TR</Text>
+                                </>
+                              : <Text style={[wcStyles.fixtureTbd, { color: c.textFaint }]}>TBD</Text>
+                            }
+                            {isFinished && <Text style={[wcStyles.fixtureMs, { color: c.win }]}>MS</Text>}
+                          </View>
+                          <View style={wcStyles.fixtureTeams}>
+                            <Text style={[wcStyles.fixtureTeam, { color: c.text, textAlign: 'right' }]} numberOfLines={1}>
+                              {shortWCTeam(fixtureHome)}
+                            </Text>
+                            <View style={wcStyles.fixtureScoreWrap}>
+                              {isFinished
+                                ? <>
+                                    <Text style={[wcStyles.fixtureScoreNum, { color: fhs > fas ? c.win : fhs === fas ? c.text : c.textMuted }]}>{fhs}</Text>
+                                    <Text style={[wcStyles.fixtureScoreSep, { color: c.textFaint }]}>-</Text>
+                                    <Text style={[wcStyles.fixtureScoreNum, { color: fas > fhs ? c.win : fhs === fas ? c.text : c.textMuted }]}>{fas}</Text>
+                                  </>
+                                : <Text style={[wcStyles.fixtureVs, { color: c.textFaint }]}>vs</Text>
+                              }
+                            </View>
+                            <Text style={[wcStyles.fixtureTeam, { color: c.text }]} numberOfLines={1}>
+                              {shortWCTeam(fixtureAway)}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ))}
+              </View>
+            )}
+          </ScrollView>
+        </>
       ) : null}
 
       {activeLeague.apiId === 9999 ? null : (
@@ -1793,27 +1926,73 @@ const genStyles = StyleSheet.create({
 });
 
 const wcStyles = StyleSheet.create({
-  dateHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 16, paddingTop: 18, paddingBottom: 8,
+  // Group nav bar
+  groupNav:        { borderBottomWidth: 0.5 },
+  groupNavContent: { paddingHorizontal: 12, paddingVertical: 8, gap: 6, flexDirection: 'row' },
+  groupPill: {
+    paddingHorizontal: 13, paddingVertical: 5, borderRadius: 20,
+    borderWidth: 1, alignItems: 'center', justifyContent: 'center',
+  },
+  groupPillActive: { backgroundColor: '#185FA5', borderColor: '#185FA5' },
+  groupPillText:   { fontSize: 13, fontWeight: '700' },
+
+  // Standings
+  standingsCard: {
+    marginHorizontal: 12, borderRadius: 14,
+    overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
+    marginBottom: 8,
+  },
+  standingsHeader: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 10, paddingVertical: 7,
     borderBottomWidth: 0.5,
   },
-  dateHeaderText: { fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
-  dateHeaderSub:  { fontSize: 11 },
-  matchRow: {
+  standingsHdrTeam: { flex: 1, fontSize: 10, fontWeight: '600', paddingLeft: 28 },
+  standingsHdrNum:  { width: 28, textAlign: 'center', fontSize: 10, fontWeight: '600' },
+  standingsRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 10, paddingVertical: 9,
+    borderBottomWidth: 0.5,
+  },
+  standingsPosWrap: { width: 28, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  standingsPosDot:  { width: 8, height: 8, borderRadius: 4, backgroundColor: '#185FA5' },
+  standingsPos:     { fontSize: 12, fontWeight: '600' },
+  standingsTeam:    { flex: 1, fontSize: 12, fontWeight: '500' },
+  standingsNum:     { width: 28, textAlign: 'center', fontSize: 12 },
+  standingsLegend: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 10, paddingVertical: 8,
+    borderTopWidth: 0.5,
+  },
+  standingsLegendText: { fontSize: 10 },
+
+  // Fixture matchday
+  mdHeader: {
+    paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6,
+    borderBottomWidth: 0.5,
+  },
+  mdHeaderText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
+  fixtureRow: {
     flexDirection: 'row', alignItems: 'center',
     marginHorizontal: 12, marginTop: 6, borderRadius: 12,
-    padding: 12, gap: 8,
+    padding: 10, gap: 8,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
   },
-  matchTimeCol:  { width: 46, alignItems: 'center' },
-  matchTime:     { fontSize: 12, fontWeight: '700' },
-  matchTimeSub:  { fontSize: 9, marginTop: 1, letterSpacing: 0.2 },
-  matchStatus:   { fontSize: 10, marginTop: 2, fontWeight: '600' },
-  matchTeamsCol: { flex: 1, gap: 4 },
-  teamName:      { fontSize: 13, fontWeight: '500' },
-  matchScoreCol: { width: 24, alignItems: 'center', gap: 4 },
-  scoreText:     { fontSize: 14, fontWeight: '700' },
-  matchArrow:    { fontSize: 20, paddingLeft: 4 },
+  fixtureTimeCol:  { width: 48, alignItems: 'center' },
+  fixtureDate:     { fontSize: 11, fontWeight: '700' },
+  fixtureTime:     { fontSize: 12, fontWeight: '700', marginTop: 1 },
+  fixtureTimeSub:  { fontSize: 9, marginTop: 1, letterSpacing: 0.2 },
+  fixtureTbd:      { fontSize: 11, fontWeight: '600' },
+  fixtureMs:       { fontSize: 9, fontWeight: '700', marginTop: 2 },
+  fixtureTeams: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4,
+  },
+  fixtureTeam:     { flex: 1, fontSize: 12, fontWeight: '500' },
+  fixtureScoreWrap: { flexDirection: 'row', alignItems: 'center', gap: 2, minWidth: 36, justifyContent: 'center' },
+  fixtureScoreNum: { fontSize: 14, fontWeight: '700' },
+  fixtureScoreSep: { fontSize: 12 },
+  fixtureVs:       { fontSize: 11, minWidth: 20, textAlign: 'center' },
 });
