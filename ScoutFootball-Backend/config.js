@@ -29,6 +29,8 @@ module.exports = {
   ALLSPORTS_BASE: 'https://apiv2.allsportsapi.com/football/',
   SPORTSDB_BASE: 'https://www.thesportsdb.com/api/v1/json/123',
   SL_LEAGUE_ID: '4339',
+  WC_LEAGUE_ID: '4429',
+  WC_SEASON: '2026',
   CURRENT_SPORTSDB_SEASON:
     process.env.CURRENT_SPORTSDB_SEASON ||
     process.env.SL_SEASON ||

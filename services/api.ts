@@ -664,6 +664,39 @@ export async function getSuperLigMatches(date?: string): Promise<SLMatch[]> {
   return readArrayEndpoint<SLMatch>(url, 'getSuperLigMatches');
 }
 
+export async function getWorldCupMatches(date?: string): Promise<any[]> {
+  try {
+    const d = date || new Date().toISOString().split('T')[0];
+    const res = await fetchWithTimeout(`${BASE_URL}/worldcup/matches?date=${d}`);
+    const data = await readApiJson<any[]>(res, []);
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    logApiError('getWorldCupMatches', e);
+    return [];
+  }
+}
+
+export async function getWorldCupSeasonFixtures(): Promise<any[]> {
+  try {
+    const res = await fetchWithTimeout(`${BASE_URL}/worldcup/season`);
+    const data = await readApiJson<any[]>(res, []);
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    logApiError('getWorldCupSeasonFixtures', e);
+    return [];
+  }
+}
+
+export async function getWorldCupMatch(eventId: string): Promise<any> {
+  try {
+    const res = await fetchWithTimeout(`${BASE_URL}/worldcup/match/${eventId}`);
+    return await readApiJson(res, null);
+  } catch (e) {
+    logApiError('getWorldCupMatch', e);
+    return null;
+  }
+}
+
 export async function getSuperLigTeamForm(teamId: number): Promise<SLFormMatch[]> {
   return readArrayEndpoint<SLFormMatch>(`${BASE_URL}/superlig/team-form/${teamId}`, 'getSuperLigTeamForm');
 }

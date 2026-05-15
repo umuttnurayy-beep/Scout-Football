@@ -55,6 +55,12 @@ const leagues = [
     badgeColor: '#E30A17', avgGoals: 2.6, tempo: 'Yüksek',
     desc: 'Yüksek tempo ve rekabetçi yapı',
   },
+  {
+    id: 8, apiId: 9999, fdId: 0,
+    name: 'Dünya Kupası', abbrev: 'WC', country: 'Dünya', flag: '🌍',
+    badgeColor: '#0A3D62', avgGoals: 2.6, tempo: 'Yüksek',
+    desc: '48 takım, 2026 ABD-Kanada-Meksika',
+  },
 ];
 
 function stilBadgeColors(stil: Stil, isDark: boolean) {
@@ -81,7 +87,7 @@ export default function StatsScreen() {
         {/* Hero */}
         <View style={styles.heroSection}>
           <Text style={[styles.heroTitle, { color: c.text }]}>LİGLER</Text>
-          <Text style={[styles.heroSub, { color: c.textMuted }]}>{leagues.length} lig · İstatistik & Takımlar</Text>
+          <Text style={[styles.heroSub, { color: c.textMuted }]}>{leagues.length} lig · İstatistik & Turnuvalar</Text>
         </View>
 
         {/* League Cards */}
@@ -94,10 +100,13 @@ export default function StatsScreen() {
                 key={l.id}
                 style={[styles.leagueCard, { backgroundColor: c.surface }]}
                 activeOpacity={0.7}
-                onPress={() => router.push({
-                  pathname: '/team_detail',
-                  params: { leagueName: l.name, leagueFlag: l.flag, fdId: l.fdId, apiId: l.apiId },
-                })}
+                onPress={() => {
+                  if (l.apiId === 9999) {
+                    router.push({ pathname: '/leagues', params: { openLeague: 'wc' } });
+                    return;
+                  }
+                  router.push({ pathname: '/team_detail', params: { leagueName: l.name, leagueFlag: l.flag, fdId: l.fdId, apiId: l.apiId } });
+                }}
               >
                 {/* Left: colored abbrev badge */}
                 <View style={[styles.abbrevBadge, { backgroundColor: l.badgeColor }]}>

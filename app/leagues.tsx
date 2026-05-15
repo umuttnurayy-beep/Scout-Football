@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import BottomTabBar from '../components/BottomTabBar';
 import EmptyStateCard from '../components/EmptyStateCard';
 import RefreshStatusBar, { REFRESH_STATUS_MESSAGES } from '../components/RefreshStatusBar';
@@ -9,7 +9,7 @@ import { SkeletonLeagueTable } from '../components/SkeletonLoader';
 import TieCard from '../components/TieCard';
 import { useTheme } from '../context/ThemeContext';
 import { CURRENT_FOOTBALL_SEASON, DISPLAY_FOOTBALL_SEASON } from '../constants/seasons';
-import { UCLKnockouts, getStandings, getSuperLigStandings, getUclKnockouts } from '../services/api';
+import { UCLKnockouts, getStandings, getSuperLigStandings, getUclKnockouts, getWorldCupSeasonFixtures } from '../services/api';
 import { isStanding } from '../services/apiNormalizers';
 import { leagueDataEmptyMessage } from '../utils/emptyStates';
 import scoutStyles, { cardShadow } from '../utils/scoutStyles';
@@ -21,13 +21,14 @@ import {
 } from '../utils/leagueAnalysis';
 
 const leagues = [
-  { id: 1, apiId: 39,  name: 'Premier Lig', country: 'İngiltere', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
-  { id: 2, apiId: 140, name: 'La Liga',     country: 'İspanya',   flag: '🇪🇸' },
-  { id: 3, apiId: 78,  name: 'Bundesliga',  country: 'Almanya',   flag: '🇩🇪' },
-  { id: 4, apiId: 135, name: 'Serie A',     country: 'İtalya',    flag: '🇮🇹' },
-  { id: 5, apiId: 61,  name: 'Ligue 1',     country: 'Fransa',    flag: '🇫🇷' },
-  { id: 6, apiId: 2,   name: 'UCL',         country: 'Avrupa',    flag: '🌍' },
-  { id: 7, apiId: 203, name: 'Süper Lig',   country: 'Türkiye',   flag: '🇹🇷' },
+  { id: 1, apiId: 39,   name: 'Premier Lig',  country: 'İngiltere', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+  { id: 2, apiId: 140,  name: 'La Liga',      country: 'İspanya',   flag: '🇪🇸' },
+  { id: 3, apiId: 78,   name: 'Bundesliga',   country: 'Almanya',   flag: '🇩🇪' },
+  { id: 4, apiId: 135,  name: 'Serie A',      country: 'İtalya',    flag: '🇮🇹' },
+  { id: 5, apiId: 61,   name: 'Ligue 1',      country: 'Fransa',    flag: '🇫🇷' },
+  { id: 6, apiId: 2,    name: 'UCL',          country: 'Avrupa',    flag: '🌍' },
+  { id: 7, apiId: 203,  name: 'Süper Lig',    country: 'Türkiye',   flag: '🇹🇷' },
+  { id: 8, apiId: 9999, name: 'Dünya Kupası', country: 'Dünya',     flag: '🏆' },
 ];
 
 const configuredLeagues = leagues.map(league => ({
@@ -72,6 +73,7 @@ const TABLE_COLORS = {
 };
 
 function getBadgeStyle(pos: number, total: number, apiId: number) {
+  if (apiId === 9999) return styles.posNormal;
   if (apiId === 2) {
     if (pos <= 8) return styles.posTop;
     if (pos <= 24) return styles.posMid;
@@ -123,6 +125,7 @@ function getBadgeStyle(pos: number, total: number, apiId: number) {
 }
 
 function getLeagueLegend(apiId: number) {
+  if (apiId === 9999) return [];
   if (apiId === 2) {
     return [
       { color: TABLE_COLORS.champions, label: 'Direkt Son 16' },
@@ -215,6 +218,7 @@ const TREND_TABS: { key: TrendTab; label: string; sub: string; icon: React.Compo
 ];
 
 function getZoneBarColor(pos: number, apiId: number): string | null {
+  if (apiId === 9999) return null;
   if (apiId === 2) {
     if (pos <= 8)  return TABLE_COLORS.champions;
     if (pos <= 24) return TABLE_COLORS.europa;
@@ -271,6 +275,7 @@ export default function LeaguesScreen() {
   const { colors: c, isDark } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
   const router    = useRouter();
+  const params    = useLocalSearchParams<{ openLeague?: string }>();
   const pagerRef  = useRef<ScrollView>(null);
   const [activeLeague, setActiveLeague] = useState<League>(configuredLeagues[0]);
   const [subTab, setSubTab]             = useState<SubTab>('genel');
@@ -287,6 +292,8 @@ export default function LeaguesScreen() {
   const [teamSort, setTeamSort]         = useState<TeamSort>('puan');
   const [trendTab, setTrendTab]         = useState<TrendTab>('hucum');
   const [trendExpanded, setTrendExpanded] = useState(false);
+  const [wcFixtures, setWcFixtures]     = useState<any[]>([]);
+  const [wcFixturesLoading, setWcFixturesLoading] = useState(false);
 
   function goToTab(key: SubTab) {
     tapLight();
@@ -295,14 +302,26 @@ export default function LeaguesScreen() {
     pagerRef.current?.scrollTo({ x: idx * screenWidth, animated: true });
   }
 
+  // openLeague param gelince WC sekmesine geç
+  useEffect(() => {
+    if (params.openLeague === 'wc') {
+      const wcLeague = configuredLeagues.find(l => l.apiId === 9999);
+      if (wcLeague) setActiveLeague(wcLeague);
+    }
+  }, [params.openLeague]);
+
   useEffect(() => {
     setSubTab('genel');
     pagerRef.current?.scrollTo({ x: 0, animated: false });
     setUclView('standings');
     setLoadError(false);
     setKnockoutsLoadError(false);
-    loadStandings(activeLeague.apiId);
-    if (activeLeague.apiId === 2) loadKnockouts();
+    if (activeLeague.apiId === 9999) {
+      loadWcFixtures();
+    } else {
+      loadStandings(activeLeague.apiId);
+      if (activeLeague.apiId === 2) loadKnockouts();
+    }
   }, [activeLeague]);
 
   async function onRefresh() {
@@ -310,10 +329,26 @@ export default function LeaguesScreen() {
     setLoadError(false);
     setKnockoutsLoadError(false);
     try {
-      await loadStandings(activeLeague.apiId, false);
-      if (activeLeague.apiId === 2) await loadKnockouts(false);
+      if (activeLeague.apiId === 9999) {
+        await loadWcFixtures(false);
+      } else {
+        await loadStandings(activeLeague.apiId, false);
+        if (activeLeague.apiId === 2) await loadKnockouts(false);
+      }
     } finally {
       setRefreshing(false);
+    }
+  }
+
+  async function loadWcFixtures(showLoader = true) {
+    if (showLoader) setWcFixturesLoading(true);
+    try {
+      const data = await getWorldCupSeasonFixtures();
+      setWcFixtures(Array.isArray(data) ? data : []);
+    } catch {
+      setWcFixtures([]);
+    } finally {
+      if (showLoader) setWcFixturesLoading(false);
     }
   }
 
@@ -442,6 +477,28 @@ export default function LeaguesScreen() {
     };
   }, [standings]);
 
+  const groupedWcFixtures = useMemo(() => {
+    if (wcFixtures.length === 0) return [];
+    const sorted = [...wcFixtures].sort((a, b) => {
+      const dateCompare = (a.date || '').localeCompare(b.date || '');
+      if (dateCompare !== 0) return dateCompare;
+      return (a.time || '').localeCompare(b.time || '');
+    });
+    const groups: { label: string; matches: any[] }[] = [];
+    const seen = new Map<string, number>();
+    for (const m of sorted) {
+      const round = m.round ? String(m.round) : null;
+      const key = round || m.date || 'Bilinmiyor';
+      const label = round ? `${round}` : (m.date ? m.date : 'Bilinmiyor');
+      if (!seen.has(key)) {
+        seen.set(key, groups.length);
+        groups.push({ label, matches: [] });
+      }
+      groups[seen.get(key)!].matches.push(m);
+    }
+    return groups;
+  }, [wcFixtures]);
+
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
       <View style={[styles.topbar, { backgroundColor: c.surface }]}>
@@ -478,28 +535,117 @@ export default function LeaguesScreen() {
         )}
       </View>
 
-      <View style={[stStyles.subTabBar, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
-        <View style={[stStyles.subTabTrack, { backgroundColor: c.surfaceAlt }]}>
-          {SUB_TABS.map(t => {
-            const isActive = subTab === t.key;
-            return (
-              <TouchableOpacity key={t.key}
-                style={[stStyles.subTabPill, isActive && { backgroundColor: c.surface }]}
-                onPress={() => goToTab(t.key)}
-                activeOpacity={0.75}>
-                <Text style={[stStyles.subTabText, { color: isActive ? c.primary : c.textMuted }, isActive && stStyles.subTabTextActive]}>
-                  {t.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+      {activeLeague.apiId !== 9999 && (
+        <View style={[stStyles.subTabBar, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
+          <View style={[stStyles.subTabTrack, { backgroundColor: c.surfaceAlt }]}>
+            {SUB_TABS.map(t => {
+              const isActive = subTab === t.key;
+              return (
+                <TouchableOpacity key={t.key}
+                  style={[stStyles.subTabPill, isActive && { backgroundColor: c.surface }]}
+                  onPress={() => goToTab(t.key)}
+                  activeOpacity={0.75}>
+                  <Text style={[stStyles.subTabText, { color: isActive ? c.primary : c.textMuted }, isActive && stStyles.subTabTextActive]}>
+                    {t.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
-      </View>
+      )}
 
       {refreshing && !loading && (
         <RefreshStatusBar message={REFRESH_STATUS_MESSAGES.leagues} />
       )}
 
+      {/* ===== DÜNYA KUPASI GÖRÜNÜMÜ ===== */}
+      {activeLeague.apiId === 9999 ? (
+        <ScrollView
+          style={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} colors={[c.primary]} />}
+        >
+          {wcFixturesLoading ? (
+            <View style={styles.stateFrame}>
+              <SkeletonLeagueTable />
+            </View>
+          ) : wcFixtures.length === 0 ? (
+            <View style={styles.stateFrame}>
+              <EmptyStateCard
+                icon="trophy-outline"
+                title="Fikstür bulunamadı"
+                subtitle="Dünya Kupası 2026 fikstürü henüz yayınlanmamış olabilir."
+                onRetry={() => loadWcFixtures()}
+              />
+            </View>
+          ) : (
+            <View style={{ paddingBottom: 24 }}>
+              {groupedWcFixtures.map((group, gi) => (
+                <View key={gi}>
+                  <Text style={[scoutStyles.sectionLabel, { color: c.textMuted, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 }]}>
+                    {group.label}
+                  </Text>
+                  {group.matches.map((m: any, mi: number) => {
+                    const homeScore = m.homeScore !== null && m.homeScore !== undefined ? m.homeScore : null;
+                    const awayScore = m.awayScore !== null && m.awayScore !== undefined ? m.awayScore : null;
+                    const isFinished = homeScore !== null;
+                    return (
+                      <TouchableOpacity
+                        key={mi}
+                        style={[wcStyles.matchRow, { backgroundColor: c.surface }]}
+                        activeOpacity={0.75}
+                        onPress={() => router.push({
+                          pathname: '/sl_match_detail',
+                          params: {
+                            matchId: String(m.id),
+                            home: m.home || '',
+                            away: m.away || '',
+                            homeTeamId: String(m.homeTeamId || 0),
+                            awayTeamId: String(m.awayTeamId || 0),
+                            date: m.date || '',
+                            leagueName: 'Dünya Kupası 2026',
+                          },
+                        })}
+                      >
+                        <View style={wcStyles.matchTimeCol}>
+                          <Text style={[wcStyles.matchTime, { color: c.textMuted }]}>{m.time ? m.time.slice(0, 5) : '--:--'}</Text>
+                          {m.status && !isFinished && (
+                            <Text style={[wcStyles.matchStatus, { color: c.textFaint }]} numberOfLines={1}>{m.status}</Text>
+                          )}
+                          {isFinished && (
+                            <Text style={[wcStyles.matchStatus, { color: c.win }]}>Bitti</Text>
+                          )}
+                        </View>
+                        <View style={wcStyles.matchTeamsCol}>
+                          <Text style={[wcStyles.teamName, { color: c.text }]} numberOfLines={1}>{m.home || 'TBD'}</Text>
+                          <Text style={[wcStyles.teamName, { color: c.text }]} numberOfLines={1}>{m.away || 'TBD'}</Text>
+                        </View>
+                        <View style={wcStyles.matchScoreCol}>
+                          {isFinished ? (
+                            <>
+                              <Text style={[wcStyles.scoreText, { color: c.text }]}>{homeScore}</Text>
+                              <Text style={[wcStyles.scoreText, { color: c.text }]}>{awayScore}</Text>
+                            </>
+                          ) : (
+                            <>
+                              <Text style={[wcStyles.scoreText, { color: c.textFaint }]}>-</Text>
+                              <Text style={[wcStyles.scoreText, { color: c.textFaint }]}>-</Text>
+                            </>
+                          )}
+                        </View>
+                        <Text style={[wcStyles.matchArrow, { color: c.textVeryFaint }]}>›</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      ) : null}
+
+      {activeLeague.apiId === 9999 ? null : (
       <ScrollView
         ref={pagerRef}
         horizontal
@@ -1303,6 +1449,7 @@ export default function LeaguesScreen() {
         </ScrollView>
 
       </ScrollView>
+      )}
 
       <BottomTabBar activeTab="leagues" />
     </View>
@@ -1595,4 +1742,22 @@ const genStyles = StyleSheet.create({
   insightIconWrap: { width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
   insightTitle:    { fontSize: 13, fontWeight: '600', marginBottom: 2 },
   insightDesc:     { fontSize: 11, lineHeight: 15 },
+});
+
+const wcStyles = StyleSheet.create({
+  matchRow: {
+    flexDirection: 'row', alignItems: 'center',
+    marginHorizontal: 12, marginBottom: 6, borderRadius: 12,
+    padding: 12, gap: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
+  },
+  matchTimeCol: { width: 44, alignItems: 'center' },
+  matchTime:    { fontSize: 12, fontWeight: '600' },
+  matchStatus:  { fontSize: 10, marginTop: 2 },
+  matchTeamsCol: { flex: 1, gap: 4 },
+  teamName:     { fontSize: 13, fontWeight: '500' },
+  matchScoreCol: { width: 24, alignItems: 'center', gap: 4 },
+  scoreText:    { fontSize: 13, fontWeight: '700' },
+  matchArrow:   { fontSize: 20, paddingLeft: 4 },
 });

@@ -17,12 +17,14 @@ const { createPushRouter } = require('./routes/push');
 const createSuperLigRouter = require('./routes/superlig');
 const { createUclRouter } = require('./routes/ucl');
 const createWeatherOddsRouter = require('./routes/weatherOdds');
+const { createWorldCupRouter } = require('./routes/worldCup');
 
 const { createAllSportsH2HService } = require('./services/allSportsH2HService');
 const { createEspnClient, hasMatchTeamNames } = require('./services/espnClient');
 const { createFootballDataService } = require('./services/footballDataService');
 const { createHomeService } = require('./services/homeService');
 const { createSuperLigService } = require('./services/superLigService');
+const { createWorldCupService } = require('./services/worldCupService');
 
 const { createApiResponder } = require('./utils/apiResponses');
 const { createBuildHistory } = require('./utils/buildHistory');
@@ -53,6 +55,8 @@ const {
   SPORTSDB_BASE,
   SL_LEAGUE_ID,
   CURRENT_SPORTSDB_SEASON,
+  WC_LEAGUE_ID,
+  WC_SEASON,
 } = require('./config');
 
 const app = express();
@@ -148,6 +152,19 @@ const slService = createSuperLigService({
   currentSportsDbSeason: CURRENT_SPORTSDB_SEASON,
   allSportsBase: ALLSPORTS_BASE,
   allSportsKey: ALLSPORTS_KEY,
+});
+
+const wcService = createWorldCupService({
+  upstream,
+  getCache,
+  setCache,
+  dedupe,
+  TTL,
+  ttlForMatchDate,
+  isLiveStatus,
+  sportsDbBase: SPORTSDB_BASE,
+  wcLeagueId: WC_LEAGUE_ID,
+  wcSeason: WC_SEASON,
 });
 
 const { fetchAllSportsH2HMatches } = createAllSportsH2HService({
@@ -321,6 +338,13 @@ app.use(createSuperLigRouter({
   TTL,
   ttlForMatchDate,
   upstream,
+}));
+
+app.use(createWorldCupRouter({
+  apiStaleOrError,
+  fetchWCSeasonFixtures: wcService.fetchSeasonFixtures,
+  fetchWCMatchesForDate: wcService.fetchMatchesForDate,
+  fetchWCMatch: wcService.fetchMatch,
 }));
 
 app.use(createHomeRouter({ apiError, homeService }));
