@@ -1927,11 +1927,12 @@ const genStyles = StyleSheet.create({
 
 const wcStyles = StyleSheet.create({
   // Group nav bar
-  groupNav:        { borderBottomWidth: 0.5 },
-  groupNavContent: { paddingHorizontal: 12, paddingVertical: 8, gap: 6, flexDirection: 'row' },
+  groupNav:        { borderBottomWidth: 0.5, height: 50 },
+  groupNavContent: { paddingHorizontal: 12, alignItems: 'center', gap: 6, flexDirection: 'row' },
   groupPill: {
-    paddingHorizontal: 13, paddingVertical: 5, borderRadius: 20,
-    borderWidth: 1, alignItems: 'center', justifyContent: 'center',
+    height: 34, minWidth: 34, paddingHorizontal: 10,
+    borderRadius: 17, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
   },
   groupPillActive: { backgroundColor: '#185FA5', borderColor: '#185FA5' },
   groupPillText:   { fontSize: 13, fontWeight: '700' },
