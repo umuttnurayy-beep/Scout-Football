@@ -262,6 +262,71 @@ const WC_MD_PAIRS: [number, number][][] = [
   [[0, 3], [1, 2]],
 ];
 
+// Complete group-stage schedule in TR timezone (UTC+3). [mdIdx][pairIdx]
+type MatchSched = { date: string; time: string } | null;
+const WC_HARDCODED_SCHEDULE: Record<string, MatchSched[][]> = {
+  A: [
+    [{ date: '2026-06-11', time: '22:00' }, { date: '2026-06-12', time: '05:00' }],
+    [{ date: '2026-06-19', time: '04:00' }, { date: '2026-06-18', time: '19:00' }],
+    [{ date: '2026-06-25', time: '04:00' }, { date: '2026-06-25', time: '04:00' }],
+  ],
+  B: [
+    [{ date: '2026-06-12', time: '22:00' }, { date: '2026-06-13', time: '22:00' }],
+    [{ date: '2026-06-19', time: '01:00' }, { date: '2026-06-18', time: '22:00' }],
+    [{ date: '2026-06-24', time: '22:00' }, { date: '2026-06-24', time: '22:00' }],
+  ],
+  C: [
+    [{ date: '2026-06-14', time: '01:00' }, { date: '2026-06-14', time: '04:00' }],
+    [{ date: '2026-06-20', time: '03:30' }, { date: '2026-06-20', time: '01:00' }],
+    [{ date: '2026-06-25', time: '01:00' }, { date: '2026-06-25', time: '01:00' }],
+  ],
+  D: [
+    [{ date: '2026-06-13', time: '04:00' }, { date: '2026-06-14', time: '07:00' }],
+    [{ date: '2026-06-19', time: '22:00' }, { date: '2026-06-20', time: '06:00' }],
+    [{ date: '2026-06-26', time: '05:00' }, { date: '2026-06-26', time: '05:00' }],
+  ],
+  E: [
+    [{ date: '2026-06-14', time: '20:00' }, { date: '2026-06-15', time: '02:00' }],
+    [{ date: '2026-06-20', time: '23:00' }, { date: '2026-06-21', time: '03:00' }],
+    [{ date: '2026-06-25', time: '23:00' }, { date: '2026-06-25', time: '23:00' }],
+  ],
+  F: [
+    [{ date: '2026-06-14', time: '23:00' }, { date: '2026-06-15', time: '05:00' }],
+    [{ date: '2026-06-20', time: '20:00' }, { date: '2026-06-21', time: '07:00' }],
+    [{ date: '2026-06-26', time: '02:00' }, { date: '2026-06-26', time: '02:00' }],
+  ],
+  G: [
+    [{ date: '2026-06-15', time: '22:00' }, { date: '2026-06-16', time: '04:00' }],
+    [{ date: '2026-06-21', time: '22:00' }, { date: '2026-06-22', time: '04:00' }],
+    [{ date: '2026-06-27', time: '06:00' }, { date: '2026-06-27', time: '06:00' }],
+  ],
+  H: [
+    [{ date: '2026-06-15', time: '19:00' }, { date: '2026-06-16', time: '01:00' }],
+    [{ date: '2026-06-21', time: '19:00' }, { date: '2026-06-22', time: '01:00' }],
+    [{ date: '2026-06-27', time: '03:00' }, { date: '2026-06-27', time: '03:00' }],
+  ],
+  I: [
+    [{ date: '2026-06-16', time: '22:00' }, { date: '2026-06-17', time: '01:00' }],
+    [{ date: '2026-06-23', time: '00:00' }, { date: '2026-06-23', time: '03:00' }],
+    [{ date: '2026-06-26', time: '22:00' }, { date: '2026-06-26', time: '22:00' }],
+  ],
+  J: [
+    [{ date: '2026-06-17', time: '04:00' }, { date: '2026-06-17', time: '07:00' }],
+    [{ date: '2026-06-22', time: '20:00' }, { date: '2026-06-23', time: '01:00' }],
+    [{ date: '2026-06-28', time: '05:00' }, { date: '2026-06-28', time: '05:00' }],
+  ],
+  K: [
+    [{ date: '2026-06-17', time: '20:00' }, { date: '2026-06-18', time: '05:00' }],
+    [{ date: '2026-06-23', time: '23:00' }, { date: '2026-06-24', time: '05:00' }],
+    [{ date: '2026-06-28', time: '02:30' }, { date: '2026-06-28', time: '02:30' }],
+  ],
+  L: [
+    [{ date: '2026-06-17', time: '23:00' }, { date: '2026-06-18', time: '02:00' }],
+    [{ date: '2026-06-23', time: '20:00' }, { date: '2026-06-24', time: '02:00' }],
+    [{ date: '2026-06-28', time: '00:00' }, { date: '2026-06-28', time: '00:00' }],
+  ],
+};
+
 const WC_TEAM_SHORT: Record<string, string> = {
   'Demokratik Kongo Cumhuriyeti': 'D. Kongo',
   'Yeşil Burun Adaları': 'Yeşil Burun',
@@ -609,14 +674,15 @@ export default function LeaguesScreen() {
       });
 
     // Generate all 6 matchups grouped by matchday
-    type Matchup = { home: string; away: string; fixture: typeof translated[0] | null };
-    const matchdays: Matchup[][] = WC_MD_PAIRS.map(pairs =>
-      pairs.map(([hi, ai]) => {
+    type Matchup = { home: string; away: string; fixture: typeof translated[0] | null; hardcoded: MatchSched };
+    const matchdays: Matchup[][] = WC_MD_PAIRS.map((pairs, mdIdx) =>
+      pairs.map(([hi, ai], pairIdx) => {
         const home = teams[hi], away = teams[ai];
         const fixture = groupFixtures.find(
           f => (f.homeTr === home && f.awayTr === away) || (f.homeTr === away && f.awayTr === home)
         ) || null;
-        return { home, away, fixture };
+        const hardcoded = WC_HARDCODED_SCHEDULE[wcActiveGroup]?.[mdIdx]?.[pairIdx] ?? null;
+        return { home, away, fixture, hardcoded };
       })
     );
 
@@ -779,12 +845,13 @@ export default function LeaguesScreen() {
                     <View style={[wcStyles.mdHeader, { borderBottomColor: c.border }]}>
                       <Text style={[wcStyles.mdHeaderText, { color: c.textMuted }]}>MAÇ GÜNÜ {mdIdx + 1}</Text>
                     </View>
-                    {mdMatches.map(({ home, away, fixture }, mi) => {
+                    {mdMatches.map(({ home, away, fixture, hardcoded }, mi) => {
                       const hs = fixture?.homeScore ?? null;
                       const as_ = fixture?.awayScore ?? null;
                       const isFinished = hs !== null && as_ !== null;
-                      const displayTime = fixture ? wcTimeToTurkey(fixture.time || '') : null;
-                      const displayDate = fixture ? formatWcDate(fixture.date || '') : null;
+                      const hasApiDate = fixture && fixture.date;
+                      const displayDate = hasApiDate ? formatWcDate(fixture.date) : hardcoded ? formatWcDate(hardcoded.date) : null;
+                      const displayTime = hasApiDate ? wcTimeToTurkey(fixture.time || '') : hardcoded ? hardcoded.time : null;
                       // fixture home/away may be swapped vs our expected home/away
                       const fixtureHome = fixture ? translateWCTeam(fixture.home || '') : home;
                       const fixtureAway = fixture ? translateWCTeam(fixture.away || '') : away;

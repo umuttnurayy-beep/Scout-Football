@@ -61,6 +61,71 @@ const WC_MD_PAIRS: [number, number][][] = [
   [[0, 3], [1, 2]],
 ];
 
+// Complete group-stage schedule in TR timezone (UTC+3). [mdIdx][pairIdx]
+type MatchSched = { date: string; time: string } | null;
+const WC_HARDCODED_SCHEDULE: Record<string, MatchSched[][]> = {
+  A: [
+    [{ date: '2026-06-11', time: '22:00' }, { date: '2026-06-12', time: '05:00' }],
+    [{ date: '2026-06-19', time: '04:00' }, { date: '2026-06-18', time: '19:00' }],
+    [{ date: '2026-06-25', time: '04:00' }, { date: '2026-06-25', time: '04:00' }],
+  ],
+  B: [
+    [{ date: '2026-06-12', time: '22:00' }, { date: '2026-06-13', time: '22:00' }],
+    [{ date: '2026-06-19', time: '01:00' }, { date: '2026-06-18', time: '22:00' }],
+    [{ date: '2026-06-24', time: '22:00' }, { date: '2026-06-24', time: '22:00' }],
+  ],
+  C: [
+    [{ date: '2026-06-14', time: '01:00' }, { date: '2026-06-14', time: '04:00' }],
+    [{ date: '2026-06-20', time: '03:30' }, { date: '2026-06-20', time: '01:00' }],
+    [{ date: '2026-06-25', time: '01:00' }, { date: '2026-06-25', time: '01:00' }],
+  ],
+  D: [
+    [{ date: '2026-06-13', time: '04:00' }, { date: '2026-06-14', time: '07:00' }],
+    [{ date: '2026-06-19', time: '22:00' }, { date: '2026-06-20', time: '06:00' }],
+    [{ date: '2026-06-26', time: '05:00' }, { date: '2026-06-26', time: '05:00' }],
+  ],
+  E: [
+    [{ date: '2026-06-14', time: '20:00' }, { date: '2026-06-15', time: '02:00' }],
+    [{ date: '2026-06-20', time: '23:00' }, { date: '2026-06-21', time: '03:00' }],
+    [{ date: '2026-06-25', time: '23:00' }, { date: '2026-06-25', time: '23:00' }],
+  ],
+  F: [
+    [{ date: '2026-06-14', time: '23:00' }, { date: '2026-06-15', time: '05:00' }],
+    [{ date: '2026-06-20', time: '20:00' }, { date: '2026-06-21', time: '07:00' }],
+    [{ date: '2026-06-26', time: '02:00' }, { date: '2026-06-26', time: '02:00' }],
+  ],
+  G: [
+    [{ date: '2026-06-15', time: '22:00' }, { date: '2026-06-16', time: '04:00' }],
+    [{ date: '2026-06-21', time: '22:00' }, { date: '2026-06-22', time: '04:00' }],
+    [{ date: '2026-06-27', time: '06:00' }, { date: '2026-06-27', time: '06:00' }],
+  ],
+  H: [
+    [{ date: '2026-06-15', time: '19:00' }, { date: '2026-06-16', time: '01:00' }],
+    [{ date: '2026-06-21', time: '19:00' }, { date: '2026-06-22', time: '01:00' }],
+    [{ date: '2026-06-27', time: '03:00' }, { date: '2026-06-27', time: '03:00' }],
+  ],
+  I: [
+    [{ date: '2026-06-16', time: '22:00' }, { date: '2026-06-17', time: '01:00' }],
+    [{ date: '2026-06-23', time: '00:00' }, { date: '2026-06-23', time: '03:00' }],
+    [{ date: '2026-06-26', time: '22:00' }, { date: '2026-06-26', time: '22:00' }],
+  ],
+  J: [
+    [{ date: '2026-06-17', time: '04:00' }, { date: '2026-06-17', time: '07:00' }],
+    [{ date: '2026-06-22', time: '20:00' }, { date: '2026-06-23', time: '01:00' }],
+    [{ date: '2026-06-28', time: '05:00' }, { date: '2026-06-28', time: '05:00' }],
+  ],
+  K: [
+    [{ date: '2026-06-17', time: '20:00' }, { date: '2026-06-18', time: '05:00' }],
+    [{ date: '2026-06-23', time: '23:00' }, { date: '2026-06-24', time: '05:00' }],
+    [{ date: '2026-06-28', time: '02:30' }, { date: '2026-06-28', time: '02:30' }],
+  ],
+  L: [
+    [{ date: '2026-06-17', time: '23:00' }, { date: '2026-06-18', time: '02:00' }],
+    [{ date: '2026-06-23', time: '20:00' }, { date: '2026-06-24', time: '02:00' }],
+    [{ date: '2026-06-28', time: '00:00' }, { date: '2026-06-28', time: '00:00' }],
+  ],
+};
+
 const WC_TEAM_SHORT: Record<string, string> = {
   'Demokratik Kongo Cumhuriyeti': 'D. Kongo',
   'Yeşil Burun Adaları': 'Yeşil Burun',
@@ -173,14 +238,48 @@ export default function WcStatsScreen() {
     [fixtures],
   );
 
-  // Upcoming fixtures sorted by date (next 6)
-  const upcomingFixtures = useMemo(() =>
-    fixtures
-      .filter(f => f.homeScore === null && f.date)
-      .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
-      .slice(0, 6),
-    [fixtures],
-  );
+  // Build upcoming fixtures from hardcoded schedule (fallback when API has no dates)
+  const upcomingFixtures = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const seen = new Set<string>();
+    const result: { id: string; home: string; away: string; date: string; time: string; group: string; fromApi: boolean }[] = [];
+
+    // Collect played matches from API (to exclude from upcoming)
+    const playedPairs = new Set<string>(
+      fixtures
+        .filter(f => f.homeScore !== null && f.awayScore !== null)
+        .map(f => [translateWCTeam(f.home || ''), translateWCTeam(f.away || '')].sort().join('|'))
+    );
+
+    // Generate all upcoming from hardcoded schedule
+    for (const group of WC_GROUP_KEYS) {
+      const teams = WC_GROUPS[group];
+      WC_MD_PAIRS.forEach((pairs, mdIdx) => {
+        pairs.forEach(([hi, ai], pairIdx) => {
+          const sched = WC_HARDCODED_SCHEDULE[group]?.[mdIdx]?.[pairIdx];
+          if (!sched || sched.date < today) return;
+          const home = teams[hi], away = teams[ai];
+          const pairKey = [home, away].sort().join('|');
+          if (playedPairs.has(pairKey) || seen.has(pairKey)) return;
+          seen.add(pairKey);
+          result.push({ id: `hc_${group}_${mdIdx}_${pairIdx}`, home, away, date: sched.date, time: sched.time, group, fromApi: false });
+        });
+      });
+    }
+
+    // Also include API fixtures with dates that aren't in hardcoded (edge case)
+    for (const f of fixtures) {
+      if (f.homeScore !== null || !f.date || f.date < today) continue;
+      const home = translateWCTeam(f.home || ''), away = translateWCTeam(f.away || '');
+      const pairKey = [home, away].sort().join('|');
+      if (seen.has(pairKey)) continue;
+      seen.add(pairKey);
+      const group = WC_GROUP_KEYS.find(g => { const t = WC_GROUPS[g]; return t.includes(home) && t.includes(away); }) || '';
+      result.push({ id: f.id || pairKey, home, away, date: f.date, time: wcTimeToTurkey(f.time || ''), group, fromApi: true });
+    }
+
+    return result.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)).slice(0, 6);
+  }, [fixtures]);
 
   function goToGroup(group: string) {
     router.push({ pathname: '/leagues', params: { openLeague: 'wc', openGroup: group } });
@@ -239,34 +338,26 @@ export default function WcStatsScreen() {
           <>
             <Text style={[styles.sectionTitle, { color: c.textMuted }]}>YAKLAŞAN MAÇLAR</Text>
             <View style={[styles.upcomingCard, { backgroundColor: c.surface }]}>
-              {upcomingFixtures.map((f, i) => {
-                const homeTr = translateWCTeam(f.home || '');
-                const awayTr = translateWCTeam(f.away || '');
-                const groupKey = WC_GROUP_KEYS.find(g => {
-                  const teams = WC_GROUPS[g];
-                  return teams.includes(homeTr) && teams.includes(awayTr);
-                });
-                return (
-                  <View key={f.id || i} style={[styles.upcomingRow, i < upcomingFixtures.length - 1 && { borderBottomColor: c.border, borderBottomWidth: 0.5 }]}>
-                    <View style={styles.upcomingTime}>
-                      <Text style={[styles.upcomingDate, { color: c.primary }]}>{formatWcDate(f.date)}</Text>
-                      <Text style={[styles.upcomingHour, { color: c.textMuted }]}>{wcTimeToTurkey(f.time)} TR</Text>
-                    </View>
-                    <Text style={[styles.upcomingTeam, { color: c.text, textAlign: 'right' }]} numberOfLines={1}>
-                      {WC_TEAM_FLAG[homeTr] || ''} {shortWCTeam(homeTr)}
-                    </Text>
-                    <Text style={[styles.upcomingVs, { color: c.textFaint }]}>vs</Text>
-                    <Text style={[styles.upcomingTeam, { color: c.text }]} numberOfLines={1}>
-                      {shortWCTeam(awayTr)} {WC_TEAM_FLAG[awayTr] || ''}
-                    </Text>
-                    {groupKey && (
-                      <View style={[styles.upcomingGroup, { backgroundColor: WC_BG }]}>
-                        <Text style={[styles.upcomingGroupText, { color: WC_ACCENT }]}>{groupKey}</Text>
-                      </View>
-                    )}
+              {upcomingFixtures.map((f, i) => (
+                <View key={f.id} style={[styles.upcomingRow, i < upcomingFixtures.length - 1 && { borderBottomColor: c.border, borderBottomWidth: 0.5 }]}>
+                  <View style={styles.upcomingTime}>
+                    <Text style={[styles.upcomingDate, { color: c.primary }]}>{formatWcDate(f.date)}</Text>
+                    <Text style={[styles.upcomingHour, { color: c.textMuted }]}>{f.time} TR</Text>
                   </View>
-                );
-              })}
+                  <Text style={[styles.upcomingTeam, { color: c.text, textAlign: 'right' }]} numberOfLines={1}>
+                    {WC_TEAM_FLAG[f.home] || ''} {shortWCTeam(f.home)}
+                  </Text>
+                  <Text style={[styles.upcomingVs, { color: c.textFaint }]}>vs</Text>
+                  <Text style={[styles.upcomingTeam, { color: c.text }]} numberOfLines={1}>
+                    {shortWCTeam(f.away)} {WC_TEAM_FLAG[f.away] || ''}
+                  </Text>
+                  {f.group && (
+                    <View style={[styles.upcomingGroup, { backgroundColor: WC_BG }]}>
+                      <Text style={[styles.upcomingGroupText, { color: WC_ACCENT }]}>{f.group}</Text>
+                    </View>
+                  )}
+                </View>
+              ))}
             </View>
           </>
         )}
