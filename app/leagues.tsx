@@ -412,6 +412,8 @@ export default function LeaguesScreen() {
     setLoadError(false);
     setKnockoutsLoadError(false);
     if (activeLeague.apiId === 9999) {
+      setStandings([]);
+      setLoading(false);
       loadWcFixtures();
     } else {
       loadStandings(activeLeague.apiId);
@@ -650,7 +652,7 @@ export default function LeaguesScreen() {
           <Text style={[styles.leagueHeaderName, { color: c.text }]}>{activeLeague.name}</Text>
           <Text style={[styles.leagueHeaderSub, { color: c.textMuted }]}>{activeLeague.country} · {activeLeague.season}</Text>
         </View>
-        {ligChar && (
+        {ligChar && activeLeague.apiId !== 9999 && (
           <View style={[stStyles.ligCharBadge, { backgroundColor: ligChar.bg }]}>
             <Text style={[stStyles.ligCharBadgeText, { color: ligChar.color }]}>{ligChar.label}</Text>
           </View>
@@ -683,12 +685,12 @@ export default function LeaguesScreen() {
 
       {/* ===== DÜNYA KUPASI GÖRÜNÜMÜ ===== */}
       {activeLeague.apiId === 9999 ? (
-        <>
+        <View style={{ flex: 1 }}>
           {/* Grup filtre pilleri */}
+          <View style={[wcStyles.groupNav, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={[wcStyles.groupNav, { backgroundColor: c.surface, borderBottomColor: c.border }]}
             contentContainerStyle={wcStyles.groupNavContent}
           >
             {WC_GROUP_KEYS.map(g => (
@@ -703,6 +705,7 @@ export default function LeaguesScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
+          </View>
 
           <ScrollView
             style={styles.scroll}
@@ -826,7 +829,7 @@ export default function LeaguesScreen() {
               </View>
             )}
           </ScrollView>
-        </>
+        </View>
       ) : null}
 
       {activeLeague.apiId === 9999 ? null : (
@@ -1930,8 +1933,8 @@ const genStyles = StyleSheet.create({
 
 const wcStyles = StyleSheet.create({
   // Group nav bar
-  groupNav:        { borderBottomWidth: 0.5, height: 50 },
-  groupNavContent: { paddingHorizontal: 12, alignItems: 'center', gap: 6, flexDirection: 'row' },
+  groupNav:        { borderBottomWidth: 0.5, height: 50, overflow: 'hidden' },
+  groupNavContent: { paddingHorizontal: 12, alignItems: 'center', gap: 6, flexDirection: 'row', height: 50 },
   groupPill: {
     height: 34, minWidth: 34, paddingHorizontal: 10,
     borderRadius: 17, borderWidth: 1,

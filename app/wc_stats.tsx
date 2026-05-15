@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import BottomTabBar from '../components/BottomTabBar';
@@ -191,6 +191,7 @@ export default function WcStatsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
+      <Stack.Screen options={{ headerShown: false }} />
       {/* Topbar */}
       <View style={[styles.topbar, { backgroundColor: c.surface }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
