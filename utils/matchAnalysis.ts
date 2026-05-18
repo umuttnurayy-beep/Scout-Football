@@ -26,7 +26,6 @@ export interface MatchFormStats {
   secondHalfGoalsAvg?: number;
   over15FirstHalfPct?: number;
   secondHalfMoreGoalsPct?: number;
-  scoreFirstWinPct?: number;
   currentWinStreak?: number;
   currentUnbeatenStreak?: number;
 }
@@ -471,8 +470,6 @@ export function buildReasons(
   const aWinStr = aSt.currentWinStreak ?? 0;
   const hUnbeat = hSt.currentUnbeatenStreak ?? 0;
   const aUnbeat = aSt.currentUnbeatenStreak ?? 0;
-  const hScoreFirst = hSt.scoreFirstWinPct ?? null;
-  const aScoreFirst = aSt.scoreFirstWinPct ?? null;
 
   if (hWinStr >= 3) advanced.push(`${home} son ${hWinStr} ma\u00e7\u0131 kazand\u0131 \u2014 form ivmesi y\u00fcksek.`);
   else if (hUnbeat >= 4) advanced.push(`${home} ${hUnbeat} ma\u00e7l\u0131k yenilmezlik serisiyle sahaya \u00e7\u0131k\u0131yor.`);
@@ -496,13 +493,6 @@ export function buildReasons(
     const avgSH = (hSH + aSH) / 2;
     if (avgFH >= 1.2) advanced.push(`\u0130lk yar\u0131 gol ortalamas\u0131 y\u00fcksek (ort. ${avgFH.toFixed(1)}) \u2014 ma\u00e7 erken a\u00e7\u0131lmaya e\u011filimli.`);
     else if (avgSH > avgFH + 0.4) advanced.push(`\u0130kinci yar\u0131 gol yo\u011funlu\u011fu ilk yar\u0131dan belirgin y\u00fcksek \u2014 ma\u00e7\u0131n as\u0131l ritmi ikinci yar\u0131da k\u0131r\u0131labilir.`);
-  }
-
-  if (hScoreFirst !== null && hScoreFirst >= 70) {
-    advanced.push(`${home} ilk gol\u00fc att\u0131\u011f\u0131nda ma\u00e7lar\u0131 %${hScoreFirst} oran\u0131nda kazan\u0131yor \u2014 \u00f6nc\u00fc gol ev sahibi i\u00e7in kritik.`);
-  }
-  if (aScoreFirst !== null && aScoreFirst >= 70) {
-    advanced.push(`${away} ilk gol\u00fc buldu\u011funda ma\u00e7lar\u0131 %${aScoreFirst} oran\u0131nda kazan\u0131yor \u2014 deplasman ilk gol\u00fc belirleyici.`);
   }
 
   // H2H pattern analysis
@@ -933,12 +923,6 @@ export function buildScoutSummaryFromPick(
     else if (avgSH > avgFH + 0.4) halfTimeNote = ` İkinci yarı gol akışı ilk yarıdan belirgin daha yoğun; tempo değişimi ikinci yarıda beklenmeli.`;
   }
 
-  const hSFW = hSt.scoreFirstWinPct ?? null;
-  const aSFW = aSt.scoreFirstWinPct ?? null;
-  let scoreFirstNote = '';
-  if (pick.tone === 'home' && hSFW !== null && hSFW >= 70) scoreFirstNote = ` ${home} ilk golü attığında maçları %${hSFW} oranında kazanıyor — öncü gol kritik önem taşıyor.`;
-  else if (pick.tone === 'away' && aSFW !== null && aSFW >= 70) scoreFirstNote = ` ${away} ilk golü bulduğunda maçları %${aSFW} oranında kazanıyor — deplasman için erken gol belirleyici.`;
-
   if (pick.tone === 'goals') {
     const main = pick.label.includes('Karşılıklı')
       ? `Scout özeti bu maçta iki takımın da gol bulma ihtimalini öne çıkarıyor. ${matchupNote} ${bttsContext || goalContext} Bu nedenle kazanan seçmekten çok iki ekibin skor katkısına odaklanmak daha mantıklı.`
@@ -952,12 +936,12 @@ export function buildScoutSummaryFromPick(
 
   if (pick.tone === 'home') {
     const side = pick.label.includes('galibiyete') ? 'galibiyet' : 'kaybetmeme';
-    return `Scout özeti ${home} tarafını ${side} senaryosunda öne çıkarıyor. ${matchupNote} ${formNote} Ev sahibi tarafı oyunu kendi ritmine çekebilirse maç kontrolü daha çok ${home} tarafına yaklaşır.${venueNote ? ` ${venueNote}` : ''}${streakNote}${cleanNote}${scoreFirstNote}${halfTimeNote}${conflictNote}${sampleNote}${weatherNote}`;
+    return `Scout özeti ${home} tarafını ${side} senaryosunda öne çıkarıyor. ${matchupNote} ${formNote} Ev sahibi tarafı oyunu kendi ritmine çekebilirse maç kontrolü daha çok ${home} tarafına yaklaşır.${venueNote ? ` ${venueNote}` : ''}${streakNote}${cleanNote}${halfTimeNote}${conflictNote}${sampleNote}${weatherNote}`;
   }
 
   if (pick.tone === 'away') {
     const side = pick.label.includes('galibiyete') ? 'galibiyet' : 'kaybetmeme';
-    return `Scout özeti ${away} tarafını ${side} senaryosunda öne çıkarıyor. ${matchupNote} ${formNote} Deplasman ekibinin oyunda kalma ve skor tehdidi, maçı tek taraflı ev sahibi üstünlüğü olarak okumayı zorlaştırıyor.${venueNote ? ` ${venueNote}` : ''}${streakNote}${cleanNote}${scoreFirstNote}${halfTimeNote}${conflictNote}${sampleNote}${weatherNote}`;
+    return `Scout özeti ${away} tarafını ${side} senaryosunda öne çıkarıyor. ${matchupNote} ${formNote} Deplasman ekibinin oyunda kalma ve skor tehdidi, maçı tek taraflı ev sahibi üstünlüğü olarak okumayı zorlaştırıyor.${venueNote ? ` ${venueNote}` : ''}${streakNote}${cleanNote}${halfTimeNote}${conflictNote}${sampleNote}${weatherNote}`;
   }
 
   return `Scout özeti bu maçta net bir yöne güçlü kırılım görmüyor. ${matchupNote} ${goalContext} ${formNote} Bu yüzden taraf veya gol seçimini zorlamak yerine risk seviyesini yüksek okumak daha doğru.${venueNote ? ` ${venueNote}` : ''}${streakNote}${conflictNote}${sampleNote}${weatherNote}`;
@@ -1547,7 +1531,6 @@ export function calcFormStats(matches: FDMatch[], teamId: number) {
   let over25=0,kgVar=0,total=0;
   let cleanSheet=0,failedToScore=0;
   let totalFHGoals=0,totalSHGoals=0,fhMatches=0;
-  let scoreFirstWins=0,scoreFirstTotal=0;
   let secondHalfMoreGoals=0;
   let over15FH=0;
 
@@ -1577,14 +1560,6 @@ export function calcFormStats(matches: FDMatch[], teamId: number) {
       totalSHGoals += shTotal;
       if (fhTotal > 1.5) over15FH++;
       if (shTotal > fhTotal) secondHalfMoreGoals++;
-
-      // Score first win rate (based on half-time lead as proxy for first goal)
-      const teamFHGoals = isHome ? htHome : htAway;
-      const oppFHGoals = isHome ? htAway : htHome;
-      if (teamFHGoals > oppFHGoals) {
-        scoreFirstTotal++;
-        if (gf > ga) scoreFirstWins++;
-      }
     }
 
     if (isHome) {
@@ -1640,7 +1615,6 @@ export function calcFormStats(matches: FDMatch[], teamId: number) {
     secondHalfGoalsAvg: fhMatches>0?parseFloat((totalSHGoals/fhMatches).toFixed(2)):undefined,
     over15FirstHalfPct: fhMatches>0?Math.round((over15FH/fhMatches)*100):undefined,
     secondHalfMoreGoalsPct: fhMatches>0?Math.round((secondHalfMoreGoals/fhMatches)*100):undefined,
-    scoreFirstWinPct: scoreFirstTotal>0?Math.round((scoreFirstWins/scoreFirstTotal)*100):undefined,
     currentWinStreak,
     currentUnbeatenStreak,
   };
