@@ -1,5 +1,5 @@
 import { getCityForTeam } from '../services/api';
-import type { FDFixtureStat, FDMatch, FDMatchDetail, OddsData, WeatherData } from '../services/api';
+import type { FDFixtureStat, FDMatch, FDMatchDetail, H2HRawItem, OddsData, WeatherData } from '../services/api';
 import { MEDIUM_BANK, SHORT_BANK } from './matchTextBanks';
 
 export type Stil = 'Hücumcu' | 'Savunmacı' | 'Dengeli';
@@ -19,6 +19,16 @@ export interface MatchFormStats {
   totalWinPct?: number;
   homePlayed?: number;
   awayPlayed?: number;
+  // Extended stats
+  cleanSheetPct?: number;
+  failedToScorePct?: number;
+  firstHalfGoalsAvg?: number;
+  secondHalfGoalsAvg?: number;
+  over15FirstHalfPct?: number;
+  secondHalfMoreGoalsPct?: number;
+  scoreFirstWinPct?: number;
+  currentWinStreak?: number;
+  currentUnbeatenStreak?: number;
 }
 
 export type FormTrend = { direction: 'up' | 'down' | 'stable'; pts5: number; ptsPrev: number };
@@ -97,8 +107,12 @@ function buildMatchSignalSnapshot(
   const formSide = sideFromDiff(hFP - aFP, 4);
   const venueSide = sideFromDiff(hHomeWin - aAwayWin, 12);
   const attackSide = sideFromDiff((hAtk - aDef) - (aAtk - hDef), 0.35);
-  const homeEdge = (hFP - aFP) + (hAtk - aDef) * 3 + (hHomeWin >= 55 ? 2 : 0);
-  const awayEdge = (aFP - hFP) + (aAtk - hDef) * 3 + (aAwayWin >= 45 ? 2 : 0);
+  const hCleanBonus = (hSt.cleanSheetPct ?? 0) >= 40 ? 1.5 : 0;
+  const aCleanBonus = (aSt.cleanSheetPct ?? 0) >= 40 ? 1.5 : 0;
+  const hStreakBonus = (hSt.currentWinStreak ?? 0) >= 3 ? 2 : (hSt.currentUnbeatenStreak ?? 0) >= 4 ? 1 : 0;
+  const aStreakBonus = (aSt.currentWinStreak ?? 0) >= 3 ? 2 : (aSt.currentUnbeatenStreak ?? 0) >= 4 ? 1 : 0;
+  const homeEdge = (hFP - aFP) + (hAtk - aDef) * 3 + (hHomeWin >= 55 ? 2 : 0) + hStreakBonus - aCleanBonus;
+  const awayEdge = (aFP - hFP) + (aAtk - hDef) * 3 + (aAwayWin >= 45 ? 2 : 0) + aStreakBonus - hCleanBonus;
   const overallSide = sideFromDiff(homeEdge - awayEdge, 4);
   const namedSides = [formSide, venueSide, attackSide].filter(side => side !== 'balanced');
   const conflict = namedSides.includes('home') && namedSides.includes('away');
@@ -197,6 +211,123 @@ export function getPersonaEnriched(
   return getPersona(stil, gol, tempo, risk);
 }
 
+// ── H2H Pattern Analysis ───────────────────────────────────────────────────
+
+export type H2HPattern = {
+  count: number;
+  over25Pct: number;
+  bttsPct: number;
+  avgGoals: number;
+  dominantSide: 'home' | 'away' | 'balanced';
+  dominanceRate: number;
+  recentWinner: 'home' | 'away' | 'balanced';
+};
+
+export function analyzeH2H(items: H2HRawItem[]): H2HPattern | null {
+  const valid = items.filter(m => {
+    const fh = m.score?.fullTime?.home ?? m.homeScore;
+    const fa = m.score?.fullTime?.away ?? m.awayScore;
+    return fh != null && fa != null;
+  });
+  if (valid.length < MIN_H2H) return null;
+
+  let over25 = 0, btts = 0, homeWins = 0, awayWins = 0, totalGoals = 0;
+  valid.forEach(m => {
+    const fh = (m.score?.fullTime?.home ?? m.homeScore)!;
+    const fa = (m.score?.fullTime?.away ?? m.awayScore)!;
+    totalGoals += fh + fa;
+    if (fh + fa > 2.5) over25++;
+    if (fh > 0 && fa > 0) btts++;
+    if (fh > fa) homeWins++;
+    else if (fa > fh) awayWins++;
+  });
+
+  const sorted = [...valid].sort((a, b) => {
+    const da = a.utcDate ?? a.date ?? '';
+    const db = b.utcDate ?? b.date ?? '';
+    return da.localeCompare(db);
+  });
+  const recent3 = sorted.slice(-3);
+  let rHw = 0, rAw = 0;
+  recent3.forEach(m => {
+    const fh = (m.score?.fullTime?.home ?? m.homeScore)!;
+    const fa = (m.score?.fullTime?.away ?? m.awayScore)!;
+    if (fh > fa) rHw++;
+    else if (fa > fh) rAw++;
+  });
+
+  const n = valid.length;
+  const dominant = homeWins > awayWins ? 'home' : awayWins > homeWins ? 'away' : 'balanced';
+  const dominanceRate = Math.round((Math.max(homeWins, awayWins) / n) * 100);
+
+  return {
+    count: n,
+    over25Pct: Math.round((over25 / n) * 100),
+    bttsPct: Math.round((btts / n) * 100),
+    avgGoals: parseFloat((totalGoals / n).toFixed(1)),
+    dominantSide: dominant,
+    dominanceRate,
+    recentWinner: rHw >= 2 ? 'home' : rAw >= 2 ? 'away' : 'balanced',
+  };
+}
+
+// ── Short Analysis (replaces generic SHORT_BANK when form data available) ──
+
+export function buildShortAnalysis(
+  home: string, away: string,
+  hSt: MatchFormStats, aSt: MatchFormStats,
+  hFP: number, aFP: number,
+  pick: ScoutPick,
+): string {
+  const hAtk = parseStatValue(hSt.totalAvgGf);
+  const aAtk = parseStatValue(aSt.totalAvgGf);
+  const hDef = parseStatValue(hSt.totalAvgGa);
+  const aDef = parseStatValue(aSt.totalAvgGa);
+  const avgOver = Math.round((hSt.over25Pct + aSt.over25Pct) / 2);
+  const hWinStr = hSt.currentWinStreak ?? 0;
+  const aWinStr = aSt.currentWinStreak ?? 0;
+  const hUnbeat = hSt.currentUnbeatenStreak ?? 0;
+  const aUnbeat = aSt.currentUnbeatenStreak ?? 0;
+  const hClean = hSt.cleanSheetPct ?? 0;
+  const aClean = aSt.cleanSheetPct ?? 0;
+
+  // Streak-based (highest priority)
+  if (hWinStr >= 4) return `${home} son ${hWinStr} maçı kazanarak bu fikstüre girdi — form ivmesi zirve noktasında.`;
+  if (aWinStr >= 4) return `${away} son ${aWinStr} maçı kazanarak bu fikstüre girdi — deplasmandaki form ivmesi dikkat çekiyor.`;
+  if (hUnbeat >= 5 && aUnbeat < 3) return `${home} ${hUnbeat} maçlık yenilmezlik serisiyle sahaya çıkıyor; ${away} bu formdaki ev sahibini durdurmak için zorlanabilir.`;
+  if (aUnbeat >= 5 && hUnbeat < 3) return `${away} ${aUnbeat} maçlık yenilmezlik serisiyle geliyor; ev sahibi avantajını bu deplasman profiline karşı net hissettirmek durumunda.`;
+
+  // Pick-tone based with real numbers
+  if (pick.tone === 'home') {
+    const formNote = hFP > aFP + 3 ? `Son 5 maç formunda ${home} ${hFP} puanla ${aFP} puanlık ${away}'ı geride bırakıyor.` : '';
+    const atkNote = hAtk - aDef >= 0.4 ? `${home} gol ortalaması (${hAtk}) ${away} savunmasının verdiği ortalamanın (${aDef}) üzerinde.` : '';
+    if (hClean >= 40) return `${home} savunması son dönemde sağlam — %${hClean} kale sıfır oranıyla baskı altında bile yenilmeye direnç var. ${formNote || atkNote}`.trim();
+    if (formNote) return `${formNote}${atkNote ? ` ${atkNote}` : ''}`;
+    return `${home} form ve eşleşme verileriyle bu maçta hafif öne çıkıyor; gol ortalaması ${hAtk.toFixed(1)} vs savunma ${aDef.toFixed(1)}.`;
+  }
+
+  if (pick.tone === 'away') {
+    const formNote = aFP > hFP + 3 ? `${away} son 5 maçta ${aFP} puan toplayarak ${hFP} puanlık ${home}'dan daha iyi formda.` : '';
+    const atkNote = aAtk - hDef >= 0.4 ? `Deplasman gol ortalaması (${aAtk}) ev sahibi savunma ortalamasının (${hDef}) üzerinde.` : '';
+    if (aClean >= 40) return `${away} savunması deplasmanı sıfır yenerek kapatma becerisini (%${aClean}) koruyor. ${formNote || atkNote}`.trim();
+    if (formNote) return `${formNote}${atkNote ? ` ${atkNote}` : ''}`;
+    return `${away} deplasman verileri ve gol üretimiyle (${aAtk.toFixed(1)}) ev sahibi savunmasını (${hDef.toFixed(1)}) zorlayabilecek profilde.`;
+  }
+
+  if (pick.tone === 'goals') {
+    const bothAtk = hAtk >= 1.5 && aAtk >= 1.5;
+    if (bothAtk) return `İki tarafın gol üretimi de güçlü (${home} ${hAtk.toFixed(1)}, ${away} ${aAtk.toFixed(1)}) — maçın skor üretmesi beklenebilir (2.5 üst eğilimi %${avgOver}).`;
+    return `Gol eğilimi %${avgOver} seviyesiyle yüksek; hücum-savunma eşleşmesi skor üretimini destekliyor.`;
+  }
+
+  if (pick.tone === 'draw') {
+    return `Gol eğilimi düşük (%${avgOver} 2.5 üst), form farkı sınırlı (${hFP}-${aFP} puan); kontrollü ve dar skorlu maç profili öne çıkıyor.`;
+  }
+
+  // Default caution / balanced
+  return `Form dengeli (${hFP}-${aFP} puan), gol verisi orta (%${avgOver} 2.5 üst); maçın yönü ilk gol ve tempo değişimiyle şekillenecek.`;
+}
+
 export function getTagColor(type: string, value: string, isDark: boolean): { bg: string; text: string } {
   if (type === 'stil') {
     if (value === 'Hücumcu')   return { bg: isDark ? '#2C0A0A' : '#FDE8E8', text: isDark ? '#F85149' : '#A32D2D' };
@@ -217,6 +348,7 @@ export function buildReasons(
   hTrend?: FormTrend | null,
   aTrend?: FormTrend | null,
   weatherRisk = false,
+  h2hItems?: H2HRawItem[],
 ): string[] {
   const hAtk = parseFloat(hSt.totalAvgGf as string);
   const aAtk = parseFloat(aSt.totalAvgGf as string);
@@ -330,9 +462,67 @@ export function buildReasons(
     advanced.push('H2H verisi az oldu\u011fu i\u00e7in tarihsel e\u015fle\u015fme yerine sezon/form metrikleri daha bask\u0131n kullan\u0131ld\u0131.');
   }
 
+  // Extended stat signals
+  const hClean = hSt.cleanSheetPct ?? null;
+  const aClean = aSt.cleanSheetPct ?? null;
+  const hFailed = hSt.failedToScorePct ?? null;
+  const aFailed = aSt.failedToScorePct ?? null;
+  const hWinStr = hSt.currentWinStreak ?? 0;
+  const aWinStr = aSt.currentWinStreak ?? 0;
+  const hUnbeat = hSt.currentUnbeatenStreak ?? 0;
+  const aUnbeat = aSt.currentUnbeatenStreak ?? 0;
+  const hScoreFirst = hSt.scoreFirstWinPct ?? null;
+  const aScoreFirst = aSt.scoreFirstWinPct ?? null;
+
+  if (hWinStr >= 3) advanced.push(`${home} son ${hWinStr} ma\u00e7\u0131 kazand\u0131 \u2014 form ivmesi y\u00fcksek.`);
+  else if (hUnbeat >= 4) advanced.push(`${home} ${hUnbeat} ma\u00e7l\u0131k yenilmezlik serisiyle sahaya \u00e7\u0131k\u0131yor.`);
+  if (aWinStr >= 3) advanced.push(`${away} son ${aWinStr} ma\u00e7\u0131 kazand\u0131 \u2014 deplasman formu dikkat \u00e7ekici.`);
+  else if (aUnbeat >= 4) advanced.push(`${away} ${aUnbeat} ma\u00e7l\u0131k yenilmezlik serisiyle geliyor.`);
+
+  if (hClean !== null && aClean !== null) {
+    if (hClean >= 45 && aFailed !== null && aFailed >= 35) {
+      advanced.push(`${home} kale s\u0131f\u0131r oran\u0131 y\u00fcksek (%${hClean}) ve ${away} gol bulmakta g\u00fc\u00e7l\u00fck ya\u015f\u0131yor (%${aFailed} gol atamad\u0131) \u2014 ev sahibi savunma bask\u0131s\u0131 kritik.`);
+    } else if (aClean >= 45 && hFailed !== null && hFailed >= 35) {
+      advanced.push(`${away} kale s\u0131f\u0131r oran\u0131 y\u00fcksek (%${aClean}) ve ${home} gol bulmakta zorlan\u0131yor (%${hFailed} gol atamad\u0131) \u2014 deplasman savunmas\u0131 bask\u0131 alt\u0131nda bile kale kapayabiliyor.`);
+    }
+  }
+
+  const hFH = hSt.firstHalfGoalsAvg ?? null;
+  const aFH = aSt.firstHalfGoalsAvg ?? null;
+  if (hFH !== null && aFH !== null) {
+    const avgFH = (hFH + aFH) / 2;
+    const hSH = hSt.secondHalfGoalsAvg ?? 0;
+    const aSH = aSt.secondHalfGoalsAvg ?? 0;
+    const avgSH = (hSH + aSH) / 2;
+    if (avgFH >= 1.2) advanced.push(`\u0130lk yar\u0131 gol ortalamas\u0131 y\u00fcksek (ort. ${avgFH.toFixed(1)}) \u2014 ma\u00e7 erken a\u00e7\u0131lmaya e\u011filimli.`);
+    else if (avgSH > avgFH + 0.4) advanced.push(`\u0130kinci yar\u0131 gol yo\u011funlu\u011fu ilk yar\u0131dan belirgin y\u00fcksek \u2014 ma\u00e7\u0131n as\u0131l ritmi ikinci yar\u0131da k\u0131r\u0131labilir.`);
+  }
+
+  if (hScoreFirst !== null && hScoreFirst >= 70) {
+    advanced.push(`${home} ilk gol\u00fc att\u0131\u011f\u0131nda ma\u00e7lar\u0131 %${hScoreFirst} oran\u0131nda kazan\u0131yor \u2014 \u00f6nc\u00fc gol ev sahibi i\u00e7in kritik.`);
+  }
+  if (aScoreFirst !== null && aScoreFirst >= 70) {
+    advanced.push(`${away} ilk gol\u00fc buldu\u011funda ma\u00e7lar\u0131 %${aScoreFirst} oran\u0131nda kazan\u0131yor \u2014 deplasman ilk gol\u00fc belirleyici.`);
+  }
+
+  // H2H pattern analysis
+  if (h2hItems && h2hItems.length >= MIN_H2H) {
+    const h2hPattern = analyzeH2H(h2hItems);
+    if (h2hPattern) {
+      if (h2hPattern.over25Pct >= 65) advanced.push(`H2H tarihinde %${h2hPattern.over25Pct} oran\u0131nda 2.5 \u00fcst \u2014 bu e\u015fle\u015fme goll\u00fc ge\u00e7meye yatk\u0131n.`);
+      else if (h2hPattern.over25Pct <= 35) advanced.push(`H2H tarihinde yaln\u0131zca %${h2hPattern.over25Pct} oran\u0131nda 2.5 \u00fcst \u2014 az goll\u00fc kar\u015f\u0131la\u015fma deseni var.`);
+      if (h2hPattern.bttsPct >= 60) advanced.push(`H2H'de KG Var oran\u0131 %${h2hPattern.bttsPct} \u2014 iki taraf\u0131n da kale bulmak i\u00e7in tarihsel zemini var.`);
+      if (h2hPattern.dominantSide === 'home' && h2hPattern.dominanceRate >= 55) {
+        advanced.push(`H2H ge\u00e7mi\u015finde ev sahibi belirgin \u00fcst\u00fcnl\u00fck kurmu\u015f (%${h2hPattern.dominanceRate}).`);
+      } else if (h2hPattern.dominantSide === 'away' && h2hPattern.dominanceRate >= 55) {
+        advanced.push(`H2H ge\u00e7mi\u015finde deplasman tak\u0131m\u0131 \u00fcst\u00fcn gelme e\u011filiminde (%${h2hPattern.dominanceRate}).`);
+      }
+    }
+  }
+
   const offset = hash % pool.length;
   const selected = [0, 1, 2].map(i => pool[(offset + i) % pool.length]);
-  return [...new Set([...selected, ...advanced])].slice(0, 10);
+  return [...new Set([...selected, ...advanced])].slice(0, 12);
 }
 
 export function buildScoutSummary(
@@ -714,28 +904,63 @@ export function buildScoutSummaryFromPick(
   const sampleNote = sample < 6 ? ' Veri örneklemi sınırlı olduğu için agresif yorumdan kaçınmak gerekiyor.' : '';
   const weatherNote = weatherRisk ? ' Hava koşulu ritmi bozabileceği için risk artıyor.' : '';
 
+  // Extended stat notes
+  const hWinStr = hSt.currentWinStreak ?? 0;
+  const aWinStr = aSt.currentWinStreak ?? 0;
+  const hUnbeat = hSt.currentUnbeatenStreak ?? 0;
+  const aUnbeat = aSt.currentUnbeatenStreak ?? 0;
+  let streakNote = '';
+  if (hWinStr >= 3) streakNote = ` ${home} son ${hWinStr} maçı kazanarak bu fikstüre yüksek ivmeyle girdi.`;
+  else if (aWinStr >= 3) streakNote = ` ${away} son ${aWinStr} maçı kazanarak geldiği için deplasman baskısı formuyla destekleniyor.`;
+  else if (hUnbeat >= 4) streakNote = ` ${home}'nin ${hUnbeat} maçlık yenilmezlik serisi, savunma istikrarını da yansıtıyor.`;
+  else if (aUnbeat >= 4) streakNote = ` ${away}'nin ${aUnbeat} maçlık yenilmezlik serisi, rakibinin temkinli oynamasını gerektirebilir.`;
+
+  const hClean = hSt.cleanSheetPct ?? 0;
+  const aClean = aSt.cleanSheetPct ?? 0;
+  const hFailed = hSt.failedToScorePct ?? 0;
+  const aFailed = aSt.failedToScorePct ?? 0;
+  let cleanNote = '';
+  if (hClean >= 45 && aFailed >= 35) cleanNote = ` ${home} savunması %${hClean} kale sıfır oranıyla, ${away}'ın %${aFailed} gol atama güçlüğüyle birleşince ev sahibi defans baskısı öne çıkıyor.`;
+  else if (aClean >= 45 && hFailed >= 35) cleanNote = ` ${away} savunması %${aClean} kale sıfır oranıyla, ${home}'ın gol bulma güçlüğüyle (%${hFailed}) eşleşiyor — deplasman geriden oynamayı seçse bile kaleyi tutabilir.`;
+
+  const hFH = hSt.firstHalfGoalsAvg ?? null;
+  const aFH = aSt.firstHalfGoalsAvg ?? null;
+  let halfTimeNote = '';
+  if (hFH !== null && aFH !== null) {
+    const avgFH = (hFH + aFH) / 2;
+    const avgSH = ((hSt.secondHalfGoalsAvg ?? 0) + (aSt.secondHalfGoalsAvg ?? 0)) / 2;
+    if (avgFH >= 1.2) halfTimeNote = ` İlk yarı gol ortalaması yüksek (${avgFH.toFixed(1)}) — maçın tablo erken kırılabilir.`;
+    else if (avgSH > avgFH + 0.4) halfTimeNote = ` İkinci yarı gol akışı ilk yarıdan belirgin daha yoğun; tempo değişimi ikinci yarıda beklenmeli.`;
+  }
+
+  const hSFW = hSt.scoreFirstWinPct ?? null;
+  const aSFW = aSt.scoreFirstWinPct ?? null;
+  let scoreFirstNote = '';
+  if (pick.tone === 'home' && hSFW !== null && hSFW >= 70) scoreFirstNote = ` ${home} ilk golü attığında maçları %${hSFW} oranında kazanıyor — öncü gol kritik önem taşıyor.`;
+  else if (pick.tone === 'away' && aSFW !== null && aSFW >= 70) scoreFirstNote = ` ${away} ilk golü bulduğunda maçları %${aSFW} oranında kazanıyor — deplasman için erken gol belirleyici.`;
+
   if (pick.tone === 'goals') {
     const main = pick.label.includes('Karşılıklı')
       ? `Scout özeti bu maçta iki takımın da gol bulma ihtimalini öne çıkarıyor. ${matchupNote} ${bttsContext || goalContext} Bu nedenle kazanan seçmekten çok iki ekibin skor katkısına odaklanmak daha mantıklı.`
       : `Scout özeti bu maçta gollü maç tarafını daha güçlü görüyor. ${matchupNote} ${goalContext} Taraf avantajı sınırlı kaldığı için analiz, kazanan yerine skor üretimine yaslanıyor.`;
-    return `${main} ${formNote}${venueNote ? ` ${venueNote}` : ''}${conflictNote}${sampleNote}${weatherNote}`;
+    return `${main} ${formNote}${venueNote ? ` ${venueNote}` : ''}${halfTimeNote}${conflictNote}${sampleNote}${weatherNote}`;
   }
 
   if (pick.tone === 'draw') {
-    return `Scout özeti bu maçta düşük skor tarafını daha mantıklı görüyor. ${matchupNote} ${goalContext} Oyun kolay açılmazsa ilk gol, duran top veya geçiş anları maçın ana kırılma noktası olabilir. ${formNote}${venueNote ? ` ${venueNote}` : ''}${conflictNote}${sampleNote}${weatherNote}`;
+    return `Scout özeti bu maçta düşük skor tarafını daha mantıklı görüyor. ${matchupNote} ${goalContext} Oyun kolay açılmazsa ilk gol, duran top veya geçiş anları maçın ana kırılma noktası olabilir. ${formNote}${venueNote ? ` ${venueNote}` : ''}${cleanNote}${conflictNote}${sampleNote}${weatherNote}`;
   }
 
   if (pick.tone === 'home') {
     const side = pick.label.includes('galibiyete') ? 'galibiyet' : 'kaybetmeme';
-    return `Scout özeti ${home} tarafını ${side} senaryosunda öne çıkarıyor. ${matchupNote} ${formNote} Ev sahibi tarafı oyunu kendi ritmine çekebilirse maç kontrolü daha çok ${home} tarafına yaklaşır.${venueNote ? ` ${venueNote}` : ''}${conflictNote}${sampleNote}${weatherNote}`;
+    return `Scout özeti ${home} tarafını ${side} senaryosunda öne çıkarıyor. ${matchupNote} ${formNote} Ev sahibi tarafı oyunu kendi ritmine çekebilirse maç kontrolü daha çok ${home} tarafına yaklaşır.${venueNote ? ` ${venueNote}` : ''}${streakNote}${cleanNote}${scoreFirstNote}${halfTimeNote}${conflictNote}${sampleNote}${weatherNote}`;
   }
 
   if (pick.tone === 'away') {
     const side = pick.label.includes('galibiyete') ? 'galibiyet' : 'kaybetmeme';
-    return `Scout özeti ${away} tarafını ${side} senaryosunda öne çıkarıyor. ${matchupNote} ${formNote} Deplasman ekibinin oyunda kalma ve skor tehdidi, maçı tek taraflı ev sahibi üstünlüğü olarak okumayı zorlaştırıyor.${venueNote ? ` ${venueNote}` : ''}${conflictNote}${sampleNote}${weatherNote}`;
+    return `Scout özeti ${away} tarafını ${side} senaryosunda öne çıkarıyor. ${matchupNote} ${formNote} Deplasman ekibinin oyunda kalma ve skor tehdidi, maçı tek taraflı ev sahibi üstünlüğü olarak okumayı zorlaştırıyor.${venueNote ? ` ${venueNote}` : ''}${streakNote}${cleanNote}${scoreFirstNote}${halfTimeNote}${conflictNote}${sampleNote}${weatherNote}`;
   }
 
-  return `Scout özeti bu maçta net bir yöne güçlü kırılım görmüyor. ${matchupNote} ${goalContext} ${formNote} Bu yüzden taraf veya gol seçimini zorlamak yerine risk seviyesini yüksek okumak daha doğru.${venueNote ? ` ${venueNote}` : ''}${conflictNote}${sampleNote}${weatherNote}`;
+  return `Scout özeti bu maçta net bir yöne güçlü kırılım görmüyor. ${matchupNote} ${goalContext} ${formNote} Bu yüzden taraf veya gol seçimini zorlamak yerine risk seviyesini yüksek okumak daha doğru.${venueNote ? ` ${venueNote}` : ''}${streakNote}${conflictNote}${sampleNote}${weatherNote}`;
 }
 
 export function buildMatchCharacterDetail(
@@ -1245,6 +1470,7 @@ export function buildMatchAnalysis(
   hTrend?: { direction: 'up' | 'down' | 'stable'; pts5: number; ptsPrev: number } | null,
   aTrend?: { direction: 'up' | 'down' | 'stable'; pts5: number; ptsPrev: number } | null,
   leagueAvg: number = 1.5,
+  h2hItems?: H2HRawItem[],
 ): MatchAnalysis {
   const base = LEAGUE_BASE[leagueApiId] ?? { stil: 'Dengeli' as Stil, gol: 'Orta' as Level, tempo: 'Orta' as Level, risk: 'Orta' as Level };
   const hash = strHash(home + away);
@@ -1291,13 +1517,15 @@ export function buildMatchAnalysis(
   const guven   = hasFormData ? getGuven(hSt, aSt, h2hCount, weatherRisk) : 'Düşük';
   const scoutPick = hasFormData ? buildScoutPick(home, away, hSt, aSt, hFP, aFP, h2hCount, weatherRisk) : null;
   const persona = getPersonaEnriched(stil, gol, tempo, risk, hasFormData ? hSt : undefined, hasFormData ? aSt : undefined, hTrend, aTrend);
-  const short   = pickFrom(SHORT_BANK[persona]  || SHORT_BANK.dengeli,  hash + 5);
+  const short = hasFormData && scoutPick
+    ? buildShortAnalysis(home, away, hSt, aSt, hFP, aFP, scoutPick)
+    : pickFrom(SHORT_BANK[persona] || SHORT_BANK.dengeli, hash + 5);
   const bankMedium = pickFrom(MEDIUM_BANK[persona] || MEDIUM_BANK.dengeli, hash + 13);
   const medium  = hasFormData && scoutPick
     ? buildScoutSummaryFromPick(home, away, scoutPick, hSt, aSt, hFP, aFP, weatherRisk)
     : bankMedium;
   const reasons = hasFormData
-    ? buildReasons(home, away, hSt, aSt, hFP, aFP, h2hCount, hash + 17, hTrend, aTrend, weatherRisk)
+    ? buildReasons(home, away, hSt, aSt, hFP, aFP, h2hCount, hash + 17, hTrend, aTrend, weatherRisk, h2hItems)
     : ['Veri henüz yüklenmedi; form ve H2H verileri değerlendirmeye alınamadı.',
        'Lig profili baz alınarak tahmin üretildi.',
        'Sonuçlar genel eğilimi yansıtmakla birlikte maç bazlı doğrulanmadı.'];
@@ -1317,15 +1545,48 @@ export function calcFormStats(matches: FDMatch[], teamId: number) {
   let homeWin=0,homeDraw=0,homeLoss=0,homeGf=0,homeGa=0,homePlayed=0;
   let awayWin=0,awayDraw=0,awayLoss=0,awayGf=0,awayGa=0,awayPlayed=0;
   let over25=0,kgVar=0,total=0;
+  let cleanSheet=0,failedToScore=0;
+  let totalFHGoals=0,totalSHGoals=0,fhMatches=0;
+  let scoreFirstWins=0,scoreFirstTotal=0;
+  let secondHalfMoreGoals=0;
+  let over15FH=0;
 
-  matches.forEach(m => {
-    const fh=m.score?.fullTime?.home, fa=m.score?.fullTime?.away;
-    if (fh==null||fa==null) return;
+  // Sort chronologically for streak computation
+  const sorted = [...matches]
+    .filter(m => m.score?.fullTime?.home != null && m.score?.fullTime?.away != null)
+    .sort((a, b) => new Date(a.utcDate ?? 0).getTime() - new Date(b.utcDate ?? 0).getTime());
+
+  sorted.forEach(m => {
+    const fh=m.score?.fullTime?.home!, fa=m.score?.fullTime?.away!;
     total++;
     const isHome=m.homeTeam?.id===teamId;
     const gf=isHome?fh:fa, ga=isHome?fa:fh;
     if (fh+fa>2.5) over25++;
     if (fh>0&&fa>0) kgVar++;
+    if (ga===0) cleanSheet++;
+    if (gf===0) failedToScore++;
+
+    // Half-time goals
+    const htHome = m.score?.halfTime?.home;
+    const htAway = m.score?.halfTime?.away;
+    if (htHome != null && htAway != null) {
+      fhMatches++;
+      const fhTotal = htHome + htAway;
+      const shTotal = (fh + fa) - fhTotal;
+      totalFHGoals += fhTotal;
+      totalSHGoals += shTotal;
+      if (fhTotal > 1.5) over15FH++;
+      if (shTotal > fhTotal) secondHalfMoreGoals++;
+
+      // Score first win rate (based on half-time lead as proxy for first goal)
+      const teamFHGoals = isHome ? htHome : htAway;
+      const oppFHGoals = isHome ? htAway : htHome;
+      if (teamFHGoals > oppFHGoals) {
+        scoreFirstTotal++;
+        if (gf > ga) scoreFirstWins++;
+      }
+    }
+
     if (isHome) {
       homePlayed++; homeGf+=gf; homeGa+=ga;
       if (gf>ga) homeWin++; else if (gf===ga) homeDraw++; else homeLoss++;
@@ -1334,6 +1595,29 @@ export function calcFormStats(matches: FDMatch[], teamId: number) {
       if (gf>ga) awayWin++; else if (gf===ga) awayDraw++; else awayLoss++;
     }
   });
+
+  // Compute streaks (consecutive from most recent match)
+  let currentWinStreak = 0, currentUnbeatenStreak = 0;
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    const m = sorted[i];
+    const isHome = m.homeTeam?.id === teamId;
+    const fh = m.score.fullTime.home!, fa = m.score.fullTime.away!;
+    const gf = isHome ? fh : fa, ga = isHome ? fa : fh;
+    if (gf > ga) { currentWinStreak++; currentUnbeatenStreak++; }
+    else if (gf === ga) { currentUnbeatenStreak++; break; }
+    else { break; }
+  }
+  // currentUnbeatenStreak = consecutive non-losses (wins + draws); loop above breaks on first non-win for draws
+  // For draw streaks continuation: re-count unbeaten separately
+  currentUnbeatenStreak = 0;
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    const m = sorted[i];
+    const isHome = m.homeTeam?.id === teamId;
+    const fh = m.score.fullTime.home!, fa = m.score.fullTime.away!;
+    const gf = isHome ? fh : fa, ga = isHome ? fa : fh;
+    if (gf >= ga) currentUnbeatenStreak++;
+    else break;
+  }
 
   return {
     total, homePlayed, awayPlayed,
@@ -1350,6 +1634,15 @@ export function calcFormStats(matches: FDMatch[], teamId: number) {
     totalWinPct: total>0?Math.round(((homeWin+awayWin)/total)*100):0,
     over25Pct:  total>0?Math.round((over25/total)*100):0,
     kgVarPct:   total>0?Math.round((kgVar/total)*100):0,
+    cleanSheetPct: total>0?Math.round((cleanSheet/total)*100):undefined,
+    failedToScorePct: total>0?Math.round((failedToScore/total)*100):undefined,
+    firstHalfGoalsAvg: fhMatches>0?parseFloat((totalFHGoals/fhMatches).toFixed(2)):undefined,
+    secondHalfGoalsAvg: fhMatches>0?parseFloat((totalSHGoals/fhMatches).toFixed(2)):undefined,
+    over15FirstHalfPct: fhMatches>0?Math.round((over15FH/fhMatches)*100):undefined,
+    secondHalfMoreGoalsPct: fhMatches>0?Math.round((secondHalfMoreGoals/fhMatches)*100):undefined,
+    scoreFirstWinPct: scoreFirstTotal>0?Math.round((scoreFirstWins/scoreFirstTotal)*100):undefined,
+    currentWinStreak,
+    currentUnbeatenStreak,
   };
 }
 
@@ -1375,7 +1668,7 @@ export function getStat(stats: FDFixtureStat[] | undefined, ...keys: string[]): 
   return 0;
 }
 
-export function getTeamStyle(stats: ReturnType<typeof calcFormStats>): { label: string; color: string; icon: string } {
+export function getTeamStyle(stats: MatchFormStats): { label: string; color: string; icon: string } {
   const atk = parseFloat(stats.totalAvgGf as string);
   const def = parseFloat(stats.totalAvgGa as string);
   if (atk>=2.0&&def<=1.0) return { label: 'Dominant',        color: '#1565C0', icon: 'trophy-outline' };

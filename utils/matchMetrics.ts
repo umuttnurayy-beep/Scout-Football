@@ -688,6 +688,11 @@ function standingsStatsFromMetrics(metrics: Metrics, side: 'home' | 'away'): Mat
   const winPct = side === 'home' ? metrics.homeWinPct : metrics.awayWinPct;
   const expectedPct = clamp(28 + metrics.expectedGoals * 12, 30, 72);
   const bttsPct = clamp(34 + (metrics.homeAvgGf || 0) * 8 + (metrics.awayAvgGf || 0) * 8, 35, 70);
+  // Poisson P(0) estimate: P(no goals) = e^(-lambda)
+  const gfLambda = avgGf || 0;
+  const gaLambda = avgGa || 0;
+  const cleanSheetPct = gaLambda > 0 ? Math.round(Math.exp(-gaLambda) * 100) : undefined;
+  const failedToScorePct = gfLambda > 0 ? Math.round(Math.exp(-gfLambda) * 100) : undefined;
 
   return {
     total: played || 0,
@@ -700,6 +705,8 @@ function standingsStatsFromMetrics(metrics: Metrics, side: 'home' | 'away'): Mat
     totalWinPct: winPct || 0,
     homePlayed: side === 'home' ? played || 0 : 0,
     awayPlayed: side === 'away' ? played || 0 : 0,
+    cleanSheetPct,
+    failedToScorePct,
   };
 }
 

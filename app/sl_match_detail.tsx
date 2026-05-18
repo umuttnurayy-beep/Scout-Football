@@ -178,6 +178,10 @@ function statsFromStanding(row: Standing | null | undefined): ReturnType<typeof 
     totalWinPct,
     over25Pct,
     kgVarPct: 0,
+    cleanSheetPct: undefined,
+    failedToScorePct: undefined,
+    currentWinStreak: 0,
+    currentUnbeatenStreak: 0,
   };
 }
 

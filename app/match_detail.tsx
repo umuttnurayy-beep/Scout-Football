@@ -381,7 +381,7 @@ export default function MatchDetail() {
   const weatherRisk= isWeatherRisk(weatherData);
   const homeTrend  = hasFormData ? getFormTrend(currentHomeForm, formTeamIds.home) : null;
   const awayTrend  = hasFormData ? getFormTrend(currentAwayForm, formTeamIds.away) : null;
-  const analysis   = buildMatchAnalysis(displayHomeName,displayAwayName,leagueApiId,homeStats,awayStats,homeFormPts,awayFormPts,h2hData.length,weatherRisk,hasFormData,homeTrend,awayTrend,leagueAvgParam);
+  const analysis   = buildMatchAnalysis(displayHomeName,displayAwayName,leagueApiId,homeStats,awayStats,homeFormPts,awayFormPts,h2hData.length,weatherRisk,hasFormData,homeTrend,awayTrend,leagueAvgParam,h2hData);
   const scoutAnalysisReady = hasFormData && !secondaryLoading;
 
   const homeAbbr = abbrevName(displayHomeName, homeTlaParam || (matchData?.homeTeam as any)?.tla, homeTeamId);

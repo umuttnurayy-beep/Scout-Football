@@ -169,14 +169,21 @@ export function calcFormStatsSL(matches: SLFormMatch[], teamId: number) {
   let homeWin=0,homeDraw=0,homeLoss=0,homeGf=0,homeGa=0,homePlayed=0;
   let awayWin=0,awayDraw=0,awayLoss=0,awayGf=0,awayGa=0,awayPlayed=0;
   let over25=0,kgVar=0,total=0;
-  matches.forEach((m) => {
-    const fh = m.homeScore, fa = m.awayScore;
-    if (fh == null || fa == null) return;
+  let cleanSheet=0,failedToScore=0;
+
+  const sorted = [...matches]
+    .filter(m => m.homeScore != null && m.awayScore != null)
+    .sort((a, b) => new Date(a.date || a.dateEvent || 0).getTime() - new Date(b.date || b.dateEvent || 0).getTime());
+
+  sorted.forEach((m) => {
+    const fh = m.homeScore!, fa = m.awayScore!;
     total++;
     const isHome = m.homeTeamId === teamId;
     const gf = isHome ? fh : fa, ga = isHome ? fa : fh;
     if (fh + fa > 2.5) over25++;
     if (fh > 0 && fa > 0) kgVar++;
+    if (ga === 0) cleanSheet++;
+    if (gf === 0) failedToScore++;
     if (isHome) {
       homePlayed++; homeGf += gf; homeGa += ga;
       if (gf > ga) homeWin++; else if (gf === ga) homeDraw++; else homeLoss++;
@@ -185,6 +192,26 @@ export function calcFormStatsSL(matches: SLFormMatch[], teamId: number) {
       if (gf > ga) awayWin++; else if (gf === ga) awayDraw++; else awayLoss++;
     }
   });
+
+  // Compute streaks from most recent match
+  let currentWinStreak = 0, currentUnbeatenStreak = 0;
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    const m = sorted[i];
+    const isHome = m.homeTeamId === teamId;
+    const gf = isHome ? m.homeScore! : m.awayScore!;
+    const ga = isHome ? m.awayScore! : m.homeScore!;
+    if (gf > ga) currentWinStreak++;
+    else break;
+  }
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    const m = sorted[i];
+    const isHome = m.homeTeamId === teamId;
+    const gf = isHome ? m.homeScore! : m.awayScore!;
+    const ga = isHome ? m.awayScore! : m.homeScore!;
+    if (gf >= ga) currentUnbeatenStreak++;
+    else break;
+  }
+
   return {
     total, homePlayed, awayPlayed,
     homeWin, homeDraw, homeLoss, homeGf, homeGa,
@@ -200,6 +227,10 @@ export function calcFormStatsSL(matches: SLFormMatch[], teamId: number) {
     totalWinPct: total>0?Math.round(((homeWin+awayWin)/total)*100):0,
     over25Pct:  total>0?Math.round((over25/total)*100):0,
     kgVarPct:   total>0?Math.round((kgVar/total)*100):0,
+    cleanSheetPct: total>0?Math.round((cleanSheet/total)*100):undefined,
+    failedToScorePct: total>0?Math.round((failedToScore/total)*100):undefined,
+    currentWinStreak,
+    currentUnbeatenStreak,
   };
 }
 
