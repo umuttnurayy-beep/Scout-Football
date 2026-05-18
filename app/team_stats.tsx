@@ -510,7 +510,7 @@ export default function TeamStatsScreen() {
               </View>
               <View style={[styles.specialBox, { backgroundColor: c.surfaceAlt }]}>
                 <Text style={[styles.specialV, { color: c.win }]}>{activeSeasonStats.cleanSheetPct}%</Text>
-                <Text style={[styles.specialL, { color: c.textMuted }]}>Kale sıfır</Text>
+                <Text style={[styles.specialL, { color: c.textMuted }]}>Gol Yemedi</Text>
               </View>
               <View style={[styles.specialBox, { backgroundColor: c.surfaceAlt }]}>
                 <Text style={[styles.specialV, { color: c.loss }]}>{activeSeasonStats.failedToScorePct}%</Text>

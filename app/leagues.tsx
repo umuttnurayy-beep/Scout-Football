@@ -1600,7 +1600,7 @@ export default function LeaguesScreen() {
                 barColor = c.win;
                 const top = trendProfiles.defTop[0];
                 insightMain = top ? `${top.team} maç başı yalnızca ${top.gaPer.toFixed(1)} gol yiyor — ligin en sağlam savunması.` : '';
-                insightWhy  = 'Az gol yiyen takımlar, alt 2.5 ve kale sıfır senaryolarında güvenilir referanslardır.';
+                insightWhy  = 'Az gol yiyen takımlar, alt 2.5 ve kalesini gole kapatma senaryolarında güvenilir referanslardır.';
                 rows = trendProfiles.defTop.map((r, i) => ({
                   abbr: teamAbbrev(r.team, (r as any).tla, r.teamId), team: r.team,
                   ratio: (trendProfiles.maxDef - r.gaPer) / trendProfiles.defRange,

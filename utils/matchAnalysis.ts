@@ -300,7 +300,7 @@ export function buildShortAnalysis(
   if (pick.tone === 'home') {
     const formNote = hFP > aFP + 3 ? `Son 5 maç formunda ${home} ${hFP} puanla ${aFP} puanlık ${away}'ı geride bırakıyor.` : '';
     const atkNote = hAtk - aDef >= 0.4 ? `${home} gol ortalaması (${hAtk}) ${away} savunmasının verdiği ortalamanın (${aDef}) üzerinde.` : '';
-    if (hClean >= 40) return `${home} savunması son dönemde sağlam — %${hClean} kale sıfır oranıyla baskı altında bile yenilmeye direnç var. ${formNote || atkNote}`.trim();
+    if (hClean >= 40) return `${home} savunması son dönemde sağlam — maçların %${hClean}'inde kalesini gole kapatarak baskı altında bile yenilmeye direnç gösteriyor. ${formNote || atkNote}`.trim();
     if (formNote) return `${formNote}${atkNote ? ` ${atkNote}` : ''}`;
     return `${home} form ve eşleşme verileriyle bu maçta hafif öne çıkıyor; gol ortalaması ${hAtk.toFixed(1)} vs savunma ${aDef.toFixed(1)}.`;
   }
@@ -478,9 +478,9 @@ export function buildReasons(
 
   if (hClean !== null && aClean !== null) {
     if (hClean >= 45 && aFailed !== null && aFailed >= 35) {
-      advanced.push(`${home} kale s\u0131f\u0131r oran\u0131 y\u00fcksek (%${hClean}) ve ${away} gol bulmakta g\u00fc\u00e7l\u00fck ya\u015f\u0131yor (%${aFailed} gol atamad\u0131) \u2014 ev sahibi savunma bask\u0131s\u0131 kritik.`);
+      advanced.push(`${home} ma\u00e7lar\u0131n %${hClean}'inde kalesini gole kapatm\u0131\u015f; ${away} gol bulmakta g\u00fc\u00e7l\u00fck ya\u015f\u0131yor (%${aFailed}) \u2014 ev sahibi savunma bask\u0131s\u0131 bu e\u015fle\u015fmede belirleyici.`);
     } else if (aClean >= 45 && hFailed !== null && hFailed >= 35) {
-      advanced.push(`${away} kale s\u0131f\u0131r oran\u0131 y\u00fcksek (%${aClean}) ve ${home} gol bulmakta zorlan\u0131yor (%${hFailed} gol atamad\u0131) \u2014 deplasman savunmas\u0131 bask\u0131 alt\u0131nda bile kale kapayabiliyor.`);
+      advanced.push(`${away} ma\u00e7lar\u0131n %${aClean}'inde kalesini gole kapatm\u0131\u015f; ${home} gol \u00fcretmekte zorlan\u0131yor (%${hFailed}) \u2014 bask\u0131 alt\u0131nda bile kaleyi kapatan deplasman profili dikkat \u00e7ekici.`);
     }
   }
 
@@ -910,8 +910,8 @@ export function buildScoutSummaryFromPick(
   const hFailed = hSt.failedToScorePct ?? 0;
   const aFailed = aSt.failedToScorePct ?? 0;
   let cleanNote = '';
-  if (hClean >= 45 && aFailed >= 35) cleanNote = ` ${home} savunması %${hClean} kale sıfır oranıyla, ${away}'ın %${aFailed} gol atama güçlüğüyle birleşince ev sahibi defans baskısı öne çıkıyor.`;
-  else if (aClean >= 45 && hFailed >= 35) cleanNote = ` ${away} savunması %${aClean} kale sıfır oranıyla, ${home}'ın gol bulma güçlüğüyle (%${hFailed}) eşleşiyor — deplasman geriden oynamayı seçse bile kaleyi tutabilir.`;
+  if (hClean >= 45 && aFailed >= 35) cleanNote = ` ${home} maçların %${hClean}'inde kalesini gole kapatmış; ${away}'ın %${aFailed} gol bulamama oranıyla birleşince ev sahibi savunma baskısı öne çıkıyor.`;
+  else if (aClean >= 45 && hFailed >= 35) cleanNote = ` ${away} maçların %${aClean}'inde kalesini gole kapatarak geliyor; ${home} gol bulmakta zorlandığında (%${hFailed}) bu denge daha da belirginleşiyor.`;
 
   const hFH = hSt.firstHalfGoalsAvg ?? null;
   const aFH = aSt.firstHalfGoalsAvg ?? null;
@@ -925,26 +925,26 @@ export function buildScoutSummaryFromPick(
 
   if (pick.tone === 'goals') {
     const main = pick.label.includes('Karşılıklı')
-      ? `Scout özeti bu maçta iki takımın da gol bulma ihtimalini öne çıkarıyor. ${matchupNote} ${bttsContext || goalContext} Bu nedenle kazanan seçmekten çok iki ekibin skor katkısına odaklanmak daha mantıklı.`
-      : `Scout özeti bu maçta gollü maç tarafını daha güçlü görüyor. ${matchupNote} ${goalContext} Taraf avantajı sınırlı kaldığı için analiz, kazanan yerine skor üretimine yaslanıyor.`;
+      ? `Veriler bu maçta iki takımın da skor katkısını destekliyor. ${matchupNote} ${bttsContext || goalContext} Kazanan seçmekten çok iki ekibin gol bulma ihtimali daha okunur sinyal veriyor.`
+      : `Bu maçta gollü skor tarafı daha güçlü görünüyor. ${matchupNote} ${goalContext} Taraf avantajı sınırlı kaldığı için analiz kazanan yerine skor üretimine yaslanıyor.`;
     return `${main} ${formNote}${venueNote ? ` ${venueNote}` : ''}${halfTimeNote}${conflictNote}${sampleNote}${weatherNote}`;
   }
 
   if (pick.tone === 'draw') {
-    return `Scout özeti bu maçta düşük skor tarafını daha mantıklı görüyor. ${matchupNote} ${goalContext} Oyun kolay açılmazsa ilk gol, duran top veya geçiş anları maçın ana kırılma noktası olabilir. ${formNote}${venueNote ? ` ${venueNote}` : ''}${cleanNote}${conflictNote}${sampleNote}${weatherNote}`;
+    return `Bu maçta düşük skor tarafı daha mantıklı duruyor. ${matchupNote} ${goalContext} Oyun kolay açılmazsa ilk gol, duran top veya geçiş anları maçın kırılma noktası olabilir. ${formNote}${venueNote ? ` ${venueNote}` : ''}${cleanNote}${conflictNote}${sampleNote}${weatherNote}`;
   }
 
   if (pick.tone === 'home') {
-    const side = pick.label.includes('galibiyete') ? 'galibiyet' : 'kaybetmeme';
-    return `Scout özeti ${home} tarafını ${side} senaryosunda öne çıkarıyor. ${matchupNote} ${formNote} Ev sahibi tarafı oyunu kendi ritmine çekebilirse maç kontrolü daha çok ${home} tarafına yaklaşır.${venueNote ? ` ${venueNote}` : ''}${streakNote}${cleanNote}${halfTimeNote}${conflictNote}${sampleNote}${weatherNote}`;
+    const side = pick.label.includes('galibiyete') ? 'galibiyette' : 'kaybetmemede';
+    return `${home} bu maçta ${side} öne çıkıyor. ${matchupNote} ${formNote} Oyunu kendi ritmine çekebilirse maç kontrolü daha çok ${home} tarafına yaklaşır.${venueNote ? ` ${venueNote}` : ''}${streakNote}${cleanNote}${halfTimeNote}${conflictNote}${sampleNote}${weatherNote}`;
   }
 
   if (pick.tone === 'away') {
-    const side = pick.label.includes('galibiyete') ? 'galibiyet' : 'kaybetmeme';
-    return `Scout özeti ${away} tarafını ${side} senaryosunda öne çıkarıyor. ${matchupNote} ${formNote} Deplasman ekibinin oyunda kalma ve skor tehdidi, maçı tek taraflı ev sahibi üstünlüğü olarak okumayı zorlaştırıyor.${venueNote ? ` ${venueNote}` : ''}${streakNote}${cleanNote}${halfTimeNote}${conflictNote}${sampleNote}${weatherNote}`;
+    const side = pick.label.includes('galibiyete') ? 'galibiyette' : 'kaybetmemede';
+    return `${away} bu maçta ${side} öne çıkıyor. ${matchupNote} ${formNote} Deplasman ekibinin oyunda kalma ve skor tehdidi, maçı tek taraflı ev sahibi üstünlüğü olarak okumayı zorlaştırıyor.${venueNote ? ` ${venueNote}` : ''}${streakNote}${cleanNote}${halfTimeNote}${conflictNote}${sampleNote}${weatherNote}`;
   }
 
-  return `Scout özeti bu maçta net bir yöne güçlü kırılım görmüyor. ${matchupNote} ${goalContext} ${formNote} Bu yüzden taraf veya gol seçimini zorlamak yerine risk seviyesini yüksek okumak daha doğru.${venueNote ? ` ${venueNote}` : ''}${streakNote}${conflictNote}${sampleNote}${weatherNote}`;
+  return `Bu maçta veriler net bir yöne güçlü kırılım göstermiyor. ${matchupNote} ${goalContext} ${formNote} Taraf veya gol seçimini zorlamak yerine risk seviyesini yüksek okumak daha doğru.${venueNote ? ` ${venueNote}` : ''}${streakNote}${conflictNote}${sampleNote}${weatherNote}`;
 }
 
 export function buildMatchCharacterDetail(
