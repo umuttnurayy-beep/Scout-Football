@@ -26,7 +26,7 @@ import {
   FeaturedMatchCache, ListItem, Match, Metrics,
   LEAGUE_NAMES, STANDINGS_LEAGUES,
   buildDaySummary, buildHomeCardAnalysis, buildNextPreviewFromHomeData, buildVisibleMatches,
-  buildMatchContextScoutAnalysis, computeMetrics, confidenceText, expectedLine, favoriteText,
+  buildMatchContextScoutAnalysis, computeMetrics, confidenceText, favoriteText,
   findStanding, getPickFromMetrics, getPickFromSLContext, hasUsableStandingsMap, levelFromExpectedGoals,
   NO_DATA,
   readH2HMatch,
@@ -406,7 +406,7 @@ function TomorrowFeaturedCard({ m, metrics, onPress }: { m: Match; metrics: Metr
         <Text style={[sc.hlTime, { color: c.text }]}>{m.finished && m.score ? m.score : m.time}</Text>
         <Text style={[sc.hlTeam, { color: c.text, textAlign: 'right' }]} numberOfLines={1}>{m.away}</Text>
       </View>
-      <Text style={[sc.hlMetric, { color: c.primary }]}>{metrics.hasData ? `${expectedLine(metrics)} · ${displayHeadline}` : cardAnalysis.summary}</Text>
+      <Text style={[sc.hlMetric, { color: c.primary }]}>{metrics.hasData ? displayHeadline : cardAnalysis.summary}</Text>
     </TouchableOpacity>
   );
 }
@@ -1324,11 +1324,18 @@ export default function HomeScreen() {
     })();
   }, [matches, metricsMap, selectedDate, backendFeaturedMatchId]);
 
-  // Ana ekrandan bu haftaki pick'leri otomatik kaydet — maç detayına girmeye gerek yok
+  // Ana ekrandan bu ve geçen haftaki pick'leri otomatik kaydet — maç detayına girmeye gerek yok
+  // Pencere 2 haftalık: yeni haftaya geçince geçen haftanın cumartesi-pazar maçları kaçırılmaz.
   useEffect(() => {
     if (!matchesDateStr || matches.length === 0 || !hasUsableStandingsMap(standingsMap)) return;
     const range = getCurrentWeekRange();
-    if (matchesDateStr < range.start || matchesDateStr > range.end) return;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const prevWeekStart = (() => {
+      const d = new Date(range.start + 'T00:00:00');
+      d.setDate(d.getDate() - 7);
+      return d.toISOString().split('T')[0];
+    })();
+    if (matchesDateStr < prevWeekStart || matchesDateStr > todayStr) return;
     (async () => {
       let anyNew = false;
       for (const m of matches) {
@@ -1457,6 +1464,15 @@ export default function HomeScreen() {
         if (nextDayPreview && nextDayPreview.m.id !== hero.id) {
           items.push({ key: 'tomorrow-featured', type: 'tomorrow-featured', m: nextDayPreview.m, metrics: nextDayPreview.metrics });
         }
+        items.push({
+          key: 'weekly-card',
+          type: 'weekly-card',
+          weeklyCorrect: weeklyAcc?.correct ?? 0,
+          weeklyTotal: weeklyAcc?.total ?? 0,
+          weeklyPct: weeklyAcc?.pct ?? 0,
+          weeklyLabel: weeklyAcc?.label ?? getWeekRange(getMaxWeekOffset()).label,
+          weeklyAllTotal: weeklyAcc?.allTotal ?? 0,
+        });
         return items;
       }
 
@@ -1515,6 +1531,15 @@ export default function HomeScreen() {
       }
     } else {
       items.push({ key: 'empty-scout', type: 'empty-scout', filter: 'Scout' });
+      items.push({
+        key: 'weekly-card',
+        type: 'weekly-card',
+        weeklyCorrect: weeklyAcc?.correct ?? 0,
+        weeklyTotal: weeklyAcc?.total ?? 0,
+        weeklyPct: weeklyAcc?.pct ?? 0,
+        weeklyLabel: weeklyAcc?.label ?? getWeekRange(getMaxWeekOffset()).label,
+        weeklyAllTotal: weeklyAcc?.allTotal ?? 0,
+      });
     }
 
     return items;

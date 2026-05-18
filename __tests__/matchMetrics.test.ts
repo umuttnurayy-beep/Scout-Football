@@ -37,7 +37,7 @@ import {
   buildVisibleMatches,
   rankMatchesWithMetrics,
   selectPreviewMatch,
-  expectedLine,
+
   uniqueLeagueIds,
   buildNextPreviewFromHomeData,
   buildHomeCardAnalysis,
@@ -1122,20 +1122,6 @@ describe('selectPreviewMatch', () => {
     const result = selectPreviewMatch([pl], {});
     expect(result?.metrics).toBeDefined();
     expect(typeof result?.metrics.hasData).toBe('boolean');
-  });
-});
-
-// ─── expectedLine ─────────────────────────────────────────────────────────────
-
-describe('expectedLine', () => {
-  test('formats expected goals as "Beklenen ~X.Y gol"', () => {
-    const m = makeMetrics({ expectedGoals: 2.5 });
-    expect(expectedLine(m)).toBe('Beklenen ~2.5 gol');
-  });
-
-  test('always shows one decimal place', () => {
-    expect(expectedLine(makeMetrics({ expectedGoals: 3.0 }))).toBe('Beklenen ~3.0 gol');
-    expect(expectedLine(makeMetrics({ expectedGoals: 1.8 }))).toBe('Beklenen ~1.8 gol');
   });
 });
 

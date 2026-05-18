@@ -355,17 +355,17 @@ export function computeMetrics(home: Standing | null, away: Standing | null, sta
 export function buildDaySummary(metricsList: Metrics[]): string {
   const withData = metricsList.filter(m => m.hasData);
   if (withData.length === 0) return 'Bugünün maçları için yeterli sezon verisi yok.';
-  const avgXG     = withData.reduce((s, m) => s + m.expectedGoals, 0) / withData.length;
-  const highScore = withData.filter(m => m.expectedGoals > 3.0).length;
   const balanced  = withData.filter(m => m.favorite === 'balanced').length;
   const highConf  = withData.filter(m => m.confidence === 'high').length;
+  const highTempo = withData.filter(m => m.tempo > 3.0).length;
   const half      = Math.ceil(withData.length / 2);
 
   const parts: string[] = [];
-  parts.push(`Maç başına ortalama ~${avgXG.toFixed(1)} gol bekleniyor.`);
-  if (highScore >= 3)        parts.push(`${highScore} maçta 3+ gol profili var.`);
-  if (balanced >= half)      parts.push('Çoğu maç dengeli profilde.');
-  else if (highConf >= half) parts.push('Çoğu maçta belirgin bir favori öne çıkıyor.');
+  if (highConf >= half)      parts.push('Çoğu maçta belirgin bir favori öne çıkıyor.');
+  else if (balanced >= half) parts.push('Çoğu maç dengeli bir profil taşıyor.');
+  else                       parts.push('Maçlar karışık bir görünüm sergiliyor.');
+  if (highTempo >= 3)        parts.push(`${highTempo} maçta gol yüklü bir profil göze çarpıyor.`);
+  else if (highConf < half && balanced < half) parts.push('Dikkatli analiz gerektiren bir gün.');
   return parts.join(' ');
 }
 
@@ -548,10 +548,6 @@ export function favoriteText(m: Match, metrics: Metrics): string {
   return buildHomeCardAnalysis(m, metrics).headline;
 }
 
-export function expectedLine(metrics: Metrics): string {
-  return `Beklenen ~${metrics.expectedGoals.toFixed(1)} gol`;
-}
-
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
@@ -631,7 +627,7 @@ function homeCardSummary(m: Match, metrics: Metrics, pick: ReturnType<typeof bui
     return pickVariant([
       `${goalLevel}; iki takımın gol üretimi düşük skora kapanmıyor.`,
       `Hücum ortalamaları gol ihtimalini destekliyor, taraf avantajı ise daha sınırlı.`,
-      `${expectedLine(metrics)}; bu maçta ana sinyal skor potansiyeli.`,
+      `${goalLevel}; skor üretim potansiyeli taraf seçiminden daha güvenilir görünüyor.`,
       `Savunma verileri iki taraf için de gol alanı bırakıyor.`,
     ], hash);
   }
@@ -875,8 +871,8 @@ export function trendBarPercent(value: string): number {
 export function singleMatchScoutText(m: Match, metrics: Metrics): string {
   if (!metrics.hasData) return `${m.home} - ${m.away} için sezon verisi sınırlı. Taraf yorumu yerine ilk bölüm temposu ve şut hacmi izlenmeli.`;
   const fav = favoriteText(m, metrics).toLowerCase();
-  const tempo = metrics.expectedGoals >= 2.8 ? 'yüksek tempo' : metrics.expectedGoals <= 2.0 ? 'kontrollü tempo' : 'orta tempo';
-  return `${m.home} - ${m.away} eşleşmesi ${tempo} profili sunuyor. ${expectedLine(metrics)}; taraf okumasında ${fav} sinyali var.`;
+  const tempo = metrics.tempo >= 2.8 ? 'yüksek tempo' : metrics.tempo <= 2.0 ? 'kontrollü tempo' : 'orta tempo';
+  return `${m.home} - ${m.away} eşleşmesi ${tempo} profili sunuyor. Taraf okumasında ${fav} sinyali var.`;
 }
 
 export function readH2HMatch(match: H2HRawItem) {
