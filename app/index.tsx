@@ -27,7 +27,7 @@ import {
   LEAGUE_NAMES, STANDINGS_LEAGUES,
   buildDaySummary, buildHomeCardAnalysis, buildNextPreviewFromHomeData, buildVisibleMatches,
   buildMatchContextScoutAnalysis, computeMetrics, confidenceText, expectedLine, favoriteText,
-  findStanding, getPickFromMetrics, hasUsableStandingsMap, levelFromExpectedGoals,
+  findStanding, getPickFromMetrics, getPickFromSLContext, hasUsableStandingsMap, levelFromExpectedGoals,
   NO_DATA,
   readH2HMatch,
   scoutScore, selectPreviewMatch, singleMatchScoutText, trendBarPercent,
@@ -193,6 +193,7 @@ function metricsForMatch(m: Match, standingsMap: Record<number, Standing[]>): Me
 function HeroCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress: () => void }) {
   const { colors: c, isDark } = useTheme();
   const cardAnalysis = buildHomeCardAnalysis(m, metrics);
+  const contextLabel = useContextPickLabel(m, metrics.leagueAvg);
   const hasScore = m.finished && m.score;
   const homeAbbr = teamAbbrev(m.home, m.homeTla, m.homeTeamId);
   const awayAbbr = teamAbbrev(m.away, m.awayTla, m.awayTeamId);
@@ -236,7 +237,7 @@ function HeroCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
           </View>
           <View style={[sc.heroBadge, { flex: 1, justifyContent: 'center' }]}>
             <Text style={sc.heroBadgeLabel} numberOfLines={1}>
-              {cardAnalysis.headline
+              {(contextLabel || cardAnalysis.headline)
                 .replace(m.home, homeAbbr)
                 .replace(m.away, awayAbbr)
                 .replace('galibiyete yakın', 'önde')}
@@ -260,6 +261,44 @@ function MiniMetric({ icon, label, value, tone }: { icon: keyof typeof Ionicons.
       <Text style={[sc.miniMetricValue, { color }]}>{value}</Text>
     </View>
   );
+}
+
+// Fetches context-based pick label for a match card.
+// Uses the dedup preload map, so if warmDetailContexts already ran this is essentially free.
+function useContextPickLabel(m: Match, leagueAvg: number): string | null {
+  const [label, setLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setLabel(null);
+
+    if (m.leagueApiId === 203) {
+      preloadSuperLigMatchContext({
+        eventId: String(m.id),
+        homeTeamId: m.homeTeamId,
+        awayTeamId: m.awayTeamId,
+        home: m.home,
+        away: m.away,
+        silent: true,
+      }).then(context => {
+        if (!alive || !context) return;
+        const pick = getPickFromSLContext(m.homeTeamId, m.awayTeamId, m.home, m.away, context);
+        if (pick?.label) setLabel(pick.label);
+      }).catch(() => {});
+    } else {
+      preloadMatchContext(String(m.id), m.finished, { silent: true })
+        .then(context => {
+          if (!alive || !context) return;
+          const analysis = buildMatchContextScoutAnalysis(m, context, leagueAvg);
+          if (analysis?.scoutPick?.label) setLabel(analysis.scoutPick.label);
+        }).catch(() => {});
+    }
+
+    return () => { alive = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [m.id, m.leagueApiId]);
+
+  return label;
 }
 
 function SingleInsightCard({ m, metrics }: { m: Match; metrics: Metrics }) {
@@ -358,6 +397,8 @@ function SingleH2HCard({ h2h }: { h2h: H2HRawItem[] }) {
 function TomorrowFeaturedCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress: () => void }) {
   const { colors: c, isDark } = useTheme();
   const cardAnalysis = buildHomeCardAnalysis(m, metrics);
+  const contextLabel = useContextPickLabel(m, metrics.leagueAvg);
+  const displayHeadline = contextLabel || cardAnalysis.headline;
   return (
     <TouchableOpacity style={[sc.tomorrowCard, { backgroundColor: c.surface }, cardShadow(isDark)]} onPress={onPress} activeOpacity={0.86}>
       <View style={sc.hlTop}>
@@ -372,7 +413,7 @@ function TomorrowFeaturedCard({ m, metrics, onPress }: { m: Match; metrics: Metr
         <Text style={[sc.hlTime, { color: c.text }]}>{m.finished && m.score ? m.score : m.time}</Text>
         <Text style={[sc.hlTeam, { color: c.text, textAlign: 'right' }]} numberOfLines={1}>{m.away}</Text>
       </View>
-      <Text style={[sc.hlMetric, { color: c.primary }]}>{metrics.hasData ? `${expectedLine(metrics)} · ${cardAnalysis.headline}` : cardAnalysis.summary}</Text>
+      <Text style={[sc.hlMetric, { color: c.primary }]}>{metrics.hasData ? `${expectedLine(metrics)} · ${displayHeadline}` : cardAnalysis.summary}</Text>
     </TouchableOpacity>
   );
 }
@@ -598,6 +639,7 @@ function MiniHighlightCard({ m, metrics, onPress }: {
 }) {
   const { colors: c, isDark } = useTheme();
   const cardAnalysis = buildHomeCardAnalysis(m, metrics);
+  const contextLabel = useContextPickLabel(m, metrics.leagueAvg);
   const hasScore = m.finished && m.score;
   const homeAbbr = teamAbbrev(m.home, m.homeTla, m.homeTeamId);
   const awayAbbr = teamAbbrev(m.away, m.awayTla, m.awayTeamId);
@@ -621,7 +663,7 @@ function MiniHighlightCard({ m, metrics, onPress }: {
       </View>
       {metrics.hasData ? (
         <View style={[sc.miniHlMetricRow, { borderTopColor: c.borderLight }]}>
-          <Text style={[sc.miniHlMetricMain, { color: c.primary }]} numberOfLines={1}>{cardAnalysis.headline}</Text>
+          <Text style={[sc.miniHlMetricMain, { color: c.primary }]} numberOfLines={1}>{contextLabel || cardAnalysis.headline}</Text>
           <Text style={[sc.miniHlMetricSub, { color: c.textSub }]}>~{metrics.expectedGoals.toFixed(1)} Gol</Text>
         </View>
       ) : (
@@ -658,6 +700,7 @@ function MatchRow({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
   const { colors: c, isDark } = useTheme();
   const hasScore = m.finished && m.score;
   const cardAnalysis = buildHomeCardAnalysis(m, metrics);
+  const contextLabel = useContextPickLabel(m, metrics.leagueAvg);
   const homeAbbr = teamAbbrev(m.home, m.homeTla, m.homeTeamId);
   const awayAbbr = teamAbbrev(m.away, m.awayTla, m.awayTeamId);
   const lgColor = LEAGUE_BADGE_COLOR[m.leagueApiId] ?? c.primary;
@@ -688,7 +731,7 @@ function MatchRow({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
         <View style={sc.matchMetricPills}>
           <Text style={[sc.matchPill, { color: c.textSub }]}>~<Text style={{ color: c.text, fontWeight: '700' }}>{metrics.expectedGoals.toFixed(1)}</Text> Gol</Text>
           <Text style={[sc.matchPillDiv, { color: c.borderLight }]}>·</Text>
-          <Text style={[sc.matchPill, { color: c.primary, fontWeight: '600' }]} numberOfLines={1}>{cardAnalysis.headline}</Text>
+          <Text style={[sc.matchPill, { color: c.primary, fontWeight: '600' }]} numberOfLines={1}>{contextLabel || cardAnalysis.headline}</Text>
         </View>
       ) : (
         <Text style={[sc.matchMetricLineMuted, { color: c.textFaint }]}>{metrics.reason}</Text>
