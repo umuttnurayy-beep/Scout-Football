@@ -229,10 +229,6 @@ function HeroCard({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
       {metrics.hasData && (
         <View style={sc.heroBadgeRow}>
           <View style={sc.heroBadge}>
-            <Text style={sc.heroBadgeNum}>~{metrics.expectedGoals.toFixed(1)}</Text>
-            <Text style={sc.heroBadgeLbl}>Gol</Text>
-          </View>
-          <View style={sc.heroBadge}>
             <Text style={sc.heroBadgeLabel}>{levelFromExpectedGoals(metrics.expectedGoals)} Tempo</Text>
           </View>
           <View style={[sc.heroBadge, { flex: 1, justifyContent: 'center' }]}>
@@ -353,7 +349,6 @@ function ProgressRow({ label, value, percent }: { label: string; value: string; 
 
 function SingleTrendsCard({ m, metrics }: { m: Match; metrics: Metrics }) {
   const { colors: c, isDark } = useTheme();
-  const goalLevel = levelFromExpectedGoals(metrics.expectedGoals);
   const sideValue = metrics.hasData ? favoriteText(m, metrics) : 'Belirsiz';
   const confidence = confidenceText(metrics);
   return (
@@ -362,10 +357,8 @@ function SingleTrendsCard({ m, metrics }: { m: Match; metrics: Metrics }) {
         <Ionicons name="analytics-outline" size={17} color={c.primary} />
         <Text style={[sc.singleTitle, { color: c.primary }]}>MAÇ TRENDLERİ</Text>
       </View>
-      <ProgressRow label="Gol beklentisi" value={`~${metrics.expectedGoals.toFixed(1)} gol · ${goalLevel}`} percent={trendBarPercent(goalLevel)} />
       <ProgressRow label="Taraf okuması" value={sideValue || 'Dengeli'} percent={metrics.favorite === 'balanced' ? 52 : 70} />
       <ProgressRow label="Veri güveni" value={confidence} percent={trendBarPercent(confidence)} />
-      <Text style={[sc.trendFoot, { color: c.textMuted }]}>Beklenen gol, lig tablosu ve form eşleşmesinden türetilen özet sinyal.</Text>
     </View>
   );
 }
@@ -664,7 +657,6 @@ function MiniHighlightCard({ m, metrics, onPress }: {
       {metrics.hasData ? (
         <View style={[sc.miniHlMetricRow, { borderTopColor: c.borderLight }]}>
           <Text style={[sc.miniHlMetricMain, { color: c.primary }]} numberOfLines={1}>{contextLabel || cardAnalysis.headline}</Text>
-          <Text style={[sc.miniHlMetricSub, { color: c.textSub }]}>~{metrics.expectedGoals.toFixed(1)} Gol</Text>
         </View>
       ) : (
         <Text style={[sc.miniHlMetricSub, { color: c.textFaint, marginTop: 8 }]} numberOfLines={2}>{cardAnalysis.summary}</Text>
@@ -729,8 +721,6 @@ function MatchRow({ m, metrics, onPress }: { m: Match; metrics: Metrics; onPress
       </View>
       {metrics.hasData ? (
         <View style={sc.matchMetricPills}>
-          <Text style={[sc.matchPill, { color: c.textSub }]}>~<Text style={{ color: c.text, fontWeight: '700' }}>{metrics.expectedGoals.toFixed(1)}</Text> Gol</Text>
-          <Text style={[sc.matchPillDiv, { color: c.borderLight }]}>·</Text>
           <Text style={[sc.matchPill, { color: c.primary, fontWeight: '600' }]} numberOfLines={1}>{contextLabel || cardAnalysis.headline}</Text>
         </View>
       ) : (
