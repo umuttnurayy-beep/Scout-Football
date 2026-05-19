@@ -478,7 +478,7 @@ export function preloadMatchContext(matchId: string, isFinished?: boolean, optio
   const request = fetchMatchContext(matchId, isFinished, options);
   matchContextRequests.set(key, request);
   request.then(value => {
-    if (!value) matchContextRequests.delete(key);
+    if (!value || (value.homeForm.length === 0 && value.awayForm.length === 0)) matchContextRequests.delete(key);
   }).catch(() => {
     matchContextRequests.delete(key);
   });
@@ -801,7 +801,7 @@ export function preloadSuperLigMatchContext(params: SuperLigMatchContextParams):
   const request = fetchSuperLigMatchContext(params);
   superLigMatchContextRequests.set(key, request);
   request.then(value => {
-    if (!value) superLigMatchContextRequests.delete(key);
+    if (!value || !value.homeContext || !value.awayContext) superLigMatchContextRequests.delete(key);
   }).catch(() => {
     superLigMatchContextRequests.delete(key);
   });

@@ -151,7 +151,7 @@ function teamAbbrev(name: string, tla?: string, teamId?: number): string {
 
 const NEXT_MATCH_LOOKAHEAD_DAYS = 7;
 const FOCUS_REFRESH_MIN_INTERVAL_MS = 10 * 60 * 1000;
-const DETAIL_CONTEXT_PREFETCH_LIMIT = 12;
+const DETAIL_CONTEXT_PREFETCH_LIMIT = 5;
 const DETAIL_CONTEXT_PREFETCH_BATCH_SIZE = 3;
 const LAUNCH_SPLASH_MIN_MS = 2500;
 const LAUNCH_SPLASH_MAX_MS = 5500;
@@ -1389,6 +1389,7 @@ export default function HomeScreen() {
     const candidates = sortedMatches.slice(0, DETAIL_CONTEXT_PREFETCH_LIMIT);
 
     async function warmDetailContexts() {
+      await new Promise<void>(resolve => setTimeout(resolve, 900));
       for (let i = 0; i < candidates.length; i += DETAIL_CONTEXT_PREFETCH_BATCH_SIZE) {
         if (cancelled || requestId !== loadSeq.current) return;
         const batch = candidates.slice(i, i + DETAIL_CONTEXT_PREFETCH_BATCH_SIZE);
