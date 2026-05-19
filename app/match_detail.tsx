@@ -434,6 +434,7 @@ export default function MatchDetail() {
     : getMotivationComment(homePos, awayPos, leagueApiId, {
         homePts, awayPts, homePlayed, awayPlayed, leaderPts, totalTeams,
         homeAbovePts, homeBelowPts, awayAbovePts, awayBelowPts, safetyPts,
+        homeName: displayHomeName, awayName: displayAwayName,
       });
   const drawAnalysis      = hasFormData ? getDrawAnalysis(oddsData, homeStats, awayStats) : '';
 

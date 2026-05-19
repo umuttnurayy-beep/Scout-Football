@@ -44,6 +44,8 @@ export interface MotivationContext {
   awayAbovePts?: number;
   awayBelowPts?: number;
   safetyPts?: number;
+  homeName?: string;
+  awayName?: string;
 }
 
 export interface ScoutPick {
@@ -1226,7 +1228,137 @@ function isGuaranteedRelegated(
   return pts + remaining * 3 < safetyPts;
 }
 
+// ─── Motivation: per-team helpers ──────────────────────────────────────────────
+
+function getLeagueEuroSpots(leagueApiId?: number): number {
+  if (leagueApiId === 203) return 4; // Süper Lig
+  return 6; // PL, La Liga, Bundesliga, Serie A, Ligue 1
+}
+
+// Returns position of the relegation play-off spot (null if no play-off in this league).
+function getLeaguePlayoffPos(leagueApiId?: number, totalTeams?: number): number | null {
+  if (!totalTeams) return null;
+  if (leagueApiId === 2002 || leagueApiId === 2015) return totalTeams - 2; // Bundesliga/Ligue1: pos 16
+  return null;
+}
+
+// First position that is AUTO-relegated (not play-off).
+function getAutoRelegStart(leagueApiId?: number, totalTeams?: number): number {
+  if (!totalTeams) return 18;
+  const hasPlayoff = leagueApiId === 2002 || leagueApiId === 2015;
+  return hasPlayoff ? totalTeams - 1 : totalTeams - 2; // Bundesliga → 17, PL → 18, SL → 16
+}
+
+function isChampionMath(
+  pos: number, pts: number, played: number, belowPts: number | undefined,
+  totalTeams?: number, leagueApiId?: number,
+): boolean {
+  if (pos !== 1 || belowPts === undefined) return false;
+  const rem = getRemainingMatches(played, totalTeams, leagueApiId);
+  if (rem === null) return false;
+  return belowPts + rem * 3 < pts;
+}
+
+function isEuropeConfirmedMath(
+  pos: number, pts: number, played: number, belowPts: number | undefined,
+  euroSpots: number, totalTeams?: number, leagueApiId?: number,
+): boolean {
+  if (pos > euroSpots || belowPts === undefined) return false;
+  const rem = getRemainingMatches(played, totalTeams, leagueApiId);
+  if (rem === null) return false;
+  return belowPts + rem * 3 < pts;
+}
+
+function motRemStr(played?: number, totalTeams?: number, leagueApiId?: number): string {
+  const rem = getRemainingMatches(played, totalTeams, leagueApiId);
+  if (rem === null || rem > 7) return '';
+  if (rem === 0) return ' — sezon tamamlandı';
+  return ` (${rem} maç kaldı)`;
+}
+
+function getTeamSituationText(
+  name: string,
+  pos: number,
+  pts: number,
+  played: number,
+  leaderPts: number | undefined,
+  abovePts: number | undefined,
+  belowPts: number | undefined,
+  safetyPts: number | undefined,
+  totalTeams: number | undefined,
+  leagueApiId: number | undefined,
+): string {
+  const euroSpots    = getLeagueEuroSpots(leagueApiId);
+  const playoffPos   = getLeaguePlayoffPos(leagueApiId, totalTeams);
+  const autoRelegStart = getAutoRelegStart(leagueApiId, totalTeams);
+  const dangerStart  = autoRelegStart - 2; // 2 above first auto-relegated
+  const remStr       = motRemStr(played, totalTeams, leagueApiId);
+  const rem          = getRemainingMatches(played, totalTeams, leagueApiId);
+
+  // 1. Matematiksel küme düşme kesinleşti
+  if (isGuaranteedRelegated(pos, pts, played, safetyPts, totalTeams, leagueApiId)) {
+    return `${name} matematiksel olarak küme düşmeyi kesinleştirdi — puan baskısı kalktı, rotasyon ve prestij ön plana çıkabilir`;
+  }
+
+  // 2. Şampiyonluk matematiksel olarak kesinleşti
+  if (isChampionMath(pos, pts, played, belowPts, totalTeams, leagueApiId)) {
+    return `${name} şampiyonluğu matematiksel olarak garantiledi — ekstra baskı unsuru yok, kadro yönetimi gündemde olabilir`;
+  }
+
+  // 3. Şampiyonluk yarışı açık
+  if (pos <= 3 && canReachTarget(pts, played, leaderPts, totalTeams, leagueApiId)) {
+    const gapStr = leaderPts != null && pos > 1
+      ? `, liderden ${leaderPts - pts} puan geride` : '';
+    const liderStr = pos === 1 ? 'liderliğini sürdürüyor' : 'şampiyonluk yarışının içinde';
+    return `${name} ${liderStr} (${pos}.${gapStr})${remStr} — bu puan üst sıra dengesini doğrudan etkiliyor`;
+  }
+
+  // 4. Avrupa yeri matematiksel olarak kesinleşti
+  if (isEuropeConfirmedMath(pos, pts, played, belowPts, euroSpots, totalTeams, leagueApiId)) {
+    const cupLabel = leagueApiId === 203
+      ? (pos === 1 ? 'Şampiyonlar Ligi' : pos <= 2 ? 'UCL eleme' : 'Avrupa kupası')
+      : (pos <= 4 ? 'UCL' : 'Avrupa kupası');
+    return `${name} ${cupLabel} yerini matematiksel olarak garantiledi — puan baskısı düşük, rotasyon gündeme gelebilir`;
+  }
+
+  // 5. Avrupa kupası yarışı (hattın içinde veya yakın)
+  if (pos <= euroSpots + 2) {
+    if (pos <= euroSpots) {
+      return `${name} Avrupa kupası hattında (${pos}.) — yer henüz garantilenmedi${remStr}, her puan kritik`;
+    }
+    return `${name} Avrupa kupası sınırının hemen dışında (${pos}.)${remStr} — sıkı bir yarış sürdürüyor`;
+  }
+
+  // 6. Küme düşme play-off bölgesi
+  if (playoffPos !== null && pos === playoffPos) {
+    return `${name} küme düşme play-off hattında (${pos}.)${remStr} — her puan kritik önem taşıyor`;
+  }
+
+  // 7. Otomatik küme düşme bölgesinde (kesinleşmemiş ama tehlikeli)
+  if (pos >= autoRelegStart) {
+    const deficit = safetyPts != null && safetyPts > pts ? safetyPts - pts : null;
+    const defStr = deficit != null ? `, güvenli hatta ${deficit} puan geride` : '';
+    return `${name} küme düşme bölgesinde (${pos}.${defStr})${remStr} — puan ihtiyacı baskılı ve riskli bir oyun planı getirebilir`;
+  }
+
+  // 8. Tehlike bölgesi (küme düşme hattına yakın)
+  if (pos >= dangerStart) {
+    const deficit = safetyPts != null && safetyPts > pts ? `, güvenli hatta ${safetyPts - pts} puan geride` : '';
+    return `${name} alt sıra baskısında (${pos}.${deficit})${remStr} — kurtarma mücadelesi sürdürüyor`;
+  }
+
+  // 9. Sıra oturmuş, yakın hedef kalmamış (sezon sonuna yakın)
+  if (hasMeaningfulGap(pts, played, abovePts, belowPts, totalTeams, leagueApiId)) {
+    const remLeft = rem !== null ? rem : '?';
+    return `${name} puan tablosunda oturmuş bir sırada (${pos}.) — ${remLeft} maç kaldı, yakın hedef alanı kapanmış görünüyor`;
+  }
+
+  // 10. Genel orta sıra — belirgin motivasyon sinyali yok
+  return `${name} puan tablosunda ${pos}. sırada`;
+}
+
 // Motivation commentary based on standings position and reachable targets.
+// Both teams are evaluated individually and combined into a single comment.
 export function getMotivationComment(
   homePos?: number,
   awayPos?: number,
@@ -1234,97 +1366,47 @@ export function getMotivationComment(
   context: MotivationContext = {},
 ): string | null {
   if (!homePos || !awayPos) return null;
-  const isUcl = leagueApiId === 2001;
   const {
     homePts, awayPts, homePlayed, awayPlayed, leaderPts, totalTeams,
     homeAbovePts, homeBelowPts, awayAbovePts, awayBelowPts, safetyPts,
+    homeName = 'Ev sahibi', awayName = 'Deplasman takımı',
   } = context;
-  const homeCanCatchLeader = homePos === 1 || canReachTarget(homePts, homePlayed, leaderPts, totalTeams, leagueApiId);
-  const awayCanCatchLeader = awayPos === 1 || canReachTarget(awayPts, awayPlayed, leaderPts, totalTeams, leagueApiId);
-  const homeSettled = hasMeaningfulGap(homePts, homePlayed, homeAbovePts, homeBelowPts, totalTeams, leagueApiId);
-  const awaySettled = hasMeaningfulGap(awayPts, awayPlayed, awayAbovePts, awayBelowPts, totalTeams, leagueApiId);
-  const homeRelegated = isGuaranteedRelegated(homePos, homePts, homePlayed, safetyPts, totalTeams, leagueApiId);
-  const awayRelegated = isGuaranteedRelegated(awayPos, awayPts, awayPlayed, safetyPts, totalTeams, leagueApiId);
-  const bottomStart = totalTeams && totalTeams >= 18 ? totalTeams - 3 : 17;
 
-  if (isUcl) {
+  // UCL lig aşaması — özel logic
+  if (leagueApiId === 2001) {
     if (homePos <= 8 && awayPos <= 8) {
-      return 'İki takım da UCL lig aşamasında ilk 8 hattında (' + homePos + '. vs ' + awayPos + '.). Direkt tur avantajı için puanlar değerli; motivasyon yüksek olabilir.';
+      return `${homeName} (${homePos}.) ve ${awayName} (${awayPos}.) her ikisi de UCL direkt Son 16 hattında. Her puan eşleşme kalitesini ve sıralamayı doğrudan belirliyor; motivasyon karşılıklı yüksek.`;
     }
     if (homePos <= 8 || awayPos <= 8) {
-      const side = homePos <= 8 ? 'Ev sahibi' : 'Deplasman takimi';
-      const pos = homePos <= 8 ? homePos : awayPos;
-      return side + " UCL'de ilk 8 hattında (" + pos + '). Direkt üst tur avantajını koruma motivasyonu öne çıkıyor.';
-    }
-    if (homePos >= 9 && homePos <= 24 && awayPos >= 9 && awayPos <= 24) {
-      return 'İki takım da UCL play-off hattında (' + homePos + '. vs ' + awayPos + '.). Sıralama avantajı ve eşleşme kalitesi için her puan değerli.';
+      const inName = homePos <= 8 ? homeName : awayName;
+      const inPos  = homePos <= 8 ? homePos  : awayPos;
+      const outName = homePos <= 8 ? awayName : homeName;
+      const outPos  = homePos <= 8 ? awayPos  : homePos;
+      const outZone = outPos <= 24 ? 'play-off hattında' : 'eleme hattının dışında';
+      return `${inName} (${inPos}.) direkt Son 16 hattında; ${outName} (${outPos}.) ${outZone}. Sıralama avantajı için bu puan ikisi için de değerli.`;
     }
     if (homePos > 24 || awayPos > 24) {
-      const side = homePos > 24 ? 'Ev sahibi' : 'Deplasman takimi';
-      const pos = homePos > 24 ? homePos : awayPos;
-      return side + " UCL'de eleme hattının dışında (" + pos + '). Puan ihtiyacı motivasyonu belirgin biçimde artırıyor.';
+      const outName = homePos > 24 ? homeName : awayName;
+      const outPos  = homePos > 24 ? homePos  : awayPos;
+      return `${outName} (${outPos}.) UCL eleme hattının dışında — ligde kalma motivasyonu son derece yüksek. Her puan kritik.`;
     }
+    return `${homeName} (${homePos}.) ve ${awayName} (${awayPos}.) UCL play-off hattında yarışıyor. Sıralama avantajı ve eşleşme kalitesi için her puan değerli.`;
   }
 
-  if (homeRelegated && awayRelegated) {
-    return 'İki takım için de ligde kalma hedefi matematiksel olarak kapanmış görünüyor. Bu noktada motivasyon puan ihtiyacından çok prestij, rotasyon ve sezonu iyi bitirme isteğiyle okunmalı.';
-  }
-  if (homeRelegated) {
-    return 'Ev sahibinin ligde kalma hedefi matematiksel olarak kapanmış görünüyor. Bu nedenle ekstra motivasyon avantajı otomatik olarak ev sahibine yazılmamalı; maç daha çok prestij, rotasyon ve reaksiyon kalitesi üzerinden okunmalı.';
-  }
-  if (awayRelegated) {
-    return 'Deplasman takımının ligde kalma hedefi matematiksel olarak kapanmış görünüyor. Bu tablo deplasman lehine ekstra puan motivasyonu üretmez; yorum prestij, rotasyon ve kalan sezon disiplini üzerinden yapılmalı.';
-  }
-  if (homeSettled && awaySettled) {
-    return 'Puan tablosunda iki tarafın da yakın hedef alanı daralmış görünüyor. Motivasyon daha çok prestij, rotasyon ve sezonu iyi bitirme isteği üzerinden okunmalı.';
-  }
-  if (homeSettled) {
-    return 'Ev sahibinin yakın sıralama hedefi matematiksel olarak daralmış görünüyor. Bu maçtaki motivasyon puan zorunluluğundan çok prestij ve sezonu güçlü bitirme tarafında.';
-  }
-  if (awaySettled) {
-    return 'Deplasman takımının yakın sıralama hedefi matematiksel olarak daralmış görünüyor. Bu yüzden puan ihtiyacı yorumu sınırlı; oyun planı prestij ve rotasyon etkisiyle şekillenebilir.';
-  }
+  const homeText = getTeamSituationText(
+    homeName, homePos, homePts ?? 0, homePlayed ?? 0,
+    leaderPts, homeAbovePts, homeBelowPts, safetyPts, totalTeams, leagueApiId,
+  );
+  const awayText = getTeamSituationText(
+    awayName, awayPos, awayPts ?? 0, awayPlayed ?? 0,
+    leaderPts, awayAbovePts, awayBelowPts, safetyPts, totalTeams, leagueApiId,
+  );
 
-  if (homePos <= 3 && awayPos <= 3) {
-    if (homeCanCatchLeader || awayCanCatchLeader) {
-      return 'İki takım da puan tablosunun zirvesinde (' + homePos + '. vs ' + awayPos + '). Liderlik/şampiyonluk hattı matematiksel olarak açıksa bu puanlar sezonun üst sırasını doğrudan etkileyebilir.';
-    }
-    return 'İki takım da üst sırada (' + homePos + '. vs ' + awayPos + '), ancak liderlik hedefi matematiksel olarak sınırlı görünüyor. Motivasyon daha çok sıralamayı koruma ve prestij tarafında.';
-  }
-  if (homePos <= 2) {
-    if (homeCanCatchLeader) {
-      return 'Ev sahibi lider grupta (' + homePos + '). Liderlik/şampiyonluk hedefi matematiksel olarak açıksa bu puan sezonun üst hattını şekillendirebilir.';
-    }
-    return 'Ev sahibi ' + homePos + '. sırada; lideri yakalama alanı sınırlı görünüyor. Motivasyon daha çok konumunu koruma ve sezonu güçlü bitirme tarafında.';
-  }
-  if (awayPos <= 2) {
-    if (awayCanCatchLeader) {
-      return 'Deplasman takımı lider grupta (' + awayPos + '). Liderlik/şampiyonluk hedefi matematiksel olarak açıksa puan ihtiyacı oyun planını daha atak hale getirebilir.';
-    }
-    return 'Deplasman takımı ' + awayPos + '. sırada; lideri yakalama alanı sınırlı görünüyor. Bu nedenle motivasyon daha çok mevcut konumu koruma ve prestij tarafında.';
-  }
-  if (homePos >= bottomStart && awayPos >= bottomStart) {
-    return 'Her iki takım da alt sıra baskısında (' + homePos + '. vs ' + awayPos + '). Bu tür maçlarda stres ve hata olasılığı artabilir.';
-  }
-  if (homePos >= bottomStart) {
-    return 'Ev sahibi alt sıra baskısında (' + homePos + '). Kendi sahasındaki puan ihtiyacı oyun planını daha cesur hale getirebilir.';
-  }
-  if (awayPos >= bottomStart) {
-    return 'Deplasman takımı alt sıra baskısıyla geliyor (' + awayPos + '). Puan ihtiyacı beklenmedik sonuç ihtimalini artırabilir.';
-  }
-  if (homeSettled && awaySettled) {
-    return 'Puan tablosunda iki tarafın da yakın hedef alanı daralmış görünüyor. Motivasyon daha çok prestij, rotasyon ve sezonu iyi bitirme üzerinden okunmalı.';
-  }
-  if (homePos >= 4 && homePos <= 7 && awayPos >= 4 && awayPos <= 7) {
-    return 'İki takım da Avrupa kupası sınırında yarışıyor (' + homePos + '. vs ' + awayPos + '). Bu eşleşme sezon sonu tablosunu doğrudan etkileyebilir.';
-  }
-  if (homePos >= 4 && homePos <= 7) {
-    return 'Ev sahibi Avrupa kupası sınırında (' + homePos + '). Bu puan sezon sonu hedeflerini belirleyebilir.';
-  }
-  if (awayPos >= 4 && awayPos <= 7) {
-    return 'Deplasman takımı Avrupa kupası için mücadele ediyor (' + awayPos + '). Sonuç odaklı, kompakt bir oyun planı öne çıkabilir.';
-  }
-  return null;
+  // Her iki takım da orta sırada, belirgin sinyal yok → kart gösterilmez
+  const MIDTABLE = 'puan tablosunda';
+  if (homeText.endsWith(`. sırada`) && awayText.endsWith(`. sırada`)) return null;
+
+  return `${homeText}. ${awayText}.`;
 }
 
 // Deep H2H analysis — over2.5%, BTTS%, recent trend, streak

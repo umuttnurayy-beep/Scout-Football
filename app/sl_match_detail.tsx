@@ -608,6 +608,7 @@ export default function SLMatchDetail() {
   const motivationComment = getMotivationComment(homePos, awayPos, leagueApiId, {
     homePts, awayPts, homePlayed, awayPlayed, leaderPts, totalTeams,
     homeAbovePts, homeBelowPts, awayAbovePts, awayBelowPts, safetyPts,
+    homeName: home, awayName: away,
   });
 
   if (!loading && !event) return (

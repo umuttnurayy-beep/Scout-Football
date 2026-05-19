@@ -143,30 +143,31 @@ describe('getMotivationComment — relegation scenarios', () => {
     // Both teams: pos 18/19, 5pts, 34 played, safetyPts=35 → can't reach 35 in 4 remaining
     const ctx = { ...BASE, homePts: 5, awayPts: 4, homePlayed: 34, awayPlayed: 34, safetyPts: 35, totalTeams: 20 };
     const result = getMotivationComment(18, 19, 2021, ctx);
-    expect(result).toContain('matematiksel olarak kapanmış');
-    expect(result).toContain('İki takım');
+    expect(result).toContain('kesinleştirdi');
+    expect(result).toContain('Ev sahibi');
+    expect(result).toContain('Deplasman takımı');
   });
 
   it('detects home team relegated, not away', () => {
     // Home: pos 18, 5pts, 34 played → can't reach safety. Away: pos 10, comfortable.
     const ctx = { ...BASE, homePts: 5, homePlayed: 34, safetyPts: 35, totalTeams: 20 };
     const result = getMotivationComment(18, 10, 2021, ctx);
-    expect(result).toContain('Ev sahibinin');
-    expect(result).toContain('matematiksel olarak kapanmış');
+    expect(result).toContain('Ev sahibi');
+    expect(result).toContain('kesinleştirdi');
   });
 
   it('detects away team relegated, not home', () => {
     const ctx = { ...BASE, awayPts: 3, awayPlayed: 34, safetyPts: 35, totalTeams: 20 };
     const result = getMotivationComment(10, 19, 2021, ctx);
-    expect(result).toContain('Deplasman takımının');
-    expect(result).toContain('matematiksel olarak kapanmış');
+    expect(result).toContain('Deplasman takımı');
+    expect(result).toContain('kesinleştirdi');
   });
 
   it('does NOT flag relegation early in the season', () => {
     // Only 10 played — too early, still 28 matches remaining
     const ctx = { ...BASE, homePts: 5, awayPts: 4, homePlayed: 10, awayPlayed: 10, safetyPts: 35, totalTeams: 20 };
     const result = getMotivationComment(18, 19, 2021, ctx);
-    expect(result).not.toContain('matematiksel olarak kapanmış');
+    expect(result).not.toContain('kesinleştirdi');
   });
 
   it('mid-table positions return null when no special case applies', () => {
@@ -176,7 +177,7 @@ describe('getMotivationComment — relegation scenarios', () => {
     // null is acceptable — no meaningful motivation signal for comfortable mid-table
     expect(result === null || typeof result === 'string').toBe(true);
     if (result !== null) {
-      expect(result).not.toContain('matematiksel olarak kapanmış');
+      expect(result).not.toContain('kesinleştirdi');
     }
   });
 });
@@ -195,7 +196,7 @@ describe('getMotivationComment — table positions', () => {
 
   it('title race — both in top 3 and can catch leader', () => {
     const result = getMotivationComment(1, 2, 2021, BASE);
-    expect(result).toContain('zirvesinde');
+    expect(result).toContain('liderliğini');
   });
 
   it('UCL contention', () => {
@@ -951,8 +952,8 @@ describe('buildScoutSummary — missing branches', () => {
 // ──────────────────────────────────────────────
 
 describe('getMotivationComment — UCL paths', () => {
-  it('both teams in top 8 → mentions ilk 8', () => {
-    expect(getMotivationComment(3, 7, 2001, {})).toContain('ilk 8');
+  it('both teams in top 8 → mentions Son 16', () => {
+    expect(getMotivationComment(3, 7, 2001, {})).toContain('Son 16');
   });
   it('one team in top 8, one in play-off → mentions 8', () => {
     expect(getMotivationComment(5, 18, 2001, {})).toContain('8');
@@ -970,19 +971,19 @@ describe('getMotivationComment — UCL paths', () => {
 // ──────────────────────────────────────────────
 
 describe('getMotivationComment — position coverage', () => {
-  it('homePos=1 alone → lider grupta message', () => {
+  it('homePos=1 alone → liderliğini message', () => {
     const r = getMotivationComment(1, 8, 2021, { homePts: 80, homePlayed: 30, leaderPts: 80, totalTeams: 20 });
-    expect(r).toContain('lider grupta');
+    expect(r).toContain('liderliğini');
   });
-  it('awayPos=1 alone → lider grupta message', () => {
+  it('awayPos=1 alone → liderliğini message', () => {
     const r = getMotivationComment(8, 1, 2021, { awayPts: 80, awayPlayed: 30, leaderPts: 80, totalTeams: 20 });
-    expect(r).toContain('lider grupta');
+    expect(r).toContain('liderliğini');
   });
-  it('homePos in relegation zone only → ev sahibi alt sıra', () => {
+  it('homePos in danger zone only → ev sahibi alt sıra baskısında', () => {
     expect(getMotivationComment(17, 8, 2021, { totalTeams: 20 })).toContain('alt sıra');
   });
-  it('awayPos in relegation zone only → deplasman alt sıra', () => {
-    expect(getMotivationComment(8, 19, 2021, { totalTeams: 20 })).toContain('alt sıra');
+  it('awayPos in auto-relegated zone only → küme düşme bölgesinde', () => {
+    expect(getMotivationComment(8, 19, 2021, { totalTeams: 20 })).toContain('küme düşme');
   });
   it('home in Europe zone alone → Avrupa kupası', () => {
     expect(getMotivationComment(5, 12, 2021, { totalTeams: 20 })).toContain('Avrupa');
