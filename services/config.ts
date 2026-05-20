@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 
-const DEFAULT_PROD_API_BASE_URL = 'https://scoutfootball-backend-production.up.railway.app';
+const DEFAULT_PROD_API_BASE_URL = 'https://scout-football-backend.onrender.com';
 const LOCAL_API_BASE_URL = 'http://localhost:3000';
 
 function readExtraString(key: string): string | undefined {
