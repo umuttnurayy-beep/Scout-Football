@@ -1,6 +1,6 @@
 # ScoutFootball
 
-ScoutFootball is an Expo React Native football analysis app backed by the Railway-hosted ScoutFootball API.
+ScoutFootball is an Expo React Native football analysis app backed by the Render-hosted ScoutFootball API.
 
 ## Development
 
@@ -45,5 +45,5 @@ eas build --profile production --platform all --auto-submit
 
 ## Backend
 
-Railway uses the `ScoutFootball-Backend` directory from this repository. Required service variables are documented in `ScoutFootball-Backend/.env.example`.
+Render runs the `ScoutFootball-Backend` service from this repository with `npm start`. Required service variables are documented in `ScoutFootball-Backend/.env.example`.
 Diagnostic endpoints such as `/push/status` require `DIAGNOSTICS_SECRET` via the `x-diagnostics-secret` header.

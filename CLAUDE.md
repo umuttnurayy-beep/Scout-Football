@@ -2,10 +2,10 @@
 
 ## Güncel Durum Notları (2026-05-07)
 
-- Railway backend artık ana GitHub reposuna bağlı: `umuttnurayy-beep/Scout-Football`, branch `main`, root directory `/ScoutFootball-Backend`.
+- Render backend artık ana GitHub reposuna bağlı: `umuttnurayy-beep/Scout-Football`, branch `main`, root directory `/ScoutFootball-Backend`.
 - Ayrık `ScoutFootball-Backend` reposu eski deploy kaynağı olarak kalabilir; aktif deploy akışı ana repo üzerinden yürümelidir.
-- Railway production variables: `ALLSPORTS_KEY`, `FOOTBALL_DATA_KEY`, `MONGODB_URI`, `ODDS_API_KEY`, `RAPID_API_KEY`, `WEATHER_KEY`.
-- `WEATHER_API_KEY` Railway build secret hatası verdiği için kullanılmıyor; backend `WEATHER_KEY` okur.
+- Render production variables: `ALLSPORTS_KEY`, `FOOTBALL_DATA_KEY`, `MONGODB_URI`, `ODDS_API_KEY`, `RAPID_API_KEY`, `WEATHER_KEY`.
+- `WEATHER_API_KEY` yerine backend `WEATHER_KEY` fallback'ini de okur.
 - Push token kaydı aktif: Expo `projectId` app config içinde, `/register-token` MongoDB `PushToken` koleksiyonuna yazar, `/push/status` ile kontrol edilir.
 - EAS project ID: `82f6a1df-704f-4f50-b813-3bc9b2e33e4e`.
 - iOS bundle id ve Android package: `com.umutnuray.scoutfootball`.
@@ -102,8 +102,8 @@ ScoutFootball-Backend/            ← Node.js + Express (backend)
 | Frontend | React Native + Expo SDK, expo-router (file-based routing) |
 | Dil | TypeScript (frontend) + JavaScript (backend) |
 | Backend | Node.js + Express |
-| Deployment | Railway (GitHub push → otomatik deploy) |
-| Önbellek | MongoDB (Railway eklentisi) + RAM fallback |
+| Deployment | Render (GitHub push → otomatik deploy) |
+| Önbellek | MongoDB + RAM fallback |
 | Tema | Context API + AsyncStorage (light/dark/system) |
 | Bildirimler | expo-notifications (local scheduling + push token kaydı) |
 | Test | Expo Go (fiziksel telefon) |
@@ -113,13 +113,13 @@ ScoutFootball-Backend/            ← Node.js + Express (backend)
 
 ## Backend
 
-**URL:** `https://scoutfootball-backend-production.up.railway.app`
+**URL:** `https://scout-football-backend.onrender.com`
 
 **GitHub:** `umuttnurayy-beep/Scout-Football` (branch: `main`, root directory: `/ScoutFootball-Backend`)
 
-Railway, ana repo `main` branch'ine push gelince `/ScoutFootball-Backend` klasöründen otomatik deploy eder. Deploy genelde 1-2 dakika sürer.
+Render, ana repo `main` branch'ine push gelince `/ScoutFootball-Backend` servisini `npm start` ile otomatik deploy eder.
 
-### Ortam Değişkenleri (Railway)
+### Ortam Değişkenleri (Render)
 
 | Değişken | Kaynak |
 |---|---|
@@ -127,7 +127,7 @@ Railway, ana repo `main` branch'ine push gelince `/ScoutFootball-Backend` klasö
 | `WEATHER_KEY` | WeatherAPI.com |
 | `ODDS_API_KEY` | The Odds API |
 | `THESPORTSDB_KEY` | TheSportsDB (Süper Lig — ücretsiz plan için `3` veya premium key) |
-| `MONGODB_URI` | Railway MongoDB eklentisi |
+| `MONGODB_URI` | MongoDB bağlantısı |
 | `RAPID_API_KEY` | API-Football / RapidAPI |
 | `ALLSPORTS_KEY` | AllSports API (korner + possession için) |
 
@@ -537,7 +537,7 @@ Sarı:            #E6A817
 ```
 
 ### Veri Akışı Kuralı
-`services/api.ts` → backend URL → Railway → harici API  
+`services/api.ts` → backend URL → Render → harici API  
 Harici API'lere frontend'den **doğrudan istek atılmaz**. Her şey backend üzerinden geçer.
 
 ### Analiz ve Yorum Kuralı
@@ -573,7 +573,7 @@ Mevcut sürümler:
 ### Backend'e Yeni Endpoint Ekleme
 1. `routes/` veya `app.js`'e endpoint ekle
 2. `services/api.ts`'e karşılık gelen fonksiyonu ekle
-3. `git add ... && git commit && git push` (Railway otomatik deploy eder)
+3. `git add ... && git commit && git push` (Render otomatik deploy eder)
 4. Frontend değişikliklerini ayrı commit'te yapabilirsin
 
 ---
@@ -622,7 +622,7 @@ npx expo start
 # TypeScript kontrolü
 npx tsc --noEmit --skipLibCheck
 
-# Backend/frontend push (Railway backend'i otomatik deploy eder)
+# Backend/frontend push (Render backend'i otomatik deploy eder)
 git add <dosyalar>
 git commit -m "..."
 git push

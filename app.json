@@ -85,7 +85,7 @@
     },
     "extra": {
       "router": {},
-      "apiBaseUrl": "https://scoutfootball-backend-production.up.railway.app",
+      "apiBaseUrl": "https://scout-football-backend.onrender.com",
       "footballSeason": "2025",
       "displayFootballSeason": "2025/26",
       "eas": {

@@ -2,7 +2,7 @@
 
 const fetch = require('node-fetch');
 
-const DEFAULT_BASE_URL = 'https://scoutfootball-backend-production.up.railway.app';
+const DEFAULT_BASE_URL = 'https://scout-football-backend.onrender.com';
 const baseUrl = (process.env.SCOUT_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, '');
 const diagnosticsSecret = process.env.DIAGNOSTICS_SECRET;
 

@@ -2,7 +2,7 @@
 
 const fetch = require('node-fetch');
 
-const DEFAULT_BASE_URL = 'https://scoutfootball-backend-production.up.railway.app';
+const DEFAULT_BASE_URL = 'https://scout-football-backend.onrender.com';
 const DEFAULT_TEAM_IDS = [138092, 133794]; // Gaziantep FK, Besiktas
 
 const baseUrl = (process.env.SCOUT_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, '');

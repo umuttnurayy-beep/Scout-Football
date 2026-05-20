@@ -2,7 +2,7 @@
 
 const fetch = require('node-fetch');
 
-const DEFAULT_BASE_URL = 'https://scoutfootball-backend-production.up.railway.app';
+const DEFAULT_BASE_URL = 'https://scout-football-backend.onrender.com';
 const SUPPORTED_COMPETITIONS = new Set([2021, 2014, 2002, 2019, 2015, 2001]);
 const SUPER_LIG_CONTEXT_TEAM_ID = 138092; // Gaziantep FK, often exposes limited SportsDB form data.
 

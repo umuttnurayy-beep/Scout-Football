@@ -61,6 +61,6 @@ Bu checklist, son değişikliklerde dokunulan ana ekran veri uyarıları, maç d
 ## Deploy Öncesi Son Kontrol
 
 - [ ] `git status --short` ile yeni dosyaların commit kapsamına dahil olduğu doğrulandı.
-- [ ] Railway deploy kuyruğu normal durumda.
+- [ ] Render deploy durumu normal.
 - [ ] Production `/health` endpoint'i `ok` dönüyor.
 - [ ] Production smoke testi gerekiyorsa backend smoke scriptleri prod URL ile çalıştırıldı.
