@@ -129,6 +129,15 @@ export async function registerPushToken(
 
 // ── Time helpers ──────────────────────────────────────────────────────────────
 
+// Bugünün saat 12:00'ine kadar saniye — geçtiyse null döner
+function secondsUntilTodayNoon(): number | null {
+  const now = new Date();
+  const noon = new Date();
+  noon.setHours(DAILY_NOTIFICATION_HOUR, 0, 0, 0);
+  const diff = Math.floor((noon.getTime() - now.getTime()) / 1000);
+  return diff > 30 ? diff : null;
+}
+
 // Maçtan minutesBefore dk önceye kadar saniye — geçtiyse veya bugün değilse null döner
 function secondsUntilReminder(timeStr: string, minutesBefore: number, matchDate?: string): number | null {
   const now = new Date();
@@ -172,45 +181,45 @@ export async function scheduleNotifications(
     }
   }
 
-  // 1. Günlük analiz — saat 12:00, her gün tekrar eden
-  if (prefs.daily) {
-    let body = `Bugün ${data.matchCount} maç var.`;
-    if (data.scoutPick) {
-      body = `${data.matchCount} maç · ${data.scoutPick.home} - ${data.scoutPick.away} öne çıkıyor`;
+  // 1. Günlük analiz — bugünün 12:00'ine one-time, maç yoksa zamanlanmaz
+  await Notifications.cancelScheduledNotificationAsync(DAILY_ID);
+  if (prefs.daily && data.matchCount > 0) {
+    const secs = secondsUntilTodayNoon();
+    if (secs !== null) {
+      let body = `Bugün ${data.matchCount} maç var.`;
+      if (data.scoutPick) {
+        body = `${data.matchCount} maç · ${data.scoutPick.home} - ${data.scoutPick.away} öne çıkıyor`;
+      }
+      await Notifications.scheduleNotificationAsync({
+        identifier: DAILY_ID,
+        content: { title: 'Bugünün analizleri hazır ⚽', body, sound: false },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: secs,
+        },
+      });
     }
-    await Notifications.cancelScheduledNotificationAsync(DAILY_ID);
-    await Notifications.scheduleNotificationAsync({
-      identifier: DAILY_ID,
-      content: { title: 'Bugünün analizleri hazır ⚽', body, sound: false },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: DAILY_NOTIFICATION_HOUR,
-        minute: 0,
-      },
-    });
-  } else {
-    await Notifications.cancelScheduledNotificationAsync(DAILY_ID);
   }
 
-  // 2. Öne çıkan maç — saat 12:00, yalnızca daily kapalıysa ayrı gönderilir, her gün tekrar eden
-  if (prefs.featured && !prefs.daily && data.scoutPick) {
-    const { home, away } = data.scoutPick;
-    await Notifications.cancelScheduledNotificationAsync(FEATURED_ID);
-    await Notifications.scheduleNotificationAsync({
-      identifier: FEATURED_ID,
-      content: {
-        title: 'Günün öne çıkan maçı ⭐',
-        body: `${home} - ${away} · Scout analizini incele`,
-        sound: false,
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: DAILY_NOTIFICATION_HOUR,
-        minute: 0,
-      },
-    });
-  } else if (!prefs.featured) {
-    await Notifications.cancelScheduledNotificationAsync(FEATURED_ID);
+  // 2. Öne çıkan maç — bugünün 12:00'ine one-time, yalnızca daily kapalıysa ve maç varsa
+  await Notifications.cancelScheduledNotificationAsync(FEATURED_ID);
+  if (prefs.featured && !prefs.daily && data.scoutPick && data.matchCount > 0) {
+    const secs = secondsUntilTodayNoon();
+    if (secs !== null) {
+      const { home, away } = data.scoutPick;
+      await Notifications.scheduleNotificationAsync({
+        identifier: FEATURED_ID,
+        content: {
+          title: 'Günün öne çıkan maçı ⭐',
+          body: `${home} - ${away} · Scout analizini incele`,
+          sound: false,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: secs,
+        },
+      });
+    }
   }
 
   // 3. Maç hatırlatması — maçtan 30 dk önce (favori + watchlist)
