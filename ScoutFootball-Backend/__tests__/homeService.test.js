@@ -72,6 +72,7 @@ function createService(overrides = {}) {
     }),
     hasMatchTeamNames: match => Boolean(match.homeTeam?.name && match.awayTeam?.name),
     isLiveStatus: status => ['IN_PLAY', 'PAUSED'].includes(String(status || '').toUpperCase()),
+    TTL: { matchday: 10 * 60 * 1000 },
     ttlForMatchDate: () => 60000,
     warmMatchContexts: overrides.warmMatchContexts || (async payload => {
       calls.warmups.push(payload);
@@ -179,7 +180,7 @@ describe('homeService', () => {
 
   test('reuses cached future home payload for nextPreview before hitting upstream again', async () => {
     const cache = createMemoryCache({
-      'home_v4_2026-05-02': {
+      'home_v13_2026-05-02': {
         date: '2026-05-02',
         matches: [
           fdMatch(21, 2014, 'Girona', 'Mallorca'),
@@ -215,7 +216,7 @@ describe('homeService', () => {
 
   test('derives sourceSeverity from legacy cached payloads without explicit severity', async () => {
     const cache = createMemoryCache({
-      'home_v4_2026-05-01': {
+      'home_v13_2026-05-01': {
         date: '2026-05-01',
         matches: [fdMatch(1, 2021, 'Leeds', 'Burnley')],
         superLigMatches: [],
@@ -248,7 +249,7 @@ describe('homeService', () => {
       generatedAt: '2026-05-01T00:00:00.000Z',
     };
     const cache = createMemoryCache({
-      'home_last_good_v4_2026-05-01': stalePayload,
+      'home_last_good_v13_2026-05-01': stalePayload,
     });
     const { service } = createService({
       cache,
@@ -286,7 +287,7 @@ describe('homeService', () => {
 
   test('does not overwrite the stable featured match when the main feed is partial', async () => {
     const cache = createMemoryCache({
-      'home_featured_v3_2026-05-01': 201401,
+      'home_featured_v4_2026-05-01': 201401,
     });
     const { service } = createService({
       cache,
@@ -298,9 +299,9 @@ describe('homeService', () => {
 
     const partial = await service.buildHome('2026-05-01');
     expect(partial.data.featuredMatchId).toBe(201401);
-    expect(cache.store.get('home_featured_v3_2026-05-01')).toBe(201401);
+    expect(cache.store.get('home_featured_v4_2026-05-01')).toBe(201401);
 
-    cache.store.delete('home_v4_2026-05-01');
+    cache.store.delete('home_v13_2026-05-01');
     const recovered = createService({
       cache,
       fdByDate: {
@@ -320,7 +321,7 @@ describe('homeService', () => {
 
   test('ignores legacy featured locks from older scoring versions', async () => {
     const cache = createMemoryCache({
-      'home_featured_v2_2026-05-03': 2283056,
+      'home_featured_v3_2026-05-03': 2283056,
     });
     const { service } = createService({
       cache,
@@ -338,7 +339,7 @@ describe('homeService', () => {
     const res = await service.buildHome('2026-05-03');
 
     expect(res.data.featuredMatchId).toBe(538132);
-    expect(cache.store.get('home_featured_v3_2026-05-03')).toBe(538132);
+    expect(cache.store.get('home_featured_v4_2026-05-03')).toBe(538132);
   });
 
   test('warms featured and top scout match contexts after fresh home build', async () => {
@@ -392,7 +393,7 @@ describe('homeService', () => {
     const res = await service.buildHome('2026-05-01');
 
     expect(res.data.featuredMatchId).toBeNull();
-    expect(cache.store.get('home_featured_v3_2026-05-01')).toBeUndefined();
+    expect(cache.store.get('home_featured_v4_2026-05-01')).toBeUndefined();
   });
 
   test('returns standings issue when standings fetch fails but payload still exists', async () => {

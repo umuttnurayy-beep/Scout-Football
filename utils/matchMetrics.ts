@@ -455,8 +455,13 @@ export function mapSLMatch(m: SLMatch): Match {
 }
 
 export function mapMatch(m: FDMatch): Match {
-  const finished = m.status === 'FINISHED';
   const fh = m.score?.fullTime?.home, fa = m.score?.fullTime?.away;
+  const hasFullTimeScore = fh !== null && fh !== undefined && fa !== null && fa !== undefined;
+  const status = String(m.status || '').toUpperCase();
+  const matchDay = String(m.utcDate || '').split('T')[0];
+  const today = new Date().toISOString().split('T')[0];
+  const isPastMatchDay = Boolean(matchDay) && matchDay < today;
+  const finished = status === 'FINISHED' || (isPastMatchDay && hasFullTimeScore);
   return {
     id:          m.id,
     leagueApiId: m.competition?.id || 0,
@@ -466,7 +471,7 @@ export function mapMatch(m: FDMatch): Match {
     homeTla:     (m.homeTeam as any)?.tla || undefined,
     awayTla:     (m.awayTeam as any)?.tla || undefined,
     time:        formatTime(m.utcDate),
-    score:       finished && fh !== null && fh !== undefined ? `${fh} - ${fa}` : null,
+    score:       finished && hasFullTimeScore ? `${fh} - ${fa}` : null,
     finished,
     city:        getCityForTeam(m.homeTeam?.name || ''),
     utcDate:     m.utcDate,

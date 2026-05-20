@@ -266,6 +266,7 @@ const homeService = createHomeService({
   fetchStandingsForLeague: fdService.fetchStandingsForLeague,
   hasMatchTeamNames,
   isLiveStatus,
+  TTL,
   ttlForMatchDate,
   buildHistory,
   warmMatchContexts: warmHomeMatchContexts,

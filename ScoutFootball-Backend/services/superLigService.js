@@ -517,16 +517,16 @@ function createSuperLigService({
       if (isPastDate) {
         const pastCacheKey = `superlig_past_season_v2_${currentSportsDbSeason}`;
         let pastEvents = await getCache(pastCacheKey);
-        if (!pastEvents) {
+        if (!Array.isArray(pastEvents)) {
           const pastData = await upstream.fetchJson(
             `${sportsDbBase}/eventspastleague.php?l=${slLeagueId}&s=${currentSportsDbSeason}`,
             {},
             'sportsdb superlig past season events',
           ).catch(() => ({ events: [] }));
-          pastEvents = pastData.events || [];
+          pastEvents = Array.isArray(pastData.events) ? pastData.events : [];
           if (pastEvents.length > 0) await setCache(pastCacheKey, pastEvents, TTL.pastMatches);
         }
-        const dayPastEvents = (pastEvents || []).filter(e => e.dateEvent === d);
+        const dayPastEvents = pastEvents.filter(e => e.dateEvent === d);
         if (dayPastEvents.length > 0) {
           let result = dayPastEvents.map(mapSportsDbEvent);
           if (result.some(m => m.homeScore === null)) {

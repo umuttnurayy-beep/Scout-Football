@@ -1022,6 +1022,17 @@ describe('mapMatch', () => {
     expect(mapMatch(m).score).toBe('2 - 1');
   });
 
+  test('past match with a full-time score is resolved even when status is not FINISHED', () => {
+    const m = makeFDMatch({
+      status: 'CANCELLED',
+      utcDate: '2026-05-17T19:00:00Z',
+      score: { fullTime: { home: 0, away: 0 } },
+    });
+    const result = mapMatch(m);
+    expect(result.finished).toBe(true);
+    expect(result.score).toBe('0 - 0');
+  });
+
   test('finished flag matches status', () => {
     expect(mapMatch(makeFDMatch({ status: 'FINISHED' })).finished).toBe(true);
     expect(mapMatch(makeFDMatch({ status: 'SCHEDULED' })).finished).toBe(false);

@@ -153,6 +153,7 @@ const NEXT_MATCH_LOOKAHEAD_DAYS = 7;
 const FOCUS_REFRESH_MIN_INTERVAL_MS = 10 * 60 * 1000;
 const DETAIL_CONTEXT_PREFETCH_LIMIT = 5;
 const DETAIL_CONTEXT_PREFETCH_BATCH_SIZE = 3;
+const HOME_PREFETCH_RADIUS_DAYS = 1;
 const LAUNCH_SPLASH_MIN_MS = 2500;
 const LAUNCH_SPLASH_MAX_MS = 5500;
 const PENDING_METRICS: Metrics = {
@@ -763,6 +764,7 @@ export default function HomeScreen() {
   const latestStandingsMapRef = useRef<Record<number, Standing[]>>({});
   const lastHomeLoadAtByDate = useRef<Record<string, number>>({});
   const warmedDetailContextsRef = useRef<Set<string>>(new Set());
+  const prefetchedHomeDatesRef = useRef<Set<string>>(new Set());
   const [weeklyAcc, setWeeklyAcc] = useState<{ correct: number; total: number; pct: number; allTotal: number; label: string } | null>(null);
   const [wcMatches, setWcMatches] = useState<Match[]>([]);
   const [wcMatchesLoading, setWcMatchesLoading] = useState(false);
@@ -951,6 +953,7 @@ export default function HomeScreen() {
           notice: null,
           persist: true,
         });
+        scheduleNearbyHomePrefetch(date);
         return;
       }
 
@@ -987,6 +990,38 @@ export default function HomeScreen() {
         if (!silent) setLoading(false);
         setRefreshing(false);
       }
+    }
+  }
+
+  function offsetDateKey(date: Date, offset: number) {
+    const next = new Date(date);
+    next.setDate(next.getDate() + offset);
+    return formatDateParam(next);
+  }
+
+  function scheduleNearbyHomePrefetch(date: Date) {
+    const targets: string[] = [];
+    for (let offset = -HOME_PREFETCH_RADIUS_DAYS; offset <= HOME_PREFETCH_RADIUS_DAYS; offset += 1) {
+      if (offset !== 0) targets.push(offsetDateKey(date, offset));
+    }
+
+    setTimeout(() => {
+      targets.forEach(dateStr => {
+        if (prefetchedHomeDatesRef.current.has(dateStr)) return;
+        prefetchedHomeDatesRef.current.add(dateStr);
+        void prefetchHomeData(dateStr);
+      });
+    }, 600);
+  }
+
+  async function prefetchHomeData(dateStr: string) {
+    try {
+      if (await readHomeDataCache(dateStr)) return;
+      const homeData = await getHomeData(dateStr);
+      if (!homeData || homeData.sourceSeverity === 'error') return;
+      await AsyncStorage.setItem(`${HOME_DATA_CACHE_KEY}:${dateStr}`, JSON.stringify(homeData));
+    } catch {
+      prefetchedHomeDatesRef.current.delete(dateStr);
     }
   }
 

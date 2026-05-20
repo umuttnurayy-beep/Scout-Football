@@ -89,6 +89,7 @@ function createHomeService(deps) {
     fetchStandingsForLeague,
     hasMatchTeamNames,
     isLiveStatus,
+    TTL,
     ttlForMatchDate,
     buildHistory,
     warmMatchContexts,
